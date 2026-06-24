@@ -1,0 +1,58 @@
+{
+  "address": "000214ad",
+  "name_current": "fd2_execute_offensive_single_target_spell_id_9",
+  "name_final": "fd2_execute_offensive_single_target_spell_id_9",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Convention-compliant fd2_<domain>_<descriptor> game function. The '_id_9' suffix is a meaningful spell domain ID (spell ids 00h-23h), not an address residue: the literal 9 is baked into the body (PUSH 0x9 at the impact-animation, MP-deduct, and damage-calc call sites). spell id 9 = 咒殺術, an attack spell with AoE radius 範圍=0, which is exactly why this is a dedicated SINGLE-TARGET worker (no per-target loop; only target[0] is damaged). 'execute_offensive_single_target_spell' accurately describes the behavior.",
+  "kind": "function",
+  "home": "src/spell/spelleff.c",
+  "purpose": "Dedicated single-target offensive spell worker for spell id 9 (咒殺術, AoE radius 0): animate impact, deduct MP, apply magic damage to target[0], show damage/miss, composite frame, animate projectile paths.",
+  "logic_summary": "__CHK(0x18) stack probe. Reset data_fd2_battle_spell_aoe_count_and_fx_queue_idx=0. fd2_animate_spell_impact_per_target(caster, 9, n_targets, target_id_array) -- the 2nd param (target count) is forwarded as the impact animation's 3rd arg so the sprite covers all selected targets even though only target[0] is hit. fd2_deduct_caster_mp(caster, 9). damage = fd2_calc_magic_damage(target_id_array[0], 9). If damage==0 -> fd2_show_miss_indicator(target[0]); else fd2_show_damage_number(damage, 0x5E='^', target[0]). fd2_composite_battle_frame(0); fd2_animate_spell_projectile_paths(). Explicit POP EBX / RET (does NOT borrow the 0x21190 shared epilogue, unlike looping siblings 0x21227 / 0x213B7).",
+  "signature": "void __cdecl fd2_execute_offensive_single_target_spell_id_9(int caster_unit_id, int spell_arg, uint8 *target_id_array)",
+  "params": [
+    {
+      "name": "caster_unit_id",
+      "type": "int",
+      "semantics": "Caster runtime_char index; passed as arg1 to fd2_animate_spell_impact_per_target and fd2_deduct_caster_mp.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects use (caster unit index) and carries no address residue."
+    },
+    {
+      "name": "spell_arg",
+      "type": "int",
+      "semantics": "Number of selected targets. Forwarded verbatim as the 3rd arg (n_targets slot) to fd2_animate_spell_impact_per_target so the impact sprite covers every selected target, even though only target[0] is damaged. The Ghidra plate already notes 'spell_arg (Ghidra var name) = actually n_targets'.",
+      "verdict": "rename",
+      "proposed": "n_targets",
+      "reason": "Current name is generic/misleading -- 'spell_arg' implies a spell parameter, but the value is the selected-target count (the n_targets slot of the impact animation, matching how every sibling worker e.g. fd2_execute_offensive_targeted_spell names this positional param 'n_targets'). Rename recorded only; applied in Stage 2."
+    },
+    {
+      "name": "target_id_array",
+      "type": "uint8 *",
+      "semantics": "Pointer to a byte array of selected target unit ids; only [0] is consumed by the damage calc / miss / damage-number calls.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects the byte-array-of-target-ids role; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; drives visual presentation + state mutation (MP deduct, HP via fd2_calc_magic_damage, fx queue)."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_battle_spell_aoe_count_and_fx_queue_idx"
+  ],
+  "comment_original_issue": "EAX-forwarding paragraph anchored the intervening-instruction range at 0x21513, which is actually the ADD ESP,0xc AFTER the fd2_calc_magic_damage call; the real intervening instructions are 0x21507 MOVZX EBX / 0x2150B PUSH 0x5E before 0x2150D PUSH EAX. Also missing the game-data rationale (spell 9 = 咒殺術, AoE radius 0) that explains why it is single-target.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "b092972d59c0368818b6abca0190aef268ed9dfb",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Function reached ONLY via spell dispatch table @ 0x51D01 entry index 9 (0x51D01 + 0x24 = 0x51D25; confirmed: table[9] little-endian bytes 'ad 14 02 00' = 0x214AD; get_xrefs_to returns only 'From 00051d25 [DATA]'). Disassembly verified: explicit POP EBX/RET at 0x21526 (not a shared-epilogue tail jump), no second blink/flash animation, only target[0] consumed. KB cross-check: spell 9 = 咒殺術 攻擊法術, 範圍(AoE)=0, MP=30, 命中%=50, 最大傷害=999 -- single-target by design. No logic/equivalence concerns. Plate left unchanged (consistent with refined understanding, already notes spell_arg==n_targets)."
+}

@@ -1,0 +1,56 @@
+{
+  "address": "0004e809",
+  "name_current": "fd2_scroll_buffer_block_with_wrap",
+  "name_final": "fd2_scroll_buffer_block_with_wrap",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=scroll/buffer graphics, descriptor accurately states the double-wrap block copy). No Ghidra address residue. Disassembly + caller context confirm the name reflects the actual 2D circular-window scroll copy.",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "Vertical-scroll block copy with a double (column + row) wrap: copies a 0xC0-row x 0x138-col window from src_buf into dst_buf (both inset at +0x504), using wrap_param's low byte as both the column-wrap modulus and the row-wrap counter to read the source as circular in both dimensions.",
+  "logic_summary": "src_row = src_buf + 0x504; dst_iter = dst_buf + 0x504; row_wrap_advance = (uint16)(0x140 * (uint16)wrap_param). Outer loop 0xC0 (192) rows: per row reset col_remain=0x138 (312), src_iter=src_row, col_wrap_iter=(byte)wrap_param; inner col loop copies *dst_iter++ = *src_iter, decrementing col_wrap_iter and when it hits 0 advancing src_iter += wrap_param (full 32-bit) and reloading col_wrap_iter (column wrap point). After the row, dst_iter += 8 (dst already one-past-last written byte, so consecutive rows are exactly 0x140 apart: 312 written + 8). Decrement wrap_remain; when it hits 0, reload it from (byte)wrap_param and advance src_row += row_wrap_advance (row wrap point). Disassembly confirms: 16-bit MUL 0x140*BX kept in BP, ADD ESI,EBX for column wrap, ADD EDI,0x8 inter-row step, AH/DH/DL byte counters.",
+  "signature": "void __cdecl fd2_scroll_buffer_block_with_wrap(uint32 wrap_param, void *dst_buf, void *src_buf)",
+  "params": [
+    {
+      "name": "wrap_param",
+      "type": "uint32",
+      "semantics": "Low byte = column-wrap modulus AND row-wrap counter (size byte). The slide-in caller ramps it 1..16, the slide-out caller ramps it 16..1, driving the vertical text-slide effect. Used three ways: column wrap reload (byte), row wrap counter reload (byte), and the source advance amount (full 32-bit add for column wrap; *0x140 16-bit MUL for row wrap).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately describes the multi-purpose wrap/size byte; no address residue; matches EBX usage in the binary and caller's scroll_offset value."
+    },
+    {
+      "name": "dst_buf",
+      "type": "void *",
+      "semantics": "Destination buffer base (the 64000-byte scratch/snapshot buffer in both callers); written from inset +0x504, rows stepped 0x140 apart via the +8 gap. Maps to EDI.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, convention-compliant; matches caller passing the malloc'd scratch buffer as the copy destination."
+    },
+    {
+      "name": "src_buf",
+      "type": "void *",
+      "semantics": "Source buffer base, read with a circular layout in both dimensions (the large game-state working buffer in both callers); read from inset +0x504. Maps to ESI.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, convention-compliant; matches caller passing data_fd2_large_game_state_buffer_ptr as the scroll source."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Ghidra's in_EAX passthrough is a signature artifact (PUSHAD/POPAD wrap the body); callers discard."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (blitspr.c lines 645-725) is already precise, ASCII, and byte-accurate vs the binary (verified against disassembly: 16-bit MUL row advance kept to BP, full-32-bit column advance via ADD ESI,EBX, ADD EDI,8 inter-row gap, AH/DH/DL byte counters). Ghidra plate is consistent (same algorithm). Both callers (fd2_animate_phase_banner_slide_in @ 0x1f1cc, fd2_animate_phase_banner_slide_out @ 0x1f30a) confirm (wrap_param=scroll_offset, dst=scratch buffer, src=large game state buffer) and the PLAYER/ENEMY TURN banner slide use. No edit to source needed; clean keep across name, params, and comment."
+}

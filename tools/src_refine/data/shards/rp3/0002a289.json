@@ -1,0 +1,51 @@
+{
+  "address": "0002a289",
+  "name_current": "fd2_flash_char_hit_sprite",
+  "name_final": "fd2_flash_char_hit_sprite",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name follows the fd2_<descriptor> game-function convention and accurately reflects the logic: it paints the per-frame 'character takes damage' flash sprite/overlay for one runtime char. No Ghidra address residue. Sibling battle/animation helpers in battle.c use the same fd2_<verb>_<descriptor> form (fd2_render_mini_char_status_panel, fd2_play_figani_animation_loop, fd2_blit_indexed_sprite).",
+  "kind": "function",
+  "home": "src/battle/battle.c",
+  "purpose": "Paint a quick 'character takes damage' flash overlay onto a work buffer at the screen position appropriate for the target's team (and a chapter-24 special-case), delegating the actual paint to fd2_render_mini_char_status_panel.",
+  "logic_summary": "screen_off defaults by team: runtime_char_array[char_unit_id].team == 0 (enemy) -> 0xC080 (lower-half panel, mode-13h byte offset = row 152 in a 0x140-stride buffer); else (ally/player) -> 0x05AB (upper-area panel, ~row 4). Override: if current_chapter_id == 0x18 (chapter 24) AND char_unit_id == 0x11 (story NPC Sumeti, who fights on the enemy side that chapter), force screen_off = 0xC080. Then call fd2_render_mini_char_status_panel(workspace_buf + screen_off, 0x140, char_unit_id). __CHK(0x10) frame check at entry. No return value; cyclomatic complexity 4.",
+  "signature": "void __cdecl fd2_flash_char_hit_sprite(uint32 workspace_buf, uint32 char_unit_id)",
+  "params": [
+    {
+      "name": "workspace_buf",
+      "type": "uint32",
+      "semantics": "Base linear address of the offscreen mode-13h work buffer (0x140-byte row stride) the flash is painted into. Callers pass a malloc'd animation work buffer (pAnimWorkBuf1 / dst, e.g. malloc(64000)) from the special-attack / FIGANI cinematic routines. screen_off is added to this base before dispatch.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately describes the value (the work/back buffer base address). No address residue; matches caller usage. src and Ghidra both already use workspace_buf."
+    },
+    {
+      "name": "char_unit_id",
+      "type": "uint32",
+      "semantics": "Index into the runtime character array (data_fd2_battle_runtime_char_array_ptr, 0x50-byte stride). Used to read .team (offset 0x0E) for team-based positioning and compared against 0x11 for the chapter-24 override; passed through to fd2_render_mini_char_status_panel as the char to render. Callers pass caster_idx, *target_idx_buf, or target_idx_buf[i].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects usage (a runtime-char-array unit index). The 0x11 it is compared against is a meaningful domain char ID (Sumeti), not an address residue, so no part of the name needs changing. src and Ghidra both already use char_unit_id."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: blits a got-hit flash frame for char_unit_id into workspace_buf at the team/chapter-selected screen offset via fd2_render_mini_char_status_panel."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "None. Existing src comment block was already concise and correct: states the purpose (paint a 'character takes damage' flash overlay), the team-based routing (enemy->lower, ally->upper), and the chapter-24 / char 0x11 (Sumeti) override to enemy position. Matches the decompilation exactly.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against: Ghidra decompile of fd2_flash_char_hit_sprite (matches src logic exactly: team==0 -> 0xC080 else 0x05AB; ch24 && idx 0x11 -> 0xC080; dispatch to fd2_render_mini_char_status_panel(buf+off, 0x140, idx)); a representative caller fd2_execute_special_attack_skill @ 0x276EC (passes malloc'd pAnimWorkBuf1 as workspace_buf and caster_idx / target_idx_buf[i] as char_unit_id, confirming param semantics); fd2-knowledge runtime_char struct (0x0E = team 00=enemy/01=ally/02=player, 80-byte stride) confirming the team read; chapter 24 (0x18) is a real story chapter (loss = Sol dies) and char index 0x11 = Sumeti, so both the chapter constant and the char-id constant are meaningful domain IDs, not address residue. Ghidra plate is detailed and fully consistent with the refined understanding -> left unchanged. No logic touched; src comment already correct and concise -> kept as-is."
+}

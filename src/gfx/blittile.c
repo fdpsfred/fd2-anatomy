@@ -143,7 +143,8 @@ void fd2_blit_animated_tile_at_pos(uint32 buf, int32 tile_x, int32 tile_y)
  *
  * Coordinate format: 12.12 fixed-point, 0xC00 fixed units = 1 tile.
  * (src_cx_fp, src_cy_fp) is the screen-center source position; scale is
- * the per-pixel source step (0x800 ~= 1:1; smaller = more zoomed in).
+ * the per-pixel source step (0xC00 fixed = 1 tile = 24 source pixels, so
+ * 0x80 = 1 source pixel = 1:1; smaller = more zoomed in).
  *
  * Top-left source = center - scale*(half-extent):
  *   src_x_fp = src_cx_fp - scale*0x9C   (0x9C = 156 = 312/2 cols)
@@ -463,11 +464,12 @@ void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride)
  *
  *   out = (uint8)(((uint8)(src_pixel + team_offset) & 7) + color_base)
  *
- * team_offset rotates the source pixel within its 0..7 octet (giving a
- * per-team / per-fade colour variation), then color_base anchors the
- * band; no remap LUT is needed. Sole caller is the spell-overlay blink
- * animator fd2_animate_spell_overlay_blink @ 0x1CD17, which sweeps
- * team_offset 7..0 across 10 frames to fade a hit-mark overlay.
+ * team_offset rotates the source pixel within its 0..7 octet (shifting
+ * which colour of the band each pixel lands on), then color_base anchors
+ * the band; no remap LUT is needed. Sole caller is the spell-overlay
+ * blink animator fd2_animate_spell_overlay_blink @ 0x1CD17, which passes
+ * the per-spell tint mask byte as color_base and sweeps team_offset 7..0
+ * across 10 frames to fade a hit-mark overlay.
  *
  * The RLE stream is decoded one command byte at a time. The top two
  * bits of the command select the mode; the low 6 bits + 1 are the run
@@ -492,7 +494,9 @@ void fd2_tile_blit_24x24_passthrough(uint32 src, uint32 dst, uint32 stride)
  *   stride      — destination row stride in bytes (0x1C8 from the
  *                 caller; the row reset advances stride - 0x18)
  *   color_base  — palette band anchor (low byte used)
- *   team_offset — per-team / per-fade add value (low byte used)
+ *   team_offset — octet-rotation add value applied before the &7 mask
+ *                 (low byte used); the caller sweeps it 7..0 as a fade
+ *                 step
  *
  * Hand-written asm leaf: no __CHK probe, no CALLs.
  * ---------------------------------------------------------------- */
@@ -698,9 +702,16 @@ void fd2_tile_blit_24x24_remap(uint32 rle_stream, uint32 dst_buf,
  * The third parameter is a PACKED stride+colour used two ways at entry:
  *   - row advance  = (color_or_stride - 0x18)  (stride - 24)
  *   - fill colour  = (uint8)color_or_stride    (low byte)
- * So colour = stride & 0xFF. For the typical stride 0x140 the colour
- * is fixed at 0x40 (palette index 64, the white-silhouette band).
- * param_4 is unused (present so the cdecl frame matches the caller).
+ * So colour = stride & 0xFF -- it is just the low byte of whatever row
+ * stride the caller passes. In practice both observed callers use stride
+ * 0x1C8 (-> colour 0xC8) on most paths, and the attack-hit path passes
+ * stride 0x140 (-> colour 0x40); the colour therefore tracks the stride
+ * rather than being a free parameter.
+ * The 4th arg is unused: it exists only so the cdecl frame matches the
+ * callers, which compute a per-status-kind intended colour (e.g. 0xFD,
+ * 0xC0) and push it here -- but this blitter ignores it and always fills
+ * with (color_or_stride & 0xFF), so that intended colour has no effect
+ * (latent in the original game).
  *
  * Same 4-mode RLE command encoding as the sibling blitters; each
  * command byte's top two bits select the mode and the low 6 bits + 1
@@ -950,11 +961,11 @@ void fd2_tile_blit_24x24_with_dialog_bg_fill(uint32 rle_stream, uint32 dst_buf,
  * start, and 24 rows are rendered in total.
  *
  * Args (cdecl, 4x stack params; caller pops 0x10):
- *   src        — source RLE-encoded 24x24 sprite stream
- *   dst        — destination base linear address
- *   stride     — destination row stride in bytes (0x1C8 from the sole
+ *   src        -- source RLE-encoded 24x24 sprite stream
+ *   dst        -- destination base linear address
+ *   stride     -- destination row stride in bytes (0x1C8 from the sole
  *                caller; the row reset advances stride - 0x18)
- *   remap_table — 256-entry palette translation table
+ *   remap_table -- 256-entry palette translation table
  *
  * Hand-written asm leaf: no __CHK probe, no CALLs.
  * ---------------------------------------------------------------- */
@@ -1039,9 +1050,10 @@ void fd2_tile_blit_24x24_with_remap_table(uint32 src, uint32 dst,
  * case of the sibling fd2_tile_blit_24x24_with_tint_offset @ 0x4DC34;
  * the RLE command syntax and the four mode bodies are identical. Used
  * to render dimmed / inactive portraits: the un-selected portrait grid
- * in the recruitment/promotion menu, and the dead-character path in the
- * battle-map sprite painter. Callers: fd2_paint_char_sprite_at_world_pos
- * @ 0x127E0 and fd2_render_recruitment_select_screen @ 0x31E80.
+ * in the recruitment/promotion menu, and the already-acted-character
+ * path in the battle-map sprite painter (the bFlags & 0x80 = acted-this-
+ * turn branch). Callers: fd2_paint_char_sprite_at_world_pos @ 0x127E0
+ * and fd2_render_recruitment_select_screen @ 0x31E80.
  *
  * Each command byte's top two bits select the mode; the low 6 bits + 1
  * are the run length:

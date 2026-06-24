@@ -1,0 +1,56 @@
+{
+  "address": "0004df4c",
+  "name_current": "fd2_tile_blit_24x24_with_dialog_bg_fill",
+  "name_final": "fd2_tile_blit_24x24_with_dialog_bg_fill",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (game function, fd2_ prefix). '24x24' is the sprite dimension (semantic, not address residue); 'with_dialog_bg_fill' accurately captures the one behavioral difference from the passthrough sibling: the 0xC0..0xFF (high-bit-set + 0x40-set) mode fills the run with the constant dialog-background palette index 0x49 instead of doing a transparent skip. Decompilation confirms __cdecl, 3 params, void, call_count=0 (hand-written RLE leaf), immediate 0x49 fill. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "ROOT/src/gfx/blittile.c",
+  "purpose": "Hand-written RLE blit of a 24x24 sprite into dst_buf, identical to fd2_tile_blit_24x24_passthrough except the transparent/skip mode fills the run with the constant dialog-background colour 0x49, erasing a portrait/sprite over a dialog panel to flat dialog background.",
+  "logic_summary": "Decodes a one-command-byte-at-a-time RLE stream over 24 rows, x_remain starting at 0x18 (24) per row; after each row dst advances by stride-0x18. Command top two bits select mode, low 6 bits +1 = run length: 00=RUN (paint len pixels from one following source byte, dst+=len, x-=len); 01=STRIDE-2 RUN (paint len pixels from one following source byte at every other dst byte via INC EDI;STOSB so byte lands at odd offset, dst+=2*len, x-=2*len); 10=LITERAL (copy len following source bytes one dst byte each, dst+=len, x-=len); 11=DIALOG-BG FILL (write constant 0x49 for len bytes, no source consumed, dst+=len, x-=len). The RUN/STRIDE-2/LITERAL bodies are byte-for-byte the passthrough behaviour; only the 11-mode differs (passthrough skips transparently, this fills 0x49).",
+  "signature": "void __cdecl fd2_tile_blit_24x24_with_dialog_bg_fill(byte *rle_stream, byte *dst_buf, int stride)",
+  "params": [
+    {
+      "name": "rle_stream",
+      "type": "byte * (uint32 in src)",
+      "semantics": "Source RLE-encoded 24x24 sprite stream; read one command byte at a time, source bytes consumed only by RUN/STRIDE-2/LITERAL modes (not by DIALOG-BG FILL).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the source operand as the RLE-encoded sprite stream; matches the body usage (command/source byte fetch pointer) and the Ghidra decompiled param. No address residue."
+    },
+    {
+      "name": "dst_buf",
+      "type": "byte * (uint32 in src)",
+      "semantics": "Destination base linear address where the 24x24 region is composited; advanced per pixel and per row (dst += stride - 0x18 at row end).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the destination base pointer; matches body usage and decompiled param. No address residue."
+    },
+    {
+      "name": "stride",
+      "type": "int (uint32 in src)",
+      "semantics": "Destination row stride in bytes; the per-row reset advances dst by stride - 0x18 to reach the next row's first column.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the row pitch used to compute the row advance; matches body usage and decompiled param. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; writes pixels into dst_buf as a side effect."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "5 callers confirmed live via get_function_callers / get_xrefs_to (UNCONDITIONAL_CALL each): fd2_render_chapter_intro_dialog_panels @ 0x2d9fe, fd2_render_party_roster_grid @ 0x2ea90, fd2_render_party_roster_with_item_stat_preview @ 0x2ebe0, fd2_render_promote_candidates_grid @ 0x31019, fd2_render_promote_members_grid @ 0x30a47 -- exactly matches the src comment caller list and the '5 callers' header. Decompiler call_count=0 confirms hand-written leaf (no __CHK, no CALLs). Immediate values [1,2,24,73] match the encoding constants (+1 run len, stride-2, 0x18 row count, 0x49 dialog-bg fill). src comment block (lines 815-859) is already precise/correct and consistent with Ghidra plate; both describe the same 4 RLE modes and the 0x49 fill, so neither src comment nor Ghidra plate was modified. No src edit performed (comment keep). Concurrent refiner runs left other shard files modified in the worktree; this commit is scoped to only this symbol's two paths."
+}

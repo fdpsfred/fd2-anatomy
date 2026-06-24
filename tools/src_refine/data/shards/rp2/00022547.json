@@ -1,0 +1,85 @@
+{
+  "address": "00022547",
+  "name_current": "fd2_animate_warp_out_collapse",
+  "name_final": "fd2_animate_warp_out_collapse",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; 'animate_warp_out_collapse' accurately names the graphics primitive (second/collapse half of the character-warp sequence: char vanishes into a shrinking filled circle over 6 frames). No Ghidra address residue in the name. The '_out' is semantic (warp-OUT vs warp-IN counterpart fd2_animate_warp_in_expand @ 0x22656), not an ID suffix.",
+  "kind": "function",
+  "home": "src/spell/spellcin.c",
+  "purpose": "6-frame warp-OUT collapse animation: a character vanishes into a shrinking filled circle at its source tile; second/collapse half of the character-warp teleport sequence.",
+  "logic_summary": "Blits the character sprite (initial_sprite_addr) onto the working surface at the tile's screen position (snapshot + (tile_y-origin_y)*0x2AC0 + (tile_x-origin_x)*0x18 + 0x8250). Then for frame_iter = 5..0 (counting down, signed JGE): reads one band sprite from the 6-entry self-relative tile-anim table (*(int*)(tile_anim_table_base+6+frame_iter*4)+base), restores the backdrop via memmove(large_game_state_buffer, snapshot, 0x25680), computes a shrinking band top top_y=(src_y/5)*frame_iter via signed IDIV, renders the filled circle band centered at (src_x,src_y) radius 0xB, blits the composed buffer (+0x8088) to the mode-13h framebuffer 0xA0504, and delays 10ms. After the loop holds for 2 BIOS ticks and returns the frame_iter==0 sprite_addr (consumed by the caller as the warp-IN initial sprite state). Tail JMPs to the shared Watcom epilogue at 0x1E5B9.",
+  "signature": "int __cdecl fd2_animate_warp_out_collapse(int tile_x, int tile_y, void *snapshot, uint32 src_x, uint32 src_y, int initial_sprite_addr)",
+  "params": [
+    {
+      "name": "tile_x",
+      "type": "int",
+      "semantics": "Destination/source battle tile X; used in working-surface blit-position math (tile_x - data_fd2_battle_view_window_origin_x)*0x18. Caller passes dst_tile_x.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, no address residue; matches the tile-coordinate role used by the blit position computation."
+    },
+    {
+      "name": "tile_y",
+      "type": "int",
+      "semantics": "Battle tile Y; used in working-surface blit-position math (tile_y - data_fd2_battle_view_window_origin_y)*0x2AC0. Caller passes dst_tile_y.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, no address residue; matches tile-coordinate role."
+    },
+    {
+      "name": "snapshot",
+      "type": "void *",
+      "semantics": "Backdrop backup buffer pointer (0x25680 bytes). Used as the initial blit base and memmove'd into large_game_state_buffer each frame to restore the backdrop.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and descriptive; matches usage as the saved-backdrop source."
+    },
+    {
+      "name": "src_x",
+      "type": "uint32",
+      "semantics": "Filled-circle band center X (pixel). Passed straight through to fd2_render_filled_circle_band_anim.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, no address residue; matches band-center role."
+    },
+    {
+      "name": "src_y",
+      "type": "uint32",
+      "semantics": "Filled-circle band center Y (pixel); also the divisor for the shrinking band top top_y=(src_y/5)*frame_iter (signed IDIV).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, no address residue; covers both the band-center and shrink-radius-divisor roles."
+    },
+    {
+      "name": "initial_sprite_addr",
+      "type": "int",
+      "semantics": "Decoded sprite address blitted onto the working surface before the loop (the warp-in character sprite). Caller passes warp_in_sprite (portrait_sheet + *(int*)(portrait_sheet+0x1F6)).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and descriptive; '_addr' reflects it is a sprite pixel-data pointer, no address residue (not a self-address suffix)."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "The frame_iter==0 sprite_addr (last band sprite computed by the loop, held in EDI through the shared epilogue). The sole caller reuses it as the warp-IN initial sprite state / 'radius' argument."
+  },
+  "reads_globals": [
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_tile_anim_table_base",
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "src/ comment was already accurate, refined, and ASCII (correctly uses current callee names, e.g. fd2_delay_ms). Ghidra plate was outdated only in one place: it referenced the stale callee name __delay_thunk_375b2(10) which is now fd2_delay_ms.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "677bd2f32bc646fed937df5b78b5dd5ad9b162bf",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Name and all 6 param names verified keep against decompile + disassembly (0x22547) + sole-caller context (fd2_animate_warp_teleport_char @ 0x22253). Disasm confirms: 6-frame countdown loop (MOV EBX,5 / DEC / TEST / JGE), signed IDIV by 5 for shrinking radius (0x225e9), 6-entry tile-anim table at base+6, fd2_delay_ms(10) at CALL 0x375b2, tail JMP 0x1e5b9 (shared epilogue). src comment left untouched (accurate). Ghidra plate updated only to replace stale __delay_thunk_375b2 with fd2_delay_ms (+minor 'signed IDIV'/'frame_iter=0' clarifications). NOTE: signature differs between Ghidra (src_x/src_y typed int) and src (uint32) — not changed (forbidden to alter types this stage); the uint32 src types in src are functionally equivalent (signed division explicitly cast (int)src_y in src). No logic touched."
+}

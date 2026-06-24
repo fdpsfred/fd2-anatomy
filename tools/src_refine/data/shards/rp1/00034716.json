@@ -1,0 +1,43 @@
+{
+  "address": "0x00034716",
+  "name_current": "fd2_chapter_event_handler_13__unref_char_cond",
+  "name_final": "fd2_chapter_event_handler_13__unref_char_cond",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. domain=chapter_event_handler; '13' is the per-event handler-table dispatch index 0x13 (verified: table base 0x51B91 + 0x13*4 = 0x51BDD, the sole xref to this function, holding LE pointer 0x00034716) -- a meaningful domain ID, not address residue. 'unref' is accurate: the ONLY reference is the dispatch-table slot itself (no FDFIELD turn-event/tile-step hook points at idx 0x13), so no chapter actually invokes it. 'char_cond' is accurate: the second dialog page (0xB) is gated on a char-conditional scan (any of runtime chars 0x07..0x24 still alive). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Unreferenced chapter-event handler slot 0x13: arm a per-event AI/dialog control flag (low nibble of combat_aux_block[0xD]) to 7 across runtime chars 0x07..0x24 (30 chars), show dialog page 8 unconditionally, then re-scan the same 30-char band and, if ANY of them is still alive, show a second dialog page 0xB.",
+  "logic_summary": "any_alive=0. fd2_set_combat_aux_block_byte_d_low4_for_char_range(7,0x24,7) -> sets low 4 bits of runtime_char[i].combat_aux_block[0xD] (abs runtime_char offset 0x34) to 7 for i in [7,0x24] inclusive (30 chars). fd2_display_dialog_scene(current_chapter_text, page=8, fixed geometry 0xA0000,0x140,0xCD,0x4C,0x4A,0x13,1). for (i=7; (int)i<0x25; i++): if fd2_check_char_is_dead(i)==0 (alive: runtime_char[i].bFlags bit0 clear at abs offset +5) set any_alive=1 -- NO early break, loop walks all 30 chars and just keeps re-setting the flag. if any_alive: fd2_display_dialog_scene(current_chapter_text, page=0xB, same fixed geometry). No RNG, no numeric computation; the sole branch is the any_alive gate driven by fd2_check_char_is_dead's return value. The dialog calls' uint32 return is discarded.",
+  "signature": "void __cdecl fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "The uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91. This handler never reads it (cast to void); for invoked turn-event handlers the arg carries the event context, but slot 0x13 is unreferenced so the value is moot here.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches the established convention used across all sibling handlers in this file for the unread uniform dispatch arg. No address residue; accurately reflects its role (the dispatch-table arg) even though unread."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Visible side effects: writes the low nibble of combat_aux_block[0xD]=7 for runtime chars 0x07..0x24, and shows dialog page 8 (always) plus page 0xB (only if any of those chars is alive)."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text",
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "The handler_13 comment block (chevt1.c lines 773-823) was already accurate, precise, and consistent with both the decompilation and the Ghidra plate, but contained 3 non-ASCII em-dashes (U+2014) at lines 775, 778, 799, violating the code-text-ASCII-only rule.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "d56e61f5bc23c51634110c40176e01615ee9b059",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified the function via decompile + full disassembly + both key callees' plates. Disasm at 0x34716 confirms: __CHK(0x30) prologue; any_alive stored at [ESP]; set_combat_aux_block call (start=7,end=0x24,value=7); page-8 dialog; loop EBX=7..0x24 with TEST EAX,EAX / JNZ skipping the flag-set on dead (no early break -- both paths fall to INC EBX); MOVZX/CMP EAX,1 gate; page-0xB dialog. Note: the original pushes EAX (=1 at that point) as the dialog's trailing arg whereas src passes literal 1 -- value-identical since the gate guarantees any_alive==1, so no equivalence concern. Callee semantics confirmed from their Ghidra plates: fd2_set_combat_aux_block_byte_d_low4_for_char_range writes low4 of combat_aux_block[0xD] = abs runtime_char offset 0x34 (NOT the strategy-guide 'action state' byte at struct offset 0x0D -- distinct byte; the codebase's combat_aux_block member starts at 0x27 so [0xD]=0x34); fd2_check_char_is_dead reads bFlags bit0 at abs offset +5. The char range 0x07..0x24 are runtime-char slot indices (combat slots into data_fd2_battle_runtime_char_array_ptr), and the constants 7/0x24 (range bounds) and 7 (AI flag value) are domain values -- preserved, not address residue. name_verdict=keep, param event_arg keep. Only change: converted the 3 em-dashes to '--' (comment_verdict=augment) to satisfy ASCII rule; comment substance unchanged. Ghidra plate is consistent with src (not contradictory/outdated/empty) so left as-is (ghidra_plate_action=none). writes_globals=[] because the only memory writes go through fd2_set_combat_aux_block_byte_d_low4_for_char_range (offset writes via the runtime_char_array_ptr base, not a write to the pointer global itself). reads_globals: data_fd2_current_chapter_text (dialog text base, [0x53A79]) and data_fd2_battle_runtime_char_array_ptr (read by both callees). Clobber-defense: staged diff for chevt1.c removed exactly the 3 em-dash comment lines and added their '--' replacements -- no other handler's content touched. Staged set limited to src/field/chevt1.c and this shard; 4 other refiners' shard edits sitting in the worktree were left unstaged."
+}

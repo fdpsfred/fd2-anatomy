@@ -1,0 +1,41 @@
+{
+  "address": "0x00023a0a",
+  "name_current": "fd2_chapter_16_end",
+  "name_final": "fd2_chapter_16_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: domain=chapter, descriptor=16_end. The '16' is the chapter ID (chapters 01-30 are meaningful domain IDs, not address residue), and 'end' correctly states the role -- this is the chapter 16 end handler dispatched via the chapter-end handler pointer table @ 0x51DE9 (slot @ 0x51E25, the sole xref). Consistent with all sibling fd2_chapter_NN_end handlers. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/field/chend1.c",
+  "purpose": "Chapter 16 (冰原之戰) end handler: stages the post-battle scene, evaluates the three-condition recruit of 劍聖蜜蒂, plays the appropriate dialog/cutscene, then advances the current-chapter id.",
+  "logic_summary": "Copies two 16-byte scene position tables (post-battle X @ 0x52183 / Y @ 0x52193) onto the stack (4 MOVSD each), then stages the scene via fd2_setup_chars_and_camera_for_intro(X, Y, facing_fixed=0, 0, char_range_end=0xF, extra_char=0x41 (蜜蒂 NPC) at (0x1C,0x1E) facing 2, camera origin (0x16,0x19)). Counts subordinate deaths: for i in 0..7, fd2_check_char_is_dead(i+0x42) increments dead_count; dead_exceeds_4 = (dead_count > 4). Persists party via fd2_save_runtime_char_to_template. Recruit branch: if turn_counter (@0x53bef) < 0x13 (<=18 rounds) AND dead_exceeds_4 != 1 AND runtime_char[0] (索爾) hp_max (word @ struct off 0x42) >= 0x140 (320) -> show dialog page 4 + recruit char id 0x12 (蜜蒂) via fd2_init_runtime_char_from_base_growth. Else -> dialog page 2, battle_anim_phase=0, cutscene event 0x31, dialog page 3 (no recruit). Finally INC data_fd2_chapter_current_chapter_id (@0x53c03).",
+  "signature": "void __cdecl fd2_chapter_16_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Dispatched via the chapter-end handler pointer table; side effects are the scene setup, conditional recruit, dialog/cutscene playback, party save, and chapter-id advance."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch16_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch16_end_scene_char_pos_y_table",
+    "data_fd2_battle_turn_counter",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Fully cross-checked against disasm @ 0x23A0A, the fd2_setup_chars_and_camera_for_intro plate (param semantics: param_3 < 4 = fixed facing; arg_stack_4/8 = inclusive char range; arg_stack_c = extra char idx; arg_stack_1c/20 = camera origin), the runtime_char struct, the chapter_16 walkthrough, and the character roster. Walkthrough states the exact recruit rule (索爾HP320以上、十八回合敵全滅、且蜜蒂八個部下陣亡未超過一半) -> matches hp_max>=320 + turn<19 + (8 subordinates dead<=4). code_hacks.md confirms id 0x12 = 蜜蒂 (and 0x0D = 貝克威). Disasm 00023ab2 reads 'word ptr [EAX+0x42]' CMP 0x140: the raw byte offset 0x42 is the Ghidra struct field wHP_max (struct typed from off 8); semantic = max HP >= 320, consistent with src field name hp_max and the walkthrough -- not a logic concern, not touched (no type changes allowed). The decompile's 'save_metadata' alias for [0x53bef] is the live-named data_fd2_battle_turn_counter. Source comment block (chend1.c lines 852-886) is already precise, ASCII (with permitted CJK proper nouns), and matches the verified binary -> kept verbatim. Ghidra plate is detailed and consistent with the refined understanding -> left untouched. No logic, type, control-flow, or signature changes made (name-judgement + comments only)."
+}

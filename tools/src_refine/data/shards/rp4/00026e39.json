@@ -1,0 +1,92 @@
+{
+  "address": "00026e39",
+  "name_current": "fd2_tick_summon_anim_variant_c_5slot_radial",
+  "name_final": "fd2_tick_summon_anim_variant_c_5slot_radial",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>: per-tick (_tick_) summon-spell animation (_summon_anim_) state machine, variant C of several summon animations (_variant_c_, semantic discriminator), 5 ring slots (_5slot_, the i<5 loops and 5-entry x/y/frame/blit arrays -- a meaningful array dimension, not an address), placing sprites at radial positions via sin/cos (_radial). No Ghidra address residue (no hex suffix matching 0x26e39 or any data address). Name accurately reflects purpose and internal logic.",
+  "kind": "function",
+  "home": "src/anim/anisummn.c",
+  "purpose": "Per-tick state machine for the variant-C 5-slot radial summon-spell animation: drives a 5-sprite ring whose slot positions are computed from sin/cos of a per-slot angle scaled by a ring-radius accumulator, blitting the ring across an open/close sequence with per-slot staggered frame counters and SFX cues.",
+  "logic_summary": "Allocates 0x6C stack frame (__CHK). Copies the 5x u32 offset table (0x524F8 = {10,8,3,0,0}) into local offs[] and the 5-byte byte_offsets (0x5250C = {10,8,3,0,0}) into local byte_offs[]. Reads caster team from runtime_char_array[caster_unit_id].bTeam: team 0 (enemy) sets sweep=0x5A and negates offs[0..2] / zeros byte_offs[0..2]; otherwise sweep=0x1E. Dispatches on state_code: 0=INIT (SFX bank id2, reset angle_accumulator=0 and swap_done_latch=0, return 7); 3=TRANSITION one-shot guarded by swap_done_latch (seed frame_counter[i]=-i, clear blit_counter[i], swap x[2]<->x[4], copy y[2]=y[4], y[4]=angle_accumulator, set latch, return 0xC); 6=reset angle_accumulator=0x2A + SFX bank id3, return 7; 1/2/7/8=RADIAL-BLIT (per slot i: angle_rad = (float)(i*0x48 deg)*pi/180 promoted to double; x[i]=round(sweep+acc*cos), y[i]=round(acc*sin*1.2+30.0); blit gated by team and state -- enemy blits on 2/8, player/ally blits on 1/7 for i<2 and on 2/8 for i>=2; then state 2 ramps acc +6 (open ring), state 8 ramps -6 (close ring); return 0); 4/5=PER-SLOT BLIT+ADVANCE (per slot, scratch sprite-id = frame_counter<0 ? 4 : (byte)frame_counter; if id==1 seed blit_counter=5; blit gated by team/state using offs[id]/byte_offs[id]; for state 5 only a post-loop pass advances blit_counter 1..9 wrapping at 10 with a trailing-sprite blit, fires SFX on frame 0 (handle path for i in {0,2}, sample path otherwise except i==5), advances frame_counter wrapping 5->0, sets done_flag when frame_counter hits 2; returns done_flag, state 4 returns 0); any other state_code returns 0.",
+  "signature": "int __cdecl fd2_tick_summon_anim_variant_c_5slot_radial(uint32 caster_unit_id, uint32 sprite_handle, uint32 origin_y, uint32 row_stride, uint32 state_code)",
+  "params": [
+    {
+      "name": "caster_unit_id",
+      "type": "uint32",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr; only its .bTeam byte (offset 6) is read to choose enemy vs player/ally sweep and offset polarity.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the runtime-character index; no address residue."
+    },
+    {
+      "name": "sprite_handle",
+      "type": "uint32",
+      "semantics": "Sprite/atlas handle passed as the first argument to every fd2_blit_indexed_sprite call.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the blit sprite handle; no address residue."
+    },
+    {
+      "name": "origin_y",
+      "type": "uint32",
+      "semantics": "Base framebuffer offset added to the per-slot computed coordinate (y*row_stride + x + origin_y) before blitting; the destination origin for the ring.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "No address residue; this is the family-wide parameter name shared by every summon-animation tick in anisummn.c (same (caster,sprite,origin_y,row_stride,state) signature). Keeping preserves family consistency; renaming a single member would be inconsistent and is out of scope."
+    },
+    {
+      "name": "row_stride",
+      "type": "uint32",
+      "semantics": "Framebuffer row pitch: multiplies the y-coordinate to form a linear offset and is passed as the stride argument to fd2_blit_indexed_sprite.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the row pitch; no address residue."
+    },
+    {
+      "name": "state_code",
+      "type": "uint32",
+      "semantics": "Animation state-machine selector (0,1,2,3,4,5,6,7,8) chosen by the dispatch table caller; selects INIT / radial-blit / per-slot-blit / transition phases.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the state selector; no address residue. (Ghidra types it as byte; src widens to uint32 -- a type-equivalent declaration choice, not a naming concern.)"
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Per-tick scheduling/wait value: 7 (INIT/state6 wait), 0xC (transition wait), or 0 for the blit phases; in state 5 returns done_flag (1 once any slot frame_counter reaches 2, else 0) to signal the animation finished. Unhandled state_code returns 0."
+  },
+  "reads_globals": [
+    "data_fd2_animation_summon_variant_c_radial_5slot_offsets",
+    "data_fd2_animation_summon_variant_c_radial_5slot_byte_offsets",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_audio_summon_spell_sfx_bank_buf_ptr",
+    "data_fd2_animation_summon_radial_angle_step_12",
+    "data_fd2_animation_summon_radial_radius_30",
+    "data_fd2_battle_summon_anim_variant_c_angle_accumulator",
+    "data_fd2_battle_summon_anim_variant_c_swap_done_latch",
+    "data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array",
+    "data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array",
+    "data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array",
+    "data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_summon_anim_variant_c_angle_accumulator",
+    "data_fd2_battle_summon_anim_variant_c_swap_done_latch",
+    "data_fd2_battle_summon_anim_variant_c_5slot_x_coord_array",
+    "data_fd2_battle_summon_anim_variant_c_5slot_y_coord_array",
+    "data_fd2_battle_summon_anim_variant_c_5slot_frame_counter_array",
+    "data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "3e50e4f416a2346c08e7a8eb40e99ede9081fb5c",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "name keep + comment keep + plate none. Verified: dispatch table at 0x523B9 entry idx 6 (offset +0x18) -> bytes at 0x523D1 = 39 6e 02 00 = 0x00026e39 (the lone DATA xref source), matching the plate/src claim. rodata offsets at 0x524F8 = {10,8,3,0,0} (5xu32) and byte_offsets at 0x5250C = {10,8,3,0,0} (5 bytes) confirmed by read_memory, matching both plate and src. Decompilation matches src body 1:1 (team adjustment, state 0/3/6 handlers, radial-blit 1/2/7/8 sin/cos placement + open/close ramp, per-slot blit/advance 4/5 with scratch-sprite-id reuse of angle_accumulator and offs[]/byte_offs[] indexing). src comment block (lines 1176-1192) is concise and accurate; Ghidra plate is more detailed (also documents shared-epilogue hosting for 0x26152/0x262EF) and does not contradict src, so left untouched. No logic/equivalence concerns. origin_y param type widened to uint32 in src vs byte/int in Ghidra are type-declaration choices, out of scope (logic unchanged). No symbol/param rename applied (Stage 2)."
+}

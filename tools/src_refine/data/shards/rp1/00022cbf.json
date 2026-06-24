@@ -1,0 +1,56 @@
+{
+  "address": "00022cbf",
+  "name_current": "fd2_spell_handler_id_26_via_status_d1b_effect_25",
+  "name_final": "fd2_cast_spell_1a_dispatch_cda",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_cast_spell_1a_dispatch_cda",
+  "name_reason": "Dispatch-table entry for spell_id 0x1A (毒擊術), table[0x1A] @ 0x51D69, forwarding to fd2_cast_status_spell_via_d1b with effect/sprite id 0x25. Current name uses ambiguous decimal/hex: 'id_26' is the spell_id in DECIMAL (26 = 0x1A) while the established in-file sibling family fd2_cast_spell_14/15/16_dispatch_* uses HEX, and 'effect_25' reads as decimal but is actually 0x25. Proposed name aligns with the family sibling fd2_cast_spell_16_dispatch_cda (same 0x22CDA worker, same 0x22BF7 shared tail): spell_1a = hex spell_id; dispatch = dispatch-table entry; cda = worker-variant disambiguator (0x22CDA) shared across the whole d1b family (distinguishes it from the 0x14/0x15 cure family's _aa8). The _cda suffix is retained deliberately for family consistency (it is the family's worker-variant tag, not a per-function address residual of this thunk). Spell_id 0x1A is a meaningful domain ID (法術 00h-23h) and is preserved.",
+  "kind": "function",
+  "home": "src/spell/spell.c",
+  "purpose": "Spell dispatch-table entry for spell_id 0x1A (毒擊術, poison-strike): forwards to the shared status-inflict worker with effect/sprite id 0x25.",
+  "logic_summary": "Thin dispatch thunk reached via the spell dispatch table at index 0x1A (slot @ 0x51D69). After the standard __CHK(0x18) stack probe, calls fd2_cast_status_spell_via_d1b(caster, 0x1A, n_tgt, tgt_arr, 0x25). In the original binary the body pushes its args and JMPs into the 0x16 entry body (fd2_cast_spell_16_dispatch_cda @ 0x22BF7) to reuse the shared {push caster + CALL worker + cleanup + RET} tail; the worker (fd2_cast_status_spell_via_d1b @ 0x22CDA) resets the AoE counter, deducts caster MP, then delegates to fd2_cast_status_inflict_spell @ 0x22D1B.",
+  "signature": "void fd2_spell_handler_id_26_via_status_d1b_effect_25(int caster, int n_tgt, int tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "Caster unit id; forwarded unchanged as the worker's caster argument (and used by __CHK / MP deduction).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, no address residual, matches the in-file sibling convention (fd2_cast_spell_14/15/16_dispatch_*)."
+    },
+    {
+      "name": "n_tgt",
+      "type": "int",
+      "semantics": "Number of targets; forwarded as the worker's n_targets argument.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, no address residual, matches the in-file sibling convention."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "int",
+      "semantics": "Pointer to the target-id array (passed as int); forwarded as the worker's target_id_array argument.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, no address residual, matches the in-file sibling convention."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; the casting effect is performed entirely via the worker call (side-effect only)."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "The function had no dedicated comment block in src; it sat directly under the 0x16 family comment. The 0x16 comment mentions the 0x1A/0x1B siblings but does not state this entry's own spell name or effect id.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Confirmed dispatch-table layout: table base 0x51D01, slot @ 0x51D69 (= base + 0x68 = index 0x1A) holds 0x00022CBF (this function); next slot @ 0x51D6D holds 0x00022E41 (sibling 0x1B). Literal PUSH 0x1A matches table index. Spell names verified via fd2-knowledge: 0x16=封咒術, 0x1A=毒擊術, 0x1B=麻痹術. Sole xref is the DATA dispatch-table entry; no direct callers (called indirectly through the table). Worker name '_d1b' = address residual of fd2_cast_status_inflict_spell @ 0x22D1B; worker '_cda' anchor = 0x22CDA. Rename is recorded only; not applied (Stage 2 will apply across protos.h/btltab.c/spelleff.c/spell.c). Effect/sprite id 0x25 forwarded as the worker's 5th arg (sprite_id per worker plate)."
+}

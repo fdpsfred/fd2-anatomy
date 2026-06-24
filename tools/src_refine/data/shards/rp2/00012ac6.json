@@ -1,0 +1,69 @@
+{
+  "address": "00012ac6",
+  "name_current": "fd2_blit_animated_tile_at_pos",
+  "name_final": "fd2_blit_animated_tile_at_pos",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (gfx/blit). 'animated' captures the 0x08 anim-flip handling, 'tile' is correct (paints one battle-map tile sprite), 'at_pos' reflects the world (x,y) args. No address residue. Accurately reflects purpose and internal logic.",
+  "kind": "function",
+  "home": "src/gfx/blittile.c",
+  "purpose": "Paint a single battle-map tile sprite at world tile coords (tile_x, tile_y) into a render workspace buffer, applying animation-flip sprite selection and an optional per-chapter palette remap; silently no-ops if the tile is outside the visible battle window.",
+  "logic_summary": "Window bounds check with +-1 tile margin (origin_x-1<=tile_x<=origin_x+max_x, origin_y-1<=tile_y<=origin_y+max_y+1, tile_y>=0); else return. Resolve per-cell tile metadata at battle_tile_map_ptr + (tile_y*map_width_tiles + tile_x)*4. tile_id = *(u16)(meta+4) & 0x3FF (low 10 bits). Look up tile attribute flags at attribute_flags_buffer_ptr + tile_id*4. If flag 0x08 (animated): tile_id += bg_anim_flip_flag*2. If flag 0x80 (renderable): resolve sprite_src from battle_scene_snapshot offset table (snapshot + *(int)(snapshot+10+tile_id*4)); compute dst = buf + 0x8088 + (tile_y-origin_y)*0x2AC0 + (tile_x-origin_x)*0x18. If meta+7 == 0xFF (no cursor overlay) -> plain passthrough blit (pitch 0x1C8); else -> remap blit, with remap_table = tile_anim_table_base + *(int)(tile_anim_table_base + 6 + tile_anim_palette_phase_lookup[tile_map_anim_frame_counter]*4). Tiles without flag 0x80 (transparent) skip the blit entirely.",
+  "signature": "void __cdecl fd2_blit_animated_tile_at_pos(uint32 buf, int32 tile_x, int32 tile_y)",
+  "params": [
+    {
+      "name": "buf",
+      "type": "uint32",
+      "semantics": "Base linear address of the battle render-workspace buffer; destination pixels are written at buf + 0x8088 + row/col offsets. Caller passes data_fd2_large_game_state_buffer_ptr.",
+      "verdict": "rename",
+      "proposed": "dst_buf",
+      "reason": "Optional consistency rename: 'buf' is generic and does not distinguish source from destination. Sibling blitters in this file use dst/dst_buf, the source comment block and the Ghidra plate already refer to it as 'dst_buf', and it is unambiguously the destination buffer. Not address-tainted; recorded for Stage 2 only."
+    },
+    {
+      "name": "tile_x",
+      "type": "int32",
+      "semantics": "World tile-grid X coordinate of the cell to paint (column index into battle_tile_map). Caller passes the moving char's tile X (+-1 for the walk-trail neighbours).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate; matches usage as a tile-grid column index. No address residue."
+    },
+    {
+      "name": "tile_y",
+      "type": "int32",
+      "semantics": "World tile-grid Y coordinate of the cell to paint (row index into battle_tile_map). Caller passes the moving char's tile Y (and y-1/y-2 for the 1x2 sprite footprint and walk-trail).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate; matches usage as a tile-grid row index. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effect is the blit into buf (or a silent no-op when out-of-window or the tile is transparent / not renderable)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_max_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_view_window_max_y",
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_battle_map_width_tiles",
+    "data_fd2_tile_attribute_flags_buffer_ptr",
+    "data_fd2_graphics_bg_anim_flip_flag",
+    "data_fd2_battle_scene_snapshot",
+    "data_fd2_tile_anim_table_base",
+    "data_fd2_graphics_tile_anim_palette_phase_lookup",
+    "data_fd2_battle_tile_map_anim_frame_counter"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment block (lines 60-83) is accurate, concise, ASCII, and matches the decompilation (window bounds with +-1 margin, per-cell tile metadata layout, attribute-flag bits 0x08/0x80, destination layout/stride). No correction needed. Minor: it refers to the destination as 'dst_buf' while the param is currently named 'buf'; this reconciles once the proposed Stage-2 param rename lands and reads as descriptive prose meanwhile, so left unchanged.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Single caller fd2_paint_chars_shadow_overlay @ 0x129ec passes (data_fd2_large_game_state_buffer_ptr, pos_x, pos_y) where pos_x/pos_y are byte tile-grid fields of the runtime char, confirming buf=destination workspace and tile_x/tile_y=tile-grid world coords. No source edit made (comment kept). Ghidra plate consistent with refined understanding; not modified."
+}

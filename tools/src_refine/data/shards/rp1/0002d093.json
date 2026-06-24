@@ -1,0 +1,44 @@
+{
+  "address": "0002d093",
+  "name_current": "fd2_chapter_transition_with_intro",
+  "name_final": "fd2_chapter_transition_with_intro",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the convention fd2_<domain>_<descriptor> (domain=chapter, descriptor=transition_with_intro). No Ghidra address residue. Accurately reflects the function: orchestrates an inter-chapter transition that runs the chapter-intro pose zoom-in animation and the per-state intro menu. Sole caller fd2_chapter_transition_menu confirms the chapter-transition role.",
+  "kind": "function",
+  "home": "ROOT/src/field/chtrans.c",
+  "purpose": "Chapter-intro orchestrator: optional story dialog scene, then a 10-frame pose zoom-in animation, then dispatch to the per-state chapter-intro menu (type B/C/main); returns whether the user committed the chapter advance.",
+  "logic_summary": "result_code=0. Reads the chapter-intro metadata entry for the current chapter (data_fd2_chapter_current_chapter_id) and keeps metadata[0] as the category byte. Stops BGM via fd2_set_bgm_track_with_fade(-1,0). Branches on data_fd2_chapter_intro_menu_cursor_state: if state==2 (story-dialog branch) it loads portrait 0x4B, shows the dialog scene, marks data_fd2_battle_tile_map_ptr=1 during the typewriter loop then back to 0, tears the dialog down; a typewriter result of -1 or data_fd2_ui_menu_cursor_idx!=0 cancels (return 0); past a late-chapter/game-clear party-size threshold (<0x1B && >0x10, or >=0x1B && >0x14) it splices the menu roster into the runtime char ptr and runs fd2_run_recruitment_or_branch_screen (a 0 result cancels, nulls the splice, returns 0); on success result_code=1. Then the common pose zoom-in: splices runtime_char_array_ptr=menu roster, malloc's a 64000-byte VGA backup, and for i in 1..10 blits the scaled pose (table index = cursor_state + category_byte*6) toward its per-chapter target with shrinking scale (0x80 - i*9), commits the per-frame composite from data_fd2_large_game_state_buffer_ptr to VGA, and ramps palette brightness (i*4); settles palette at 0x40 and clears VGA. Post-anim menu dispatch on cursor_state selects a BGM track and an intro menu: state 0 -> BGM 0xD + typeB, state 4 -> BGM 0xB + typeC, state 2 -> skip (result already set), state 3 -> BGM 0xF + main, others -> BGM 0xE + main; then BGM track 10 (post-intro ambient). Cleanup frees the pose backup, nulls data_fd2_battle_runtime_char_array_ptr, returns result_code.",
+  "signature": "int __cdecl fd2_chapter_transition_with_intro(void)",
+  "params": [],
+  "returns": {
+    "type": "int",
+    "semantics": "1 if the user committed the chapter advance, 0 if cancelled (story-dialog cancel via typewriter==-1 / cursor!=0, recruitment-screen cancel, or state-2 path that produced result_code via the dialog branch)."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_current_chapter_id (0x53C03)",
+    "data_fd2_chapter_intro_menu_cursor_state (0x5412B)",
+    "data_fd2_shared_menu_party_roster_buffer_ptr (0x53BF7)",
+    "data_fd2_shared_menu_party_member_count (0x53BFB)",
+    "data_fd2_ui_menu_cursor_idx (0x53C57)",
+    "data_fd2_large_game_state_buffer_ptr (0x53A49)",
+    "data_fd2_all_game_text_ptr",
+    "data_fd2_chapter_intro_portrait_pose_y_row_table (0x52635)",
+    "data_fd2_chapter_intro_portrait_pose_x_column_table (0x52647)"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45) -- spliced to menu roster during transition, nulled on cleanup/cancel",
+    "data_fd2_battle_tile_map_ptr (0x53A51) -- set to 1 during story dialog, back to 0 after"
+  ],
+  "comment_original_issue": "Source comment block (chtrans.c lines 446-480) is already concise, accurate, ASCII, and reflects the final understanding (including the documented apparent X/Y table swap and the late-chapter recruitment threshold). No process narration. Kept as-is. The Ghidra plate, by contrast, still used pre-rename global names (current_chapter_id / chapter_transition_state / runtime_char_array / map_terrain_buffer / _battle_tile_map / current_menu_cursor_idx / _large_game_state_buffer / chapter_intro_pose_{x,y}_table) throughout its pseudocode and Globals-touched section, so the plate was outdated and was updated to the live symbol names.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Sole caller fd2_chapter_transition_menu @ 0x2CAD7 (confirmed via get_function_callers + get_xrefs_to: UNCONDITIONAL_CALL from 0x2CF34). void params (signature param_count=0). The apparent X/Y swap (pose_y_row_table feeds the blit X arg, pose_x_column_table feeds the Y arg) is a real, decompilation-confirmed subtlety already documented in both the source comment and the refined plate -- it is faithful to the original binary, not a logic concern. data_fd2_battle_runtime_char_array_ptr is OWNED/defined in this module (chtrans.c) but is read+written here as a transient splice; listed under writes_globals. No logic changes made; only the Ghidra plate text was updated to current symbol names."
+}

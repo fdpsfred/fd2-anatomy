@@ -47,6 +47,10 @@ void fd2_cleanup_dialog_sprite_buffer(uint32 saved_block, uint32 dst, uint32 str
  *
  * Args (9, __cdecl): text_base, page_idx, render_pos, render_pitch,
  *   glyph_p5, glyph_p6, glyph_p7, glyph_height, blink_flag.
+ *   render_pitch also drives the per-line reflow (render_base +
+ *   render_pitch * glyph_height * line_count).  glyph_p5/p6/p7 are
+ *   passed straight through to fd2_blit_glyph_2bpp_with_outline as its
+ *   fill_color / outline_color / bg_color palette indices.
  * Returns final render_pos (consumed by the -4/-5 recursive callers).
  *
  * Mirrors the vendor's register-liveness behaviour: pSpeaker (slot1)
@@ -463,24 +467,34 @@ uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 flip)
 /* ----------------------------------------------------------------
  * fd2_close_dialog_panels_then_slide_in_at @ 0x16B43 (1 caller)
  *
- * Tear down the open dialog's 5 layered frame buffers, optionally
- * followed by a slide-out animation toward (slide_to_y_pixel, 5).
+ * Tear down the open dialog's 5 layered frame buffers, then
+ * optionally retract the panel back toward the battle cursor.
+ *
+ * anim_handle is the restore handle returned by
+ * fd2_play_dialog_open_animation: a pointer to the 5-entry layer
+ * save-buffer array. slot_offset is the portrait slot offset the
+ * caller (fd2_display_dialog_scene) tracked for the open box (0 / 2 /
+ * 0x70); it doubles as the panel's resting screen-Y column for the
+ * retract slide.
  *
  * Phase 1: reverse-order cleanup of layers 4..1 (10ms pause between
  * each), then a final cleanup of layer 0.
  *
- * Phase 2 (only when slide_to_y_pixel != 0): interpolate a sprite
- * blit from the battle-cursor pixel back toward (slide_to_y_pixel, 5)
- * over (cursor_x + cursor_y) frames, reusing layer slot 0 as a
- * transient save buffer for each frame.
+ * Phase 2 (only when slot_offset != 0): slide the dialog sprite from
+ * its resting position (screen X=5, Y=slot_offset) back to the battle
+ * cursor pixel (cursor_x*0x18+4, cursor_y*0x18+4) over
+ * (cursor_x + cursor_y) frames, reusing layer slot 0 as a transient
+ * save buffer for each frame.
  *
- * Symmetric inverse of fd2_play_dialog_open_animation: closes in
- * reverse-Z order with the slide following the same step count.
+ * Exact directional inverse of the open animation's slide-in
+ * (fd2_play_dialog_open_animation): that runs cursor -> (5,
+ * slot_offset); this runs (5, slot_offset) -> cursor, and closes the
+ * frame layers in reverse-Z order over the same step count.
  *
- * Note: matching the binary, the per-frame blit passes the
- * '5 - ...' interpolant as sheet_base (arg4) and the
- * 'slide_to_y_pixel - ...' interpolant as sprite_idx (arg5) — the
- * mirror image of the open animation's argument pairing.
+ * Note: the per-frame blit passes the local '5 - ...' interpolant as
+ * sheet_base (arg4, screen X) and the local 'slot_offset - ...'
+ * interpolant as sprite_idx (arg5, screen Y) -- the mirror of the
+ * open animation's argument pairing.
  * ---------------------------------------------------------------- */
 void fd2_close_dialog_panels_then_slide_in_at(uint32 anim_handle,
                                               uint32 slot_offset)

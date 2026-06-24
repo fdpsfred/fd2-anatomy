@@ -1,0 +1,35 @@
+{
+  "address": "0x00033367",
+  "name_current": "fd2_chapter_11_init",
+  "name_final": "fd2_chapter_11_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the convention fd2_<domain>_<descriptor>. The trailing '11' is a meaningful chapter ID (chapters 01-30; chapter 11 = 幻之森林, confirmed via fd2-knowledge walkthrough) and a registered dispatch-table entry, NOT an address residue. The function address is 0x33367, unrelated to the '11'. Name accurately reflects purpose (chapter 11 init handler).",
+  "kind": "function",
+  "home": "src/field/chinit.c",
+  "purpose": "Chapter 11 「幻之森林」 init handler: a flat chapter-prologue orchestrator that stages the chapter-11 intro (three dialog pages, portrait load, two cutscenes) before handing control to the player.",
+  "logic_summary": "void __cdecl, no params. Re-inits battle state (fd2_init_battle_state_for_chapter); plays dialog page 0 of data_fd2_current_chapter_text; resets data_fd2_battle_anim_phase=0; pans camera+window (10,7); loads portrait set 1 (fd2_load_chapter_portraits_and_dump_tmp(1)); fires cutscene 0x26; plays dialog page 1; fires cutscene 0x27; plays dialog page 2; clears all char facings; pans cursor to char 0. No char init (party carries over from chapter 10). The leading __CHK(0x28) is the Watcom frame-size stack probe, not source. In the binary the tail (page-2 dialog + clear-facing + pan-to-char) is a tail-JMP (0x333f0 -> 0x3310c) into the shared epilogue owned by fd2_chapter_05_init; the straight-line source is the functionally-equivalent Layer-2 reconstruction.",
+  "signature": "void __cdecl fd2_chapter_11_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Dispatched via the chapter init handler table at 0x51d99 (entry for chapter 11)."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase"
+  ],
+  "comment_original_issue": "Comment body was already accurate and precise, but contained three non-ASCII em-dash characters (U+2014) on the 'NO char init', 'no reset', and 'Post-action: (default' lines, violating the code-ASCII-only rule. The chapter title 「幻之森林」 (U+300C/U+5E7B/U+4E4B/U+68EE/U+6797/U+300D) is a permitted Chinese proper noun kept with the file-wide corner-bracket convention.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "974a79a969b61d1c783bb84a27d824fdc5647a23",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompilation at 0x33367 matches the src body line-for-line (init battle state; dialog 0; anim_phase=0; pan(10,7); load portraits(1); cutscene 0x26; dialog 1; cutscene 0x27; dialog 2; clear facing; pan to char 0). xref to 0x33367 is from data 0x51d99 (chapter init handler dispatch table; bytes 67 33 03 00 = this address, followed by f5 33 03 00 = fd2_chapter_12_init), confirming dispatched-only with 0 direct callers. Only refine done: replaced 3 em-dashes with '--' in the comment block via Edit (no logic touched). Ghidra plate is consistent with refined understanding; left untouched."
+}

@@ -1,0 +1,36 @@
+{
+  "address": "00036b01",
+  "name_current": "fd2_ani_decoder_chunk_palette_load_literal",
+  "name_final": "fd2_ani_decoder_chunk_palette_load_literal",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: domain ani_decoder, descriptor chunk_palette_load_literal. Accurately names an ANI delta-stream chunk handler that loads a literal (raw, uncompressed) 768-byte palette block from the stream cursor into the palette area. No Ghidra address residue; 768 = 256 RGB entries * 3 bytes is a domain constant carried in the body, not the name.",
+  "kind": "function",
+  "home": "src/anim/anidec.c",
+  "purpose": "ANI frame-decoder chunk handler that copies a literal (uncompressed) 768-byte palette block from the delta stream into the palette area.",
+  "logic_summary": "Bulk-copies 768 bytes (192 dwords) from the current stream cursor to the palette base, then advances the cursor by 768. Binary: MOV EDI,[0x52766]; MOV ECX,0xC0; REP MOVSD ES:EDI,ESI; RET -- ESI is the stream cursor (modeled in C as file-scope static g_ani_cursor), EDI is the palette destination loaded from data_fd2_animation_ani_decoder_src_buf. C version: memcpy((void*)data_fd2_animation_ani_decoder_src_buf, g_ani_cursor, 768); g_ani_cursor += 768; -- semantically identical (cursor advance is implicit in the REP MOVSD ESI post-increment).",
+  "signature": "void fd2_ani_decoder_chunk_palette_load_literal(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: writes 768 bytes to the palette area at data_fd2_animation_ani_decoder_src_buf and advances the shared stream cursor (g_ani_cursor / ESI) by 768."
+  },
+  "reads_globals": [
+    "data_fd2_animation_ani_decoder_src_buf",
+    "g_ani_cursor"
+  ],
+  "writes_globals": [
+    "g_ani_cursor"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Custom register-protocol leaf (no stack args): in=ESI stream cursor, out=ESI advanced by 768, clobbers ECX/EDI. C models the ESI cursor via file-scope static g_ani_cursor (see anidec.c header comment). Global at 0x52766 (data_fd2_animation_ani_decoder_src_buf) is the palette destination base (REP MOVSD dest = EDI); it is WRITE by fd2_ani_decoder_set_target_buffer and READ here. Only xref to this function is the dispatch-table slot @ 0x5276E (no direct callers). src per-function comment (lines 87-97) is concise and correct; file header (lines 6-9) already documents the ESI->g_ani_cursor mapping, so plate and src are consistent -- nothing edited. Param name verdicts: none (void)."
+}

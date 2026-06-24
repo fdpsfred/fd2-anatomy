@@ -1,0 +1,61 @@
+{
+  "address": "0001e611",
+  "name_current": "fd2_render_combat_combatant_panels",
+  "name_final": "fd2_render_combat_combatant_panels",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=render/combat, descriptor=combatant_panels). No address residue. Accurately describes the function: composites the battle backdrop then draws one or two combatant VS panels (portrait + HP bar) and blits the 312x192 region to the mode13h primary surface.",
+  "kind": "function",
+  "home": "src/gfx/rndscene.c",
+  "purpose": "Battle VS-panel renderer: rebuilds the battle backdrop, draws the first combatant's portrait panel + HP segments + proportional HP bar, optionally draws a second combatant's panel + HP bar, then blits the composed 312x192 region to the mode13h primary surface.",
+  "logic_summary": "xy_array_ptr points at a 4-int array {x0,y0,x1,y1}. (1) Recomposite backdrop: fd2_composite_battle_tile_map(ws+0x8088, 456, 0xD, 8, origin_x, origin_y) then fd2_composite_all_chars_overlay(). (2) First panel (uses attacker_idx): blit panel sprite 0x30 at (x0-4,y0-4) via fd2_alloc_and_blit_indexed_sprite_chunk; draw the segmented HP bar (width 0x37) at ws+0x808B+(y0+2)*456+x0; draw the proportional HP bar for attacker_idx anchored at &xy[0]. (3) Second panel (only if xy[2] != -1, uses defender_idx): blit panel sprite 0x30 at (x1-4,y1-4); draw the proportional HP bar for defender_idx anchored at &xy[2]. (4) Blit composed frame: fd2_blit_rectangle(0xA0504,320,ws+0x8088,456,312,192). Original tail-calls the shared blit epilogue at 0x11D2C (JMP) which pushes the 0xA0504/320 dest args and calls fd2_blit_rectangle; src emits the explicit full fd2_blit_rectangle call as the functional equivalent.",
+  "signature": "void __cdecl fd2_render_combat_combatant_panels(uint32 xy_array_ptr, uint32 defender_idx, uint32 attacker_idx)",
+  "params": [
+    {
+      "name": "xy_array_ptr",
+      "type": "uint32",
+      "semantics": "Pointer to a 4-int array of panel positions: [0]=panel1_x (attacker), [1]=panel1_y, [2]=panel2_x (defender; -1 = no second panel), [3]=panel2_y. Used both as panel sprite blit coords (x-4,y-4) and as the anchor for fd2_render_combatant_hp_bar_proportional (&xy[0] for panel1, &xy[0]+8 for panel2). Caller passes the speech-bubble/combat-anim descriptor buffer (pCombat_anim_state).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, accurately names the pointer-to-xy-array role; no address residue; matches FD2 param naming convention."
+    },
+    {
+      "name": "defender_idx",
+      "type": "uint32",
+      "semantics": "runtime_char index whose panel + proportional HP bar are drawn as the SECOND/optional panel (drawn only when xy[2] != -1), anchored at &xy[2]. In the sole caller (retaliation branch) this is the AI caster being hit back.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Role label for the second (defender-side) VS panel combatant; no address residue; consistent with body usage and caller context."
+    },
+    {
+      "name": "attacker_idx",
+      "type": "uint32",
+      "semantics": "runtime_char index whose panel + segmented HP bar + proportional HP bar are drawn as the FIRST/unconditional panel, anchored at &xy[0]. In the sole caller (retaliation branch) this is the AI target that is retaliating, i.e. the attacker for that hit.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Role label for the first (attacker-side) VS panel combatant; no address residue; consistent with body usage and caller context."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: composes the VS-panel frame into the render workspace and blits it to the mode13h primary surface at 0xA0504."
+  },
+  "reads_globals": [
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_resource_portrait_sheet_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (lines 678-721) and the body (lines 722-762) already precise and verified against decompile + disassembly: pipeline order, all constants (0x8088 backdrop base, 0x808B = +3, 0x7964 HP-bar-state base, 0x37=55 segment width, 0x30 panel sprite, 0x1C8=456 pitch, 0x140=320 primary stride, 0x138=312/0xC0=192 visible region), the xy[2]!=-1 guard, and the JMP 0x11D2C tail-call epilogue note all match. No src edit needed. Live Ghidra params still generic (param_1/2/3); src already uses xy_array_ptr/defender_idx/attacker_idx (Stage 2 will rename Ghidra to match). Sole caller fd2_execute_ai_physical_attack @ 0x1548e (call site 0x155fb): fd2_render_combat_combatant_panels(pCombat_anim_state, param_1=caster, target_idx) on the retaliation path. Did NOT stage the two pre-existing dirty shards (000145cd.json, 00053a51.json) from concurrent work."
+}

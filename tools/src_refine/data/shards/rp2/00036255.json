@@ -1,0 +1,56 @@
+{
+  "address": "00036255",
+  "name_current": "fd2_dpmi_free_dos_memory",
+  "name_final": "fd2_dpmi_free_dos_memory",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the DPMI wrapper naming convention fd2_dpmi_<descriptor>; 'free_dos_memory' precisely describes DPMI INT 31h fn 0x101 (Free DOS Memory Block). No Ghidra address residue in the name. No domain ID involved.",
+  "kind": "function",
+  "home": "ROOT/src/util/dpmi.c",
+  "purpose": "DPMI INT 31h function 0x101 (Free DOS Memory Block) wrapper: releases a DOS conventional memory block by its protected-mode selector handle.",
+  "logic_summary": "Builds a union REGS request with eax=0x101 and edx=selector&0xFFFF (DX register slot), then calls int386(0x31, &in_r, &out_r). Output registers / carry flag are discarded; void return. The first two declared params are placeholder remnants of the 3-output alloc API surface and are never read (disassembly confirms only [ESP+0x44]=arg3 is loaded into the edx slot at REGS offset 0xC).",
+  "signature": "void fd2_dpmi_free_dos_memory(uint32 linear_unused, uint32 segment_unused, uint32 selector)",
+  "params": [
+    {
+      "name": "linear_unused",
+      "type": "uint32",
+      "semantics": "Unused placeholder for parameter symmetry with fd2_dpmi_alloc_dos_memory's linear-address output; never read by the body (callers pass driver->linear at +8).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately marks the parameter as an unused placeholder; no address residue, no misleading generic param_N."
+    },
+    {
+      "name": "segment_unused",
+      "type": "uint32",
+      "semantics": "Unused placeholder for symmetry with the real-mode segment output of alloc; never read (callers pass driver->segment at +0).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately marks the parameter as an unused placeholder; no address residue, no misleading generic param_N."
+    },
+    {
+      "name": "selector",
+      "type": "uint32",
+      "semantics": "Protected-mode selector handle of the DOS memory block to free; low 16 bits placed into the DX register slot for DPMI fn 0x101 (callers pass driver->selector at +4).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name precisely reflects the DPMI selector handle that is the sole operative input; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; DPMI carry/result registers are discarded."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (src/util/dpmi.c lines 57-65) is already accurate and concise: documents fn 0x101, the 3-param symmetry rationale, and that only the selector is used, citing [ESP+0x44] -> DX slot. Verified by disassembly (SUB ESP,0x38; MOV [ESP],0x101; MOV EAX,[ESP+0x44]; AND EAX,0xffff; MOV [ESP+0xc],EAX; int386(0x31,...)) and by caller AIL_internal_uninstall_driver_inner @ 0x3f840, which calls fd2_dpmi_free_dos_memory(driver+8, driver+0, driver+4) -- confirming arg3 (selector) is the only operative input. Ghidra plate is more verbose but semantically consistent with the source, so left untouched. No src edit needed (comment=keep)."
+}

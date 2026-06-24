@@ -14,12 +14,20 @@
  * Owned global data (definition; extern in globals.h).
  *
  * data_fd2_battle_scripted_cinematic_mode_or_terrain_idx @ 0x540FF
- *   Scripted-cinematic mode flag / terrain-index latch for the full
- *   combat cinematic. Zero in the normal battle path; the writers
- *   (fd2_play_full_combat_cinematic here, fd2_play_game_ending_cinematic
- *   in aniend.c, and the ch25 scripted event) store a non-zero value
- *   before the cinematic reads it, then it is latched to 1. Accessed as
- *   a full 32-bit word at every site; zero-initialized (.bss).
+ *   Dual-purpose scripted-cinematic mode flag / forced terrain-index
+ *   latch for the full combat cinematic. Zero in the normal battle path.
+ *   The writers store a non-zero value before the cinematic reads it,
+ *   then it is latched to 1: fd2_play_full_combat_cinematic here,
+ *   fd2_play_game_ending_cinematic in aniend.c (stores the per-duel
+ *   scripted-outcome table value before each credit-roll cinematic), and
+ *   the ch25 scripted event. When non-zero, scripted mode is ON and the
+ *   same value is reused as the forced spotlight / split-bg terrain
+ *   index here. Readers also use non-zero as a mute / scripted-outcome
+ *   gate: fd2_play_sfx_with_handle and fd2_play_sfx_sample_from_bank in
+ *   audio.c silence SFX (their comments name it tutorial_mode_flag), and
+ *   fd2_execute_combat_hit_cinematic forces the hit-outcome rolls to 0.
+ *   Accessed as a full 32-bit word at every site; zero-initialized
+ *   (.bss).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_scripted_cinematic_mode_or_terrain_idx;
 
@@ -94,41 +102,51 @@ uint32 data_fd2_audio_figani_sfx_bank_buf_ptr;
 /* ----------------------------------------------------------------
  * data_fd2_audio_figani_sfx_bank_defender_buf_ptr @ 0x5411B
  *   Defender-side counterpart of data_fd2_audio_figani_sfx_bank_buf_ptr
- *   (0x54117): the SFX handle bank extracted from the DEFENDER's FIGANI
+ *   (0x54117): the SFX handle bank loaded for the DEFENDER's FIGANI
  *   animation stream so the counter-attack pose can play its own sound
- *   effects. Sole owner/writer: fd2_play_full_combat_cinematic here. In
- *   the normal (non-scripted) path it assigns the return of
- *   fd2_load_figani_sfx_bank(defender_figani) before any read, passes it
- *   by value to fd2_execute_combat_hit_cinematic for the swapped-role
- *   counter cinematic, then on cleanup frees it when non-NULL. Accessed
- *   as a full 32-bit pointer (MOV dword) at every site, never indexed;
- *   zero-initialized at rest (.bss), populated only at runtime.
+ *   effects. Sole owner/writer: fd2_play_full_combat_cinematic here. The
+ *   assignment (return of fd2_load_figani_sfx_bank(def_anim_figani)) runs
+ *   only on the non-scripted path; the value is then passed by value to
+ *   fd2_execute_combat_hit_cinematic for the swapped-role counter
+ *   cinematic on BOTH the normal-counter and the scripted forced-counter
+ *   paths (in scripted mode it was never assigned, so it passes NULL,
+ *   which the muted scripted-mode audio path ignores). On cleanup it is
+ *   freed when non-NULL. Accessed as a full 32-bit pointer (MOV dword) at
+ *   every site, never indexed; zero-initialized at rest (.bss), populated
+ *   only at runtime.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;
 
 /* ----------------------------------------------------------------
  * fd2_display_cinematic_image_with_fade @ 0x1F73F  (1 caller)
  *
- * Two-stage cinematic image display with palette transitions.
+ * Two-stage cinematic image display with palette transitions, used by the
+ * title-screen attract / credit-roll sequence.
  *
- * Stage 1 — full-screen image:
+ * Stage 1 -- full-screen FDOTHER.DAT image:
  *   fade current screen to black, clear the 64000-byte framebuffer at
  *   0xA0000, load FDOTHER.DAT[palette_idx] palette into
  *   data_fd2_vga_palette_data_ptr, load FDOTHER.DAT[image1_idx] sprite,
  *   RLE-blit it full-screen (320 stride) to 0xA0000, fade in to reveal
  *   the blit, hold for 1 + 6 BIOS ticks (~385ms), then fade to black.
  *
- * Stage 2 — flash card:
- *   load cinematic 0x65 (final-clear notice) palette, blit a 320x200
- *   region from offset (row_idx*320 + src_x_off) within the loaded
- *   source buffer to 0xA0000, then fade in to reveal it.
+ * Stage 2 -- reveal one screenful out of the caller's scroll panel:
+ *   load FDOTHER.DAT[0x65] (final-clear notice) palette, then blit a full
+ *   320x200 window from (src_buf + row_idx*320) with src stride 320 into
+ *   0xA0000, and fade in to reveal it. The window is the caller's panel
+ *   buffer scrolled to start row row_idx.
  *
  * Params: image1_idx = stage-1 image idx (FDOTHER.DAT entry),
- *   palette_idx = stage-1 palette idx, src_x_off = stage-2 source x
- *   offset, row_idx = stage-2 source y offset (row, multiplied by the
- *   320 stride).
+ *   palette_idx = stage-1 palette idx,
+ *   src_buf = stage-2 SOURCE BUFFER BASE pointer -- the caller's malloc'd
+ *     scroll-panel buffer, NOT an x offset (the current param name
+ *     "src_x_off" is a misnomer; pending rename to src_buf),
+ *   row_idx = stage-2 source start row (multiplied by the 320 stride to
+ *     index into src_buf, i.e. the panel scroll position).
  *
- * Sole caller: fd2_play_ending_and_record_clear @ 0x1FBAF.
+ * Sole caller: fd2_play_ending_and_record_clear @ 0x1FBAF (two scroll-loop
+ *   sites: row 0x1C2 with image 0x64 / palette 99, and row 0x0A with image
+ *   0x4B / palette 0x4C).
  * ---------------------------------------------------------------- */
 void fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx,
                                            uint32 src_x_off, int32 row_idx)
@@ -164,8 +182,10 @@ void fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx
  * fd2_play_figani_char_intro_animation @ 0x28784  (1 caller)
  *
  * Plays the FIGANI character intro animation (full-screen pose with
- * name banner) for the runtime char given by char_idx. Used at chapter
- * intros / character introductions.
+ * name banner) for the runtime char given by char_idx. The sole live
+ * trigger is the long-range branch of fd2_execute_ai_item_use: it is
+ * the caster's spotlight pose shown just before a long-range item/spell
+ * strike (char_idx is the caster).
  *
  * Setup: free large_game_state_buffer + data_fd2_battle_scene_snapshot, allocate
  * a 64000-byte mode-13h framebuffer scratch (dst) and a 0x1F400 work
@@ -292,9 +312,10 @@ void fd2_play_figani_char_intro_animation(uint32 char_idx)
  * free the three big in-game caches, then allocate a 64000-byte mode-13h
  * framebuffer scratch (dst) and a 0x1F400 composite work buffer.
  *
- * Pick the "spotlight" char (the player-side combatant) and the "terrain"
+ * Pick the "spotlight" char (the enemy-side combatant) and the "terrain"
  * char (the other one): if the attacker is enemy-team (team==0) the
- * attacker is spotlight, else the defender is. For each, derive a terrain
+ * attacker is spotlight, else the defender is -- so the spotlight always
+ * resolves to the enemy unit. For each, derive a terrain
  * background byte: normally the tile attribute under the char's grid pos,
  * but for immune (job 0x13, or archetype 4/5 with portrait != 0x1C)
  * classes whose under-foot tile is wrong, use the per-chapter override
@@ -577,8 +598,9 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
  * 9-frame zoom-in / fade-in introduction animation for a character
  * displayed in a special-attack cinematic backdrop. Each frame combines a
  * 10-px-per-frame slide with a palette-darkening fade (intensity steps of 6
- * from 0x36 down to 0). Drives the "character sweeps onto the screen" intro
- * before the per-hit FIGANI frames play.
+ * from 0x30 down to 0; the loop counter runs 8..0, so max = 8*6 = 0x30).
+ * Drives the "character sweeps onto the screen" intro before the per-hit
+ * FIGANI frames play.
  *
  * Branch on data_fd2_battle_runtime_char_array_ptr[char_unit_id].team
  * (0 = enemy, 1 = NPC ally, 2 = player):
@@ -603,14 +625,16 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
  * (used when the caller pre-composited the character into the backdrop, e.g.
  * for split-screen 1-on-1 cinematics).
  *
- * Positional args mirror the two callers in this file:
+ * Positional args (consistent across all 6 callers):
  *   char_unit_id  unit index -> runtime_char.team selects top/bottom half
  *   mode_flag     0 = draw static char layer, nonzero = skip it
  *   char_sprite   sliding overlay sprite (blitted every frame at the offset)
  *   char_sprite2  static character sprite (blitted at the fixed origin)
  *   workspace     composite work buffer (0x280-stride slide base)
  *   bg_sprite     clear source + final-settle RLE destination (0x140 stride)
- *   weapon_sprite RLE background sprite stream
+ *   weapon_sprite RLE backdrop sprite blitted at (0xA4, 0x9D) -- despite the
+ *                 name this is NEVER a weapon; every caller passes a
+ *                 TAI.DAT / FDSHAP.DAT name-banner / character-base sprite.
  *
  * Globals touched: data_fd2_battle_runtime_char_array_ptr [0x53A45] (read team).
  *
@@ -1205,7 +1229,7 @@ uint8 data_fd2_graphics_figani_pose_anim_pose_idx;
  * fd2_step_figani_pose_animation @ 0x2B9A1  (3 callers)
  *
  * Per-frame state stepper for a free-running FIGANI pose-loop. Maintains
- * two module-global byte counters that walk forward through pose ×
+ * two module-global byte counters that walk forward through pose x
  * sub-frame, blitting the current pose into dst_buf and auto-wrapping back
  * to the start of the loop once the last pose finishes.
  *
@@ -1234,7 +1258,7 @@ uint8 data_fd2_graphics_figani_pose_anim_pose_idx;
  * Callers: fd2_execute_special_attack_skill @ 0x276EC,
  *   fd2_play_final_chapter_30_ending @ 0x2C405,
  *   fd2_play_spell_cast_sequence @ 0x2A6BD.
- * System = graphics (FIGANI pose-loop state machine; pose × sub-frame walk
+ * System = graphics (FIGANI pose-loop state machine; pose x sub-frame walk
  * with auto-reset).
  * ---------------------------------------------------------------- */
 void fd2_step_figani_pose_animation(uint32 figani_data, uint32 palette_op,

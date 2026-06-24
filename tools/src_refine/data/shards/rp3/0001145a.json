@@ -1,0 +1,42 @@
+{
+  "address": "0001145a",
+  "name_current": "fd2_recompute_runtime_char_total_stats",
+  "name_final": "fd2_recompute_runtime_char_total_stats",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name follows fd2_<descriptor> game-function convention, accurately reflects logic (re-derives a runtime/menu char slot's total combat stats), and carries no Ghidra address residue. Domain-style siblings in battle.c use the same fd2_<verb>_<descriptor> form (fd2_recalculate_combat_stats, fd2_read_tile_attribute_at_pos).",
+  "kind": "function",
+  "home": "src/battle/battle.c",
+  "purpose": "Re-derive a menu/roster character slot's equip-adjusted combat aggregate stats (AP/DP/DX/evade) by summing the slot's per-level base values plus boosts from all equipped inventory items.",
+  "logic_summary": "slot_addr = roster_buffer_ptr + slot_idx*0x50. Seeds ap_total/dp_total/dx_total from slot fields +0x37/+0x39/+0x3E (base per-level stats); stat4_total (evade/defender-DX) starts equal to dx_total. Loops the 8 inventory slots (slot_iter 0..7); for each whose flag byte (inv_slot+0xA) has bit 0x40 (equipped marker) set, fetches the item-effect entry via fd2_get_item_effect_entry(inv_slot+0xB) and adds the item's s16 boosts: +1->AP, +3->DX(HT), +5->DP, +7->evade(EV). Finally writes the four 16-bit totals back to slot +0x48 (AP), +0x4A (DP), +0x4C (DX), +0x4E (evade). __CHK(0x24) frame check at entry. No early returns; cyclomatic complexity 3.",
+  "signature": "void __cdecl fd2_recompute_runtime_char_total_stats(uint32 slot_idx)",
+  "params": [
+    {
+      "name": "slot_idx",
+      "type": "uint32",
+      "semantics": "Index into the menu/template party roster array (data_fd2_shared_menu_party_roster_buffer_ptr); slot stride is 0x50 bytes. Callers pass menu_party_member_count (after slot init) or the matched template index tmpl_idx (after writing runtime char back). In Ghidra this param is still the generic placeholder param_1; src already names it slot_idx.",
+      "verdict": "rename",
+      "proposed": "slot_idx",
+      "reason": "Ghidra name param_1 is a generic placeholder that does not reflect usage (it is a roster slot index). Source already uses the accurate name slot_idx; align Ghidra to it in Stage 2. Not applied here (param rename deferred to Stage 2)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: writes the four 16-bit aggregate combat stats (AP/DP/DX/evade) into the roster slot at offsets +0x48/+0x4A/+0x4C/+0x4E."
+  },
+  "reads_globals": [
+    "data_fd2_shared_menu_party_roster_buffer_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment was correct but minimal ('Sums base + equipped-item boosts. Operates on menu roster buffer.'): it omitted the seeded base fields, the 0x40 equipped marker, the four output offsets (+0x48..+0x4E), the item-effect field mapping, and the relationship to the battle-array twin fd2_recalculate_combat_stats.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against: Ghidra decompile (matches src byte-for-byte logic), both callers (fd2_init_runtime_char_from_base_growth @ 0x112a5 passes menu_party_member_count post-init; fd2_save_runtime_char_to_template @ 0x11506 passes matched tmpl_idx after HP/MP sync), and fd2-knowledge item_entry layout (23 bytes: TY AP AP HT HT DP DP EV EV ...) which confirms returned-pointer offsets +1/+3/+5/+7 map to AP/HT(DX)/DP/EV(evade) s16. Ghidra plate is detailed and consistent with refined understanding -> left unchanged. No logic touched; only the src comment block was augmented."
+}

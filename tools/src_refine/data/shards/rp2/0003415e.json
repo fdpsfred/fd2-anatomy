@@ -1,0 +1,80 @@
+{
+  "address": "0003415e",
+  "name_current": "fd2_blit_24x24_tile_to_battle_grid_position",
+  "name_final": "fd2_blit_24x24_tile_to_battle_grid_position",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (gfx/blit domain). Descriptor accurately reflects behavior: blits a 24x24 tile sprite to a pixel position in the battle preview/intro grid layout. '24x24' is the meaningful tile dimension, not address residue; the trailing 'position' is descriptive. No Ghidra address residue. Sole caller fd2_render_battle_scene_with_portrait_grid_layout @ 0x34010 places chapter-digit, player-row, enemy-row, and reserved-highlight tiles at grid positions via this helper, confirming the name.",
+  "kind": "function",
+  "home": "src/gfx/blittile.c",
+  "purpose": "24x24 tile blit helper: resolve a tile sprite pointer from an atlas offset table, compute the destination pixel address from buffer/stride/x/y, and tail-call the plain passthrough blitter.",
+  "logic_summary": "src = atlas_base + *(int*)(atlas_base + tile_index*4 + 6) (each atlas entry is 4 bytes; the 4-byte value at +6 from the entry is the sprite's absolute byte offset within the atlas). dst = dst_buffer + dst_y * dst_row_stride + dst_x. Then fd2_tile_blit_24x24_passthrough(src, dst, dst_row_stride). Compiler-injected __CHK(0x14) stack-probe prologue only; void return. Disassembly @ 0x3415e confirms: SHL EAX,2 (tile_index*4) + atlas_base -> entry; atlas_base + [entry+6] -> src (EDX); dst_y IMUL dst_row_stride + dst_buffer + dst_x -> dst (EAX); PUSH stride,dst,src; CALL 0x4deda.",
+  "signature": "void fd2_blit_24x24_tile_to_battle_grid_position(uint32 atlas_base, uint32 tile_index, uint32 dst_buffer, uint32 dst_row_stride, uint32 dst_x, uint32 dst_y)",
+  "params": [
+    {
+      "name": "atlas_base",
+      "type": "uint32",
+      "semantics": "Tile atlas base address. Each tile entry is 4 bytes; the 4-byte value at +6 from the entry is the sprite's absolute byte offset within the atlas. Caller passes the character/digit tile atlas, or data_fd2_runtime_battle_state_ptr for the reserved-position highlight tile.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the atlas base pointer used for sprite-offset lookup; no address residue; matches caller usage."
+    },
+    {
+      "name": "tile_index",
+      "type": "uint32",
+      "semantics": "Index into the atlas (multiplied by 4 for the 4-byte entry stride). Caller passes a chapter digit (0x40 + digit), a player/enemy character id from a byte array, or 0 for the highlight tile.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the per-entry index; no address residue; matches caller usage."
+    },
+    {
+      "name": "dst_buffer",
+      "type": "uint32",
+      "semantics": "Destination framebuffer base linear address (the 64000-byte working canvas in the caller).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the destination buffer base; no address residue."
+    },
+    {
+      "name": "dst_row_stride",
+      "type": "uint32",
+      "semantics": "Destination row stride in bytes (caller always passes 0x140 = 320). Used both to compute dst (dst_y * stride) and forwarded to the passthrough blitter as the blit pitch.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the row stride; no address residue; matches both uses."
+    },
+    {
+      "name": "dst_x",
+      "type": "uint32",
+      "semantics": "Destination pixel x coordinate (column offset added to dst).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the x pixel coordinate; no address residue; matches caller grid-x values."
+    },
+    {
+      "name": "dst_y",
+      "type": "uint32",
+      "semantics": "Destination pixel y coordinate (row index multiplied by dst_row_stride for dst).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the y pixel coordinate; no address residue; matches caller grid-y values."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; performs the blit as a side effect."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (blittile.c lines 316-340) already precise, accurate, ASCII; matches disassembly @ 0x3415e and sole caller fd2_render_battle_scene_with_portrait_grid_layout @ 0x34010. Ghidra plate consistent with refined understanding; left unchanged. Ghidra decompile output shows scrambled param names (stack-analysis artifact) but disassembly confirms the logical 6-arg cdecl layout documented in the source signature and plate. No source comment edit needed; commit covers only the new shard file."
+}

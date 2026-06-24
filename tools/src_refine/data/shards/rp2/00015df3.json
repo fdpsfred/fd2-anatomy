@@ -1,0 +1,51 @@
+{
+  "address": "00015df3",
+  "name_current": "fd2_find_tile_with_attribute_match",
+  "name_final": "fd2_find_tile_with_attribute_match",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; descriptor accurately reflects the behavior (scan battle map for the first tile whose attributes match a tag). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/battle/btl_aitg.c",
+  "purpose": "Scan the battle map for the first event-type-1 tile carrying a given tag and return its (x,y).",
+  "logic_summary": "Row-major double loop (y outer 0..map_height-1, x inner 0..map_width-1). For each tile calls fd2_read_tile_attribute_at_pos(x, y, &tile_buf) which fills an 8-byte buffer: [+2] = 5-bit terrain_class (used here as the event-tile tag), [+4] = attribute-flags byte 0. A tile matches when (attr_flags & 0x60) == 0x20 (event tile type 1) AND terrain_class == target_tag. On the first match it writes out_pos[0]=x and out_pos[1]=y as bytes and returns 0; if the whole map is scanned with no match it returns -1 (0xFFFFFFFF).",
+  "signature": "int fd2_find_tile_with_attribute_match(uint32 target_tag, uint32 out_pos)",
+  "params": [
+    {
+      "name": "target_tag",
+      "type": "uint32",
+      "semantics": "The tag matched against each tile's terrain_class field (tile_buf+2). Sole caller (fd2_enemy_turn_action_dispatcher AI class 5) passes the char's AI event-target id (runtime_char.pAi_target_and_DX_block[0]), which doubles as the index into the tile-event data table.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately describes the value's role (a tag/id matched against tile attributes); no address residue, not param_N."
+    },
+    {
+      "name": "out_pos",
+      "type": "uint32",
+      "semantics": "Pointer to a caller-supplied buffer; on a hit out_pos[0] receives the tile x and out_pos[1] the tile y, each written as a single byte.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the output position pointer; no address residue, not param_N."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "0 when a matching event tile is found (with its x,y written to out_pos as bytes); -1 (0xFFFFFFFF) when no tile on the map matches."
+  },
+  "reads_globals": [
+    "data_fd2_battle_map_height_tiles",
+    "data_fd2_battle_map_width_tiles"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment called the matched field 'secondary_attr', which is imprecise: per the callee fd2_read_tile_attribute_at_pos, tile_buf+2 is the 5-bit terrain_class (tile meta byte & 0x1F) reused as the event-tile tag, while the 4-byte attribute record sits at +4..+7. The comment also omitted the exact filter value (attr_flags & 0x60)==0x20 and the caller context (AI class 5 item pickup; target_tag = AI event-target id).",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Single caller confirmed via get_function_callers + get_xrefs_to: fd2_enemy_turn_action_dispatcher @ 00013a9f (call site 00013c59). tile_buf layout cross-checked against callee fd2_read_tile_attribute_at_pos @ 00012e38. Ghidra plate is detailed and behaviorally correct (filter value, usage, return values); it labels +2 as 'secondary_attr (= tag)' which is a minor field-naming imprecision but not a behavioral contradiction with the refined src comment, so per the 'consistency is enough / do not churn plate' rule it was left untouched (ghidra_plate_action=none). No logic concerns found."
+}

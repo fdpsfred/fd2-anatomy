@@ -1,0 +1,42 @@
+{
+  "address": "00035c23",
+  "name_current": "fd2_chapter_event_handler_49__unref_sentinel",
+  "name_final": "fd2_chapter_event_handler_49__unref_sentinel",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> game-function name. 'chapter_event_handler' = the per-event dispatch-table family @ 0x51B91. '49' is the dispatch-table index 0x49 (table entry @ 0x51CB5, verified as the sole xref-to), a meaningful domain ID like every sibling (handler_2f..4a), NOT an address residue (own address is 0x35C23). '__unref' records that no chapter FDFIELD turn-event/tile-step hook references this slot (verified: only xref is the dispatch table itself, get_function_callers returns none). '__sentinel' describes its category (consumed-flag setter only). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Unreferenced chapter-event dispatch slot 0x49: a sentinel handler that marks the ch28 sentinel-scene tile-event slot consumed (tile_event_consumed_flags[0x12] = 1) with no other side effects.",
+  "logic_summary": "Single statement: store 1 into tile_event_consumed_flags[0x12]. In the binary it is a 10-byte stub (PUSH 4; CALL __CHK; JMP 0x35AAE) that borrows the Class-3 shared consume-slot-0x12 tail (MOV EAX,[consumed_flags_ptr]; MOV byte [EAX+0x12],1; RET) hosted at the end of fd2_chapter_event_handler_44__ch28_dialog_with_state @ 0x35A48 (alt_66 @ 0x35AAE). The __CHK(4) is the Watcom stack-probe prologue and carries no source-level semantics. Slot 0x12 is the prerequisite that the handler_44/handler_45 chain depends on. event_arg is never read.",
+  "signature": "void __cdecl fd2_chapter_event_handler_49__unref_sentinel(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch-table ABI arg word (1-arg cdecl void fn(uint event_arg)); not read by this handler.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Appropriate generic name for the unused dispatch-table ABI argument; not an address residue. Matches the convention used across the whole handler family for handlers that ignore the arg."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_field_map_tile_event_consumed_flags_ptr (writes through the pointer: consumed_flags[0x12] = 1; the pointer global itself, at 0x53AD5, is read not written)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "2cf9970bfbec0cf29aa7e841874b664a1f5f5337",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against live Ghidra: disassemble_function(0x35C23) = PUSH 4 / CALL 0x36CD7 (__CHK) / JMP 0x35AAE; tail at 0x35AAE = MOV EAX,[0x53AD5] / MOV byte [EAX+0x12],1 / RET. get_xrefs_to(0x35C23) = single DATA ref from 0x51CB5 (dispatch table). get_function_callers = none (confirms __unref). Source lines 1078-1105 of chevt2.c already give the functionally-exact single byte-store and a precise, correct comment block; no edit needed. Ghidra plate and src comment agree, so no plate action. No logic concerns."
+}

@@ -401,7 +401,16 @@ void fd2_clear_all_chars_acted_flag(void)
 /* ----------------------------------------------------------------
  * fd2_set_chapter_init_done_flag @ 0x33FAF
  *
- * Set chapter_init_done_flag byte to 1.
+ * Unconditionally set chapter_init_done_flag (byte @ 0x53A44) to 1.
+ *
+ * Sole caller fd2_game_main_loop runs this in a
+ *   while (chapter_init_done_flag == 0) fd2_set_chapter_init_done_flag();
+ * spin on the action/confirm (Space/Enter) key path. Because the flag is
+ * BSS-cleared at load and this setter always writes 1, the loop body runs
+ * exactly once -- on the first confirm press while the click-debounce skip
+ * count is zero -- latching the flag 0 -> 1; later confirm presses skip it.
+ * The flag has exactly one reader (that loop condition) and one writer
+ * (this function).
  * ---------------------------------------------------------------- */
 void fd2_set_chapter_init_done_flag(void)
 {
@@ -412,8 +421,15 @@ void fd2_set_chapter_init_done_flag(void)
  * fd2_set_battle_anim_phase_to_1 @ 0x35C15
  *
  * Shared tail chunk: set battle_anim_phase = 1.
- * Originally a JMP target with stack cleanup; emitted as
- * standalone setter.
+ *
+ * In the original this is a tail entered via JMP from several chapter
+ * cinematic handlers; it opened with ADD ESP,0xC to drop the 3 args
+ * the caller had pushed (for the preceding 3-arg warp helper) before
+ * deciding to flip the flag, then MOV [battle_anim_phase],1 and RET.
+ * Here it is emitted as a plain void setter -- the arg cleanup is now
+ * handled by the normal calling convention, so only the flag write
+ * remains. Sole emitted caller: fd2_chapter_event_handler_52
+ * (ch30 cinematic), which calls it on both return branches.
  * ---------------------------------------------------------------- */
 void fd2_set_battle_anim_phase_to_1(void)
 {
@@ -439,7 +455,9 @@ void fd2_set_battle_anim_phase_to_1(void)
  *
  * Each tile is decoded by fd2_tile_blit_24x24_passthrough from its
  * RLE source into its 24x24 cell. On malloc failure the original
- * tail-JMPs into _main's shared printf("%s")+exit(1) error path.
+ * pushes the message string and tail-JMPs into the shared
+ * printf(msg)+exit(1) error stub at 0x10056 (emitted inline here as
+ * printf(...)+exit(1)). The "rease" in the message is a vendor typo.
  *
  * Callers (need the unpacked tile bank for cinematic effects):
  *   fd2_cast_earthquake_spell_with_screen_shake @ 0x21548

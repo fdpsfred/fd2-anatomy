@@ -1,0 +1,44 @@
+{
+  "address": "00013512",
+  "name_current": "fd2_mark_char_acted_this_turn",
+  "name_final": "fd2_mark_char_acted_this_turn",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>; descriptor accurately names the behavior (mark a runtime char as having acted this turn by setting flags bit 0x80). No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/battle/btl_turn.c",
+  "purpose": "Set the acted-this-turn flag (bit 0x80 / CHARFLAG_ACTED) on the indexed runtime char so the rest of the turn machinery treats it as having taken its action.",
+  "logic_summary": "Computes the base address of runtime_char[char_idx] (data_fd2_battle_runtime_char_array_ptr + char_idx*RUNTIME_CHAR_SIZE), then ORs CHARFLAG_ACTED (0x80) into the flags byte at offset 5. Single basic block, no branches. (Ghidra also shows a leading __CHK(4) Watcom stack-probe call.)",
+  "signature": "void __cdecl fd2_mark_char_acted_this_turn(uint32 char_idx)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index into the runtime_char array of the char to mark as acted. Callers pass a loop index over chars (e.g. fd2_apply_end_turn_regen passes (uint32)i).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate (array index of the char); no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "comment_original_issue": "Original src comment was correct but terse (only stated 'set flags bit 0x80'); did not note who consumes the bit.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "2c49fadeb58d50c01a70d7099093e1750f6ea64e",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src writes via byte pointer pChar[5] |= CHARFLAG_ACTED; Ghidra writes via struct field .bFlags |= 0x80. Both agree on offset 5 and bit 0x80, so they are consistent (equivalence already verified upstream). The fd2-knowledge struct doc labels offset 0x0D as the action-status byte from a different memory-hack table/version; that is a struct-doc note, not a discrepancy in this symbol, so no issue raised. reads_globals/writes_globals both list data_fd2_battle_runtime_char_array_ptr because the |= is a read-modify-write of that array's flags byte (pointer global itself is only read)."
+}

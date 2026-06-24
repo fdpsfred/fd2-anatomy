@@ -13,9 +13,31 @@
 /* ----------------------------------------------------------------
  * fd2_tick_tutorial_progress_with_sfx @ 0x2C9EC
  *
- * Per-step tick + footstep SFX dispatcher.
- * Selects cadence divisor and SFX based on char job/immunity.
- * Plays SFX when counter aligns, increments counter.
+ * Per-frame footstep SFX dispatcher. Ticked once per frame inside the
+ * 6-frame walk-step slide loop by all four directional walk_step
+ * handlers and by fd2_cutscene_event_trigger (cutscene-driven walk
+ * simulation). Picks a cadence (divisor + SFX id) for the walking unit,
+ * plays the footstep SFX on each divisor-aligned frame, then advances
+ * the cadence counter.
+ *
+ * Cadence selection (char_idx = walking unit index):
+ *   - status-immune (flying/lifted): divisor 6, sfx 10.
+ *   - else by per-job cadence class job_tbl[job_id - 1]
+ *     (job_tbl copied from data_fd2_audio_footstep_sfx_per_job_cadence_class_table,
+ *      29 bytes covering job ids 1..0x1C):
+ *       class 0  -> divisor 6, sfx 9
+ *       class 1  -> divisor 4, sfx 9
+ *       other    -> divisor 9, sfx 11
+ *   SFX fires when data_fd2_audio_walk_step_sfx_cadence_counter % divisor
+ *   == 0; the counter is then incremented.
+ *
+ * Globals: reads runtime_char[char_idx].job_id and the per-job cadence
+ * table; reads/writes data_fd2_audio_walk_step_sfx_cadence_counter (that
+ * counter is touched ONLY here -- it has no external reader).
+ *
+ * NOTE: the "tutorial_progress" framing in the name is a misnomer; the
+ * counter is a pure footstep cadence counter, not a tutorial milestone.
+ * Rename candidate: fd2_tick_walk_step_footstep_sfx.
  * ---------------------------------------------------------------- */
 void fd2_tick_tutorial_progress_with_sfx(uint32 char_idx)
 {
@@ -67,7 +89,7 @@ void fd2_tick_tutorial_progress_with_sfx(uint32 char_idx)
  * each frame blits the visible 312x192 region to the mode13h primary
  * at 0xA0504 from either the workspace base (even iterations) or one
  * row (0x1C8 bytes) further down (odd iterations), giving a perceived
- * up/down jitter, with a 20-tick (~1100ms) delay per frame.
+ * up/down jitter, with a ~20ms delay (fd2_delay_ms) per frame.
  *
  * Used after big spells (earthquake / boss attacks) and chapter event
  * cinematics (earthquake intros).
@@ -273,9 +295,12 @@ void fd2_animate_money_decrement(uint32 delta)
 /* ----------------------------------------------------------------
  * fd2_animate_tutorial_dialog_intro_or_outro @ 0x2D669 (3 callers)
  *
- * 4-frame "speech-bubble wing" slide-in/out animation for the
+ * 4-frame "speech-bubble wing" deploy/retract animation for the
  * chapter-intro dialog panel. Used by all three chapter-intro menu
  * types (main / typeB / typeC) when opening or closing the panel.
+ * NOTE: the "tutorial" framing in the name is a misnomer -- this drives
+ * the chapter-intro shop/menu dialog panel, not any tutorial.
+ * Rename candidate: fd2_animate_chapter_intro_dialog_wings.
  *
  * Setup: backs up the current mode13h framebuffer (0xA0000, 64000 B)
  * into a malloc'd scratch, paints a 20-row dark band (palette 0x4A,
@@ -285,14 +310,24 @@ void fd2_animate_money_decrement(uint32 delta)
  * Per-frame loop (frame = 0..3): restores the banded backdrop into the
  * working buffer, then for each of the 4 corners blits the corner
  * sprite into the buffer at base + corner_offs[corner]/divisor + 0xD430.
- * The divisor ramps the wing size: OPEN (open_or_close != 0) uses
- * frame+1 (1,2,3,4 -> wings grow); CLOSE (open_or_close == 0) uses
- * 4-frame (4,3,2,1 -> wings shrink). Each frame is then committed to
- * 0xA0000. corner_offs is the 4-entry signed offset table @ 0x526DA
- * (-39,-13,13,39); the per-corner divide is signed (truncates toward 0).
+ * The divisor scales each corner's signed offset, so a larger divisor
+ * pulls the wings closer to the center (0xD430). open_or_close picks the
+ * ramp direction:
+ *   open_or_close == 0  -> OPEN/deploy:  divisor 4,3,2,1 over the frames,
+ *                          so the offsets grow 1/4 -> full and the wings
+ *                          spread OUT from center. Matches the menu-open
+ *                          call site, which passes 0.
+ *   open_or_close != 0  -> CLOSE/retract: divisor 1,2,3,4 over the frames,
+ *                          so the offsets shrink full -> 1/4 and the wings
+ *                          converge IN toward center. Matches the menu-
+ *                          close call site, which passes 1.
+ * Each frame is then committed to 0xA0000. corner_offs is the 4-entry
+ * signed offset table @ 0x526DA (-39,-13,13,39); the per-corner divide is
+ * signed (truncates toward 0).
  *
- * Cleanup: OPEN leaves the band+wings on screen; CLOSE restores the
- * original framebuffer from the backup. The scratch is freed.
+ * Cleanup: OPEN (param 0) leaves the band+wings on screen; CLOSE (param
+ * non-zero) repaints the band-only backdrop to 0xA0000 (erasing the
+ * wings). The scratch is freed.
  *
  * The sprite source is atlas-indexed exactly like the sibling
  * fd2_wait_input_with_chapter_dialog_blink corner blit: atlas base +
@@ -355,7 +390,7 @@ void fd2_animate_tutorial_dialog_intro_or_outro(uint32 open_or_close)
  * Animate a 0x4A-row x 0x11C-byte block scrolling UP within the shop
  * dialog area at framebuffer offset 0xA8FCA. Three staged shifts of 6
  * rows each (with 10ms pacing), then a final 8-row shift to land 2 rows
- * below original — total scroll distance 0x1A rows (the per-row height
+ * below original -- total scroll distance 0x1A rows (the per-row height
  * in the shop grid layout). Row stride is 0x140 (mode13h scanline).
  *
  * Phase 1 (3 x 6-row shifts, each followed by a 6-row dark-grey fill):
@@ -462,9 +497,10 @@ void fd2_animate_scroll_down_in_shop_dialog(void)
 /* ----------------------------------------------------------------
  * fd2_animate_shop_transaction_feedback @ 0x2F4C6 (3 callers)
  *
- * Animation feedback for a successful shop transaction (buy / sell /
- * give). Plays a per-chapter-type sprite cycle and (for state 4 only)
- * a cyan additive palette flash. Dispatches on the per-chapter byte
+ * Animation feedback for a successful gold transaction in one of the
+ * shop-style menus (buy / sell / revive). Plays a per-chapter-type
+ * sprite cycle and (for state 4 only) a cyan additive palette flash.
+ * Dispatches on the per-chapter byte
  * data_fd2_chapter_intro_menu_cursor_state @ 0x5412B:
  *
  *   state 1: 5-frame sprite cycle (atlas frames 0x17..0x1B at framebuffer
@@ -487,8 +523,8 @@ void fd2_animate_scroll_down_in_shop_dialog(void)
  * data_fd2_ui_menu_screen_sprite_atlas_buf_ptr @ 0x54147, frame_idx); the
  * destinations are fixed mode13h aperture addresses (real VGA RAM under
  * DOS/4GW). The palette flash drives the DAC via the real
- * fd2_set_vga_palette_range_with_add (port 0x3C8/0x3C9 writes). Used by all
- * four shop flows (buy / sell / equip / give) and the class-promotion path.
+ * fd2_set_vga_palette_range_with_add (port 0x3C8/0x3C9 writes). Invoked by
+ * the buy / sell / revive menus after a successful gold transaction.
  *
  * Cdecl, no params, void return. The binary's __CHK(0x18) stack-probe
  * prologue is compiler-generated and omitted here.
@@ -555,8 +591,8 @@ void fd2_animate_shop_transaction_feedback(void)
  * fd2_animate_party_addition_with_appear_effect @ 0x32999 (4 callers)
  *
  * Plays the "new char appearance" 12-frame animation with explosion
- * sprites + SFX for newly added party members. param_1 is the joining
- * recruit / party-slot id used as the target race-id filter; it is
+ * sprites + SFX for newly added party members. target_race_id is the
+ * joining recruit / party-slot id used as the target race-id filter; it is
  * forwarded to fd2_load_chapter_portraits_and_dump_tmp, which spawns
  * only the field chars whose race byte matches it. The actual chapter
  * index is read separately from data_fd2_chapter_current_chapter_id
@@ -571,9 +607,9 @@ void fd2_animate_shop_transaction_feedback(void)
  *   - malloc(0x25680) -> backup buf; memmove(backup,
  *       large_game_state_buffer, 0x25680) (snapshot working surface).
  *   - old_char_count = party_member_count (record pre-join count).
- *   - fd2_load_chapter_portraits_and_dump_tmp(param_1) (spawns the
- *       field chars whose race byte matches param_1, so may grow
- *       party_member_count by adding the new chars).
+ *   - fd2_load_chapter_portraits_and_dump_tmp(target_race_id) (spawns
+ *       the field chars whose race byte matches target_race_id, so may
+ *       grow party_member_count by adding the new chars).
  *
  * 12-frame loop (snapshot = 0..0xB):
  *   - if snapshot == 1: fd2_play_sfx_with_handle(sfx_buf, 0, 1).
@@ -781,8 +817,8 @@ void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_
  *   Hold:      fd2_delay_ms(400)  (400ms at peak brightness)
  *   Fade DOWN: brightness 0x3E..0  (63 steps, 8ms each = 504ms)
  *
- * Total duration ~1.4s. Used for celebratory / dramatic moments
- * (level-up flash, victory, ch29/ch30 endgame transitions).
+ * Total duration ~1.4s. Used for dramatic endgame transitions;
+ * all 7 call sites are in the ch29/ch30 endgame cinematics.
  *
  * Cdecl, no params, void return. EBX is the loop counter (callee-saved).
  * The binary's __CHK(0x14) stack-probe prologue is compiler-generated
@@ -811,12 +847,14 @@ void fd2_animate_palette_flash_pulse_white(void)
 /* ----------------------------------------------------------------
  * data_fd2_audio_walk_step_sfx_cadence_counter @ 0x540FE  (.object2)
  *
- * Per-step footstep/cadence counter for fd2_tick_tutorial_progress_with_sfx.
- * Free-running uint8: each step does (counter % divisor) to gate a
- * milestone SFX, then INC (byte ptr [0x540FE]). Zero-initialized; first
- * runtime use is read-modulo-then-increment. Tutorial code also reads it
- * as a "steps taken so far" milestone.
+ * Free-running per-step footstep-SFX cadence counter; the sole state of
+ * fd2_tick_tutorial_progress_with_sfx. Each walk step does
+ * (counter % divisor) to gate a footstep SFX, then increments it. The
+ * divisor (4/6/9) is chosen per job cadence class.
  *
- * Accessed exclusively as byte ptr (MOVZX = unsigned) -> uint8 scalar.
+ * uint8 scalar, accessed exclusively as byte ptr (MOVZX = unsigned).
+ * Zero-init (BSS); NOT const -- written by the increment each step.
+ * Read/written ONLY here -- there is no tutorial-progress consumer
+ * despite the "tutorial_progress" framing in the function name.
  * ---------------------------------------------------------------- */
 uint8 data_fd2_audio_walk_step_sfx_cadence_counter;

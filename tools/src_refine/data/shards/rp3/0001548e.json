@@ -1,0 +1,55 @@
+{
+  "address": "0001548e",
+  "name_current": "fd2_execute_ai_physical_attack",
+  "name_final": "fd2_execute_ai_physical_attack",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Already conformant: fd2_ prefix, ai domain, execute action, physical_attack descriptor. No address residue. Accurately reflects purpose (executes the AI-chosen physical attack with full sprite animation + retaliation).",
+  "kind": "function",
+  "home": "src/battle/btl_ai.c",
+  "purpose": "Execute the physical attack chosen by the enemy AI, with full sprite animation (walk-in, hit-with-HP-drain, optional retaliation), then resolve deaths/drops/XP.",
+  "logic_summary": "Reads ai_best_physical_target_x/y/idx (set earlier by fd2_ai_score_physical_attack). (1) anim_phase=0, pan cursor to caster, walk caster to target tile, anim_phase=1, pan to target, face caster->target. (2) Branch on ui_game_speed_flag: ==0 -> fd2_play_full_combat_cinematic (pre-rendered cinematic). !=0 -> fast path: composite frame; if defender can counter, defender faces attacker; allocate speech-bubble desc; paint target HP bar (and caster HP bar if counter possible, using desc+8); clear facings; play first hit (animate_combat_hit_with_hp_drain) returning whether it landed; if it landed AND defender can counter, both face each other, render combatant panels, play one retaliation hit (target vs caster, desc+8). (3) Common tail: clear facings, collect pending death drops into local 12-byte buffer, composite frame, play death animation + mark dead, process drop entries for target, composite frame, process XP/level-up for target. Always returns 1.",
+  "signature": "int __cdecl fd2_execute_ai_physical_attack(uint32 caster_idx, uint32 ctx_flag)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "Index of the acting (attacking) character; passed as the caster to pan_cursor/walk/face and as the attacker_idx to check_can_counter_attack/animate_combat_hit. Callers pass caster_idx / char_idx.",
+      "verdict": "rename",
+      "proposed": "caster_idx",
+      "reason": "Ghidra live name is generic param_1; src already names it caster_idx, which is accurate and address-clean. Rename to be applied in Stage 2."
+    },
+    {
+      "name": "param_2",
+      "type": "uint32",
+      "semantics": "Caster's team/side context flag, forwarded unchanged as the 4th arg (team) to fd2_ai_walk_to_target_tile. Callers (fd2_attack_action_dispatch ctx_flag, fd2_enemy_turn_action_dispatcher team) pass their own team/side value through.",
+      "verdict": "rename",
+      "proposed": "ctx_flag",
+      "reason": "Ghidra live name is generic param_2; src already names it ctx_flag, consistent with sister fd2_execute_ai_offensive_spell and the walk-to-tile team parameter. Rename to be applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Always returns 1 (action executed). The constant return lets callers treat a physical-attack dispatch as 'action consumed'."
+  },
+  "reads_globals": [
+    "data_fd2_battle_ai_best_physical_target_x",
+    "data_fd2_battle_ai_best_physical_target_y",
+    "data_fd2_battle_ai_best_physical_target_idx",
+    "data_fd2_ui_game_speed_flag"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase"
+  ],
+  "comment_original_issue": "src comment was accurate but too terse: it summarized the whole function as one line ('Execute AI physical attack with animation + retaliation') and omitted the caller context, the ctx_flag semantics, the globals read, and the two-branch (cinematic vs fast-path) structure.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Pure orchestrator over already-verified callees; no logic concerns. Source definition (lines 108-180) matches the Ghidra decompile exactly (including desc+8 retaliation-state offset and the 12-byte drops buffer). Ghidra plate is more detailed than the src comment but fully consistent, so left unchanged per the 'src is canonical, plate keeps its detail, only touch plate on contradiction' rule. Both callers confirmed: fd2_attack_action_dispatch @ 0x14ef0 (forwards caster_idx/ctx_flag) and fd2_enemy_turn_action_dispatcher @ 0x13a9f ai_class 11 (forwards char_idx/team)."
+}

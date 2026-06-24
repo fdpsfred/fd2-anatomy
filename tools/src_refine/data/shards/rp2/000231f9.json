@@ -1,0 +1,39 @@
+{
+  "address": "000231f9",
+  "name_current": "fd2_chapter_05_end",
+  "name_final": "fd2_chapter_05_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. '05' is the meaningful chapter id (chapters 01-30 per the FDFIELD/FDTXT chapter set and the chapter-end dispatch table @ 0x51DE9 slot 4 @ 0x51DF9), not an address residue. Descriptor 'end' correctly marks it as the chapter-end (post-clear) handler, paired with fd2_chapter_05_init @ 0x33049.",
+  "kind": "function",
+  "home": "src/field/chend1.c",
+  "purpose": "Chapter 5 (塞拉村) end handler: stages the recruit scene, shows the recruit dialog, recruits 僧侶瑪琳, persists the party, then advances to the next chapter.",
+  "logic_summary": "Unconditionally copies the three 7-byte chapter-5 end-scene placement tables (X/Y/facing @ 0x520CF/0x520D6/0x520DD) into three on-stack char-placement blocks (disasm: LEA EDI,stack; MOVSD+MOVSW+MOVSB = 7 bytes each). Calls fd2_setup_chars_and_camera_for_intro(x_block, y_block, facing_block, 0, 6, 0x29, 0xC, 8, 0, 6, 4): place party chars 0..6, plus extra char 0x29 at tile (0xC,8) facing 0, camera origin (6,4). Shows the recruit dialog page 9 (fd2_display_dialog_scene on data_fd2_current_chapter_text). Recruits char #10 (0xA, 僧侶瑪琳) via fd2_init_runtime_char_from_base_growth(10). Persists the party via fd2_save_runtime_char_to_template(). Finally increments data_fd2_chapter_current_chapter_id by 1. Matches walkthrough chapter 5: 加入 僧侶瑪琳.",
+  "signature": "void __cdecl fd2_chapter_05_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects only (recruit scene/dialog staged, 僧侶瑪琳 recruited, party persisted, current chapter id advanced)."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch05_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch05_end_scene_char_pos_y_table",
+    "data_fd2_chapter_ch05_end_scene_char_facing_table",
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "37ffd41a9f9e2d58ff8304353a276905e1b8365a",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "No params: __cdecl void; the decompiler's in_stack_* / var_* are artifacts of the __CHK stack-probe builtin (PUSH 0x50; CALL 0x36cd7) plus the on-stack scene blocks, not real arguments. Dispatch verified: bytes @ 0x51DE9 table = f62e0200 372f0200 f2300200 bc310200 f9310200... so slot 4 @ 0x51DF9 = f9 31 02 00 = 0x000231f9 (this fn), preceded by fd2_chapter_04_end @ 0x231bc; xref to this fn comes only from that DATA slot (0-based engine index 4 = chapter 5). Recruit identity confirmed via fd2-knowledge: char index 10 = 瑪琳 (base/祭師/聖者 growth tables), chapter 5 walkthrough 加入 僧侶瑪琳; plate's '僧侶瑪琳' is the canonical walkthrough name (僧侶 = priest descriptor matching 祭師). Source for-loop copy of 7 bytes/table is functionally equivalent to the decompiler's unrolled per-index reads [0..6]; no logic discrepancy. Source comment and Ghidra plate both accurate and mutually consistent -> left unchanged; plate additionally documents binary-level mid-function alt-entries (+0x84 @ 0x2327D <- fd2_chapter_08_end jump from 0x235b7; +0x91 @ 0x2328A <- fd2_chapter_03_end jumps from 0x23160 + 0x231b7), both xref-verified, which is the jump-into-middle sharing not preserved at Layer-2 source."
+}

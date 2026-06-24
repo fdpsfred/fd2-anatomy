@@ -1,0 +1,31 @@
+{
+  "address": "0x00033faf",
+  "name_current": "fd2_set_chapter_init_done_flag",
+  "name_final": "fd2_set_chapter_init_done_flag",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (fd2_ prefix + verb 'set' + descriptor 'chapter_init_done_flag') and matches the single global it writes (data_fd2_chapter_chapter_init_done_flag). No Ghidra address residue in the name. Mechanically accurate: the body's sole effect is setting that flag byte to 1.",
+  "kind": "function",
+  "home": "ROOT/src/battle/btl_init.c",
+  "purpose": "Unconditionally sets the chapter_init_done_flag byte (@ 0x53A44) to 1.",
+  "logic_summary": "Body is a compiler-injected __CHK(0x20) stack probe (no real locals) followed by MOV byte [0x53A44],1; RET. The only semantic effect is writing 1 to data_fd2_chapter_chapter_init_done_flag. The flag has exactly one reader and one writer (verified via xrefs): written here, and read only by the loop condition of `while (flag == 0) fd2_set_chapter_init_done_flag();` in fd2_game_main_loop on the action/confirm (Space 0x39 / Enter 0x1C) key path, entered only when click_debounce_skip_count == 0. Since the flag is BSS-cleared at load and this setter always writes 1, the loop body runs exactly once on the first qualifying confirm press (latching 0 -> 1); subsequent confirm presses skip it.",
+  "signature": "void __cdecl fd2_set_chapter_init_done_flag(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": ["data_fd2_chapter_chapter_init_done_flag"],
+  "comment_original_issue": "Both the src one-liner and the Ghidra plate were factually correct on the write, but the plate overstated the read side: it claimed the flag is 'read elsewhere by frame/loop state checks' and 'gates the one-time transition out of chapter init into active gameplay'. Xrefs to 0x53A44 show exactly one reader (the spin-loop condition in fd2_game_main_loop) and one writer (this function); there is no 'elsewhere' reader, so that broader gating narrative is not supported by evidence.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "8d5cfba",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "The `while (flag == 0) setter();` idiom is not a bug: the setter unconditionally writes 1, so the loop is guaranteed to terminate after one iteration. Renaming the global (note the awkward doubled 'chapter_chapter' in data_fd2_chapter_chapter_init_done_flag) is out of scope for this function symbol and would be a Stage 2 concern; this function's own name is correct and kept. The global declaration comment block (lines 478-487) repeats the same overstated 'gate the transition into active gameplay' wording but belongs to a different symbol and was left untouched per single-symbol scope."
+}

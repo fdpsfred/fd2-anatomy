@@ -1,0 +1,89 @@
+{
+  "address": "0x00014818",
+  "name_current": "fd2_compute_aoe_targets",
+  "name_final": "fd2_compute_aoe_targets",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<verb>_<descriptor> convention (compute + aoe_targets). 'aoe' is the term area-of-effect, not an address residue; no hex suffix. Name accurately reflects: paints an affected-tile overlay and gathers char-index targets within it. Established live name used across protos.h/globals.h and 8 callers.",
+  "kind": "function",
+  "home": "src/battle/btl_aitg.c",
+  "purpose": "Paint the affected-tile overlay for a spell/skill/weapon at a center tile, then collect the runtime_char indices standing on an affected tile whose team matches the requested filter.",
+  "logic_summary": "count=0. If spell_range<0x10: floodfill movement-range (class-0 cost table) from (center_x,center_y) covering spell_range tiles via fd2_init_movement_range_floodfill; if aoe_radius!=0, any tile within manhattan aoe_radius of center is then set to 0xFF (excluded from scan). Else (spell_range>=0x10): orthogonal cross -- clear tile byte+7 to 0 along the x-stripe through center_y and the y-stripe through center_x, each extending +/-(spell_range-0x10) from center. Then scan all party_member_count runtime chars: skip dead (flag+5 bit 0) and chars on a 0xFF-marked tile; apply team_filter (0->team==0, 1->team!=0, 2->team==1, 3->team==2); for each match optionally write index byte to out_buf[count] and count++. Return count. Tile metadata lives in byte +7 of each 4-byte cell (shared overlay slot, written transiently).",
+  "signature": "int fd2_compute_aoe_targets(uint32 center_x, uint32 center_y, uint32 out_buf, uint32 spell_range, uint32 aoe_radius, uint32 team_filter)",
+  "params": [
+    {
+      "name": "center_x",
+      "type": "uint32",
+      "semantics": "Center tile x of the spell/skill area. Caller passes candidate/cursor/AI-target tile x. Used as floodfill origin x and as the cross-stripe pivot.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches all caller arg1 (candidate_x / cursor_world_x / ai_best_spell_target_x). Note: Ghidra labels this param_1 (mis-ordered/jumbled labels); src name is the correct semantic."
+    },
+    {
+      "name": "center_y",
+      "type": "uint32",
+      "semantics": "Center tile y of the spell/skill area. Floodfill origin y and cross-stripe pivot.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches all caller arg2. Ghidra labels it param_2."
+    },
+    {
+      "name": "out_buf",
+      "type": "uint32",
+      "semantics": "Optional output buffer; if non-zero, matching char indices are written as bytes (out_buf[count]). If 0, function only counts.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches caller arg3 (target_id_buffer / target_buf). Ghidra labels it param_3."
+    },
+    {
+      "name": "spell_range",
+      "type": "uint32",
+      "semantics": "Area-shape selector. <0x10 -> floodfill range = this many tiles; >=0x10 -> orthogonal cross with extent (spell_range-0x10). Callers source it from the item/spell effect entry (weapon_aoe_y, pSpell[+3], pSpell[+4]).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate for the function's internal semantics (range/shape control). Ghidra mislabels this param as 'caster_x'; src name is correct."
+    },
+    {
+      "name": "aoe_radius",
+      "type": "uint32",
+      "semantics": "Manhattan radius of the AoE exclusion bubble in mode 1 (tiles within < aoe_radius of center are marked 0xFF and excluded). 0 = no bubble. Unused in mode 2.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches body usage (if aoe_radius!=0 ... < aoe_radius). Ghidra mislabels this param as 'caster_y'; src name is correct."
+    },
+    {
+      "name": "team_filter",
+      "type": "uint32",
+      "semantics": "Team selector against runtime_char team byte +6 (0=enemy,1=NPC ally,2=player): 0->enemies only, 1->any ally, 2->NPC allies only, 3->players only.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches the 4-way team test in body. Encoding confirmed against fd2-knowledge runtime_char layout (team field 00=enemy/01=NPC ally/02=player). Ghidra mislabels this param as 'pOut_ids'; src name is correct."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Count of chars found on an affected tile matching team_filter (also the number of bytes written to out_buf when out_buf != 0)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_tile_attribute_flags_buffer_ptr",
+    "data_fd2_battle_map_width_tiles",
+    "data_fd2_battle_map_height_tiles",
+    "data_fd2_battle_party_member_count",
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_tile_map_ptr (writes overlay byte +7 of cells transiently; pointer itself not modified)"
+  ],
+  "comment_original_issue": "Original src comment was correct but too terse: it omitted the two distinct area-shape modes (floodfill range vs orthogonal cross, gated by spell_range vs 0x10), the aoe_radius exclusion-bubble behavior, and the team_filter encoding -- the load-bearing semantics for an internally-polymorphic function with cyclomatic complexity 22.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "042fa5b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified 3 representative callers (fd2_ai_score_physical_attack, fd2_spell_selection_menu_main, fd2_execute_ai_offensive_spell) -- all confirm arg order matches src param names (center_x, center_y, out_buf, spell_range/shape, aoe_radius, team_filter). Ghidra's decompiled param labels are jumbled (param_1/param_2/param_3/caster_x/caster_y/pOut_ids) and do NOT match true semantics; the src names and the plate's documented order are correct. Team encoding cross-checked against fd2-knowledge runtime_char (team byte: 0=enemy,1=NPC ally,2=player; src reads at +6 == guide 0x0E since src base = guide base + 8). The (byte) casts on tile-map/attr pointers in the fd2_init_movement_range_floodfill call are a Ghidra callee-signature artifact (full 32-bit pointers passed on stack), not a logic concern in this function. Plate comment already accurately documents both modes + team filter + behavior; left untouched (no contradiction)."
+}

@@ -1,0 +1,43 @@
+{
+  "address": "000145cd",
+  "name_current": "fd2_paint_threat_overlay_for_team",
+  "name_final": "fd2_paint_threat_overlay_for_team",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Convention-compliant fd2_<domain>_<descriptor>; accurately reflects body (paints a threat/AoE-coverage overlay for the units of a selected team). No Ghidra address residue. _for_team has no numeric ID suffix to scrutinize.",
+  "kind": "function",
+  "home": "src/gfx/rndscene.c",
+  "purpose": "During battle action target selection, paint a threat/AoE-coverage overlay by stamping an AoE '+' pattern at every alive unit of the team chosen by the asymmetric team-selector.",
+  "logic_summary": "Iterate party slots i=0..data_fd2_battle_party_member_count-1 over the runtime_char array (stride 0x50). For each slot: skip if dead (flags bit0 set). Then apply the asymmetric team filter: when team_selector==0 stamp units whose team!=0 (ally/npc+player side); when team_selector!=0 stamp units whose team==0 (enemy side). For matching units call fd2_mark_aoe_plus_pattern_at(pos_x, pos_y), which marks the threat-overlay layer of the tile map.",
+  "signature": "void __cdecl fd2_paint_threat_overlay_for_team(uint32 ctx)",
+  "params": [
+    {
+      "name": "ctx",
+      "type": "uint32",
+      "semantics": "Asymmetric team selector controlling which side's units are stamped: 0 -> stamp team!=0 (ally overlay); nonzero -> stamp team==0 (enemy overlay). AI callers (fd2_ai_walk_to_target_tile etc.) forward their own per-operation ctx; fd2_player_action_menu_loop passes literal 1.",
+      "verdict": "rename",
+      "proposed": "team_selector",
+      "reason": "Current name 'ctx' is generic; the value's actual role is to select which team's units get the overlay (with the documented asymmetric/inverted convention). 'team_selector' matches the Ghidra plate's documented param name and the established convention shared with the AI targeting routines, removing the vague 'ctx'."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is mutation of the threat-overlay layer of the battle tile map via fd2_mark_aoe_plus_pattern_at."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_party_member_count"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "a54c3f383a967d06bad45ee1147416120d92052d",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified runtime_char offsets against src/include/types.h: pos_x +0x00, pos_y +0x01, flags +0x05 (bit0=dead), team +0x06 (0=enemy 1=npc 2=player) - all match the decompiled field accesses. Source comment block (rndscene.c lines 410-424) already accurate, ASCII, and precise (documents asymmetric filter, dead-skip, callee) -> comment kept, no Edit needed. Ghidra plate matches the decompilation body pseudocode and uses team_selector -> plate left unchanged. Param rename team_selector recorded only; will be applied in Stage 2 (touches protos.h decl). 5 distinct callers / 10 call sites (AI routines call it repeatedly per pathfind stage)."
+}

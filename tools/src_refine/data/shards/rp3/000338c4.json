@@ -1,0 +1,33 @@
+{
+  "address": "000338c4",
+  "name_current": "fd2_chapter_24_init",
+  "name_final": "fd2_chapter_24_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; '24' is a meaningful chapter ID (chapters 01-30), not an address residue (function address is 0x338C4). Consistent with sibling handlers fd2_chapter_01_init..fd2_chapter_30_init. Descriptor accurately reflects the per-chapter init handler purpose.",
+  "kind": "function",
+  "home": "src/field/chinit.c",
+  "purpose": "Chapter 24 (在天空的彼方) battle init handler: flat prologue orchestrator that previews the map's reinforcement points via a 4-corner camera scan before the battle begins.",
+  "logic_summary": "Pure straight-line orchestrator. __CHK(0x28) frame-size probe, then: re-init battle state; play dialog page 0; load portrait set 1; sweep camera-and-window to the four map corners (0,4)->(0,0x16)->(0x1A,0x18)->(0x1A,2), each followed by fd2_delay_ms(400) to hold the view; play dialog page 1; pan camera to char 0. No cutscene, no char init, no anim_phase reset, no clear-facing, no data-dependent branch, no CALL-result consumption. In the binary it physically ends after the 4-corner scan and tail-JMPs (0x33965 -> 0x331EA) into fd2_chapter_07_init's page-1 dialog-arg-push alt-entry, which JMPs (0x33214 -> 0x33140) into fd2_chapter_05_init's shared pan_cursor_to_char(0)+RET epilogue; the src is the functionally-equivalent (Layer 2) straight-line reconstruction.",
+  "signature": "void __cdecl fd2_chapter_24_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side-effects only (battle-state init, dialog/portrait/camera/delay calls)."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Src comment block was already accurate and well-refined; only ASCII violation was 5 em-dashes (U+2014) which the project ASCII rule requires as '--'. The Chinese chapter title 「在天空的彼方」 is a permitted proper noun and was kept.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompile + disassembly confirm the body matches src 1:1. CALL 0x375B2 is fd2_delay_ms (the live name); the old Ghidra plate referenced the stale pre-rename name __delay_thunk_375b2, so the plate was updated to use fd2_delay_ms and ASCII em-dashes (content otherwise preserved). Dispatched via the chapter init handler table; xref-to from data 0x51DCD (table slot), 0 direct callers. Param-less void: decompiled in_stack_* vars are __CHK stack artifacts, not real parameters."
+}

@@ -1,0 +1,31 @@
+{
+  "address": "0x00022bb7",
+  "name_current": "fd2_composite_battle_frame_zero",
+  "name_final": "fd2_composite_battle_frame_zero",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. The '_zero' suffix is a meaningful semantic descriptor (the wrapper calls fd2_composite_battle_frame with literal argument 0, i.e. the skip_palette_cycle==0 / palette-cycle-advancing variant), NOT a Ghidra address residue (0x22BB7 has no relation to 'zero'). Body, callers, and callee all confirm: recomposite the battle frame via fd2_composite_battle_frame(0). Name is accurate; keep.",
+  "kind": "function",
+  "home": "C:/Users/fdpsf/Documents/fd2-wt/rp1/src/gfx/rndscene.c",
+  "purpose": "Zero-arg wrapper that recomposites the battle frame with the palette-cycle-advancing variant (calls fd2_composite_battle_frame(0)).",
+  "logic_summary": "Body is just PUSH 0; CALL fd2_composite_battle_frame. In the binary the body is immediately followed by a shared Watcom epilogue (ADD ESP,4 + POP EBP/EDI/ESI/EBX + RET) that restores the reaching parent's saved registers. Entry 0x22BB7 has the two reaching sites fd2_cast_status_cure_spell (conditional tail-JMP @ 0x22B49) and fd2_play_chapter_intro_sprite_slideshow (unconditional CALL @ 0x244B1); the +0x22BBE label is additionally reused as a folded epilogue by 21 other JMP sites (pure epilogue-fold optimization, no source-level meaning). Layer-2 equivalent: emit only the body as a plain no-arg helper; the compiler regenerates each reaching parent's own register-restore epilogue.",
+  "signature": "void __cdecl fd2_composite_battle_frame_zero(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (rndscene.c lines 1162-1187) already precise/concise/ASCII and accurately reflects body, both reaching entry sites, the epilogue-fold, and the Layer-2 equivalent; kept verbatim. Ghidra plate was more verbose AND outdated: it listed 'fd2_noop_stub_15983' among the shared-epilogue functions, but that function is now named fd2_score_item_candidate_tail_15983 (confirmed live at 0x15983). Updated the plate to fix the stale name and to note the palette-cycle-advancing variant / corrected entry-site wording; preserved all the detailed epilogue-fold content. No logic changes; no symbol/param rename applied (function takes no params)."
+}

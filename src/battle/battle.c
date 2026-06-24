@@ -33,6 +33,13 @@ uint32 fd2_advance_rng_state(void)
 
 /* ----------------------------------------------------------------
  * fd2_deduct_caster_mp @ 0x1CA89  (14 callers)
+ *
+ * Subtract a spell's MP cost from the caster's current MP. Called on
+ * every successful cast path after the effect resolves.
+ *   rc[caster_idx].mp_current -= spell_entry[5]   (entry +5 = MP cost)
+ * spell_entry is the 7-byte spell_effect_table row (see types.h /
+ * KB spell_entry: +5 = MP cost). No clamp; MP is assumed sufficient
+ * (callers gate on affordability before casting).
  * ---------------------------------------------------------------- */
 void fd2_deduct_caster_mp(uint32 caster_idx, uint32 spell_id)
 {
@@ -46,7 +53,15 @@ void fd2_deduct_caster_mp(uint32 caster_idx, uint32 spell_id)
 /* ----------------------------------------------------------------
  * fd2_apply_hp_heal_and_award_xp @ 0x1C916  (3 callers)
  *
- * heal = base*9/10 + (rng%100 * base)/1000.  XP for player chars.
+ * Apply HP heal to rc[target_idx] and accumulate heal XP.
+ *   heal     = base*9/10 + (rng%100 * base)/1000   (90%..100% of base)
+ *   hp_after = min(hp_max, hp_before + heal)
+ * Heal XP only for player side (portrait_id < 0x4B), credited to
+ * data_fd2_battle_pending_xp_credit:
+ *   level_mod = target level (status_flags_block[0]); +30 if job 9..24
+ *   credit += level_mod * 40 * hp_gained / hp_max  (full heal -> max XP)
+ * Returns the actual heal amount (consumed by callers for the heal
+ * number display via fd2_show_damage_number).
  * ---------------------------------------------------------------- */
 int fd2_apply_hp_heal_and_award_xp(uint32 target_idx, uint32 base_heal)
 {
@@ -105,7 +120,12 @@ int fd2_apply_heal_spell_to_target(uint32 target_idx, uint32 spell_id)
 /* ----------------------------------------------------------------
  * fd2_apply_damage_and_award_xp @ 0x1C81F  (3 callers)
  *
- * damage = base*9/10 + (rng%100 * base)/1000.  XP for enemy kills.
+ * Apply HP damage and accumulate kill XP.  Returns actual damage.
+ *   actual = base*9/10 + (rng%100 * base)/1000   (90%..100% of base)
+ *   hp_current = max(0, hp_current - actual)
+ * If target is an enemy (portrait_id >= 0x44): XP = enemy[+9](per-level EX)
+ *   * level; on kill (hp_after==0) full XP, else scaled by actual/hp_max.
+ *   Credited to data_fd2_battle_pending_xp_credit.
  * ---------------------------------------------------------------- */
 int fd2_apply_damage_and_award_xp(uint32 target_idx, uint32 base_damage)
 {
@@ -237,9 +257,23 @@ int fd2_check_char_status_immunity(uint32 char_idx)
  * fd2_calculate_combat_hit_outcome @ 0x29F72  (1 caller)
  *
  * Pre-compute a single combat hit outcome into a 6-element uint
- * struct. Same formula as fd2_execute_attack_damage_calculation
- * but without visual effects. Writes poison to defender on hit.
- * Output: [miss, crit, poison, reserved, double_hit, damage].
+ * struct for fd2_execute_combat_hit_cinematic to play out frame by
+ * frame. Same damage/hit/crit formula as
+ * fd2_execute_attack_damage_calculation but pure pre-compute: it
+ * does NOT write back defender HP (the cinematic applies damage
+ * progressively).
+ * Output[0..5]: [miss, crit, poison, reserved, double_hit, damage].
+ *
+ * Stat reads from runtime_char[attacker/defender]; adds per-side
+ * terrain AP/DP % bonus unless the unit has terrain immunity.
+ * Weapon class (item_effect[+9]) branches: 4=extra crit chance,
+ * 3=double strike, 2=poison roll. Poison is applied on its own
+ * chance roll (rand%100 < special_chance) BEFORE the hit/miss
+ * roll, so it can land even on a miss: writes poison kind 2..5 into
+ * defender.status_flags_block[4] (+0x25) and sets output[2].
+ * When a player (team 2) hits an enemy unit (portrait >= 0x44),
+ * accumulates pending XP into data_fd2_battle_pending_xp_credit
+ * from the enemy's exp_reward, scaled down on a non-kill.
  * ---------------------------------------------------------------- */
 void fd2_calculate_combat_hit_outcome(uint32 attacker_idx,
                                        uint32 defender_idx,
@@ -408,9 +442,25 @@ void fd2_flash_char_hit_sprite(uint32 workspace_buf,
 /* ----------------------------------------------------------------
  * fd2_compute_combat_bubble_screen_pos @ 0x1EC2A  (2 callers)
  *
- * Compute speech bubble screen position for a char, adjusting
- * for facing direction and screen boundaries. Output is two
- * int32 values at out_xy_ptr: [0]=x, [4]=y.
+ * Compute the combat speech-bubble screen position for one runtime
+ * char (char_idx), writing two int32 results at out_xy_ptr:
+ * [0]=x, [4]=y. Both callers are fd2_animate_combat_speech_bubbles
+ * (defender bubble + counter-attacker bubble).
+ *
+ * Base anchor = char tile relative to the battle view window:
+ *   x = (pos_x - view_origin_x) * 24 + 4
+ *   y = (pos_y - view_origin_y) * 24
+ *
+ * Adjust by facing (sprite_state[1]) and clamp against the 320x200
+ * screen so the bubble stays on-screen:
+ *   facing < 2 (down/right): place bubble ABOVE the char
+ *     y -= 18 (but if that goes negative, y += 5 instead)
+ *     if right edge would overflow 320: x -= 0x56 and return
+ *   facing >= 2 (up/left): place bubble BELOW the char
+ *     y += 22 if it still fits (y+0x25 < 200), else y += 5
+ *     if left edge stays >= 0: x -= 0x58 and return
+ * If neither edge-fix applied (would overflow both sides), nudge
+ * x += 0x1C as a fallback.
  * ---------------------------------------------------------------- */
 void fd2_compute_combat_bubble_screen_pos(uint32 out_xy_ptr,
                                            uint32 char_idx)
@@ -454,9 +504,17 @@ void fd2_compute_combat_bubble_screen_pos(uint32 out_xy_ptr,
 /* ----------------------------------------------------------------
  * fd2_apply_mp_heal_and_award_xp @ 0x1C9DD  (1 caller)
  *
- * MP version of fd2_apply_hp_heal_and_award_xp. Same 90-100% RNG
- * formula but for MP. No job bonus on level (unlike HP version).
- * Tail-jumps into hp_heal's shared XP epilogue at 0x1C9C7.
+ * Apply MP heal to rc[target_idx] and accumulate heal XP. MP twin of
+ * fd2_apply_hp_heal_and_award_xp with the same 90%..100% RNG formula:
+ *   heal     = base*9/10 + (rng%100 * base)/1000
+ *   mp_after = min(mp_max, mp_before + heal)
+ * Heal XP only for player side (portrait_id < 0x4B), credited to
+ * data_fd2_battle_pending_xp_credit:
+ *   credit += level(status_flags_block[0]) * 40 * mp_gained / mp_max
+ * Unlike the HP version there is NO +30 mid-tier job bonus on level.
+ * Returns the actual heal amount; the sole caller
+ * (fd2_apply_use_effect_dispatch effect code B "回MP") feeds it to
+ * fd2_show_damage_number for the MP-restore number display.
  * ---------------------------------------------------------------- */
 int fd2_apply_mp_heal_and_award_xp(uint32 target_idx, uint32 base_heal)
 {
@@ -493,8 +551,12 @@ int fd2_apply_mp_heal_and_award_xp(uint32 target_idx, uint32 base_heal)
 /* ----------------------------------------------------------------
  * fd2_get_inventory_slot_item_id @ 0x1B722
  *
- * Returns item_id from runtime_char inventory. Each slot is 2 bytes
- * (flag + item_id); item_id is at inventory_slots[slot*2 + 1].
+ * One-line accessor: returns the item_id byte of one inventory slot.
+ *   char_idx -> index into runtime_char array (which combatant)
+ *   slot_idx -> inventory slot 0..7
+ * Each slot is 2 bytes: [0]=flag (bit 0x80 = empty), [1]=item_id.
+ * inventory_slots[] starts at struct +0x0A, so item_id lives at
+ * inventory_slots[slot_idx*2 + 1]. Return feeds get_item_effect_entry.
  * ---------------------------------------------------------------- */
 uint8 fd2_get_inventory_slot_item_id(uint32 char_idx, uint32 slot_idx)
 {
@@ -539,7 +601,20 @@ void fd2_read_tile_attribute_at_pos(uint32 world_x, uint32 world_y,
 /* ----------------------------------------------------------------
  * fd2_recompute_runtime_char_total_stats @ 0x1145A  (2 callers)
  *
- * Sums base + equipped-item boosts. Operates on menu roster buffer.
+ * Re-derive a menu/roster slot's equip-adjusted combat aggregates.
+ * Operates on the menu roster buffer (roster_buffer_ptr + slot_idx *
+ * 0x50), not the active battle array.
+ *
+ * Seeds AP/DP/DX from the slot's per-level base fields (+0x37/+0x39/
+ * +0x3E); the 4th total (evade/defender-DX) starts equal to DX. Then
+ * for each of the 8 inventory slots whose flag byte has bit 0x40
+ * (equipped), adds that item's AP/HT/DP/EV boosts. Writes the four
+ * totals back to +0x48 (AP) / +0x4A (DP) / +0x4C (DX) / +0x4E (evade).
+ *
+ * Item-effect entry fields (offsets off fd2_get_item_effect_entry
+ * pointer): +1 AP, +3 HT(->DX), +5 DP, +7 EV(->evade), all s16.
+ *
+ * Twin of fd2_recalculate_combat_stats (battle-array version below).
  * ---------------------------------------------------------------- */
 void fd2_recompute_runtime_char_total_stats(uint32 slot_idx)
 {
@@ -625,8 +700,19 @@ void fd2_recalculate_combat_stats(uint32 char_idx)
 /* ----------------------------------------------------------------
  * fd2_check_can_counter_attack @ 0x1F0DC  (6 callers)
  *
- * Returns 1 if defender can counter (adjacent + awake + melee weapon).
- * Returns -1 otherwise.
+ * Can `defender_idx` counter-attack `attacker_idx`? Returns 1 if yes,
+ * -1 on any failure.
+ *
+ * The defender can counter only when: it is awake (status_sleep_flag
+ * == 0); the attacker is orthogonally adjacent (Manhattan distance of
+ * their tiles == 1); it has an equipped weapon (kind 0 = physical);
+ * and that weapon's min attack range (item_entry[0xB] = R1) is exactly
+ * 1, i.e. a true melee weapon. attacker_idx is used only as the
+ * adjacency reference point; all weapon/status checks read the
+ * defender.
+ *
+ * Cf. sibling fd2_check_can_default_attack_target, which rejects R1 > 1
+ * (range 1 OK); here R1 must equal 1 (R1 == 0 also fails).
  * ---------------------------------------------------------------- */
 int fd2_check_can_counter_attack(uint32 attacker_idx, uint32 defender_idx)
 {
@@ -665,8 +751,17 @@ int fd2_check_can_counter_attack(uint32 attacker_idx, uint32 defender_idx)
 /* ----------------------------------------------------------------
  * fd2_check_can_default_attack_target @ 0x1DEBE  (1 caller)
  *
- * Returns 1 if char can default-attack tile (x,y).
- * Returns -1 otherwise.
+ * Precheck: can runtime char `char_idx` make a default (melee) attack
+ * on tile (tile_x, tile_y)? Returns 1 if yes, -1 on any failure.
+ *
+ * Excluded when: char is asleep (status_sleep_flag); tile is not
+ * orthogonally adjacent (Manhattan distance != 1); char has no equipped
+ * weapon (kind 0 = physical); or the weapon's min attack range
+ * (item_entry[0xB] = R1) > 1, i.e. a bow/staff that cannot melee.
+ *
+ * Caller fd2_ai_score_physical_attack passes (target_idx, cand_x,
+ * cand_y) to test whether the AoE target could counter-attack the
+ * attacker's candidate tile; a result of 1 grants the counter-bonus.
  * ---------------------------------------------------------------- */
 int fd2_check_can_default_attack_target(uint32 char_idx,
                                          uint32 tile_x, uint32 tile_y)
@@ -702,8 +797,45 @@ int fd2_check_can_default_attack_target(uint32 char_idx,
 /* ----------------------------------------------------------------
  * fd2_execute_attack_damage_calculation @ 0x1ECC7  (1 caller)
  *
- * CORE PHYSICAL COMBAT FORMULA.
- * All RNG sites verified against assembly — decompiler had 4 bugs.
+ * CORE PHYSICAL COMBAT FORMULA. Resolves one physical hit of attacker
+ * against defender: gathers stats, applies terrain modifiers, rolls
+ * hit/crit/poison, computes and applies damage to defender HP, and
+ * stages the kill XP credit. Returns defender's HP after the hit.
+ * Sole caller: fd2_animate_combat_hit_with_hp_drain (combat animation).
+ *
+ * Stats (runtime_char at +offset): AP +0x48, DP +0x4A, HP_cur +0x40,
+ * HP_max +0x42, attacker HIT (offensive DX) +0x4C, defender EV
+ * (evade, defensive DX) +0x4E, job_id +0x20, level +0x21, team +6,
+ * portrait_id +7, char_id +8, poison-duration byte +0x25.
+ *
+ * Step 1 - terrain: weapon = item-effect entry of the equipped weapon;
+ *   weapon_class = entry[9] (1 normal / 2 poison / 4 always-crit),
+ *   weapon_elem = entry[10] (crit-bonus % for class 4, poison-hit %
+ *   for class 2). For each side not status-immune, look up the tile at
+ *   its (x,y); AP/DP += stat * pct_table[tile_attr_buf[5]] / 100, using
+ *   the MV table @0x51A12 for AP and DEF table @0x51A2A for DP.
+ * Step 2 - crit/poison setup: base_crit = job_crit_table[job_id-1].
+ *   class 4: total_crit = base_crit + weapon_elem. class 2: roll RNG,
+ *   and if rng%100 < weapon_elem, apply poison -- defender[+0x25] =
+ *   rng%4 + 2 (duration 2..5, from a *second* RNG roll) + green flash.
+ * Step 3 - hit roll: roll RNG; HIT iff rng%100 < (HIT - EV). On HIT set
+ *   hit/miss flag = 0; roll RNG for crit: if rng%100 < total_crit, white
+ *   flash and DP /= 2. damage = (AP-DP)*9/10, clamped >=0; if damage>=9,
+ *   add jitter rng % (damage/9). defender HP_cur = max(0, HP_cur-damage).
+ *   (MISS leaves the flag at its entry default 1 and damage 0.)
+ * Step 4 - apply HP; XP credit (only when attacker.team == TEAM_PLAYER
+ *   and defender is an enemy portrait >= 0x44): enemy = enemy-data entry
+ *   [portrait-0x44]; mid-tier jobs (9..24) or char_id 0x1C add +0x1E to
+ *   the attacker level used as divisor; pending_xp = enemy[9] * def_level
+ *   / atk_level, then (if defender survived) scaled * damage / HP_max.
+ *
+ * NOTE: this C is the assembly-verified ground truth. The Ghidra
+ * decompiler mis-folded the RNG return value into the crit variable in
+ * four spots; the correct (assembly) predicates/values are: poison-hit
+ * uses rng%100 < weapon_elem; poison duration is rng%4 + 2 (NOT
+ * (rng/4)%4); the hit roll uses rng%100 < (HIT-EV); the crit roll uses
+ * rng%100 < total_crit; and the damage jitter is rng % (damage/9). Each
+ * RNG-consuming step calls fd2_advance_rng_state() exactly once.
  * ---------------------------------------------------------------- */
 int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
 {
@@ -863,6 +995,8 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx)
  *   kind == 0 (physical / weapon / armor): item_id <  0x80
  *   kind != 0 (magical / spellbook):       item_id >= 0x80
  * Item id 0x80 is the physical/magical split (assets/items.md).
+ * All 8 current callers pass kind=0 (find equipped weapon); the
+ * kind!=0 (>=0x80) branch is supported but currently unexercised.
  * ---------------------------------------------------------------- */
 uint32 fd2_find_equipped_item_by_kind(uint32 char_idx, uint32 kind)
 {

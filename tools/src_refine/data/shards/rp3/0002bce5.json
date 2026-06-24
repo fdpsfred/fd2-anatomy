@@ -1,0 +1,40 @@
+{
+  "address": "0002bce5",
+  "name_current": "fd2_play_game_ending_cinematic",
+  "name_final": "fd2_play_game_ending_cinematic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> name (domain=play, descriptor=game_ending_cinematic). Accurately describes purpose: the top-level game-ending cinematic flow dispatched on current_chapter_id (0x1A BAD short ending vs GOOD full ending + 20-char credit roll). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/anim/aniend.c",
+  "purpose": "Plays the whole game-ending cinematic; branches on data_fd2_chapter_current_chapter_id == 0x1A (BAD short ending, entered from chapter_27_end no-sky-key path) vs != 0x1A (GOOD full ending + 20-char credit roll, entered from chapter_30_end final-boss-kill path).",
+  "logic_summary": "Copies three 20-byte per-duel credit-roll tables (top/bottom portrait ids, scripted-cinematic mode) to the stack; mallocs a 320KB scroll workspace + a 64000-byte VGA backup. Loads FDOTHER.DAT[0x36] character-endings atlas; shows title frame (frame 0), fade out/in, mid ANI seq 2, highlight frame 9 + fade-down. Runs three dialog-dispatch blocks each pivoting on current_chapter_id==0x1A (BAD vs GOOD portrait/dialog sets) interleaved with: 3x full palette fade, sprite cycling 0x0C..0x6C, a 0x28-iteration horizontal-scroll duel intro (off_down/off_up offsets), and a 200-iteration scroll with a trailing palette fade-out (frames > 0x87). Calls fd2_play_final_chapter_30_ending(). Then: BGM-transition image FDOTHER.DAT[0x3C] + credits BGM track 0x12; loads FDOTHER.DAT[0x3A] (credit-roll blit atlas) and FDOTHER.DAT[0x39] (assigned to the VGA palette-data global, freed after the loop). 20-char credit roll: per duel derive runtime_char[0]/[1] team (2 if portrait id < 0x4C else 0) + portrait id from the top/bottom tables, set the scripted-cinematic mode from the scripted table, run a pre-scripted duel via fd2_play_full_combat_cinematic(0,1), then show the credit sprite frame and fade. Finally loads/shows the final ending image FDOTHER.DAT[0x3B]. Both callers hard-lock (infinite loop) after this returns.",
+  "signature": "void __cdecl fd2_play_game_ending_cinematic(void)",
+  "params": [],
+  "returns": { "type": "void", "semantics": "No return value. Both callers (fd2_chapter_27_end, fd2_chapter_30_end) enter an infinite do-nothing loop immediately after this returns (game terminates here)." },
+  "reads_globals": [
+    "data_fd2_chapter_ending_credit_roll_top_portrait_id_table",
+    "data_fd2_chapter_ending_credit_roll_bottom_portrait_id_table",
+    "data_fd2_chapter_ending_credit_roll_scripted_outcome_table",
+    "data_fd2_chapter_current_chapter_id",
+    "data_fd2_string_resource_filename_fdother_dat",
+    "data_fd2_vga_palette_data_ptr",
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_vga_palette_data_ptr",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_scripted_cinematic_mode_or_terrain_idx"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (aniend.c lines 444-486) is already accurate, comprehensive, and consistent with the decompilation and both callers (verified: chapter_27_end calls with id still 0x1A then infinite-loops; chapter_30_end increments id past 0x1A then infinite-loops -> the cinematic's id==0x1A branch is the BAD short path, else the GOOD full path). All referenced globals match live Ghidra names. ASCII-only except the character proper noun 悠妮 (Yuni) which is allowed. comment kept. Ghidra plate is more detailed (full per-address breakdown) but not contradictory, so left untouched per the 'consistent -> do not touch plate' rule. void function -> params=[]. No logic/equivalence concerns: the C faithfully reproduces the decompilation including the documented res_39/res_3a handle-vs-name inversion and the palette-data-global stale-local tracking."
+}

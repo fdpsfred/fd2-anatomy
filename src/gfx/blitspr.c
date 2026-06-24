@@ -141,18 +141,27 @@ void *fd2_blit_indexed_sprite_with_alloc(uint32 sprite_hdr, uint32 dst,
  * sprite pixels are decoded and painted at dst + dst_off.
  *
  * The malloc'd buffer pointer is left in EAX (asm tail: MOV EAX,EDI into
- * the shared epilogue at 0x22BBE) and thus returned, but the sole live
- * caller (fd2_load_save_and_init_engine's chapter-intro slideshow)
- * discards it and frees the snapshot separately via
- * fd2_cleanup_dialog_sprite_buffer.
+ * the shared epilogue at 0x22BBE) and thus returned, but every caller
+ * discards the result: the save-under snapshot is restored / freed on a
+ * separate path (e.g. via fd2_cleanup_dialog_sprite_buffer), so per call
+ * the returned pointer is effectively leaked at the call site while the
+ * function itself still returns it.
+ *
+ * The 8 callers are the combat-overlay and chapter-intro render paths:
+ * fd2_render_combat_combatant_panels (VS panel, sprite 0x30),
+ * fd2_render_phase_banner_frame / fd2_animate_phase_banner_slide_in /
+ * fd2_animate_phase_banner_slide_out (turn banners),
+ * fd2_animate_attack_hit_sequence, fd2_animate_combat_speech_bubbles,
+ * fd2_run_full_turn_cycle, and fd2_load_save_and_init_engine
+ * (chapter-intro slideshow).
  *
  * Args (cdecl, 6x uint32 on stack):
- *   sheet_base    — sprite atlas base linear address
- *   dst           — destination surface base linear address
- *   surface_pitch — destination row stride
- *   col_offset    — column byte offset within the destination row
- *   row_idx       — destination row index
- *   sprite_idx    — index into the sheet's offset table
+ *   sheet_base    -- sprite atlas base linear address
+ *   dst           -- destination surface base linear address
+ *   surface_pitch -- destination row stride
+ *   col_offset    -- column byte offset within the destination row
+ *   row_idx       -- destination row index
+ *   sprite_idx    -- index into the sheet's offset table
  * ---------------------------------------------------------------- */
 uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_base, uint32 dst,
                                                uint32 surface_pitch,
@@ -193,13 +202,18 @@ uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_base, uint32 dst,
  * then painted opaquely via fd2_blit_sprite_raw_with_header.
  *
  * Used 17x by fd2_assemble_dialog_frame_layered to compose a dialog box
- * from 17 tile sprites; also called by other panel/grid renderers.
+ * from 17 tile sprites; also called by other panel/grid renderers
+ * (9 callers total: the dialog assembler plus 8 stat / inventory / shop /
+ * promote / spell-list / HP-bar panel renderers).
  *
  * Args (cdecl, 4x uint32 on stack):
- *   dst        — destination base linear address
- *   dst_pitch  — destination row stride
- *   sheet      — sprite atlas base linear address
- *   sprite_idx — index into the sheet's offset table
+ *   dst        -- destination base linear address
+ *   dst_pitch  -- destination row stride
+ *   sheet      -- sprite atlas base linear address
+ *   sprite_idx -- index into the sheet's offset table
+ *
+ * The binary's __CHK(0x14) stack-probe prologue is compiler-generated
+ * and omitted here.
  * ---------------------------------------------------------------- */
 void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch,
                                      uint32 sheet, uint32 sprite_idx)
@@ -234,10 +248,10 @@ void fd2_blit_sheet_sprite_at_offset(uint32 dst, uint32 dst_pitch,
  * transparency.
  *
  * Args (cdecl, 4x uint32 on stack):
- *   dst        — destination base linear address
- *   dst_pitch  — destination row stride
- *   sheet      — sprite atlas base linear address
- *   sprite_idx — index into the sheet's offset table
+ *   dst        -- destination base linear address
+ *   dst_pitch  -- destination row stride
+ *   sheet      -- sprite atlas base linear address
+ *   sprite_idx -- index into the sheet's offset table
  * ---------------------------------------------------------------- */
 void fd2_blit_indexed_sprite_at_xy(uint32 dst, uint32 dst_pitch,
                                    uint32 sheet, uint32 sprite_idx)
@@ -742,14 +756,16 @@ void fd2_scroll_buffer_block_with_wrap(uint32 wrap_param, void *dst_buf,
  *
  * Stream encoding:
  *   bytes 0x00..0xC0 : direct pixel write (193 distinct values).
- *   bytes 0xC1..0xFF : start a run of (b - 0xC1) + 1 extra pixels of
- *                      the following byte's value (so the run paints
- *                      (b - 0xC1) + 2 pixels total of that value).
- *                      Used to compress the large background-color
- *                      runs in portrait sprites.
+ *   bytes 0xC1..0xFF : start a run of the following byte's value. The
+ *                      run_remain field is set to (b - 0xC1), i.e.
+ *                      (b - 0xC1) MORE pixels reuse this value after the
+ *                      one painted now, so the run paints (b - 0xC1) + 1
+ *                      pixels total (1..63 pixels for b = 0xC1..0xFF).
+ *                      Used to compress the large background-color runs
+ *                      in portrait sprites.
  *
- * (b - 0xC1) and (b + 0x3F) are the same value for a byte; the binary
- * computes it with SUB AH,0xC1, mirrored here.
+ * run_remain = (b - 0xC1); the binary computes it with SUB AH,0xC1 on the
+ * 8-bit AH register (the 0..0x3E result, not a >0xFF value), mirrored here.
  *
  * No stack frame in the binary; register-only.
  *
@@ -1557,10 +1573,13 @@ void fd2_blit_sprite_with_decoded_pixels(uint32 dst, uint32 sprite_hdr,
  * so the decompiler's "return in_EAX" is a pass-through artifact. All
  * call sites discard the result, so this is a void function.
  *
- * Reached via fd2_paint_portrait_to_dialog_area when DAT_00053C67 !=
- * 0x9017 (enemy portraits / default speaker positions); the == 0x9017
- * branch instead calls the mirrored sister
- * fd2_dialog_sprite_blit_mirrored @ 0x4E8E1.
+ * The general-purpose opaque painter for every dialog/UI sprite that
+ * must overwrite its background (status panels, shop/party-roster panels,
+ * chapter-intro overlays, save-slot selector, typewriter dialog, ...). One
+ * representative caller is fd2_paint_portrait_to_dialog_area, which uses
+ * this normal (left-to-right) variant when
+ * data_fd2_dialog_active_portrait_blit_offset != 0x9017 and the mirrored
+ * sister fd2_dialog_sprite_blit_mirrored @ 0x4E8E1 when it == 0x9017.
  *
  * Args (cdecl, 3x uint32 on stack; void return):
  *   dst        -- destination base linear address (row base)

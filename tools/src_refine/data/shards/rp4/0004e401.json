@@ -1,0 +1,57 @@
+{
+  "address": "0004e401",
+  "name_current": "fd2_pathfind_check_destination_save_path",
+  "name_final": "fd2_pathfind_check_destination_save_path",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=pathfind). Accurately describes both responsibilities: check whether the current tile is the destination, and (if so, and depth is no worse than best) save the recursion direction sequence into the path output buffer. No address residue in the name.",
+  "kind": "function",
+  "home": "src/util/pathfnd.c",
+  "purpose": "Pathfind path-completion check: when the current search tile equals the destination at a depth no worse than the best found so far, records the depth as the new best and snapshots the per-level direction byte sequence from the recursion step stack into the path output buffer.",
+  "logic_summary": "Guard: x==dst_x && y==dst_y && current_depth<=best_path_length (depth-vs-best is an unsigned compare, binary CMP AH,[0x60078]; JA). On pass, best_path_length is overwritten with current_depth immediately (before the zero-depth guard, so a depth-0 arrival still lowers best to 0). If current_depth!=0, walk the step stack (data_fd2_battle_pathfind_step_stack @0x60079) with an 8-byte frame stride, copying each frame's direction byte at [+3] into successive bytes of the output buffer (data_fd2_battle_pathfind_path_output_buffer_ptr) for current_depth iterations. void return.",
+  "signature": "void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y)",
+  "params": [
+    {
+      "name": "x",
+      "type": "uint8",
+      "semantics": "Current search tile X coordinate (DL in the binary; lifted to an explicit arg by the Layer-2 emit). Compared against data_fd2_battle_pathfind_dst_x to test arrival at the destination column.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, matches semantics (current tile column), no address residue."
+    },
+    {
+      "name": "y",
+      "type": "uint8",
+      "semantics": "Current search tile Y coordinate (DH in the binary; lifted to an explicit arg by the Layer-2 emit). Compared against data_fd2_battle_pathfind_dst_y to test arrival at the destination row.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, matches semantics (current tile row), no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects only: may update data_fd2_battle_pathfind_best_path_length and write the direction sequence into the path output buffer."
+  },
+  "reads_globals": [
+    "data_fd2_battle_pathfind_dst_x",
+    "data_fd2_battle_pathfind_dst_y",
+    "data_fd2_battle_pathfind_current_depth",
+    "data_fd2_battle_pathfind_best_path_length",
+    "data_fd2_battle_pathfind_step_stack",
+    "data_fd2_battle_pathfind_path_output_buffer_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_pathfind_best_path_length"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "1b74110b0ce990ff8c99391e2d0759e44188fde1",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (pathfnd.c lines 480-507) was already accurate, ASCII, and well-refined (notes the unsigned depth-vs-best compare, the depth-0 edge case where best is still lowered, the 8-byte step-stack stride, and the [+3] direction byte); kept as-is, no src edit. Updated the Ghidra plate only to replace stale informal global names (pathfind_dst_x / pathfind_best_path_length / pathfind_direction_stack / pathfind_current_depth / pathfind_path_output_buffer) with the canonical data_fd2_battle_pathfind_* names and to clarify x/y are the lifted DL/DH args; logic description unchanged. save_program succeeded. Disasm at 0x4e401 confirms DL=dst_x cmp, DH=dst_y cmp, unsigned JA depth guard, MOV [0x60078],AH before OR AH,AH/JZ, copy loop LEA ESI,[0x60079]/MOV AL,[ESI+3]/STOSB/ADD ESI,8/DEC AH. Since comment_verdict=keep, the only staged file is the shard JSON (src/util/pathfnd.c is unchanged)."
+}

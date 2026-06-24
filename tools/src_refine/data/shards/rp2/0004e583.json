@@ -1,0 +1,86 @@
+{
+  "address": "0004e583",
+  "name_current": "fd2_rle_blit_with_palette_remap",
+  "name_final": "fd2_rle_blit_with_palette_remap",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name accurately describes the function: an RLE sprite decoder that remaps every painted pixel through a 256-entry palette LUT (out = remap[src]). Follows the fd2_<domain>_<descriptor> convention (domain=rle/blit graphics). No Ghidra address residue in the name. Verified against decompile + disassembly: it is the palette-remap variant of fd2_rle_blit_sprite that reads width from the stream header and paints at an arbitrary (dst_x,dst_y).",
+  "kind": "function",
+  "home": "ROOT/src/gfx/blitspr.c",
+  "purpose": "RLE sprite decoder that remaps every painted pixel through a 256-entry palette translation table (out = remap[src]), reading width/height from the sprite-stream header and painting at an arbitrary (dst_x, dst_y) within dst_buf.",
+  "logic_summary": "Stores stream header width/height into globals data_fd2_graphics_rle_blit_cur_width (0x627B4) and data_fd2_graphics_rle_blit_remaining_rows (0x627B6); computes dst_iter = dst_buf + dst_y*stride + dst_x and row_advance = stride - width. Outer do/while runs per row (remaining_rows), inner do/while consumes the row width via 4 RLE command modes selected by the top 2 bits of each command byte (len = (cmd&0x3F)+1): (bit7=0,bit6=0) RLE fill - 1 src byte remapped, REP-STOSB written len times, delta=-len; (bit7=0,bit6=1) stretched fill - 1 src byte remapped, written at every-other pixel (write at dst+1, dst+=2), delta=-2*len; (bit7=1,bit6=0) literal copy - len src bytes each painted as remap[byte], delta=-len; (bit7=1,bit6=1) transparent skip - dst+=len, delta=-len. After each command x_remain += delta; when x_remain hits 0 the row ends, dst_iter += row_advance, remaining_rows-- and x_remain reloads from the width global. Verified mode-by-mode against disassembly 0x4E5C1-0x4E636.",
+  "signature": "void __cdecl fd2_rle_blit_with_palette_remap(uint16 *rle_stream, int32 dst_x, int32 dst_y, int32 dst_buf, int32 stride, int32 palette_remap)",
+  "params": [
+    {
+      "name": "rle_stream",
+      "type": "uint16 *",
+      "semantics": "RLE stream base; first two ushort words are width and height (height = row count), followed by the command byte stream (begins 4 bytes in).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches usage (LODSW header reads then LODSB stream walk). No address residue."
+    },
+    {
+      "name": "dst_x",
+      "type": "int32",
+      "semantics": "Destination column offset, added to the start address (dst_buf + dst_y*stride + dst_x).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; ADD EDI,ECX where ECX = param at [EBP+0xC]."
+    },
+    {
+      "name": "dst_y",
+      "type": "int32",
+      "semantics": "Destination row offset, scaled by stride (MUL EDX where EDX=stride, then ADD EDI,EAX).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; matches the row-scaling MUL in the prologue."
+    },
+    {
+      "name": "dst_buf",
+      "type": "int32",
+      "semantics": "Destination base linear address (origin of the target buffer). Both callers pass the 64KB composite backbuffer (malloc(64000) in fd2_play_spell_cast_sequence; the backbuffer arg6 in fd2_play_figani_animation_loop).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; param at [EBP+0x14] is the base added to the row/col offsets. Confirmed by both call sites."
+    },
+    {
+      "name": "stride",
+      "type": "int32",
+      "semantics": "Destination row stride in bytes (callers pass 0x140). Used both to scale dst_y and to compute row_advance = stride - width.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; param at [EBP+0x18], used as MUL operand and SUB EDX,EAX."
+    },
+    {
+      "name": "palette_remap",
+      "type": "int32",
+      "semantics": "Base address of a 256-entry palette translation table, indexed by the source pixel byte: every painted pixel becomes remap[src] (MOV AL,[EAX+EBP] where EBP=palette_remap, EAX=src byte).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate; param at [EBP+0x1C], used as the LUT base in all three painting modes. Callers select it from data_fd2_tile_anim_table_base."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; paints into dst_buf and updates the two row/width state globals as a side effect."
+  },
+  "reads_globals": [
+    "data_fd2_graphics_rle_blit_cur_width (0x627B4) - reloaded per row as the x-remain reset value",
+    "data_fd2_graphics_rle_blit_remaining_rows (0x627B6) - decremented per row as the outer loop bound"
+  ],
+  "writes_globals": [
+    "data_fd2_graphics_rle_blit_cur_width (0x627B4) - set from rle_stream[0] at entry",
+    "data_fd2_graphics_rle_blit_remaining_rows (0x627B6) - set from rle_stream[1] at entry, decremented each row"
+  ],
+  "comment_original_issue": "Source comment block (blitspr.c lines 797-845) is already accurate and precise: it correctly describes all 4 RLE modes (RLE fill / stretched fill dst+=2 / literal copy / skip) matching the disassembly, the header layout, the state globals, and the caller context. The Ghidra plate comment, by contrast, was outdated/wrong: it labeled the bit7=0,bit6=0 mode as a 'consecutive run of single remapped pixel' but mislabeled the bit7=0,bit6=1 mode as a '+3-stride literal run ... written N times with stride+3', whereas the disassembly (0x4E5E8-0x4E5F9: INC EDI; STOSB; LOOP, with SUB BX,CX applied twice) shows it is a stretched fill at every-other pixel (dst += 2, consuming 2*len columns). Fixed by updating the Ghidra plate to match the (correct) source description.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "04bd0ea5ea0c1f3fee15580dc95f99a7c85700db",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Name and all 6 param names are clean and accurate (keep). Source comment is authoritative and correct; left unchanged (no Edit to blitspr.c). The only action was correcting the Ghidra plate's stretched-fill mode description to align with the source/disassembly. No logic concerns. The decompiler emits a vestigial REP MOVSB (0x4E615, ECX=0 here, no-op) and a dead tail_iter loop after the literal-copy mode; these are decompiler artifacts faithfully absent of effect, not reflected in the source body."
+}

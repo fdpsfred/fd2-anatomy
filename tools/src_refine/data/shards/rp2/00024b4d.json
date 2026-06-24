@@ -1,0 +1,44 @@
+{
+  "address": "00024b4d",
+  "name_current": "fd2_animate_screen_shake",
+  "name_final": "fd2_animate_screen_shake",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain=animate>_<descriptor=screen_shake>; no Ghidra address residue; accurately reflects an animated screen-shake (vertical jitter) effect. Consistent with the fd2_animate_* family (e.g. fd2_animate_palette_flash_pulse_white, fd2_animate_warp_in_expand).",
+  "kind": "function",
+  "home": "src/anim/aniui.c",
+  "purpose": "Plays an animated screen-shake (vertical 1-row jitter) of the battle scene for num_frames frames.",
+  "logic_summary": "Snapshots the current battle scene once into the render workspace (large_game_state_buffer + 0x8088) via fd2_composite_battle_tile_map in mode 9 (0x1C8 stride, 0xD tiles, window origin x/y), then runs fd2_composite_battle_frame(0) as the finalizer. Then loops i = 0..num_frames-1: each iteration blits the visible 312x192 (0x138 x 0xC0) region to the mode13h primary at 0xA0504 (dst stride 0x140) from the workspace base on even iterations or one screen-row lower (+0x1C8 bytes) on odd iterations -- (i & 1) * 0x1C8 -- producing a perceived up/down jitter, then fd2_delay_ms(0x14) waits ~20ms before the next frame. CHK(0x24) stack-probe prologue. cdecl, void return.",
+  "signature": "void __cdecl fd2_animate_screen_shake(uint32 num_frames)",
+  "params": [
+    {
+      "name": "num_frames",
+      "type": "uint32",
+      "semantics": "Number of jitter frames to play; loop counter for the blit/delay loop (signed compare i < num_frames).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the loop iteration count; no address residue. Callers (chapter 23/25/29 cinematics) pass a small frame count to control shake duration."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Src comment stated the per-frame delay as '20-tick (~1100ms)'. fd2_delay_ms is a millisecond-delay wrapper (delay(ms)), so fd2_delay_ms(0x14) waits ~20 milliseconds, not 20 ticks / ~1100ms. The Ghidra plate already had it correct ('20ms per frame').",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "1655e62291f167d7d24d17f587c83cff1c946516",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified fd2_delay_ms @ 0x375B2 is the ms-delay wrapper (delay(ms)) -> 0x14 == ~20ms; this fixes the only comment inaccuracy. Global symbol names in src match Ghidra byte-identical (data_fd2_large_game_state_buffer_ptr @ 0x53A49, data_fd2_battle_view_window_origin_x @ 0x53AA9, _y @ 0x53AAD). Decompile matches src body 1:1 (composite snapshot mode 9, finalizer frame, jitter blit loop, ms delay). Name + param kept; no logic changes made."
+}

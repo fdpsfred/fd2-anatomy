@@ -1,0 +1,54 @@
+{
+  "address": "00030012",
+  "name_current": "fd2_save_current_state_to_slot",
+  "name_final": "fd2_save_current_state_to_slot",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=save, descriptor=current_state_to_slot). Accurately reflects purpose: writes the current game-state globals into a user-selected FD2.SAV slot. No Ghidra address taint. main is the only exemption to the prefix rule and this is not main.",
+  "kind": "function",
+  "home": "src/save/save.c",
+  "purpose": "Write the current game-state globals into a user-selected FD2.SAV slot (with checksum + XOR crypto-buffer transform), looping the slot-selector UI until the user cancels.",
+  "logic_summary": "malloc(0x59CB); fopen FD2.SAV 'rb' (on failure memset 0xFF, else fread + fd2_save_crypt_buffer decrypt + fclose). Reset data_fd2_ui_menu_cursor_idx=0, then do/while: fd2_save_slot_selector_ui(pBuf, prompt_flag&0xFF) returns 1 (commit, chosen slot 0..3 in cursor_idx) or -1 (cancel). On commit: slot_base = pBuf + cursor_idx*0xA28 + 0x312B; memmove 0xA00-byte roster from data_fd2_shared_menu_party_roster_buffer_ptr into slot, then store 7 scalar fields (chapter id @+0xA00, member count @+0xA01, gold u32 @+0xA02, terrain-hud flag @+0xA06, game-speed @+0xA07, bgm @+0xA08, sfx @+0xA09). fopen 'wb'; compute checksum into pBuf[0x59C7]; encrypt; fwrite whole 0x59CB buffer; close; decrypt again (keep in-memory plaintext for next iteration). If per_chapter_category[current_chapter_id]==0 (story chapter) show 'saved' confirmation dialog (text 0x294) + portrait + blink-wait. Always close intro dialog; loop until cancel; free(pBuf).",
+  "signature": "void __cdecl fd2_save_current_state_to_slot(uint32 prompt_flag)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Save mode forwarded (as prompt_flag & 0xFF) to fd2_save_slot_selector_ui's manual_mode arg. 1 = explicit save menu (caller fd2_run_chapter_intro_menu_typeB option 1; selector uses poll-and-blink input). 0 = battle-chapter auto-save after a 'Yes' prompt (caller fd2_chapter_transition_menu; selector reads keys via direct BIOS int 16h).",
+      "verdict": "rename",
+      "proposed": "prompt_flag",
+      "reason": "Live Ghidra name param_1 is a generic address-style placeholder. src already uses prompt_flag, which matches the 1=explicit-save-menu / 0=auto-save semantics confirmed at both call sites. Rename recorded only; applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: rewrites FD2.SAV with the chosen slot updated."
+  },
+  "reads_globals": [
+    "data_fd2_shared_menu_party_roster_buffer_ptr",
+    "data_fd2_chapter_current_chapter_id",
+    "data_fd2_shared_menu_party_member_count",
+    "data_fd2_shared_party_total_gold",
+    "data_fd2_ui_terrain_hud_user_enabled",
+    "data_fd2_ui_game_speed_flag",
+    "data_fd2_audio_bgm_enabled_flag",
+    "data_fd2_audio_sfx_enabled_flag",
+    "data_fd2_chapter_per_chapter_category_table",
+    "data_fd2_chapter_intro_menu_speaker_portrait_id_table",
+    "data_fd2_all_game_text_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_menu_cursor_idx"
+  ],
+  "comment_original_issue": "src comment was accurate overall but said 'store the 8 scalar fields' while only 7 fields are stored (and its own parenthetical lists exactly 7: chapter id / member count / gold u32 / terrain-hud / game speed / bgm / sfx). Corrected 8 -> 7. The Ghidra plate was outdated/inconsistent relative to the verified decompilation: it described a linear single-pass flow with an early 'free(pBuf); return' on cancel instead of the actual do/while loop, ordered fopen('wb') after the checksum step (actual code does fopen before compute_checksum), listed only one re-encrypt (actual code crypts 3 times incl. the post-write decrypt), showed the 'saved' dialog unconditionally instead of gated on per_chapter_category==0, and its slot-layout note self-contradicted ('+0xA00..+0xFFF unused' immediately followed by using +0xA00..+0xA09).",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Both call sites verified: fd2_run_chapter_intro_menu_typeB calls (1), fd2_chapter_transition_menu calls (0), confirming prompt_flag semantics. fd2-knowledge KB does not index FD2.SAV runtime-global offsets (no contradiction). No logic issues found; equivalence with decompilation holds. Plate set returned advisory warnings (missing Algorithm/Parameters/Returns template sections) only -- content is complete and accurate."
+}

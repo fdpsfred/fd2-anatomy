@@ -1,0 +1,56 @@
+{
+  "address": "0004e9bb",
+  "name_current": "fd2_blit_sprite_raw_with_header",
+  "name_final": "fd2_blit_sprite_raw_with_header",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (gfx/blit domain). Accurately describes the function: a raw (uncompressed, no-transparency) sprite blit driven by the sprite's own width/height header. No Ghidra address residue. Matches body (reads ushort width/height header, REP MOVSB width bytes per row) and the single caller fd2_blit_sheet_sprite_at_offset which resolves an atlas entry and paints it opaquely.",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "Generic raw (uncompressed, no-transparency) sprite blit: copies every pixel including zero, using the sprite header's leading width/height words; smallest variant of the blit family.",
+  "logic_summary": "width = *(ushort*)sprite_hdr; height = *(ushort*)(sprite_hdr+2); src = sprite_hdr+4 (skip 4-byte header). Post-test do/while row loop: memmove(dst, src, width); src += width (pixels stored contiguously); dst += stride (row base advances by stride). height=0 still paints one row (matches binary DEC DX; JNZ tail). Binary wraps body in PUSHAD/POPAD so EAX is untouched -> decompiler 'return in_EAX' is a signature artifact -> truly void; sole caller discards. Hand-written asm leaf: no __CHK probe, no CALLs.",
+  "signature": "void fd2_blit_sprite_raw_with_header(uint32 dst, uint32 sprite_hdr, uint32 stride)",
+  "params": [
+    {
+      "name": "dst",
+      "type": "uint32",
+      "semantics": "Destination base linear address (row base). [EBP+8] -> EDI; restored to row base each row then advanced by stride.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, matches body usage as destination row base; no address residue."
+    },
+    {
+      "name": "sprite_hdr",
+      "type": "uint32",
+      "semantics": "Sprite header pointer: ushort width (word 0), ushort height (word 2), then width*height raw pixel bytes (row-major). [EBP+0xc] -> ESI; two LODSW read width/height then ESI points at pixels.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the header+pixels pointer; matches body and the atlas-resolved sprite address passed by the caller; no address residue."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Bytes to advance dst per row (destination row stride). [EBP+0x10] -> EBX; ADD EDI,EBX after each row.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly describes the per-row dst advance; matches caller's dst_pitch argument; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. The decompiler's 'return in_EAX' is a pass-through artifact: PUSHAD/POPAD wrap the body so EAX is never written; the sole caller discards any result."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompile + disassembly + plate + src comment all mutually consistent and accurate. Disassembly @0x4e9bb confirms: PUSHAD/POPAD (EAX untouched, truly void), two LODSW (width->BP, height->DX), PUSH EDI / REP MOVSB CX=width / POP EDI / ADD EDI,EBX(stride) / DEC DX;JNZ (post-test do/while). src 'dst += stride' correctly models PUSH/POP EDI + ADD EDI,stride because memmove takes dst by value (does not advance it) whereas REP MOVSB does. No reads/writes of any global. Live Ghidra signature still uses param_1/2/3 (generic); src declaration already carries the good names dst/sprite_hdr/stride, judged on actual usage = all keep. No rename, no comment change, no plate change applied (this stage records only). Source comment block at blitspr.c lines 1025-1061 left untouched."
+}

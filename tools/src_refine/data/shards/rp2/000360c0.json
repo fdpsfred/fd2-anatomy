@@ -1,0 +1,42 @@
+{
+  "address": "000360c0",
+  "name_current": "fd2_chapter_event_handler_54__ch27_ai_ctrl",
+  "name_final": "fd2_chapter_event_handler_54__ch27_ai_ctrl",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor>. domain=chapter_event_handler; the '54' is the dispatch-table index (this fn pointer sits in the 0x54-th slot; table entry at 0x51CE1), a meaningful domain ID not an address residue (0x54 != self addr 0x360c0 nor any data addr). 'ch27' is the chapter number 27 (valid chapter ID 01-30). 'ai_ctrl' accurately reflects the body (manipulates the per-char AI control flag = low nibble of combat_aux_block[0xD]). No address residue.",
+  "kind": "function",
+  "home": "ROOT/src/field/chevt2.c",
+  "purpose": "Chapter 27 event handler (dispatch idx 0x54): disarm the per-char AI control flag for the dynamic party range, by clearing the low nibble of runtime_char.combat_aux_block[0xD] (abs offset 0x34) to 0 for chars 0x10..(party_member_count-1).",
+  "logic_summary": "Single self-contained call: fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x10, data_fd2_battle_party_member_count - 1, 0). start=0x10 fixed, end=party_member_count-1 (dynamic, scales with party size), value=0 (clears low 4 bits, preserves high 4). The callee uses signed inclusive comparison ((int)start <= (int)end), so when party_member_count==0 the end computes to (uint)-1=0xFFFFFFFF < 0x10 and the range is empty (no char touched). In the binary the body pushes value(0) then dynamic-end(count-1) then JMP 0x34F37 to borrow the Class-3 shared tail hosted in fd2_chapter_event_handler_12 (PUSH 0x10 start; CALL fd2_set_combat_aux_block_byte_d_low4_for_char_range; ADD ESP,0xC; RET); a binary size optimisation with no source-level meaning. The __CHK(0x10) is the Watcom stack-probe prologue, no semantics. The event_arg is unused.",
+  "signature": "void __cdecl fd2_chapter_event_handler_54__ch27_ai_ctrl(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch-table calling-convention argument (event context value passed by the per-event handler dispatcher). This handler does not read it ((void)event_arg).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches the 1-arg cdecl dispatch-table signature shared by all chapter_event_handler_* fns; descriptive, no address residue. Arg is genuinely unused here, 'event_arg' is the established sibling-handler name."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_battle_party_member_count"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Header comment listed the dispatch-table entry as 'entry @ 0x51CDD', but 0x51CDD is the previous slot (handler_53's fn pointer). The pointer to this handler (0x360C0) is at 0x51CE1 (verified by reading the table bytes at 0x51CDD: 88 60 03 00 / c0 60 03 00 / d8 60 03 00). Rest of the comment (effect, dynamic-range semantics, empty-range-when-count-0, tail-merge to handler_12 @ 0x34F37, __CHK note) is accurate.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "aef8e112175eb3c418d728d2a195638278fca1d0",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against live Ghidra: disasm at 0x360c0 (PUSH 0x10; CALL __CHK; PUSH 0; MOV EAX,[0x53beb]; DEC EAX; PUSH EAX; JMP 0x34f37). Shared tail at 0x34f37 lies inside fd2_chapter_event_handler_12 (body 0x34f02-0x34f41): PUSH 0x10; CALL 0x3419c; ADD ESP,0xc; RET. Callee 0x3419c = fd2_set_combat_aux_block_byte_d_low4_for_char_range (low-4 write to combat_aux_block[0xD]=abs 0x34, signed inclusive loop). Global at 0x53beb = data_fd2_battle_party_member_count (Label). Only xref to 0x360c0 is the DATA table pointer at 0x51ce1. Source body is functionally exact (single call). No logic changes made; only the entry-address typo in the comment was corrected."
+}

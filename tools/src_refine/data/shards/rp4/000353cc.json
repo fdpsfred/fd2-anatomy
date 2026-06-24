@@ -1,0 +1,31 @@
+{
+  "address": "000353cc",
+  "name_current": "fd2_delay_400ms_via_idle_thunk",
+  "name_final": "fd2_delay_400ms",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_delay_400ms",
+  "name_reason": "Body is PUSH 0x190 (=400); CALL fd2_delay_ms; ADD ESP,4; RET. The '_via_idle_thunk' suffix is stale and misleading: it dates from when the callee carried the synthetic name __delay_thunk_375b2, which has since been renamed to the real function fd2_delay_ms; the callee is a CRT delay(ms) (busy/timer wait), not an 'idle' delay. '400ms' is correct and is a genuine semantic value (the delay duration in milliseconds; 0x190=400 is the actual pushed argument, not an address residue -- 0x353CC is unrelated to 400). Compliant fd2_<domain>_<descriptor> name dropping the stale suffix is fd2_delay_400ms. No name collision (no other fd2_delay_400ms exists).",
+  "kind": "function",
+  "home": "ROOT/src/util/misc.c",
+  "purpose": "Fixed 400ms delay wrapper: pauses execution for 400 milliseconds by forwarding to fd2_delay_ms(400).",
+  "logic_summary": "Single cdecl call: PUSH 0x190 (=400) -> CALL fd2_delay_ms @ 0x375b2 -> ADD ESP,4 (caller-side cleanup) -> RET. fd2_delay_ms forwards the argument to the Watcom CRT delay(ms), so the constant 400 is the delay duration in milliseconds. No stack frame, no locals, cyclomatic complexity 1.",
+  "signature": "void __cdecl fd2_delay_400ms_via_idle_thunk(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; the function only produces the side effect of a ~400ms busy/timer delay."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment block described the function as a '400ms idle-delay wrapper'; 'idle' is a stale mischaracterization (the callee fd2_delay_ms is a CRT delay(ms), not an idle wait). Otherwise the body/caller/fall-through notes were accurate.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "be7eecff",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Single caller: fd2_cinematic_chapter_portrait_dump_with_white_flash @ 0x35822 (CALL @ 0x35893). The same 4-instruction body (0x353CC..0x353D9) is also the fall-through tail of fd2_chapter_event_handler_36__ch24_cinematic @ 0x3535D (its 4th 400ms hold). The old plate's 'Class-3 alt-entry +0x5 consumed by handler_1B/1F' note (self-flagged 'may be stale') was dropped: those handlers do their own inline fd2_delay_ms calls, so the alt-entry claim is not load-bearing. Disassembly confirmed body; decompile confirmed fd2_delay_ms(400). Ghidra plate updated to reflect renamed callee and remove the 'idle' wording; save_program succeeded. Rename only recorded (proposed=fd2_delay_400ms); not applied per Stage-1 rules -- to be applied in Stage 2 across protos.h/globals.h/call sites."
+}

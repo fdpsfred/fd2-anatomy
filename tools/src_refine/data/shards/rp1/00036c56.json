@@ -1,0 +1,36 @@
+{
+  "address": "00036c56",
+  "name_current": "fd2_ani_decoder_chunk_sparse_copy_literal",
+  "name_final": "fd2_ani_decoder_chunk_sparse_copy_literal",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor> (domain=ani_decoder/animation). Descriptor 'sparse_copy_literal' accurately captures behavior: sparse=offset-addressed segments, copy=memcpy of stream bytes, literal=raw uncompressed bytes. Parallels well-formed siblings fd2_ani_decoder_chunk_sparse_set_byte / sparse_set_run_byte. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/anim/anidec.c",
+  "purpose": "ANI delta-stream chunk handler: applies N sparse literal-copy segments {offset, length, literal bytes} into the current row destination buffer (each segment memcpy'd to dst_buf + offset).",
+  "logic_summary": "Reads ushort N = segment count, then loops N times. Each iteration: reads ushort offset, byte length, then memcpy's 'length' literal bytes from the stream cursor to dst_buf + offset. In the binary the copy is the Watcom inlined memcpy idiom (SHR ECX,1; REP MOVSW; RCL ECX,1; REP MOVSB = word copy + odd-byte tail). dst pointer is reset from EBX (=dst_buf base) each iteration; the cursor advances by 2 + sum_i(3 + length_i). No return value.",
+  "signature": "void fd2_ani_decoder_chunk_sparse_copy_literal(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "none (writes decoded literal bytes into the row destination buffer; advances the shared stream cursor)"
+  },
+  "reads_globals": [
+    "data_fd2_animation_ani_decoder_dst_buf",
+    "g_ani_cursor (file-static stream cursor; C analog of the binary's ESI)"
+  ],
+  "writes_globals": [
+    "g_ani_cursor (file-static stream cursor advanced past the consumed segments)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "5b3b843c2a71d62baf2c4ee467e03aeb295ad01b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disasm (LODSW count; per-segment LODSW offset / LODSB length / REP MOVSW+MOVSB copy; DEC EDX loop) and decompilation both match the C source at anidec.c lines 277-295 exactly; faithful equivalence-preserving translation. Invoked indirectly via dispatch table slot @ 0x5278E (frame dispatch table @ 0x5276A), so get_function_callers reports none and the only xref is DATA from 0x5278E -- expected. Binary uses ESI as the stream cursor; the C version uses file-static g_ani_cursor (documented at anidec.c header lines 6-8), an intentional translation, not a logic change. Live Ghidra signature is __watcall void(void). No edit needed: name keep, comment keep, plate consistent with src so left untouched."
+}

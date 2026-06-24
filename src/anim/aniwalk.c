@@ -11,8 +11,19 @@
 /* ----------------------------------------------------------------
  * fd2_tick_tile_event_animations @ 0x12263
  *
- * Advance per-tile animation counter for all consumed event tiles.
- * Called once per frame from main composite.
+ * Advance the per-tile animation frame counter for every consumed
+ * event tile so a just-consumed tile (opened chest / picked-up item /
+ * triggered event) redraws in its "open" / "empty" sprite frame.
+ *
+ * Invoked once right after an event tile is marked consumed -- NOT a
+ * per-frame tick. Callers: field pickup, enemy event-tile action,
+ * scripted chapter pickups, and load-save engine init.
+ *
+ * Scans the whole battle map grid; for each event tile
+ * ((attr & 0x60) == 0x20) whose consumed flag is set, bumps the +4
+ * word (frame counter) and zeroes the +6 byte (phase flag) in the
+ * tile-map record. The +4/+6 writes land in the next tile's record by
+ * design (intended vendor stride; see fd2_obfuscate_battle_tile_map).
  * ---------------------------------------------------------------- */
 void fd2_tick_tile_event_animations(void)
 {
@@ -361,9 +372,18 @@ void fd2_walk_path_animation_loop(uint32 char_idx, uint32 path_buf,
 /* ----------------------------------------------------------------
  * fd2_slide_panel_step_left_main @ 0x1AF1E
  *
- * Party status overview left panel slide-in single frame.
- * Copies src_buffer rows into large_game_state_buffer with
- * x-offset based on frame_idx (0..4 slide in, >=5 stationary).
+ * Party status overview wide (0xAA-byte) main panel, one slide-OUT
+ * frame toward the left edge. Left-edge mirror of
+ * fd2_slide_panel_step_right_main; driven by the OUTRO loop in
+ * fd2_open_party_status_overview_screen (frame_idx counts 0xB->0),
+ * while the right variant drives the INTRO (slide-in).
+ *
+ * Copies 0x75 (117) rows, 0xAA bytes wide, from src_buffer into
+ * data_fd2_large_game_state_buffer_ptr (both at row-0 base 0x2E40).
+ * For frame_idx < 5 the dst x descends from 0x4B toward 0 by 0x32 per
+ * frame; once the panel runs past x=0 the copy width is left-clipped
+ * (row_bytes shrinks, src_x advances, dst_x pins to 0). For
+ * frame_idx >= 5 the panel sits stationary at x = 0x4B.
  * ---------------------------------------------------------------- */
 void fd2_slide_panel_step_left_main(uint32 src_buffer, uint32 frame_idx)
 {
@@ -403,7 +423,21 @@ void fd2_slide_panel_step_left_main(uint32 src_buffer, uint32 frame_idx)
 /* ----------------------------------------------------------------
  * fd2_slide_panel_step_right_main @ 0x1AF99
  *
- * Right panel slide-in (mirror of left_main).
+ * Party status overview wide (0xAA-byte) main panel, one slide-IN
+ * frame entering from the right edge. Right-edge mirror of
+ * fd2_slide_panel_step_left_main; driven by the INTRO loop in
+ * fd2_open_party_status_overview_screen (frame_idx counts 0->0xB),
+ * while the left variant drives the OUTRO (slide-out).
+ *
+ * Copies 0x75 (117) rows, 0xAA bytes wide, from src_buffer into
+ * data_fd2_large_game_state_buffer_ptr. The source always starts at
+ * row-0 offset 0x2E8B (= src x 0x4B + 0xAA, i.e. the panel's right
+ * portion) and never advances, because the right edge clips by
+ * shrinking the copy width only. For frame_idx <= 4 the dst x
+ * descends from 0xF5 toward 0x4B by 0x32 per frame; while the panel
+ * right edge (dst_x + 0xAA) runs past the screen width 0x140 the copy
+ * width is right-clipped (row_bytes = 0x140 - dst_x). For
+ * frame_idx >= 5 the panel sits stationary at dst x = 0x4B.
  * ---------------------------------------------------------------- */
 void fd2_slide_panel_step_right_main(uint32 src_buffer, uint32 frame_idx)
 {
@@ -439,7 +473,13 @@ void fd2_slide_panel_step_right_main(uint32 src_buffer, uint32 frame_idx)
 /* ----------------------------------------------------------------
  * fd2_slide_panel_step_top_small @ 0x1B019
  *
- * Top narrow panel slide-in from above (0x66-wide, 0x24-high max).
+ * Party Status Overview screen: one frame of the top narrow panel
+ * slide-in from above (0x66 bytes wide, up to 0x24 rows high),
+ * settling at y = 0x13. Driven by fd2_open_party_status_overview_screen
+ * (intro + outro). Frames < 3 are skipped (main panel not yet in place);
+ * frames 3..7 descend by 6 rows/frame with top-edge clipping; frame >= 8
+ * is fully settled. Copies row_count rows from src_buffer into
+ * data_fd2_large_game_state_buffer_ptr.
  * ---------------------------------------------------------------- */
 void fd2_slide_panel_step_top_small(uint32 src_buffer, uint32 frame_idx)
 {
@@ -482,7 +522,16 @@ void fd2_slide_panel_step_top_small(uint32 src_buffer, uint32 frame_idx)
 /* ----------------------------------------------------------------
  * fd2_slide_panel_step_bottom_main @ 0x1B0AD
  *
- * Bottom main panel slide-in from below (0xAA-wide, 0x10 rows).
+ * Party Status Overview screen: one frame of the bottom wide ("main")
+ * panel sliding up from below into its settled position at y = 0x9B
+ * (0xAA bytes wide, up to 0x10 rows high). Driven by
+ * fd2_open_party_status_overview_screen (intro + outro), one of the
+ * four per-frame panel steps. Frames < 5 are skipped (other panels not
+ * yet in place). Frames 5..9 rise toward y = 0x9B by 9 rows/frame; the
+ * first slide frame (frame 5) clips off the screen bottom (row count
+ * goes non-positive, so nothing is drawn that frame). Frame >= 10 is
+ * fully settled. Source row 0 is at src_buffer + 0xC20B; copies
+ * row_count rows into data_fd2_large_game_state_buffer_ptr.
  * ---------------------------------------------------------------- */
 void fd2_slide_panel_step_bottom_main(uint32 src_buffer, uint32 frame_idx)
 {
@@ -521,7 +570,16 @@ void fd2_slide_panel_step_bottom_main(uint32 src_buffer, uint32 frame_idx)
 /* ----------------------------------------------------------------
  * fd2_slide_panel_step_bottom_small @ 0x1B14B
  *
- * Bottom narrow strip slide-in from below (0x3F-wide, 0xF rows).
+ * Party Status Overview screen: one frame of the bottom narrow strip
+ * sliding up from below into its settled position at y = 0xAC (0x3F
+ * bytes wide, up to 0xF rows high, dst x = 0x81). Driven by
+ * fd2_open_party_status_overview_screen (intro + outro), the last of
+ * the four per-frame panel steps. Frames < 8 are skipped (other panels
+ * not yet in place). Frames 8..0xC rise toward y = 0xAC by 4 rows/frame;
+ * the first slide frame (frame 8) clips off the screen bottom (row count
+ * goes negative, so nothing is drawn that frame). Frame >= 0xD is fully
+ * settled. Source row 0 is at src_buffer + 0xD781; copies row_count rows
+ * into data_fd2_large_game_state_buffer_ptr.
  * ---------------------------------------------------------------- */
 void fd2_slide_panel_step_bottom_small(uint32 src_buffer, uint32 frame_idx)
 {
@@ -586,7 +644,18 @@ void fd2_slide_panel_up_partial_step(uint32 y_offset,
 /* ----------------------------------------------------------------
  * fd2_slide_panel_down_step @ 0x1974C
  *
- * Restore background, copy panel rows, blit to VGA.
+ * Render one full frame of the chapter-portrait dialog-panel slide.
+ *   1. Restore dst_workspace from the clean background snapshot.
+ *   2. Copy up to 0x56 panel rows (310 bytes wide) from
+ *      src_buffer + 0x8C05 (composed dialog buffer at y=0x70, x=5)
+ *      into dst_workspace at screen row y_offset, x=5, clipping the
+ *      row count to the screen bottom (row 200).
+ *   3. Blit the whole 320x200 workspace to mode-13h VRAM (0xA0000).
+ *
+ * Direction-agnostic: the caller drives y_offset per frame
+ * (slide-in y descends toward 0x70, slide-out y ascends off-screen).
+ * Unlike the sibling fd2_slide_panel_up_partial_step, this one owns
+ * the background restore and VGA flush, so it is a full-frame step.
  * ---------------------------------------------------------------- */
 void fd2_slide_panel_down_step(uint32 y_offset,
                                 uint32 dst_workspace,
@@ -675,12 +744,15 @@ void fd2_play_status_screen_outro_step(uint32 frame_idx,
 /* ----------------------------------------------------------------
  * Walk-step composite left-edge clip offset @ 0x53AED  (.object2, zero-init)
  *
- * Per-frame X clip marker added into the battle tile-map composite source
- * offset. fd2_walk_step_left sets it to 0x18 just before each composite
- * pass (clip the leftmost 24px column while the +1-column-wide map slides in)
- * and clears it to 0 right after, so the static image is zero.
- * Read by fd2_composite_battle_tile_map as a dword added to the source
- * offset alongside the sub-pixel/parallax offsets.
+ * Per-frame X clip offset added into the battle tile-map composite source
+ * byte offset. fd2_walk_step_left sets it to 0x18 (24px = one tile column)
+ * just before each of the 6 composite passes (clips the leftmost column while
+ * the +1-column-wide map slides in) and clears it to 0 right after, so the
+ * static image is zero. Only the left-walk path touches it.
+ * Read by fd2_composite_battle_tile_map at all three background branches as a
+ * dword added directly into the source byte offset (next to the sub-pixel
+ * offset @0x53AF5; the parallax row offset @0x53AF1 is scaled separately).
+ * Mutable BSS (game has WRITE xrefs); all accesses are dword.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_compose_left_edge_clip_offset;
 
@@ -697,47 +769,58 @@ uint32 data_fd2_battle_compose_left_edge_clip_offset;
 uint32 data_fd2_battle_compose_parallax_scroll_y_rows;
 
 /* ----------------------------------------------------------------
- * Walk-step composite Y sub-pixel scroll offset @ 0x53AF5  (.object2, zero-init)
+ * Walk-step composite sub-pixel scroll offset @ 0x53AF5  (.object2, zero-init)
  *
- * Cumulative sub-pixel Y scroll accumulator for the smooth walk-step slide.
- * Each of fd2_walk_step_down/left/up/right adds the per-frame scroll delta
- * (0x720) into it once per slide frame (6 frames) and clears it to 0 after
- * the step completes, so the static image is zero.
- * Read by fd2_composite_battle_tile_map as a dword added into the background
- * source offset alongside the left-edge clip / parallax-scroll offsets.
+ * Shared smooth-scroll byte-offset accumulator for the walk-step slide; one
+ * global serves whichever axis is currently stepping (only one walk-step runs
+ * at a time). Each of the four direction steps adds its per-frame scroll delta
+ * once per slide frame (6 frames) and resets it to 0 at step end:
+ *   fd2_walk_step_down  : += +0x720 (vertical)   / 0 when not scrolling
+ *   fd2_walk_step_up    : += -0x720 (vertical)   / 0
+ *   fd2_walk_step_right : += +4     (horizontal) / 0
+ *   fd2_walk_step_left  : += -4     (horizontal) / 0
+ * Read by fd2_composite_battle_tile_map as a dword added unscaled into the
+ * background-blit source byte offset, alongside the left-edge clip offset
+ * (@0x53AED). Mutable BSS (game has WRITE xrefs); all accesses are dword.
+ *
+ * NOTE: the "y" in the current symbol name is a misnomer -- the accumulator is
+ * single-axis and carries the X byte-offset during left/right steps. Rename is
+ * recorded for Stage 2 (proposed: data_fd2_battle_compose_walk_step_sub_pixel_offset).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset;
 
 /* ----------------------------------------------------------------
  * Walk-step horizontal (X) parallax scroll offset @ 0x53B07  (.object2, zero-init)
  *
- * Cumulative sub-pixel X scroll accumulator for the smooth walk-step slide.
- * fd2_walk_step_left and fd2_walk_step_right seed it to 6 before the slide
- * loop, add the per-frame window-scroll delta (-1 / 0 / +1) into it each of
- * the 6 slide frames, and clear it to 0 after the step completes, so the
- * static image is zero.
+ * Cumulative window/sub-pixel X scroll accumulator for the smooth walk-step
+ * slide; horizontal counterpart of data_fd2_battle_walk_anim_y_scroll_rows.
+ * fd2_walk_step_left seeds it to 6, fd2_walk_step_right seeds it to 0; both
+ * then add the per-frame window-scroll flag into it on each of the 6 slide
+ * frames (left: -1 when scrolling, else 0; right: +1 when scrolling, else 0)
+ * and clear it to 0 after the step completes, so the static image is zero.
+ * In practice the value stays in [0, 6].
  * Read by fd2_composite_battle_tile_map for the extra-wide parallax chapters
- * (0x11/0x15/0x16/0x1B): the value is signed-divided by 2 (asm uses the
- * SAR/SUB/SAR signed /2 idiom) and added into the background source offset,
- * so the stored value is a signed int and does take negative values via the
- * left-scroll path.
+ * (0x11/0x15/0x16/0x1B): declared signed int (dword accesses); the reader
+ * does a signed divide by 2 (SAR/SUB/SAR idiom @ 0x12055) and adds the result
+ * into the static-background source offset.
  * ---------------------------------------------------------------- */
 int data_fd2_battle_walk_anim_x_scroll_offset;
 
 /* ----------------------------------------------------------------
  * Walk-step vertical (Y) parallax scroll row counter @ 0x53B0B  (.object2, zero-init)
  *
- * Cumulative row-scroll counter for the smooth walk-step slide, the Y/row
- * counterpart of data_fd2_battle_walk_anim_x_scroll_offset.
+ * Cumulative row-scroll counter for the smooth 6-frame walk-step slide, the
+ * Y/row counterpart of data_fd2_battle_walk_anim_x_scroll_offset.
  * fd2_walk_step_down clears it to 0 before the slide loop and adds the
  * per-frame window-scroll flag (0 / +1) into it each of the 6 slide frames;
- * fd2_walk_step_up seeds it to 6 and adds the per-frame delta (-1 / 0) each
- * frame. Both clear it to 0 after the step completes, so the static image is
- * zero.
+ * fd2_walk_step_up seeds it to 6 (or 0 when view_window_origin_y == 0) and
+ * adds the per-frame delta (-1 / 0) each frame. Both reset it to 0 after the
+ * step completes, so the static image is zero.
  * Read by fd2_composite_battle_tile_map for the extra-wide parallax chapters
- * (0x11/0x15/0x16/0x1B): the value is signed-divided by 3 (asm uses the
+ * (0x11/0x15/0x16/0x1B) only: the value is signed-divided by 3 (asm uses the
  * MOV/SAR EDX,0x1f + IDIV signed-divide idiom), multiplied by the row stride,
- * and added into the background source offset, so the stored value is a
- * signed int. All accesses are dword (32-bit).
+ * and added into the background source offset. Typed signed int because of the
+ * IDIV read idiom, not the range: the writers keep it in [0,6], never negative
+ * at the read site. All accesses are dword (32-bit).
  * ---------------------------------------------------------------- */
 int data_fd2_battle_walk_anim_y_scroll_rows;

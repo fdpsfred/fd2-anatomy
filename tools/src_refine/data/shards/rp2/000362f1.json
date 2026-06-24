@@ -1,0 +1,48 @@
+{
+  "address": "000362f1",
+  "name_current": "fd2_dpmi_unlock_region",
+  "name_final": "fd2_dpmi_unlock_region",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the DPMI wrapper convention fd2_dpmi_*; descriptor 'unlock_region' accurately reflects DPMI INT 31h fn 0x601 (Unlock Linear Region). No Ghidra address residue in the name. Mirror of fd2_dpmi_lock_region (fn 0x600).",
+  "kind": "function",
+  "home": "src/util/dpmi.c",
+  "purpose": "Wrapper for DPMI INT 31h function 0x601 (Unlock Linear Region): unlocks a linear memory region so its pages may be paged out again.",
+  "logic_summary": "Takes two linear byte addresses; normalizes them so base = min(a,b) and size = max(a,b) - base + 1 (order-independent). Packs base into BX:CX (high16:low16) and size into SI:DI, sets EAX = 0x601, calls int386(0x31, &in_r, &out_r), and returns 1 when the carry flag is clear (success), 0 otherwise. Functionally identical to fd2_dpmi_lock_region except the DPMI function number is 0x601 (unlock) instead of 0x600 (lock). In the original binary the two share an INT 31h dispatch tail (this body JMPs into fd2_dpmi_lock_region at 0x362a7); the C source models it as a self-contained, functionally-equivalent function.",
+  "signature": "bool __cdecl fd2_dpmi_unlock_region(uint param_1, uint param_2)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "One endpoint (start or end) of the linear byte-address range to unlock; auto-swapped with param_2 so argument order does not matter. Src names this page_start (uint32), though per the documented caveat on fd2_dpmi_lock_region these are raw linear byte addresses, not page numbers.",
+      "verdict": "rename",
+      "proposed": "page_start",
+      "reason": "param_1 is a generic placeholder; rename to match the src identifier and the sibling fd2_dpmi_lock_region for cross-file consistency. Records proposal only; Stage 2 applies."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "The other endpoint of the linear byte-address range; auto-swapped with param_1. Src names this page_end (uint32); like param_1 it is a raw linear byte address per the documented caveat on fd2_dpmi_lock_region.",
+      "verdict": "rename",
+      "proposed": "page_end",
+      "reason": "param_2 is a generic placeholder; rename to match the src identifier and the sibling fd2_dpmi_lock_region for cross-file consistency. Records proposal only; Stage 2 applies."
+    }
+  ],
+  "returns": {
+    "type": "bool (int in src)",
+    "semantics": "1 = success (DPMI host cleared the carry flag), 0 = failure (carry flag set). Derived from out_r.x.cflag == 0."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "d2995460cd8f3d13a156209d9944bf90ea693bb0",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment (dpmi.c lines 106-111) is already concise, accurate, and references fd2_dpmi_lock_region for the shared parameter semantics -- left unchanged. Ghidra plate is more verbose (includes disassembly-level detail and the shared-tail/JMP-to-0x362a7 layout fact) but is technically accurate and not contradictory/stale, so left unchanged per the 'consistent => do not touch plate' rule. Disassembly confirmed: SUB ESP,0x38; min/max normalize; size=max-min+1; [ESP]=0x601; JMP 0x000362a7 into lock_region's shared INT 31h dispatch tail. The shared-tail JMP is a vendor code-layout fact (lock/unlock share the int386 + CF-check epilogue) and a known Layer-2 functional-equivalence emit pattern, not a logic concern -- no issues raised. No src edit and no plate change, so no save_program needed."
+}

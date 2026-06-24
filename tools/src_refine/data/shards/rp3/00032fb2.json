@@ -1,0 +1,31 @@
+{
+  "address": "00032fb2",
+  "name_current": "fd2_chapter_04_init",
+  "name_final": "fd2_chapter_04_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. '04' is a meaningful chapter ID (chapters 1-30), confirmed Chapter 4 '塞拉村前' via fd2-knowledge; NOT an address residue (0x32fb2 != 04). 'init' correctly reflects role as the chapter-4 prologue/init handler registered in the chapter init dispatch table at 0x51d75 (entry +8 -> 0x32fb2).",
+  "kind": "function",
+  "home": "C:/Users/fdpsf/Documents/fd2-wt/rp3/src/field/chinit.c",
+  "purpose": "Chapter 4 (塞拉村前) init/prologue handler: plays two dialog pages bracketing one cutscene, loads portrait set 1, pans the camera between scenes, then hands the chapter to the player. No char init (party carries over from chapter 3).",
+  "logic_summary": "Watcom __CHK(0x28) stack probe (not source body). Then: init battle state for chapter; pan_cursor_and_window(4,0xB); cutscene_event_trigger(0x14); display_dialog_scene(current_chapter_text page 0, fixed window geometry 0xa0000/0x140/0xcd/0x4c/0x4a/0x13/1); reset data_fd2_battle_anim_phase=0; load_chapter_portraits_and_dump_tmp(1); pan_cursor_and_window(4,0); delay_ms(200); display_dialog_scene(page 1, same geometry); clear_all_chars_facing; pan_cursor_to_char(0). In the binary the page-1 dialog + trailing two calls are a tail-JMP into the shared epilogue at 0x3312D; the trailing 4 calls are also reused as an alt-entry (0x33028) by fd2_chapter_08_init. The src is the functionally-equivalent (Layer 2) straight-line reconstruction.",
+  "signature": "void __cdecl fd2_chapter_04_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; chapter init handler invoked via dispatch table, control returns to the chapter loop."
+  },
+  "reads_globals": ["data_fd2_current_chapter_text"],
+  "writes_globals": ["data_fd2_battle_anim_phase"],
+  "comment_original_issue": "Source comment block is accurate, ASCII, and well-written (matches decompilation and disassembly exactly). No issue. Separately, the Ghidra plate carried a stale callee name '__delay_thunk_375b2(200)' (callee is now named fd2_delay_ms); plate updated to fd2_delay_ms and a no-char-init note added.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "5201181568b49a7cbdcad989699ad2e4763e2062",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified body against decompile_function + disassemble_function: __CHK(0x28) frame probe; dialog page-0 reads [0x53a79]=data_fd2_current_chapter_text; MOV [0x51a83],0=data_fd2_battle_anim_phase; tail JMP 0x3312D into shared epilogue; alt-entry 0x33028 used by chapter 08. xref to function comes from chapter init dispatch table at 0x51d75 (entry at 0x51d7d). 0 direct callers (dispatched). No source edit made (comment already correct). Name kept; chapter ID 04 preserved as domain ID."
+}

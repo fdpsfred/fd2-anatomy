@@ -13,7 +13,13 @@
  * fd2_tally_chars_with_zero_at_field @ 0x15DA2
  *
  * Sum weight for each char in char_idx_arr[0..len-1] whose
- * runtime_char byte at field_offset is zero.
+ * runtime_char byte at field_offset is zero, and return the total.
+ *
+ * Generic AI-scoring helper for "count targets whose status byte at
+ * field_offset is clear, times weight". Used by fd2_score_spell_candidate
+ * to score status-effect spells (17..19), summon a (0x1A) and summon b
+ * (0x1B): a clear status byte means the effect is not yet applied, so
+ * that target is worth scoring.
  * ---------------------------------------------------------------- */
 int fd2_tally_chars_with_zero_at_field(int len, uint32 char_idx_arr,
                                         int field_offset, int weight)
@@ -38,8 +44,21 @@ int fd2_tally_chars_with_zero_at_field(int len, uint32 char_idx_arr,
 /* ----------------------------------------------------------------
  * fd2_find_tile_with_attribute_match @ 0x15DF3
  *
- * Find first event-type-1 tile with secondary_attr == target_tag.
- * Writes x,y to out_pos[0..1] as bytes. Returns 0 or -1.
+ * Scan the battle map (row-major, y outer / x inner) for the first
+ * event-type-1 tile carrying the given tag, and report its position.
+ *
+ * Per-tile fd2_read_tile_attribute_at_pos fills tile_buf: [+2] is the
+ * tile's 5-bit terrain_class (used here as the event-tile tag), [+4]
+ * is attribute-flags byte 0. A tile matches when
+ *   (attr_flags & 0x60) == 0x20   (event tile type 1) AND
+ *   terrain_class == target_tag.
+ * On match: out_pos[0]=x, out_pos[1]=y (as bytes); returns 0.
+ * Returns -1 if no tile matches.
+ *
+ * Sole caller: fd2_enemy_turn_action_dispatcher AI class 5 (item
+ * pickup). target_tag is the char's AI event-target id
+ * (pAi_target_and_DX_block[0]), which also indexes the tile-event
+ * data table; the dispatcher then walks to the found tile to grab it.
  * ---------------------------------------------------------------- */
 int fd2_find_tile_with_attribute_match(uint32 target_tag, uint32 out_pos)
 {
@@ -68,8 +87,12 @@ int fd2_find_tile_with_attribute_match(uint32 target_tag, uint32 out_pos)
 /* ----------------------------------------------------------------
  * fd2_collect_unmarked_tile_positions @ 0x14B16
  *
- * Collect all tiles whose overlay byte +7 is not 0xFF.
- * Write (x,y) byte-pairs to out_buf, return count.
+ * Enumerate every battle tile whose overlay byte +7 is not 0xFF and
+ * write its (x,y) as a byte-pair into out_buf; return the tile count.
+ * Counterpart to fd2_mark_char_occupant_tiles_for_team. Callers first
+ * run fd2_init_movement_range_floodfill (reachable tiles keep +7,
+ * unreachable get 0xFF) then mark occupant tiles 0xFF, so the gathered
+ * set is the reachable, unoccupied tiles used for AI move/AoE scans.
  * ---------------------------------------------------------------- */
 int fd2_collect_unmarked_tile_positions(uint32 out_buf)
 {
@@ -134,9 +157,19 @@ void fd2_mark_char_occupant_tiles_for_team(uint32 exclude_idx,
 /* ----------------------------------------------------------------
  * fd2_scan_chars_within_manhattan_range @ 0x14742
  *
- * Find alive chars within manhattan distance of (center_x, center_y)
- * matching team_filter. Optionally write indices to out_buf.
- * Returns count.
+ * Count alive chars whose manhattan distance from (center_x, center_y)
+ * is strictly less than max_range and whose team matches team_filter.
+ * If out_buf != 0, the matching char indices are also written there
+ * (one byte each). Returns the match count.
+ *
+ * team_filter encoding (team field: 0=enemy, 1=NPC ally, 2=player):
+ *   0 -> enemies only      (team == 0)
+ *   1 -> any ally          (team != 0, NPC or player)
+ *   2 -> NPC allies only    (team == 1)
+ *   3 -> players only       (team == 2)
+ *
+ * Generic targeting scan reused by AI scoring and target-input
+ * validation (sole caller: fd2_wait_for_action_target_input).
  * ---------------------------------------------------------------- */
 int fd2_scan_chars_within_manhattan_range(uint32 center_x, uint32 center_y,
                                           uint32 max_range,
@@ -178,9 +211,22 @@ int fd2_scan_chars_within_manhattan_range(uint32 center_x, uint32 center_y,
 /* ----------------------------------------------------------------
  * fd2_scan_chars_along_line_with_team_filter @ 0x149F8
  *
- * Walk a 4-cardinal line from start toward target for step_count
- * steps. Collect matching-team char indices into out_buf.
- * Returns hit_count.
+ * Walk a straight 4-cardinal line (no diagonals) from (start_x,
+ * start_y) toward (target_x, target_y) for up to step_count steps;
+ * collect indices of chars found at each in-bounds step that match
+ * the team filter into out_buf, returning the hit count.
+ *
+ * Direction: pure vertical if start_x == target_x (down when
+ * start_y <= target_y, else up), otherwise pure horizontal toward
+ * target_x. Steps that fall outside the map bounds are skipped.
+ *
+ * team_filter polarity: 0 collects chars on a non-zero team (enemy
+ * of player team 0); non-zero collects team-0 chars. The global
+ * battle cursor is driven during the walk and restored on return.
+ *
+ * Used for line / piercing targeting: spell 0x1E (the line spell)
+ * and long-range projectile items (range_class >= 0x10, where
+ * step_count = range_class - 0x10).
  * ---------------------------------------------------------------- */
 int fd2_scan_chars_along_line_with_team_filter(
     uint32 target_x, uint32 target_y, uint32 out_buf,
@@ -248,7 +294,13 @@ int fd2_scan_chars_along_line_with_team_filter(
 /* ----------------------------------------------------------------
  * fd2_set_tile_overlay_bit_80 @ 0x146A7
  *
- * Set bit 0x80 on tile overlay byte +6 at (x, y).
+ * Set bit 0x80 ("AoE splash" marker) on the tile overlay byte at
+ * offset +6 of the battle tile map, at tile (x, y).
+ *
+ * One-tile primitive used by fd2_mark_aoe_plus_pattern_at to flag
+ * the four non-center neighbors of an AoE "+" pattern (the center
+ * uses bit 0x40 instead). No in-function bounds check -- the caller
+ * is responsible for keeping (x, y) inside the map.
  * ---------------------------------------------------------------- */
 void fd2_set_tile_overlay_bit_80(uint32 x, uint32 y)
 {
@@ -279,8 +331,12 @@ void fd2_mark_aoe_plus_pattern_at(uint32 x, uint32 y)
 /* ----------------------------------------------------------------
  * fd2_ai_pass_turn_with_heal @ 0x13FD4
  *
- * AI "pass turn": if HP < max and no poison/sleep, heal 20% of
- * max HP with glow animation. Returns 1 if healed, 0 otherwise.
+ * "Pass turn" / Rest action, shared by AI characters (enemy-turn
+ * dispatcher fall-through) and the player's Wait command. If HP < max
+ * and the char is not poisoned (status[0x25]) and not paralyzed
+ * (status[0x26]), heal 20% of max HP (clamped to max) with a brief
+ * glow animation + recovery SFX. Returns 1 if healed, 0 otherwise.
+ * Note: FD2 has no "sleep" ailment; the 0x26 flag is paralysis (麻痹).
  * ---------------------------------------------------------------- */
 int fd2_ai_pass_turn_with_heal(uint32 char_idx)
 {
@@ -328,8 +384,16 @@ int fd2_ai_pass_turn_with_heal(uint32 char_idx)
 /* ----------------------------------------------------------------
  * fd2_ai_walk_to_target_tile @ 0x14B78
  *
- * Execute AI walk toward target. Two-stage pathfind with fallback
- * to closest approachable tile. Returns 1 if walked, 0 if not.
+ * Walk an AI/player char along a path toward (target_x, target_y).
+ * Stage A: direct pathfind within the char's remaining move range.
+ * Stage B (only if unreachable): long-range retry (range 0x1C) and
+ *   scan its path for the furthest walkable tile, adopting it as the
+ *   new target. Then pick the unmarked reachable tile with the
+ *   smallest taxicab distance to the target (tiebreak: smaller
+ *   |dx|-|dy|, i.e. a straighter approach) and pathfind to it.
+ * If a path exists, fd2_walk_path_animation_loop animates the move.
+ * ctx is the team/context flag forwarded to the threat-overlay and
+ * occupant-marking helpers. Returns 1 if a walk happened, else 0.
  * ---------------------------------------------------------------- */
 int fd2_ai_walk_to_target_tile(uint32 target_x, uint32 target_y,
                                 uint32 char_idx, uint32 ctx)
@@ -477,8 +541,29 @@ int fd2_ai_walk_to_target_tile(uint32 target_x, uint32 target_y,
 /* ----------------------------------------------------------------
  * fd2_compute_aoe_targets @ 0x14818
  *
- * Paint affected-tile overlay for spell/skill at (center_x,
- * center_y), gather char indices in range by team filter.
+ * Paint the affected-tile overlay for a spell/skill/weapon at
+ * (center_x, center_y) into tile-map byte +7, then gather the
+ * runtime_char indices standing on an affected tile whose team
+ * matches team_filter. If out_buf != 0 the matching indices are
+ * written there (one byte each). Returns the match count.
+ *
+ * spell_range selects the area shape:
+ *   < 0x10 -> floodfill movement-range from center (class-0 cost
+ *             table) covering range tiles; if aoe_radius != 0, any
+ *             tile within manhattan aoe_radius of center is then
+ *             marked 0xFF (excluded from the target scan).
+ *   >= 0x10 -> orthogonal cross: two stripes (along x through
+ *              center_y, along y through center_x) extending
+ *              +/-(spell_range - 0x10) from center are cleared to 0.
+ *
+ * team_filter (runtime_char team byte +6: 0=enemy,1=NPC ally,2=player):
+ *   0 -> enemies only (team == 0)   2 -> NPC allies only (team == 1)
+ *   1 -> any ally (team != 0)       3 -> players only    (team == 2)
+ *
+ * Dead chars (flag +5 bit 0) and chars on a 0xFF-marked tile are
+ * skipped. Tile byte +7 is the same overlay slot used by the cursor
+ * markers; this scan writes it transiently. Wide-xref: all AI
+ * scoring and player spell/skill target-preview paths call this.
  * ---------------------------------------------------------------- */
 int fd2_compute_aoe_targets(uint32 center_x, uint32 center_y,
                              uint32 out_buf, uint32 spell_range,
@@ -572,8 +657,20 @@ int fd2_compute_aoe_targets(uint32 center_x, uint32 center_y,
 /* ----------------------------------------------------------------
  * fd2_ai_seek_optimal_position @ 0x14121
  *
- * Pathfind to best cell for char's job movement class, then walk.
- * Returns 1 if walked, 0 if unreachable or already at optimum.
+ * AI "move toward best cell" fallback. Paints the team threat
+ * overlay, pathfinds to the highest-scoring reachable tile for the
+ * char's movement-cost class, then walks one step there.
+ *
+ * Movement-cost class = runtime_char[char_idx][0x20] (job-based),
+ * with two overrides:
+ *   - status-immunity set    -> class 0x13 (flying / unrestricted)
+ *   - identity byte 8 == 0x1C -> class 1   (cheap movement)
+ *
+ * Returns 1 if it walked, 0 if the target is unreachable (pathfind
+ * 0xFF) or the char is already at the optimum.
+ *
+ * Called by fd2_enemy_turn_action_dispatcher AI classes 1/3/5/11 as
+ * the "scoring/attack failed, move instead" branch.
  * ---------------------------------------------------------------- */
 int fd2_ai_seek_optimal_position(uint32 char_idx, uint32 ctx)
 {
@@ -687,13 +784,18 @@ int fd2_ai_advance_to_nearest_team_target(uint32 char_idx,
  * fd2_resolve_terrain_for_aoe_targets @ 0x2B5E1  (2 callers)
  *
  * Resolve the terrain-attribute byte that should back an AoE spell's
- * cinematic, given n_chars target chars in target_byte_array.
+ * cinematic, given n_chars target chars in target_byte_array (each
+ * byte is a runtime_char index). Both callers use the returned byte
+ * as the BG.DAT / TAI.DAT backdrop resource index for the targets'
+ * side of the spell-cast animation.
  *
- * Starts with the per-chapter override byte, then walks the target
- * array backwards (last non-immune wins): for each target, read its
- * tile-attribute byte (buf[+6] = attr_ptr[+2]) and, when the target
- * is not status-immune OR the running fallback is still 0, adopt that
- * tile byte. Immune targets keep a nonzero chapter override.
+ * Starts with the per-chapter override byte
+ * (chapter_combat_cinematic_mode_per_chapter[current_chapter_id]),
+ * then walks the target array backwards (last non-immune wins): for
+ * each target, read its tile-attribute byte (buf[+6] = attr_ptr[+2])
+ * and, when the target is not status-immune OR the running fallback
+ * is still 0, adopt that tile byte. Immune targets keep a nonzero
+ * chapter override.
  * ---------------------------------------------------------------- */
 char fd2_resolve_terrain_for_aoe_targets(int n_chars,
                                          uint8 *target_byte_array)

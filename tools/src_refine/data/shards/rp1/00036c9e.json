@@ -1,0 +1,60 @@
+{
+  "address": "0x00036c9e",
+  "name_current": "fd2_ani_decoder_decode_frame_bytes",
+  "name_final": "fd2_ani_decoder_decode_frame_bytes",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (domain=ani_decoder, descriptor=decode_frame_bytes). No address residue. Accurately reflects purpose: the top-level loop that decodes one ANI frame's chunk-byte stream by dispatching each chunk-type byte to the handler table.",
+  "kind": "function",
+  "home": "src/anim/anidec.c",
+  "purpose": "Top-level ANI.DAT frame decoder loop: walks a frame's chunk-byte stream, dispatching each chunk-type byte through the 10-entry handler table so the handlers apply the frame's delta to the target buffer.",
+  "logic_summary": "EBP frame (saves EBX/ESI/EDI), no __CHK. If chunk_count==0 returns immediately. Sets the shared cursor g_ani_cursor = src_buf_ptr ONCE (binary: MOV ESI,[EBP+0xC] at 0x36CAF, outside the loop). Loop body: read one chunk-type byte via *g_ani_cursor++ (binary LODSB), index data_fd2_animation_ani_decoder_frame_dispatch_table[chunk_type] (binary SUB AH,AH / SHL AX,2 / MOVZX EBX,AX / CALL [EBX+0x5276A]), call the zero-arg void handler, then chunk_count--. Only the chunk-type byte is consumed here; each handler advances the SAME g_ani_cursor by its own operand bytes, so the cursor walks the entire stream cooperatively. The Ghidra decompile models the cursor as a per-call local (stream_ptr+1) which loses the shared-cursor semantics; the source's file-scope g_ani_cursor is the correct model (handlers consume variable amounts from the same cursor). Disassembly confirms loop re-enters at LODSB (0x36CB2), not at the MOV ESI reload.",
+  "signature": "void __cdecl fd2_ani_decoder_decode_frame_bytes(uint16 chunk_count, uint32 src_buf_ptr)",
+  "params": [
+    {
+      "name": "chunk_count",
+      "type": "uint16",
+      "semantics": "Number of chunk-type bytes (dispatch iterations) to process for this frame. Word at [EBP+8]; loop counter decremented each iteration (binary DEC word ptr [EBP+8] / JNZ). Caller fd2_play_ani_file_animation_sequence passes frame_header[2] (the per-frame decoded chunk count read from the 8-byte frame header).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of the loop count (one iteration per chunk-type byte); no address residue. (Plate calls it byte_count, but each byte is a chunk-type opcode dispatched once, so chunk_count is the more precise name.) Renaming would not change semantics."
+    },
+    {
+      "name": "src_buf_ptr",
+      "type": "uint32",
+      "semantics": "Pointer to the start of the frame's raw chunk-byte stream. Dword at [EBP+0xC]; assigned to the shared cursor g_ani_cursor once before the loop, then advanced by *g_ani_cursor++ and by every handler. Caller passes the malloc(64000) backbuffer that was just fread() with the frame's raw bytes.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Describes the input stream pointer; no address residue. (Ghidra types it byte*; source uses uint32 cast to uint8* -- representation choice only, types are out of scope to change.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is the decoded frame written to the target buffer via the dispatched handlers."
+  },
+  "reads_globals": [
+    "data_fd2_animation_ani_decoder_frame_dispatch_table @ 0x5276A (10-entry void(*)(void) handler table, indexed by chunk-type byte)"
+  ],
+  "writes_globals": [
+    "g_ani_cursor (file-scope shared stream cursor; set to src_buf_ptr and advanced)"
+  ],
+  "comment_original_issue": "Source comment was accurate but terse ('Main decoder loop: reads chunk_count chunk-type bytes...'); it omitted the load-bearing detail that only the chunk-type byte is consumed per iteration while each handler advances the same shared g_ani_cursor by its own operand bytes -- the reason a fixed iteration count covers a variable-length stream.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [
+    {
+      "category": "robustness",
+      "severity": "info",
+      "title": "Dispatch table indexed by full byte (0-255) but emitted as a 10-entry array",
+      "description": "chunk_type is a uint8 (0-255) used to index data_fd2_animation_ani_decoder_frame_dispatch_table, which the Layer-2 port declares as [10] (src/table/anitab.c, src/include/globals.h). The original binary's table at 0x5276A is also exactly 10 pointers (verified: the 10th pointer ends at 0x52792, followed by 4 zero bytes then the 'Stack Overflow!' literal -- not an 11th entry). So both binary and port assume well-formed ANI.DAT streams emit only opcodes 0-9; a malformed byte >= 10 would read past the array in both. This is faithful to the original (not a port-introduced regression) and ANI.DAT is a trusted bundled asset, so it is informational only -- no change in this stage.",
+      "evidence": "Decoder: src/anim/anidec.c L74-77 indexes table[chunk_type] with chunk_type from *g_ani_cursor++. Table decl: src/include/globals.h L527 'extern void (*...frame_dispatch_table[10])(void);' and src/table/anitab.c L480. Binary extent: read_memory(0x52792,48) = 00 00 00 00 'Stack Overflow!\\r\\n' confirming exactly 10 entries; first entries 0x36AE7,0x36B01,... match handler addresses."
+    }
+  ],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Ghidra plate is detailed, accurate, and already documents the shared-ESI-cursor semantics plus the decompiler-vs-source g_ani_cursor modeling note; it is consistent with the refined understanding, so it was left unchanged (ghidra_plate_action=none). Source comment augmented to add the shared-cursor / variable-length-stream point concisely (file header already covers the ESI->g_ani_cursor mapping, so it was not duplicated). Only this function's own comment block in src/anim/anidec.c was edited. No logic/signature/type changes."
+}

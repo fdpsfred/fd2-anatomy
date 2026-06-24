@@ -1,0 +1,40 @@
+{
+  "address": "00024b14",
+  "name_current": "fd2_any_char_has_item",
+  "name_final": "fd2_any_char_has_item",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Game function with correct fd2_ prefix and accurate descriptor: scans all party characters for an item and reports presence. No Ghidra address residue. Matches purpose and internal logic.",
+  "kind": "function",
+  "home": "src/util/misc.c",
+  "purpose": "Returns whether any character in the runtime party inventory holds a given item_id; used to gate plot-critical story branches (e.g. 天空之鑰 / item 100).",
+  "logic_summary": "Loops char_idx = 0..15 (16 party characters). For each, calls fd2_find_inventory_slot_with_item(char_idx, item_id); on the first call returning != -1 (a found inventory slot) returns 1 immediately. If all 16 characters miss, returns -1.",
+  "signature": "int __cdecl fd2_any_char_has_item(int item_id)",
+  "params": [
+    {
+      "name": "item_id",
+      "type": "int",
+      "semantics": "Item ID to search for across all party characters' inventories (e.g. 0x64 = 天空之鑰). Passed unchanged to fd2_find_inventory_slot_with_item.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately describes the value (an item ID) and matches how callers use it (fd2_any_char_has_item(100) for 天空之鑰). No address residue."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "1 if at least one party character holds item_id; -1 if none do. Caller fd2_chapter_23_end tests == -1 (not found) vs else (found)."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified semantics against caller fd2_chapter_23_end @ 0x247be (uses == -1 = not found, else = recruit 卡里斯 when 天空之鑰/item 0x64 present) and FD2 KB (item 0x64 = 天空之鑰, 進入隱藏關物品). Callee fd2_find_inventory_slot_with_item takes uint32 params; passing int item_id through is a harmless implicit conversion (item IDs are small positive 0..0xD6) and not a logic concern. Source comment block (misc.c lines 54-64) is already precise/correct/ASCII; Ghidra plate already consistent. No changes to src, name, params, or plate."
+}

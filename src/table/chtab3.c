@@ -2,9 +2,14 @@
 #include "types.h"
 #include "globals.h"
 
-/* Per-chapter-state speaker portrait / DATO.DAT entry id for the chapter intro
- * menu. Indexed by chapter_transition_state (0..5); element passed to
- * fd2_load_chapter_portrait / fd2_load_dat_resource. Read-only. @ 0x52659 */
+/* Greeting-speaker DATO.DAT portrait-sprite id for each chapter-intro menu
+ * variant. Indexed by chapter_intro_menu_cursor_state (0..5, @ 0x5412B); the
+ * selected byte is passed to fd2_load_chapter_portrait, which loads that sprite
+ * from DATO.DAT and positions it. Values 0x80..0x84 are the five special
+ * story-NPC speaker portraits (each with a fixed blit offset); other values
+ * (here state 2 = 0x00) are ordinary character portrait ids. Read by the
+ * chapter-intro menus and every shop sub-menu (buy/sell/give/equip) to redraw
+ * the greeting after each action. Read-only. @ 0x52659 */
 const uint8 data_fd2_chapter_intro_menu_speaker_portrait_id_table[6] =
     { 0x81, 0x80, 0x00, 0x82, 0x83, 0x84 };
 
@@ -20,10 +25,11 @@ const uint8 data_fd2_chapter_per_chapter_category_table[30] = {
 
 /* FDOTHER.DAT intro-panel RLE resource id, selected by the chapter-intro
  * metadata category code. fd2_chapter_transition_menu copies all 3 bytes into a
- * stack scratch buffer (MOVSW + MOVSB) then indexes them by metadata[0] (stored
- * via base -2 in the source) to obtain the resource id passed to
- * fd2_load_dat_resource("FDOTHER.DAT", idx). Byte-width, unsigned. Read-only.
- * @ 0x526D7 */
+ * stack scratch buffer (MOVSW + MOVSB) then indexes it as table[metadata[0]-2]
+ * to obtain the resource id passed to fd2_load_dat_resource("FDOTHER.DAT", idx),
+ * where metadata[0] is the chapter category byte from
+ * fd2_get_chapter_intro_metadata_entry. Category 2 -> 0x0B, 3 -> 0x3D, 4 -> 0x3E.
+ * Byte-width, unsigned. Read-only. @ 0x526D7 */
 const uint8 data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table[3] =
     { 0x0b, 0x3d, 0x3e };
 

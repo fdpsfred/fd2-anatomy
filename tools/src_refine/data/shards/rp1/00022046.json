@@ -1,0 +1,83 @@
+{
+  "address": "00022046",
+  "name_current": "fd2_render_filled_circle_band_anim",
+  "name_final": "fd2_render_filled_circle_band_anim",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=render/gfx, descriptor=filled_circle_band_anim). Accurately describes the function: renders one frame of a filled circular band animation (top arc + bottom arc + solid middle band) with party characters composited on top. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/gfx/rndscene.c",
+  "purpose": "Render one frame of a filled circular band animation (top arc, bottom arc, and a solid middle row-band) with the live party characters composited on top -- the AoE-with-chars overlay look.",
+  "logic_summary": "Calls fd2_render_circle_anim_row twice (top arc rows from cx; bottom arc rows from param_2) with fd2_composite_all_chars_overlay() between them to paint the party chars. Then computes the solid middle band half-width = trunc((double)param_3 * 1.6) (x87 FMUL m64[0x50208]=1.6, __CHP forces RC=round-toward-zero so FRNDINT truncates, NOT round-to-nearest -- Ghidra ROUND() macro is misleading). Clamps left edge to 0 and right edge to 0x138, then fills rows cx..param_2-1 by calling fd2_apply_palette_remap_run(radius, half_width+right_off, row_ptr) where row_ptr = large_game_state_buffer + 0x8088 + cx*0x1C8 + left_clip, advancing row_ptr by 0x1C8 (456 = workspace pitch) each iteration.",
+  "signature": "void __cdecl fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2, uint32 param_3, int cx, int cy, int radius)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "Column center cx in workspace pixels (forwarded as 1st arg to both row calls; used as the horizontal center for the left/right clamp of the solid band).",
+      "verdict": "rename",
+      "proposed": "col_center",
+      "reason": "Generic Ghidra auto-name param_1; actual role is the column center (cx). 'col_center' reflects the horizontal-center role and carries no address residue."
+    },
+    {
+      "name": "param_2",
+      "type": "uint32",
+      "semantics": "Bottom row index = band-fill exclusive end (loop runs cx..param_2-1) and also the bottom arc's row start (passed as 5th arg to the 2nd row call).",
+      "verdict": "rename",
+      "proposed": "bottom_row",
+      "reason": "Generic Ghidra auto-name param_2; actual role is the bottom row index / band-fill end. 'bottom_row' is descriptive and address-free."
+    },
+    {
+      "name": "param_3",
+      "type": "uint32",
+      "semantics": "Radius factor for the band half-width: half_width = trunc((double)param_3 * 1.6). Also forwarded as 3rd arg to both row calls.",
+      "verdict": "rename",
+      "proposed": "radius_factor",
+      "reason": "Generic Ghidra auto-name param_3; actual role is the radius factor scaled by 1.6 to derive the band half-width. 'radius_factor' is descriptive and address-free."
+    },
+    {
+      "name": "cx",
+      "type": "int",
+      "semantics": "Top band-fill start row (also the top arc's row start, passed as 5th arg to the 1st row call) and the loop induction variable for the solid-band fill (cx..param_2-1).",
+      "verdict": "rename",
+      "proposed": "top_row",
+      "reason": "Ghidra label 'cx' is misleading -- it suggests a column-X but the value is a top ROW index/start; it is also the row-fill loop counter. 'top_row' matches actual semantics; current name is misleading per naming rules."
+    },
+    {
+      "name": "cy",
+      "type": "int",
+      "semantics": "Arc row-loop exclusive end -- forwarded as 6th arg to both fd2_render_circle_anim_row calls (the arc loop's row bound). Not used in this function's own body otherwise.",
+      "verdict": "rename",
+      "proposed": "row_loop_end",
+      "reason": "Ghidra label 'cy' is misleading -- it suggests a center-Y but the value is the arc row-loop exclusive end passed through to the row calls. 'row_loop_end' matches actual semantics."
+    },
+    {
+      "name": "radius",
+      "type": "int",
+      "semantics": "Palette-remap SOURCE pointer (a uint8* color-remap table), forwarded straight through to every fd2_apply_palette_remap_run and to both fd2_render_circle_anim_row calls. Not a length despite the Ghidra label.",
+      "verdict": "rename",
+      "proposed": "palette_remap_src",
+      "reason": "Ghidra label 'radius' is strongly misleading -- the value is a palette-remap source POINTER, not a radius/length. Caller passes the handle returned by fd2_animate_warp_out_collapse and it is cast to (uint8 *) at every use. The sibling fn in the same source file already uses 'palette_remap_src' for this role; matching it keeps naming consistent and address-free."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. The original binary has no explicit RET in this body: on loop exit (JGE 0x21DAD) it tail-jumps into a shared POP EBP/EDI/ESI/EBX + RET sequence in the epilogue of the orphan fn @ 0x21BD0 (same PUSH EBX/ESI/EDI/EBP frame shape; Watcom merges the register-restore epilogue). The C equivalent is simply the loop running to completion."
+  },
+  "reads_globals": [
+    "data_fd2_graphics_circle_band_radius_scale_16 (double 1.6 @ 0x50208, band half-width scale factor)",
+    "data_fd2_large_game_state_buffer_ptr (render workspace base; +0x8088 = char-layer base, pitch 0x1C8)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (rndscene.c lines 1070-1124) is already precise, accurate, and consistent with the live decompilation and the Ghidra plate: it correctly documents the param overloading, the asm-order call sequence, the trunc-not-round x87 detail, the left/right clamps, the buffer/pitch constants, and the shared-epilogue tail-jump. No edit needed (comment_verdict=keep). Ghidra plate is consistent with the refined understanding -> ghidra_plate_action=none. Caller fd2_animate_warp_teleport_char @ 0x22253 confirms param semantics: it calls fd2_render_filled_circle_band_anim(src_x, src_y, 0xb, 0, 0xc0, radius) where src_x/src_y are cursor-derived pixel coords, 0xb is the radius factor, 0/0xc0 are top-row/row-loop-end, and 'radius' is the pointer/handle returned by fd2_animate_warp_out_collapse. Memory @ 0x50208 = 9a9999999999f93f = IEEE754 double 1.6 (verified). All 6 params are misleading/generic (param_1..3 generic; cx/cy/radius semantically wrong) -> recorded rename proposals only; NO symbol/param rename or src declaration change applied this stage (Stage 2 will apply). No logic/equivalence issues found: C cast (uint32)(int32)((double)...) matches the binary's round-toward-zero truncation."
+}

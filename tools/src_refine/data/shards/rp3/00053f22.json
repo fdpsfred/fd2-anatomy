@@ -1,0 +1,34 @@
+{
+  "address": "0x00053f22",
+  "name_current": "data_fd2_ui_save_load_menu_state_template",
+  "name_final": "data_fd2_ui_save_load_menu_state_template",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with data_fd2_<domain>_<descriptor> (domain=ui). Descriptor save_load_menu_state_template accurately reflects role (per-option enable/disable flag template/array for the field Status/Save/Load/Quit submenu) and data shape (template array). No Ghidra address residue. Consistent with its paired option list data_fd2_ui_save_load_newgame_menu_template @ 0x51EF5 ('save_load' is the established codebase shorthand for this submenu) and with the *_menu_state_template sibling family (field_command/game_options/player_action/item_command).",
+  "kind": "global",
+  "home": "src/table/uitab.c",
+  "purpose": "Static initializer template for the per-option enable/disable (greyed-out) flags of the field Status/Save/Load/Quit submenu; copied into a local stack buffer at menu-open time.",
+  "logic_summary": "int32[4], one entry per submenu option (Status/Save/Load/Quit), all 0 at rest (all options enabled). Sole reader fd2_field_menu_status_save_load_quit_dispatch (@ 0x19DF7) copies all four dwords into a local menu_state[16] via count-4 REP MOVSD, then mutates only that local copy: when FD2.SAV is absent it sets menu_state[8]=1 (((int*)menu_state)[2]=1) to grey out Load; when a party member is alive-but-already-acted (bFlags&1==0 && bFlags&0x80) it sets menu_state[4]=1 (((int*)menu_state)[1]=1) to grey out Save. The mutated local copy is handed to fd2_open_settings_dialog_with_slide / fd2_settings_menu_input_step. The global itself is never written.",
+  "datatype": "int32[4]",
+  "element_semantics": "Element i = enable/disable flag for submenu option i (0=Status, 1=Save, 2=Load, 3=Quit); 0 = enabled/selectable, non-zero (1) = greyed-out/disabled. Stored value all-zero (template default = all enabled); per-run greying is applied to the local stack copy, not this global.",
+  "is_const": false,
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "created",
+  "issues": [
+    {
+      "category": "const-ness",
+      "severity": "low",
+      "title": "Game-side read-only global declared non-const (matches sibling family)",
+      "description": "The global at 0x53F22 has zero game-side write-xrefs (only a DATA address-load + a READ via MOVSD from the sole reader; all mutation happens on the local stack copy). By the project rule 'zero game write -> const', it could be const. It is currently declared non-const `int32 ... = {0,0,0,0}` in src/table/uitab.c, consistent with the entire *_menu_state_template sibling family (field_command/game_options/player_action/item_command @ 0x53EF2/0x53F02/0x53F12/0x53F32), which are all non-const. Not changed here: const-ness is a declaration change (out of scope for the name/comment refine stage) and would need a coordinated routing emit_class update across the whole family rather than an isolated flip. Flagged for the family-level const audit, not an isolated drift.",
+      "evidence": "get_xrefs_to(0x00053f22) returns exactly 2 refs, both from fd2_field_menu_status_save_load_quit_dispatch: 0x00019e1e [DATA] (MOV ESI,0x53f22) and 0x00019e23 [READ] (REP MOVSD source). No write-xref. Block .object2 is initialized; stored bytes are all-zero (read_memory 32 bytes = 0). Siblings at 0x53EF2/0x53F02/0x53F12/0x53F32 declared non-const in src/table/uitab.c."
+    }
+  ],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "c622e87a87cde24af05c177e7634f0e28235e4d9",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Plate was null; created via run_script_inline PLATE_COMMENT (data plate mechanism per project_ghidra_data_plate_mechanism). src comment block (uitab.c lines ~235-253) already precise and matches decompilation -> comment kept, uitab.c not modified (only the shard is staged). Domain knowledge check on trailing digits: name carries no numeric suffix to evaluate; the 4-element dimension equals the 4 submenu options (semantic), not address residue."
+}

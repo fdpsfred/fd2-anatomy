@@ -1,0 +1,31 @@
+{
+  "address": "0004e915",
+  "name_current": "fd2_noop_stub_4e915",
+  "name_final": "fd2_noop_ret_pad",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_noop_ret_pad",
+  "name_reason": "Suffix _4e915 is the function's own address (0x4E915), a Ghidra address residue forbidden by the naming rules (not a domain ID: not chapter/item/spell/job/portrait, not an array dimension). Bare 'fd2_noop_stub' cannot be used because a semantically different stub fd2_noop_stub_b43 @ 0x10B43 (a multi-instruction shared inline-epilogue fragment: ADD ESP / POP regs / RET) already exists and would collide after its own address suffix is stripped. fd2_noop_ret_pad describes this symbol's actual nature -- a lone 1-byte RET (c3) with zero xrefs occupying a padding/placeholder slot -- without any address residue, and is collision-free (grep across repo: 0 hits). Recorded only; rename applied in Stage 2 (touches protos.h + definition).",
+  "kind": "function",
+  "home": "src/util/noop.c",
+  "purpose": "Unreferenced 1-byte RET stub occupying a padding/placeholder slot between two real functions; a no-op linker artifact.",
+  "logic_summary": "Single RET instruction (opcode c3 at 0x4E915), no stack frame, no body. Wedged between fd2_dialog_sprite_blit_mirrored (body ends 0x4E914, terminating RET) and fd2_decode_dialog_pixel_byte (starts 0x4E916, OR AH,AH). Ghidra carved the lone c3 byte into its own function. Zero callers and zero xrefs (verified): pure dead padding that never received a real definition. No observable behavior.",
+  "signature": "void __cdecl fd2_noop_stub_4e915(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; function is a bare RET (no-op)."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified: byte at 0x4E915 = c3 (RET); read_memory(0x4E910,8)=75 eb 61 5d c3 c3 0a e4 confirms 0x4E914 is the preceding function's terminating RET and 0x4E916 begins fd2_decode_dialog_pixel_byte (0a e4 = OR AH,AH). get_xrefs_to and get_function_callers both return none. src comment block (noop.c lines 9-16) already accurate, precise, ASCII, and consistent with the Ghidra plate -- kept as-is; no src edit made, so no clobber risk. Plate matches refined understanding -> no plate update, no save_program needed. Comment header still references the current name fd2_noop_stub_4e915; this will be updated together with the Stage 2 rename (symbol-name changes are deferred this stage). Distinct from fd2_noop_stub_b43 @ 0x10B43 (a different, multi-instruction shared epilogue fragment)."
+}

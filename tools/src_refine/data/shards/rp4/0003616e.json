@@ -1,0 +1,40 @@
+{
+  "address": "0003616e",
+  "name_current": "fd2_set_word_global_5275c",
+  "name_final": "fd2_ail_install_free_fnptr",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_ail_install_free_fnptr",
+  "name_reason": "Current name has two defects. (1) The _5275c suffix is a Ghidra address residue (equals the global address 0x5275C of the slot it touches) and must be stripped per naming rules. (2) 'set_word_global' mischaracterizes the function on two counts: it is a get-and-set (reads old value into EAX, stores the new value, returns the old) not a plain set, and the value is a dword 32-bit function pointer, not a word. Consumer evidence (AIL_internal_decommit_and_free calls (*data_ail_free_fnptr)(ptr) to release memory; slot default = CRT free at 0x37416) shows the slot is the AIL internal de-allocator function-pointer. Proposed fd2_ail_install_free_fnptr follows fd2_<domain>_<descriptor> (domain=ail, descriptor=install_free_fnptr) and parallels the sibling at 0x3615E (which will become fd2_ail_install_alloc_fnptr in Stage 2). Rename recorded only; Stage 2 applies it across protos.h and call sites.",
+  "kind": "function",
+  "home": "ROOT/src/util/misc.c",
+  "purpose": "Get-and-set helper that installs a new AIL internal 'free' function pointer (data_ail_free_fnptr, 0x5275C) and returns the previously installed pointer.",
+  "logic_summary": "Reads the dword at 0x5275C (data_ail_free_fnptr) into EAX as the return value, overwrites it with the caller's 1st stack argument (new fnptr), and returns. A single non-reentrant get-and-set (swap) of the AIL free-function-pointer slot. No stack frame, no __CHK probe; raw register passing. The slot's default value is the CRT free (0x37416) and is consumed (read and called through) by AIL_internal_decommit_and_free and the AIL load/install routines to release memory. Exact structural twin of the sibling at 0x3615E, which performs the same swap on the AIL alloc-fnptr slot at 0x52758.",
+  "signature": "uint32 fd2_set_word_global_5275c(uint32 new_val)",
+  "params": [
+    {
+      "name": "new_val",
+      "type": "uint32",
+      "semantics": "New AIL 'free' function pointer (32-bit) to install into data_ail_free_fnptr; passed as the 1st stack arg, stored over the slot.",
+      "verdict": "rename",
+      "proposed": "new_free_fnptr",
+      "reason": "new_val is generic; the function specifically installs a 'free' function pointer, so new_free_fnptr is more precise. No address residue. Rename recorded only; applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "uint32",
+    "semantics": "The previously installed AIL free function pointer (prior value of data_ail_free_fnptr), so a caller can save/restore or compare it."
+  },
+  "reads_globals": ["data_ail_free_fnptr"],
+  "writes_globals": ["data_ail_free_fnptr"],
+  "comment_original_issue": "The src comment block (lines 49-60) was too terse: just 'Swap AIL free function pointer. Returns old value.' It omitted the slot identity (data_ail_free_fnptr @ 0x5275C), the dword-fnptr-not-word width, the default = CRT free fact, the AIL_internal consumers that call through the slot, the 0-static-callers note, and the pairing with the alloc-slot helper at 0x3615E. The sibling at 0x3615E had a full descriptive block; this one did not match that quality.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "38e667cc4cda66b97c564b0bb6ec041a4267a461",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompiled body reads/writes data_ail_free_fnptr (0x5275C); xrefs-from confirm the slot is consumed by AIL_internal_decommit_and_free, AIL_internal_install_DIG_driver_file_inner, AIL_internal_load_file_to_memory (x2), AIL_internal_install_MDI_driver_file_inner; initial slot value 0x37416 = CRT free. src signature uses uint32 (param/return) while Ghidra shows void*; src is authority and validated, so signature/types left untouched. Only the comment was changed and the name/param renames recorded for Stage 2. The sibling fd2_set_word_global_52758 @ 0x3615E shares the same naming-pattern defect but is out of scope for this symbol."
+}

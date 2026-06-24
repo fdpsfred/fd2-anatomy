@@ -11,9 +11,12 @@
  * fd2_chapter_01_end @ 0x22EF6  (0 direct callers; dispatched via the
  *   chapter-end handler pointer table @ 0x51DE9)
  *
- * Chapter 1 end handler. Shows the chapter-end dialog page, persists the
- * party's runtime-character state back to the template store, then advances
- * the current-chapter id to 1 (the next chapter the engine will load).
+ * Chapter 1「初試身手」end handler. Shows the chapter-end dialog page 9,
+ * persists the party's runtime-character state back to the template store,
+ * then sets the current-chapter id to the literal 1 (the next chapter the
+ * engine will load). Unlike its INC-pattern siblings this handler writes the
+ * id directly. No char is recruited here -- 戰士哈諾 joins via an in-battle
+ * FDFIELD event, not this handler.
  *
  * Paired init handler: fd2_chapter_01_init @ 0x3231B.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
@@ -166,7 +169,7 @@ void fd2_chapter_03_end(void)
  *   0x231F2 (+0x36) <- fd2_chapter_11_end, fd2_chapter_19_end
  * Those handlers replicate the relevant portion of this tail when emitted;
  * chapter 4 itself is emitted as a self-contained function (Layer 2 functional
- * equivalence — the jump-into-middle sharing is not preserved in source).
+ * equivalence -- the jump-into-middle sharing is not preserved in source).
  *
  * Paired init handler: fd2_chapter_04_init @ 0x32FB2.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
@@ -230,10 +233,10 @@ void fd2_chapter_05_end(void)
  * shows the chapter-end dialog page 6, persists the party's runtime-char
  * state to the template store, then advances the current-chapter id by 1.
  *
- * In the binary the function falls through into the shared tail of
+ * In the binary the function ends with a tail-jump into the shared tail of
  * fd2_chapter_04_end @ 0x231DF (PUSH data_fd2_current_chapter_text; dialog; cleanup;
  * save; INC chapter id; RET). It is emitted here as a self-contained
- * function (Layer 2 functional equivalence — the jump-into-middle sharing is
+ * function (Layer 2 functional equivalence -- the jump-into-middle sharing is
  * not preserved in source).
  *
  * Paired init handler: fd2_chapter_06_init @ 0x3314B.
@@ -266,7 +269,7 @@ void fd2_chapter_06_end(void)
  *     plus extra char 0x2B placed at (0xC,7) facing 2, camera origin (6,2)),
  *     shows the recruit dialog page 4, then recruits char #12 (武者凱麗) via
  *     fd2_init_runtime_char_from_base_growth.
- *   else: shows the no-recruit dialog page 5 only — no scene, no recruit.
+ *   else: shows the no-recruit dialog page 5 only -- no scene, no recruit.
  * It then advances the current-chapter id by 1.
  *
  * The position tables are read unconditionally into the stack blocks before
@@ -709,7 +712,7 @@ void fd2_chapter_15_end(void)
  * then branches on whether 蜜蒂 (char #0x12) is currently in the party
  * (fd2_check_party_has_char_id(0x12)):
  *   蜜蒂未加入 (returns 0): stages the post-battle scene via
- *     fd2_setup_chars_and_camera_for_intro — the facing argument is the inline
+ *     fd2_setup_chars_and_camera_for_intro -- the facing argument is the inline
  *     fixed value 0 (< 4), so every placed char faces direction 0 and there is no
  *     facing table (chars 0..0xF, plus an extra char 0x34 placed at (0x17,0x17)
  *     facing 2, camera origin (0x11,0x11)). Shows the 蜜蒂 farewell dialog page 7,
@@ -969,8 +972,10 @@ void fd2_chapter_19_end(void)
  *
  * Zero-initialized runtime state (memory image all-zero; first touched by an
  * init handler write before any read). Lives here with chend1.c per the
- * data-emit home assignment (multi-writer across field/chinit.c,
- * field/chend1.c, field/chtrans.c).
+ * data-emit home assignment. Accessed across three field/ files: written
+ * (arm=1 / disarm=0) by fd2_chapter_01_init in field/chinit.c and by
+ * fd2_chapter_08_end in this file (field/chend1.c); read + incremented (the
+ * fade-in tween) by fd2_cutscene_event_trigger in field/chtrans.c.
  * ---------------------------------------------------------------- */
 uint32 data_fd2_chapter_cutscene_event_state;
 

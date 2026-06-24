@@ -1,0 +1,51 @@
+{
+  "address": "0001f42d",
+  "name_current": "fd2_render_phase_banner_frame",
+  "name_final": "fd2_render_phase_banner_frame",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>. 'render' domain + 'phase_banner_frame' descriptor exactly captures the role: paints one frame of the PLAYER/ENEMY TURN phase banner (two sprite halves) into the battle render workspace and blits it to the mode13h surface. Called per frame by the slide-in/out animators. No Ghidra address residue; no domain ID to preserve.",
+  "kind": "function",
+  "home": "src/gfx/rndscene.c",
+  "purpose": "Render one frame of the PLAYER/ENEMY TURN phase banner: alloc+blit the two banner halves (main + fixed corner) into the battle render workspace, blit the visible region to the mode13h primary surface, wait one BIOS tick, then free both sprite buffers.",
+  "logic_summary": "ws = data_fd2_large_game_state_buffer_ptr + 0x8088 (render workspace). left_buf = fd2_alloc_and_blit_indexed_sprite_chunk(ui_anim_sprite_sheet, ws, 0x1c8, 0x55 - x_offset, 0x52, banner_sprite_id) -- main banner sprite (slides from left/centre). right_buf = fd2_alloc_and_blit_indexed_sprite_chunk(ui_anim_sprite_sheet, ws, 0x1c8, x_offset + 0xa5, 0x52, 0x51) -- fixed corner sprite (slides to the right). fd2_blit_rectangle(0xa0504, 0x140, ws, 0x1c8, 0x138, 0xc0) copies the workspace to the visible mode13h region (first pixel 0xA0504, stride 320, 312x192). fd2_wait_n_bios_ticks(1) for frame pacing. fd2_cleanup_dialog_sprite_buffer(left_buf, ws, 0x1c8) and (right_buf, ws, 0x1c8) free the two scratch sprite buffers. x_offset controls how far each half is off-centre (0 settled .. 0x64).",
+  "signature": "void fd2_render_phase_banner_frame(uint32 x_offset, uint32 banner_sprite_id)",
+  "params": [
+    {
+      "name": "x_offset",
+      "type": "uint32",
+      "semantics": "Horizontal slide offset of the two banner halves from their settled centre positions. Main half painted at column 0x55 - x_offset, corner half at column x_offset + 0xa5. Callers pass frame_iter*0x19 (0..0x64) for the slide animation plus the literals 1 and 0 for final settling.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the value's role (per-frame horizontal slide offset). No address residue; matches both caller call sites."
+    },
+    {
+      "name": "banner_sprite_id",
+      "type": "uint32",
+      "semantics": "Sprite id of the main banner half: 0x50 = PLAYER TURN, 0x52 = ENEMY TURN. Passed through unchanged from each animator's own banner-id parameter. The corner sprite id 0x51 is hardcoded and not driven by this param.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly identifies the param as the banner sprite selector; matches caller usage (slide_in/out forward their banner_sprite_id). No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects only: blits the assembled banner frame to the VGA mode13h primary surface and frees the two temporary sprite buffers."
+  },
+  "reads_globals": [
+    "data_fd2_ui_anim_sprite_sheet_ptr",
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment was already accurate and detailed (including the Ghidra EAX-tracking-bug note). Two minor inconsistencies refined: (1) the comment's pseudo-pipeline used 'ws' to mean the raw large_game_state_buffer base and wrote 'ws + 0x8088', whereas the actual code's local 'ws' already equals base + 0x8088 -- aligned the comment to the code's meaning (ws = base + 0x8088, calls pass plain ws) and moved the ws definition into the Constants section. (2) An em-dash (U+2014) on the EAX-bug note line violated the code-comment ASCII rule; converted to '--'.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompile and both callers (fd2_animate_phase_banner_slide_in @ 0x1f1cc, fd2_animate_phase_banner_slide_out @ 0x1f30a) confirm param semantics: x_offset = frame_iter*0x19 slide value (0..0x64) plus literals 1/0; banner_sprite_id forwarded from each animator (0x50 PLAYER / 0x52 ENEMY). Name and both param names are compliant with no address residue -> name_verdict keep. Ghidra plate (Traditional Chinese) is accurate and non-contradictory, left unchanged. No logic/equivalence concerns; src faithfully reproduces the binary including the tail-JMP shared-epilogue equivalence captured in the comment."
+}

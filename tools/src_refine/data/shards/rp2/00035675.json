@@ -1,0 +1,42 @@
+{
+  "address": "00035675",
+  "name_current": "fd2_chapter_event_handler_3c__ch26_ai_ctrl",
+  "name_final": "fd2_chapter_event_handler_3c__ch26_ai_ctrl",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>. domain=chapter_event_handler; descriptor encodes the meaningful domain IDs: 3c = dispatch index 0x3C (table entry @0x51C81; (0x51C81-0x51B91)/4 = 0x3C, verified), ch26 = chapter 26 (valid 01-30 ID), ai_ctrl = semantic (disarms an AI control flag). No Ghidra address residue: own address is 0x35675, unrelated to '3c'. Sibling handlers (3b/3d/...) follow the same dispatch-index naming.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter-26 tile-step event handler (dispatch idx 0x3C): when a non-enemy steps the trigger tile, disarm the AI control flag for two NPC char ranges.",
+  "logic_summary": "Reads runtime_char_array[stepping_char_id].team (combat-record team byte). If team != 0 (stepper is NPC/player, not an enemy with team==0), calls fd2_set_combat_aux_block_byte_d_low4_for_char_range twice -- (0x17,0x18,0) for chars 0x17..0x18 and (0x35,0x38,0) for chars 0x35..0x38 -- writing 0 into the low nibble of each char's pCombat_aux_block[0xD] (the per-event AI/dialog control flag). Total 2+4 = 6 chars disarmed. No dialog. Function has a __CHK(0x10) stack-frame check prologue. In the binary the 2nd call + ADD ESP,0xC + RET is a Class-3 shared tail at 0x356AE borrowed (unconditional JMP from 0x35F6A) by fd2_chapter_event_handler_50__ch30_ai_ctrl; that is a code-sharing size optimisation, functionally two complete calls.",
+  "signature": "void __cdecl fd2_chapter_event_handler_3c__ch26_ai_ctrl(uint32 stepping_char_id)",
+  "params": [
+    {
+      "name": "stepping_char_id",
+      "type": "uint32",
+      "semantics": "Tile-step ABI arg (read at [ESP+0x4] after the __CHK PUSH 0x10): the char id that stepped onto the trigger tile. Used only to index runtime_char_array[].team for the enemy/non-enemy gate.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and descriptive; matches the tile-step ABI usage. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (handler invoked via per-event dispatch table @ 0x51B91)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (chevt2.c lines 580-599) is already accurate and consistent with the Ghidra plate (no contradiction): both describe the team!=0 gate, the two char ranges 0x17..0x18 and 0x35..0x38, the AI-control-flag-disarm semantics, and the Class-3 shared tail @0x356AE consumed by handler_50. No Edit to src and no plate change required. Writes to pCombat_aux_block[0xD] happen inside the callee, not in this function, so writes_globals is empty here. Note (not an issue): decompiler labels the team field .bTeam; src uses the field name .team via the runtime-char struct -- semantically identical, the field byte at runtime_char offset +6."
+}

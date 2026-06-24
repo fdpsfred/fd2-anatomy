@@ -74,10 +74,13 @@ const uint8 data_fd2_battle_summon_main_anim_12color_sprite_offset_table[12] =
  *
  * Per-color vertical pixel offset for the variant-A summon-spell (召喚系)
  * animation's 10 color phases. Read-only base offset consumed by
- * fd2_tick_summon_anim_variant_a_6slot (@ 0x269D3); the slot's screen y is
- * origin_y + y_offset[color]. Whole-dword
- * indexing at a 4-byte stride fixes the int32[10] type (matches the Ghidra
- * int[10]). Values (LE) = {30,50,70,40,80,100,70,30,60,90}.
+ * fd2_tick_summon_anim_variant_a_6slot (@ 0x269D3): the whole table is copied
+ * to a stack-local int[10] (MOV ECX,0xA / MOV ESI,0x524A8 / REP MOVSD), then
+ * each slot's screen y is origin_y + y_offset[color]. For the enemy team
+ * (runtime_char[caster].bTeam == 0) every local entry is biased by +0x8F
+ * before use; the bias lives in the consumer's local copy, so the global stays
+ * read-only. Whole-dword indexing at a 4-byte stride fixes the int32[10] type
+ * (matches the Ghidra int[10]). Values (LE) = {30,50,70,40,80,100,70,30,60,90}.
  * ---------------------------------------------------------------- */
 const int32 data_fd2_battle_summon_anim_variant_a_10color_y_offset_table[10] =
     { 30, 50, 70, 40, 80, 100, 70, 30, 60, 90 };
@@ -90,10 +93,13 @@ const int32 data_fd2_battle_summon_anim_variant_a_10color_y_offset_table[10] =
  * animation's 10 color phases; the variant-B counterpart of the variant-A
  * table @ 0x524A8 (the two hold identical data but are distinct symbols; this
  * one is read by fd2_tick_summon_anim_variant_b_6slot @ 0x26BFD, the variant-A
- * table by fd2_tick_summon_anim_variant_a_6slot @ 0x269D3). Read-only; the
- * slot's screen y is origin_y + y_offset[color]. Whole-dword indexing at a
- * 4-byte stride fixes the
- * int32[10] type (matches the Ghidra int[10]).
+ * table by fd2_tick_summon_anim_variant_a_6slot @ 0x269D3). Read-only: the
+ * consumer copies the whole table to a stack-local int[10] (MOV ECX,0xA /
+ * REP MOVSD) and a slot's screen y is origin_y + y_offset[color]. For the enemy
+ * team (runtime_char[caster].bTeam == 0) every local entry is biased by +0x8F
+ * before use; the bias lives in the consumer's local copy, so the global stays
+ * read-only. Whole-dword indexing at a 4-byte stride fixes the int32[10] type
+ * (matches the Ghidra int[10]).
  * Values (LE) = {30,50,70,40,80,100,70,30,60,90}.
  * ---------------------------------------------------------------- */
 const int32 data_fd2_battle_summon_anim_variant_b_10color_y_offset_table[10] =
@@ -318,7 +324,8 @@ uint8 data_fd2_battle_floating_damage_x_offset_queue[200];
  * Producers append 4 entries per call at the running queue index
  * data_fd2_battle_spell_aoe_count_and_fx_queue_idx (advanced by 4 each call),
  * writing the target character index of the overlay being enqueued:
- *   fd2_show_damage_number (@ 0x1E1C7): slot = (byte)target_char_idx (param_3).
+ *   fd2_show_damage_number (@ 0x1E19E): slot = (byte)target_char_idx (param_3):
+ *       MOV byte ptr [EBX + EAX*1 + 0x53DFC], DL   ; 8-bit store, stride 1
  *   fd2_show_miss_indicator (@ 0x1E24E): slot = (byte)target_char_idx (param_1):
  *       MOV byte ptr [EDX + EAX*1 + 0x53DFC], CL   ; 8-bit store, stride 1
  * Consumer fd2_animate_spell_projectile_paths (@ 0x1E012) walks slots

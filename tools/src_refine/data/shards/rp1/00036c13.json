@@ -1,0 +1,36 @@
+{
+  "address": "0x00036c13",
+  "name_current": "fd2_ani_decoder_chunk_sparse_set_byte",
+  "name_final": "fd2_ani_decoder_chunk_sparse_set_byte",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=ani_decoder, descriptor=chunk_sparse_set_byte). No address residue. Accurately describes the chunk handler: reads a count then count (offset,byte) pairs and stores one byte at each sparse offset in the destination row. Distinguishes correctly from sibling handlers sparse_set_run_byte (offset,len,fill) and sparse_copy_literal (offset,len,literal-bytes).",
+  "kind": "function",
+  "home": "ROOT/src/anim/anidec.c",
+  "purpose": "ANI delta-stream chunk handler: sparse single-byte set -- writes count individual (offset,byte) tuples into the current destination row.",
+  "logic_summary": "Reads ushort count (LODSW), latches dst_buf base from data_fd2_animation_ani_decoder_dst_buf @ 0x52762, then loops count times: read ushort offset (LODSW), read 1 byte (MOVSB) and store it at base[offset]; advance cursor by 3 per entry (2 offset + 1 value). Loop terminated by LOOP/--count == 0. No return value. Binary uses ESI as the stream cursor; C uses file-scope static g_ani_cursor.",
+  "signature": "void fd2_ani_decoder_chunk_sparse_set_byte(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: writes count bytes into the destination row buffer at sparse offsets; advances the shared ANI stream cursor by 2 + 3*count bytes."
+  },
+  "reads_globals": [
+    "data_fd2_animation_ani_decoder_dst_buf",
+    "g_ani_cursor"
+  ],
+  "writes_globals": [
+    "g_ani_cursor"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "065fc88",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Reached only via dispatch table data_fd2_animation_ani_decoder_frame_dispatch_table slot index 7 (@ 0x52786 = table base 0x5276A + 0x1C); the single xref to 0x36C13 is that DATA pointer, so get_function_callers correctly reports no direct callers. Disassembly (11 insns: LODSW/MOV EBX,[0x52762]/MOVZX ECX,AX/SUB EAX,EAX/MOV EDI,EBX/LODSW/ADD EDI,EAX/MOVSB/MOV EDI,EBX/LOOP/RET) matches the C source byte-for-byte in semantics. Source comment (lines 221-242) and file header (lines 1-9, documenting ESI->g_ani_cursor mapping) are accurate; left unchanged. Ghidra plate is more detailed (register protocol, stream layout, dispatch chain) but fully consistent with the source understanding -- no edit needed. No params (void; register-protocol handler). No logic/equivalence concerns."
+}

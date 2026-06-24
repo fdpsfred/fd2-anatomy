@@ -1,0 +1,81 @@
+{
+  "address": "0x00021548",
+  "name_current": "fd2_cast_earthquake_spell_with_screen_shake",
+  "name_final": "fd2_cast_earthquake_spell_with_screen_shake",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>; accurately describes the worker (earthquake spell with full-screen shake). No Ghidra address residue; no domain ID involved in the name.",
+  "kind": "function",
+  "home": "src/spell/spellcin.c",
+  "purpose": "Earthquake (地震) spell cinematic worker for battle: full-screen shake + scaled tile-map redraw + SFX burst, then applies per-target magic damage.",
+  "logic_summary": "Saves battle_scene_snapshot and rebuilds it via fd2_convert_battle_tiles_to_24px(); zeroes the AoE/fx-queue counter; deducts caster MP. Allocates 4 work buffers (64000 + 0x25680 + 0x25680 + 0x4000); any malloc failure -> printf('Out of memory at Earth Quack !!') + exit(0). Builds tile_table[map_h x 0x40] of (snapshot + attr*0x240 + 6) addresses. Slow shake: 3 large-displacement frames blitting the scaled tile-map view (X = max_x*0x600 + origin_x*0xC00 + shake_x[i], Y similarly, scale = shake_params[i+6]) then repainting non-dead party sprites. Fast tremor: 60 frames, fd2_play_sfx_with_handle(SFX 0xD) every 6th frame up to frame 0x2B, blit + fd2_delay_ms(10) each frame. Cleanup: free 3 buffers (the 0x4000 tile_table is intentionally never freed -- original leak preserved), restore large_game_state_buffer + battle_scene_snapshot, composite frame. Per target: damage = fd2_calc_magic_damage(target_id, spell_id); damage==0 -> show miss indicator, else show_damage_number(damage, '^', target_id). Finale: composite frame + fd2_animate_spell_projectile_paths().",
+  "signature": "void __cdecl fd2_cast_earthquake_spell_with_screen_shake(uint32 caster_unit_id, uint32 spell_id, uint32 num_targets, uint8 *target_id_array)",
+  "params": [
+    {
+      "name": "caster_unit_id",
+      "type": "uint32",
+      "semantics": "Caster unit index (into runtime_char_array). Passed straight to fd2_deduct_caster_mp. Confirmed by caller fd2_cast_spell_0a_basic pushing the caster arg first.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, descriptive, no address residue."
+    },
+    {
+      "name": "spell_id",
+      "type": "uint32",
+      "semantics": "Spell id literal injected by the dispatcher (0xA/0xB/0xC via shared tail). Used by fd2_deduct_caster_mp and fd2_calc_magic_damage.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, descriptive, no address residue."
+    },
+    {
+      "name": "num_targets",
+      "type": "uint32",
+      "semantics": "Number of target ids; upper bound of the per-target damage loop.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, descriptive, no address residue."
+    },
+    {
+      "name": "target_id_array",
+      "type": "uint8 *",
+      "semantics": "Pointer to an array of target unit ids; each byte is dereferenced as the target for damage/miss/damage-number display.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, descriptive, no address residue (replaces the old misleading 'p_targets/4th var' Ghidra naming)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Normal path ends with explicit RET at 0x2185E; out-of-memory path calls exit(0) (does not return)."
+  },
+  "reads_globals": [
+    "data_fd2_animation_earthquake_screen_shake_params_table",
+    "data_fd2_battle_scene_snapshot",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_battle_map_height_tiles",
+    "data_fd2_battle_map_width_tiles",
+    "data_fd2_battle_view_window_max_x",
+    "data_fd2_battle_view_window_max_y",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_party_member_count",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_audio_status_effect_sfx_handle_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_scene_snapshot",
+    "data_fd2_battle_spell_aoe_count_and_fx_queue_idx",
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "comment_original_issue": "src comment block was already accurate, precise, and ASCII (algorithm, shake-params table layout, buf_table mirroring, original leak/free behavior, injected __CHK(0x6c) prologue). No change needed.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "136fe6e3ccd7d1e34483004c923ac98a9107066c",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Ghidra plate had two stale references that now contradicted the live decompile: (1) the params note still said 'param_1=caster ... caster_unit_id=p_targets (4th var misleading)' though the params are already named caster_unit_id/spell_id/num_targets/target_id_array; (2) the fast-tremor delay call was written as __delay_thunk_375b2(10) but the live decompile shows fd2_delay_ms(10). Updated the plate to current names; rest left verbatim. src comment left unchanged (already correct), so only the shard is staged for commit."
+}

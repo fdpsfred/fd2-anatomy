@@ -1,0 +1,48 @@
+{
+  "address": "0x0001bb8c",
+  "name_current": "fd2_add_item_to_inventory",
+  "name_final": "fd2_add_item_to_inventory",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; descriptor accurately states the behavior (add an item to inventory). No Ghidra address residue. Body matches: scan 8 slots, fill first empty one. Keep.",
+  "kind": "function",
+  "home": "ROOT/src/ui_menu/status.c",
+  "purpose": "Add item_id to the first empty inventory slot of runtime_char[char_idx]; returns 1 on success, -1 if all 8 slots are full.",
+  "logic_summary": "rc = data_fd2_battle_runtime_char_array_ptr. Loop slot_iter 0..7 over the 8 two-byte inventory slots of rc[char_idx]. A slot is empty when its flag byte (inventory_slots[slot*2]) has bit 0x80 set. On the first empty slot: set flag byte = 0 (occupied, not equipped), store inventory_slots[slot*2+1] = (uint8)item_id, return 1. If no empty slot found, return -1. Slot flag bits: 0x80 = empty, 0x40 = equipped (mutually exclusive with 0x80), 0 = occupied but not equipped. Only the low byte of item_id is stored.",
+  "signature": "int __cdecl fd2_add_item_to_inventory(uint32 char_idx, uint32 item_id)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr selecting which character's inventory receives the item.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the character-array index; no address residue."
+    },
+    {
+      "name": "item_id",
+      "type": "uint32",
+      "semantics": "Item id to store into the slot; only the low byte is written (item ids span 0x00..0xD6).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Domain-meaningful item-id parameter; name matches usage. Keep."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "1 = item added to a free slot; -1 = all 8 inventory slots are full (item not added)."
+  },
+  "reads_globals": ["data_fd2_battle_runtime_char_array_ptr"],
+  "writes_globals": ["data_fd2_battle_runtime_char_array_ptr"],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompile matches src byte-for-behavior (8-slot scan, 0x80=empty test, flag=0 + low-byte item_id store, return 1/-1). __CHK(8) is the compiler-injected stack-probe prologue, not source. Src comment block (status.c lines 136-156) already precise/correct/ASCII -> keep. Ghidra plate (Chinese) is consistent with the refined understanding (same algorithm, flag-bit table, caller list) -> not modified. writes_globals lists data_fd2_battle_runtime_char_array_ptr because the function writes through that pointer into the runtime_char array (the pointer itself is not reassigned). 9 callers confirmed via get_function_callers."
+}

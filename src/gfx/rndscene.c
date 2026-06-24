@@ -77,10 +77,10 @@ uint32 data_fd2_graphics_forced_tile_anim_frame = 0xffffffff;
  *   fd2_blit_rectangle(0xA0504, 320, ws, 456, 312, 192);
  *
  * Pixel constants:
- *   0x1C8 = 456 — workspace pitch
- *   0x140 = 320 — mode13h primary stride
- *   0x138 = 312 — visible clipped width
- *   0xC0  = 192 — visible clipped height
+ *   0x1C8 = 456 -- workspace pitch
+ *   0x140 = 320 -- mode13h primary stride
+ *   0x138 = 312 -- visible clipped width
+ *   0xC0  = 192 -- visible clipped height
  *
  * skip_palette_cycle: 0 = advance palette cycle this frame;
  *   non-zero = skip (caller drives palette timing).
@@ -901,25 +901,26 @@ void fd2_render_combatant_hp_bar_proportional(uint32 dst_buf, uint32 stride,
  *
  * Pipeline (asm order):
  *   left_buf  = fd2_alloc_and_blit_indexed_sprite_chunk(
- *                   ui_anim_sprite_sheet, ws + 0x8088, 456,
+ *                   ui_anim_sprite_sheet, ws, 456,
  *                   0x55 - x_offset, 0x52, banner_sprite_id);
  *                   // main banner sprite (left half / centre)
  *   right_buf = fd2_alloc_and_blit_indexed_sprite_chunk(
- *                   ui_anim_sprite_sheet, ws + 0x8088, 456,
+ *                   ui_anim_sprite_sheet, ws, 456,
  *                   x_offset + 0xA5, 0x52, 0x51);
  *                   // 0x51 = right-side frame corner sprite
- *   fd2_blit_rectangle(0xA0504, 320, ws + 0x8088, 456, 312, 192);
+ *   fd2_blit_rectangle(0xA0504, 320, ws, 456, 312, 192);
  *   fd2_wait_n_bios_ticks(1);
- *   fd2_cleanup_dialog_sprite_buffer(left_buf,  ws + 0x8088, 456);
- *   fd2_cleanup_dialog_sprite_buffer(right_buf, ws + 0x8088, 456);
+ *   fd2_cleanup_dialog_sprite_buffer(left_buf,  ws, 456);
+ *   fd2_cleanup_dialog_sprite_buffer(right_buf, ws, 456);
  *
  * x_offset slides 0 (settled) .. 0x64 (each half 100px off-centre) as the
  * banner animates in/out. banner_sprite_id: 0x50 = PLAYER TURN,
  * 0x52 = ENEMY TURN. The corner sprite 0x51 is fixed.
  *
- * Constants: 0x8088 = render workspace base, 0x1C8 = 456 (workspace pitch),
- * 0x52 = banner sprite row, 0xA0504 = first visible mode13h pixel,
- * 0x140 = 320 (primary stride), 0x138 = 312 / 0xC0 = 192 (visible region).
+ * Constants: ws = data_fd2_large_game_state_buffer_ptr + 0x8088 (render
+ * workspace), 0x1C8 = 456 (workspace pitch), 0x52 = banner sprite row,
+ * 0xA0504 = first visible mode13h pixel, 0x140 = 320 (primary stride),
+ * 0x138 = 312 / 0xC0 = 192 (visible region).
  *
  * NOTE (Ghidra EAX-tracking bug): the decompiler attributed left_buf to
  * the __CHK stack-probe return and lost right_buf entirely (rendering it as
@@ -928,11 +929,11 @@ void fd2_render_combatant_hp_bar_proportional(uint32 dst_buf, uint32 stride,
  * those two saved registers are exactly the saved_block args of the two
  * cleanup calls. The terminal JMP 0x184BA is a tail-jump into another
  * function's shared epilogue (ADD ESP,0xC; POP ESI; POP EBX; RET) that cleans
- * the last cleanup call's args and returns — the C equivalent is simply the
+ * the last cleanup call's args and returns -- the C equivalent is simply the
  * second cleanup call followed by return.
  *
- * ws = data_fd2_large_game_state_buffer_ptr. Called per frame by
- * fd2_animate_phase_banner_slide_in / fd2_animate_phase_banner_slide_out.
+ * Called per frame by fd2_animate_phase_banner_slide_in /
+ * fd2_animate_phase_banner_slide_out.
  * ---------------------------------------------------------------- */
 void fd2_render_phase_banner_frame(uint32 x_offset, uint32 banner_sprite_id)
 {
@@ -1215,9 +1216,20 @@ void fd2_composite_battle_frame_zero(void)
  *                  ==5 play per-slot chime SFX ; return done.
  *   other     : return 0.
  *
- * Blit gate per slot: 0 <= counter < 0xF. Blit position passed as the x
- * argument is row_mul[k]*row_stride + x_off[k] + 0x50 + origin_y, with
- * row_stride passed as the y argument and -1 as mode.
+ * Params (caller fd2_play_spell_cast_sequence pushes, per phase):
+ *   caster_unit_id : runtime_char index for the team-baseline test.
+ *   sprite_handle  : sprite-sheet handle (blit sheet_ptr).
+ *   origin_y       : destination work-buffer base (caller passes the
+ *                    0x2A300 frame-scratch buffer or that + an offset);
+ *                    it is the blit dst_buf base, NOT a y coordinate
+ *                    despite the name. Stage-2 rename pending.
+ *   row_stride     : destination row stride (0x140 / 0x280); also the
+ *                    per-slot row multiplier.
+ *   state_code     : phase/state dispatch code.
+ *
+ * Blit gate per slot: 0 <= counter < 0xF. The blit dst_buf is
+ * row_mul[k]*row_stride + x_off[k] + 0x50 + origin_y; row_stride is the
+ * blit dst_stride and -1 is the palette_op.
  *
  * cc __cdecl (caller cleans 5 stack args; callees blit/sfx are __cdecl).
  * System=battle.

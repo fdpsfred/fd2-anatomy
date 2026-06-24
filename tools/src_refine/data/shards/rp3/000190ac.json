@@ -1,0 +1,59 @@
+{
+  "address": "000190ac",
+  "name_current": "fd2_handle_tile_event_interaction",
+  "name_final": "fd2_handle_tile_event_interaction",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> form; accurately describes the field-map treasure/gold/event-tile interaction handler. No Ghidra address residue (no hex suffix matching its own or a data address). No domain ID to preserve in the name. Keep.",
+  "kind": "function",
+  "home": "src/ui_menu/menufld.c",
+  "purpose": "Field-map treasure/gold/event-tile interaction handler: when the active unit confirms on a cursor tile whose terrain attribute has an event bit (0x20/0x60) set and that has not yet been consumed, it runs the open dialog, and on YES grants the tile's payload (item / gold / chapter-scripted event).",
+  "logic_summary": "Reads the tile attribute at the cursor world position -> 16-bit tile index (out+2) and attr byte (out+4). Gates: (attr & 0x60)==0 returns; consumed_flags[idx]!=0 returns. Clears keyboard, loads the actor's chapter portrait, shows the opening dialog (bit 0x20 -> text 0x1A5 else 0x1AC), paints portrait and runs the typewriter loop; YES = (result==1 && cursor_idx==0). On YES it plays SFX 0xC and reads the 3-byte tile_event_data_table entry (type at +0x53, value word at +0x54): type 0 = ITEM (set item-name dialog id = value+0xB5, show found-item dialog, add to inventory; on inventory-full -1 run the full-bag swap UI: prompt 0x1A7, on YES open the inventory-selection modal, swap the chosen slot for the picked item and write the swapped-out id back into the tile entry, show 0x1A9; else 0x1A8; on not-full mark consumed and tick animations); type 1 = GOLD (stage amount in last_action_value, choose found-gold/empty dialog by bit 0x20 and amount!=0, show, then party_total_gold += staged value, mark consumed, tick animations); type other = EVENT (delay, close, call the post-action consequence handler table indexed by the value word). The NO branch shows the cancel dialog 0x19C and closes.",
+  "signature": "void __cdecl fd2_handle_tile_event_interaction(uint char_idx)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Active party-member index (runtime_char array index). Passed by the sole caller fd2_player_inline_action_menu_dispatch from its Wait branch; used to read the actor's portrait_id for the dialog and as the character argument to inventory add/remove/swap helpers.",
+      "verdict": "rename",
+      "proposed": "char_idx",
+      "reason": "Live Ghidra param name is the generic placeholder param_1 (flagged needs_rename); the src already models it as char_idx. Rename to char_idx for clarity. Recorded only; applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; all outcomes mutate game state (inventory, party gold, tile consumed flags / event-data table) and the dialog/screen UI directly."
+  },
+  "reads_globals": [
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_world_y",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr",
+    "data_fd2_all_game_text_ptr",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_audio_fdother_sfx_bank_buf_ptr",
+    "data_fd2_tile_event_data_table_ptr",
+    "data_fd2_battle_ai_post_action_consequence_table",
+    "data_fd2_dialog_last_action_value_param",
+    "data_fd2_shared_party_total_gold"
+  ],
+  "writes_globals": [
+    "data_fd2_dialog_last_action_sprite_id_param",
+    "data_fd2_dialog_drop_swap_text_id_param",
+    "data_fd2_dialog_last_action_value_param",
+    "data_fd2_shared_party_total_gold",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr",
+    "data_fd2_tile_event_data_table_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (lines 15-34) is already precise, ASCII, and matches the decompilation exactly -> keep, no Edit. Ghidra plate is detailed and consistent with the refined understanding (uses 'terrain_class' for the same 16-bit index the src calls tile_y_idx -- a commentary-naming difference, not a contradiction); not outdated/blank/contradictory, so plate left untouched (none). Only the shard file changed; src/ui_menu/menufld.c unchanged. The note in writes_globals: writes through data_fd2_field_map_tile_event_consumed_flags_ptr and data_fd2_tile_event_data_table_ptr target the pointed-to arrays (consumed flag byte; swapped-out item id back into the event entry), not the pointer variables themselves."
+}

@@ -1,0 +1,61 @@
+{
+  "address": "0x00025a96",
+  "name_current": "fd2_play_sfx_with_handle",
+  "name_final": "fd2_play_sfx_with_handle",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. Accurately describes the function: a generic one-shot AIL SFX player driving the primary shared sample slot (data_fd2_audio_sfx_sample_handle_0 @ 0x53EE4). The 'with_handle' descriptor pairs it against the sibling fd2_play_sfx_sample_from_bank which is structurally identical but drives sample slot 1; both names read naturally and unambiguously. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "ROOT/src/audio/audio.c",
+  "purpose": "Generic one-shot AIL (Miles Sound System) SFX player on the primary shared sample slot (handle_0); plays a sample selected by id from a bank, or stops the slot when id == -1.",
+  "logic_summary": "Silently returns if any of three gates fail: SFX driver not available (0x53EF1), SFX globally disabled (0x51E62), or scripted-cinematic/terrain mute active (0x540FF != 0). Otherwise it always issues AIL_stop_sample on the shared slot 0 handle. If sfx_id == -1 it returns (stop-only path). Else it resolves the bank entry (entry = sfx_table_base + sfx_id*4) and reads two dwords: sample byte-offset at entry+6 and sample end-offset at entry+10; length = end - offset. It then AIL_init_sample, AIL_set_sample_address(handle, base+offset, length), AIL_set_sample_loop_count(handle, loop_count), AIL_start_sample(handle).",
+  "signature": "void fd2_play_sfx_with_handle(uint32 sfx_table_base, int sfx_id, int loop_count)",
+  "params": [
+    {
+      "name": "sfx_table_base",
+      "type": "uint32",
+      "semantics": "Base pointer of the SFX sample bank buffer (an FDOTHER.DAT entry; commonly the FDOTHER.DAT[0x1F] SFX bank, or the status-effect bank in data_fd2_audio_status_effect_sfx_handle_ptr). Used both to index the per-sample directory (base + sfx_id*4 + 6/10) and as the base added to the sample byte-offset to form the absolute sample address.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate: it is the sample table / bank base. No address residue; type matches body usage (pointer arithmetic on a 32-bit value)."
+    },
+    {
+      "name": "sfx_id",
+      "type": "int",
+      "semantics": "Sample index into the bank directory; selects which sample to play. The sentinel -1 routes to the stop-only path (stop the slot and return without programming/starting a sample).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and conventional; the -1 sentinel comparison confirms a signed semantics. No address residue."
+    },
+    {
+      "name": "loop_count",
+      "type": "int",
+      "semantics": "Loop count passed straight to AIL_set_sample_loop_count for the started sample (callers typically pass 1 for one-shot).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, matches AIL_set_sample_loop_count argument. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect only: programs and starts (or stops) AIL sample slot 0."
+  },
+  "reads_globals": [
+    "data_fd2_audio_sfx_driver_available_flag",
+    "data_fd2_audio_sfx_enabled_flag",
+    "data_fd2_battle_scripted_cinematic_mode_or_terrain_idx",
+    "data_fd2_audio_sfx_sample_handle_0"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "4a40055896e5beee11da7ab2deaaf3a44f7b4a40",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly (43 insns, 6 BBs) confirms the source at audio.c:159-184 is a faithful reproduction: gates -> AIL_stop_sample(slot0) -> -1 stop-only return -> entry=base+id*4, offset=[entry+6], end=[entry+10], init/set_address(base+offset,end-offset)/set_loop_count/start. __CHK(0x1c) prologue and the unused PUSH/POP EBX are compiler-injected, correctly documented as not-source in the existing comment. Source comment (audio.c:136-158) and Ghidra plate are both accurate and semantically consistent with the refined understanding, so neither was modified. The plate's illustrative 'Common caller pattern' line uses the older short name play_sfx_with_handle in prose only -- not a contradiction, so left as-is per src-is-authority/consistency-is-enough rule. No globals are written; reads are the three gate flags plus the slot-0 handle (the bank directory dwords are read through the sfx_table_base parameter, not a global)."
+}

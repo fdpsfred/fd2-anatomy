@@ -1,0 +1,40 @@
+{
+  "address": "0x00034fcb",
+  "name_current": "fd2_chapter_event_handler_28__ch17_dialog_with_state",
+  "name_final": "fd2_chapter_event_handler_28__ch17_dialog_with_state",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. The '28' is the dispatch index (idx 0x28 of the per-event handler table at 0x51B91), a legitimate domain ID, NOT an address residue (function address is 0x34FCB, unrelated to 0x28). Confirmed via xref: dispatch table slot at 0x51c31 holds pointer cb4f0300 = 0x34FCB, next slot = 0x34FF0 (idx 0x29). 'ch17' + 'dialog_with_state' accurately reflect the chapter-17 turn-4 dialog beat with preceding state mutations (portrait reload + camera pan) before the dialog.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter-17 turn-4 (phase 1) event handler (dispatch idx 0x28): reload portrait set 2, pan camera to (0x11,0x25), then show chapter dialog page 1.",
+  "logic_summary": "Straight-line, single-basic-block, no branch/RNG/numeric-compute. Compiler-injected __CHK(0x28) stack probe, then fd2_load_chapter_portraits_and_dump_tmp(2), fd2_pan_cursor_and_window(0x11,0x25), and a page-1 fd2_display_dialog_scene call with the group's fixed dialog geometry (0xA0000 VGA base, 0x140 stride, 0xCD/0x4C window XY, 0x4A style, 0x13 max lines, 1 wait flag). In the original binary the handler runs its own portrait+pan prefix then JMPs (0x34FEB -> 0x34BF6) into the +0x0F shared entry of fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7, reusing its 8-PUSH+text-push+CALL display_dialog+RET tail while skipping that body's own portrait-set-1 reload (set 2 already loaded). Src reproduces that borrowed page-1 dialog as an inline call for Layer-2 equivalence. Never reads event_arg.",
+  "signature": "void __cdecl fd2_chapter_event_handler_28__ch17_dialog_with_state(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform event argument passed by the per-event dispatch table at 0x51B91 (1-arg cdecl ABI shared by all handlers; stepping-char-id / event slot). This handler ignores it (cast to void).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate generic name for the dispatch-table event argument; not used by the body; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; no CALL-return value consumed."
+  },
+  "reads_globals": ["data_fd2_current_chapter_text"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Domain cross-check: fd2-knowledge chapter 17 events confirm the turn-4 beat (allied reinforcements appear and begin acting; recruit 龍劍士凱拉斯), matching the ch17 turn-4 dialog context. Shared-body source verified by decompiling fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7 (alt_F @ 0x34BF6 consumer is this handler, page=1 share). data_fd2_current_chapter_text resolves to 0x53A79 per globals.h. src comment block (lines 1807-1841) already thorough/accurate/ASCII; left unchanged. Ghidra plate consistent with src understanding; left unchanged."
+}

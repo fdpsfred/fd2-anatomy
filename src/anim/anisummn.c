@@ -12,8 +12,20 @@
 /* ----------------------------------------------------------------
  * fd2_tick_sprite_animation_step @ 0x2673F
  *
- * One tick of frame-paced sprite animation. Renders current frame,
- * advances tick counter, and moves to next frame when hold expires.
+ * One tick of a generic frame-paced sprite animation. Blits the
+ * current frame, bumps the hold tick, and advances to the next frame
+ * once the tick reaches that frame's hold count. Wraparound / end of
+ * animation is the caller's responsibility, not handled here.
+ *
+ * The last three args forward straight into fd2_blit_indexed_sprite:
+ * x = dst buffer, y = dst stride, atlas = sprite-sheet pointer (also
+ * the source of the per-frame metadata read below).
+ *
+ * Per-frame metadata layout within the sheet blob:
+ *   +8 + idx*4   uint32 offset to this frame's metadata
+ *   +off + 6     uint8  hold count (ticks to display this frame)
+ *
+ * Helper for fd2_tick_summon_spell_animation_state (@ 0x26528) only.
  * ---------------------------------------------------------------- */
 void fd2_tick_sprite_animation_step(uint8 *p_frame_idx, uint8 *p_tick,
                                      int x, int y, uint32 atlas)
@@ -32,8 +44,27 @@ void fd2_tick_sprite_animation_step(uint8 *p_frame_idx, uint8 *p_tick,
 /* ----------------------------------------------------------------
  * fd2_tick_summon_spell_minor_animation_state @ 0x275D6
  *
- * Single-sprite minor animation state machine for summon spells.
- * Dispatch table entry #9 (last) at 0x523B9.
+ * Per-tick state machine for the single-sprite "minor" summon-spell
+ * animation -- the simplest summon variant (no per-slot arrays, no
+ * color rotation). Dispatch-table entry #9 (last) of 10 at 0x523B9
+ * (referenced only via DATA; no direct callers). Returns a frame-hold
+ * / status code consumed by the caller's dispatch loop. sprite_handle
+ * is unused; sprite_atlas is the sprite-sheet pointer passed straight
+ * to fd2_blit_indexed_sprite.
+ *
+ * state 0 (INIT) : clear the alternating-blit toggle, seed the
+ *   state-5 frame counter to 1; return 0x14.
+ * state 3        : return 0x3C (hold).
+ * state 6        : return 0x14 (hold).
+ * state 1 / 7    : flicker phase -- blit sprite 0 only on ticks where
+ *   the toggle is 0, then XOR-flip the toggle (blit every other tick);
+ *   return 0.
+ * state 4        : blit sprite 0 every tick; return 0.
+ * state 5        : ramp phase -- blit sprite (frame_counter / 2), a
+ *   slow 0..0x16 ramp. Fire a one-shot SFX at frame 6 and frame 0x24,
+ *   then frame_counter++. While 0x10 < frame_counter < 0x2C return 1
+ *   (in-flight); otherwise return 0.
+ * other states   : return 0.
  * ---------------------------------------------------------------- */
 int fd2_tick_summon_spell_minor_animation_state(
     uint32 sprite_handle, uint32 sprite_atlas,
@@ -313,9 +344,10 @@ int32 data_fd2_battle_summon_anim_variant_e_16slot_frame_counter_array[16];
 /* ----------------------------------------------------------------
  * fd2_tick_summon_anim_variant_e_16slot @ 0x274B0
  *
- * Variant-E 16-slot summon animation. Simplest variant — no team
+ * Variant-E 16-slot summon animation. Simplest variant -- no team
  * adjust, no color rotation, per-slot sprite base offsets.
- * Dispatch table #8.
+ * Dispatch table #8 (entry +0x20 at 0x523B9; reached only via that
+ * table by the spell-cast/hit dispatch loops, no direct callers).
  * ---------------------------------------------------------------- */
 int fd2_tick_summon_anim_variant_e_16slot(
     uint32 caster_unit_id, uint32 sprite_handle,
@@ -647,9 +679,10 @@ int fd2_tick_summon_anim_variant_b_6slot(
  * generic summon animation. The INIT state (state_code 0) clears it
  * before any read this run, so it is plain zero-bss runtime scratch;
  * the on-disk image is 0x00. Seeded/advanced across states (set to
- * 0x10 in state 3, 0xA in state 6, ramped 0x10..0x12 in state 5) and
- * passed by address to fd2_tick_sprite_animation_step as the frame
- * index. All access is byte-wide and unsigned. Used only by
+ * 0x10 in state 3, 0xA in state 6, snapped 0xA->0xF in the state-1/2
+ * late-fix paths, ramped 0x10..0x12 in state 5) and passed by address
+ * to fd2_tick_sprite_animation_step as the frame index. All access is
+ * byte-wide and unsigned. Used only by
  * fd2_tick_summon_spell_animation_state.
  * ---------------------------------------------------------------- */
 uint8 data_fd2_battle_summon_spell_anim_phase_byte;
@@ -683,9 +716,25 @@ uint8 data_fd2_battle_summon_spell_sprite_anim_tick_counter;
 /* ----------------------------------------------------------------
  * fd2_tick_summon_spell_animation_state @ 0x26528
  *
- * Generic single-target summon animation. Dispatch table #2.
- * Plate comment had incorrect is_enemy condition for state {1,7}
- * and state 4 — assembly verified: NON-enemy does the tick/blit.
+ * Generic single-target summon animation tick state machine.
+ * Dispatch table entry #2 (at 0x523C1). is_enemy = caster's
+ * runtime_char.bTeam == 0; it gates which states drive the
+ * frame-paced sprite tick vs. a direct blit.
+ *
+ * Per state_code (phase byte = current sprite frame index):
+ *   0     : reset phase/aux/tick to 0; return 0x1D.
+ *   3     : phase = 0x10; return 0xC.
+ *   6     : SFX chime; phase = 0xA; return 0xA.
+ *   1 / 7 : ally only -- on entry (state 1 && phase 0xA) snap
+ *           phase to 0xF, then advance the paced sprite tick.
+ *   2 / 8 : SFX click when phase == 7; enemy only runs the paced
+ *           tick (with the same 0xA->0xF entry snap on state 2);
+ *           when phase reaches 0x10 blit frame 0x10.
+ *   4     : ally only -- blit frame 0xF one row above origin.
+ *   5     : enemy adds a frame-0xF blit one row higher; always
+ *           blit phase one row above origin, then phase++. At 0x11
+ *           SFX + return 1 (done); at 0x12 wrap phase back to 0x10.
+ *   other : return 0.
  * ---------------------------------------------------------------- */
 int fd2_tick_summon_spell_animation_state(
     uint32 caster_unit_id, uint32 sprite_handle,
@@ -861,9 +910,30 @@ uint8 data_fd2_battle_summon_main_anim_odd_even_frame_toggle;
 /* ----------------------------------------------------------------
  * fd2_tick_summon_spell_main_animation_state @ 0x26795
  *
- * Main 12-slot summon animation. Dispatch table #3.
- * 12 color rotation mod 12, odd/even frame toggle,
- * 3 rodata tables (y-offsets, v-offsets, sprite offsets).
+ * Per-tick state machine for the main 12-slot summon-spell
+ * animation. Dispatch-table entry #3 (referenced only via DATA at
+ * 0x523C5; no direct callers). Returns a frame-hold / status code
+ * consumed by the caller's dispatch loop.
+ *
+ * Copies three rodata tables into locals each call: per-slot y
+ * offsets (12 x int32), per-color vertical offsets (12 x uint8),
+ * and per-color sprite/SFX-mask offsets (12 x uint8). If the
+ * caster is on the enemy team (runtime_char.bTeam == 0), shifts
+ * every local y offset down by 0x14.
+ *
+ * state 0 (INIT): seed each slot's frame counter to -2*i (staggered
+ *   start) and color index to i; set color_rotation_counter=12,
+ *   clear terminate_flag and odd/even toggle; return 2.
+ * state 3: return 0x28 (40-tick hold).
+ * state 6: set terminate_flag (stops color rotation); return 0x14.
+ * state 2/5/8 (TICK): flip the mod-2 odd/even toggle. For each of
+ *   12 slots, blit the current frame (frame in [0,0xB)) using the
+ *   slot's color-indexed sprite/y/v offsets. On even ticks only,
+ *   advance the frame counter, trigger frame-0 / frame-3 SFX chimes
+ *   (gated by the color's SFX-mask byte), set done_flag at frame 3,
+ *   and at frame 0xB rotate to the next color (unless terminated)
+ *   and restart that slot. Return done_flag.
+ * other states: return 0.
  * ---------------------------------------------------------------- */
 int fd2_tick_summon_spell_main_animation_state(
     uint32 caster_unit_id, uint32 sprite_handle,
@@ -980,15 +1050,22 @@ int fd2_tick_summon_spell_main_animation_state(
  * orbit @ 0x53F42
  *
  * Fifteen 32-bit signed entries (int[15]), one per orbit slot. Plain
- * zero-bss runtime scratch; the on-disk image is all 0x00. The
- * pre-animation setup (state_code 3) seeds the first 8 slots with a
- * staggered negative value (frame_counter[i] = -2*i) before any read
- * this run; the state-5 advance walks the first 7. Treated signed: the
- * blit phases test 0 <= frame_counter[i] < 0x10 with a signed compare,
- * and the value may be negative while staggered slots ramp up. All
- * access is dword-wide and 4-byte strided. Shared with the scene
- * renderer (fd2_render_summon_aura_sprite_ring in src/gfx/rndscene.c),
- * but seeded/owned here by fd2_tick_summon_spell_setup_pre_animation_8slot.
+ * zero-bss runtime scratch; the on-disk image is all 0x00. Treated
+ * signed: the blit phases test 0 <= frame_counter[i] < 0x10 (setup) /
+ * < 0xF (renderer) with a signed compare, and the value may be negative
+ * while staggered slots ramp up. All access is dword-wide and 4-byte
+ * strided.
+ *
+ * The 15-element size comes from two summon-spell handlers sharing this
+ * one array over disjoint slot windows:
+ *   - fd2_tick_summon_spell_setup_pre_animation_8slot uses slots 0..7:
+ *     state_code 3 seeds frame_counter[i] = -2*i (i in 0..7); the
+ *     state-5 advance walks slots 0..6.
+ *   - fd2_render_summon_aura_sprite_ring (src/gfx/rndscene.c) uses slots
+ *     7..14 via index [i+7] (i in 0..7): state_code 3 seeds
+ *     frame_counter[i+7] = -2*i; state 5 advances and chimes those 8.
+ * Slot 7 (0x53F5E) is the renderer's own init base, so the two windows
+ * touch but do not race (each handler owns its own window per run).
  * ---------------------------------------------------------------- */
 int32 data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[15];
 
@@ -1346,7 +1423,10 @@ uint8 data_fd2_battle_summon_anim_variant_c_5slot_blit_counter_array[5];
  * data_fd2_battle_summon_anim_variant_c_angle_accumulator @ 0x54095
  *
  * Ring-radius accumulator for the variant-C 5-slot radial summon
- * animation, runtime state. Zero-initialized (BSS): the host tick
+ * animation, runtime state. In the radial-blit phase (state 1/2/7/8)
+ * it is the radius multiplier fed into the per-slot cos/sin position
+ * compute: x_coord[i] = sweep + acc*cos(angle), y_coord[i] =
+ * acc*sin(angle)*1.2 + 30. Zero-initialized (BSS): the host tick
  * fd2_tick_summon_anim_variant_c_5slot_radial writes it to 0 in the
  * state-0 INIT phase before any read, then ramps it +6 (state 2,
  * open ring) / -6 (state 8, close ring), and resets it to 0x2A in

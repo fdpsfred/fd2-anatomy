@@ -129,8 +129,18 @@ void fd2_set_full_vga_palette_to_color(uint32 r, uint32 g, uint32 b)
 /* ----------------------------------------------------------------
  * fd2_set_vga_palette_range_with_add @ 0x11DF2
  *
- * Sister to fd2_set_vga_palette_range: ADDs brightness and caps
- * each channel at 0x3F (VGA 6-bit max). Used for fade-from-black.
+ * Write palette entries [start..end] to the VGA DAC, ADDing
+ * brightness_add to each R/G/B component and saturating at 0x3F
+ * (VGA channel is 6-bit, max 63). Source data at
+ * data_fd2_vga_palette_data_ptr (768-byte palette).
+ *
+ * Additive sister of fd2_set_vga_palette_range (which SUBTRACTS
+ * and clamps to 0). brightness_add=0 writes the base palette
+ * unchanged; brightness_add>=0x3F saturates every channel to full
+ * white. Callers walk brightness_add 0->0x3F for a white-flash /
+ * over-bright pulse and 0x3F->0 to settle back to base (e.g.
+ * fd2_animate_palette_flash_pulse_white,
+ * fd2_palette_overbright_settle_step_loop, end-chapter cinematics).
  * ---------------------------------------------------------------- */
 void fd2_set_vga_palette_range_with_add(uint32 start_idx, uint32 end_idx,
                                          uint32 brightness_add)
@@ -232,7 +242,14 @@ void fd2_tick_chapter_palette_animation(void)
  * fd2_apply_palette_remap_run @ 0x4DB9C
  *
  * In-place byte remap: buf[i] = remap_table[buf[i]] for byte_count
- * bytes. Uses LODSB/STOSB/LOOP. byte_count must be >= 1 (do-while).
+ * bytes, via remap_table (a 256-byte translation LUT). Uses
+ * LODSB/STOSB/LOOP. byte_count must be >= 1 (do-while, no zero-check).
+ *
+ * Sole callers are the filled-circle / AoE band animators
+ * (fd2_render_circle_anim_row, fd2_render_filled_circle_band_anim):
+ * buf is a horizontal pixel run inside the off-screen render buffer
+ * (data_fd2_large_game_state_buffer + 0x8088 + row*0x1C8 + left_clip),
+ * so this recolors the pixels under a circular spell/warp effect.
  * ---------------------------------------------------------------- */
 void fd2_apply_palette_remap_run(uint32 remap_table,
                                   uint32 byte_count, uint8 *buf)
@@ -316,11 +333,11 @@ void fd2_palette_overbright_settle_step_loop(uint32 start_intensity,
  * VGA palette fade-IN from black to full brightness. Walks the
  * brightness_subtract amount from 0x40 down to 0 (inclusive),
  * each step writing the full DAC range via
- * fd2_set_vga_palette_range(0,0xFF,subtract) — which writes
- * max(0, base[i]-subtract) — then waiting 2 BIOS ticks.
+ * fd2_set_vga_palette_range(0,0xFF,subtract) -- which writes
+ * max(0, base[i]-subtract) -- then waiting 2 BIOS ticks.
  *
- *   subtract=0x40 → every channel clamped to 0 → screen BLACK
- *   subtract=0    → base palette written unchanged → FULL brightness
+ *   subtract=0x40 -> every channel clamped to 0 -> screen BLACK
+ *   subtract=0    -> base palette written unchanged -> FULL brightness
  *
  * So the loop proceeds BLACK -> FULL = fade-IN. Pairs with
  * fd2_play_palette_fade_to_black @ 0x1F882 (fade-OUT counterpart).
@@ -342,11 +359,11 @@ void fd2_play_palette_fade_in(void)
  * VGA palette fade-OUT from full brightness to black. Walks the
  * brightness_subtract amount from 0 up to 0x3F (i.e. subtract < 0x40,
  * 0x40 iterations), each step writing the full DAC range via
- * fd2_set_vga_palette_range(0,0xFF,subtract) — which writes
- * max(0, base[i]-subtract) — then waiting 2 BIOS ticks.
+ * fd2_set_vga_palette_range(0,0xFF,subtract) -- which writes
+ * max(0, base[i]-subtract) -- then waiting 2 BIOS ticks.
  *
- *   subtract=0    → base palette written unchanged → FULL brightness
- *   subtract=0x3F → every channel clamped to 0 → screen BLACK
+ *   subtract=0    -> base palette written unchanged -> FULL brightness
+ *   subtract=0x3F -> every channel clamped to 0 -> screen BLACK
  *
  * So the loop proceeds FULL -> BLACK = fade-OUT. Pairs with
  * fd2_play_palette_fade_in @ 0x1F525 (fade-IN counterpart). In the

@@ -28,7 +28,15 @@ void fd2_debug_print_ans_and_length(int value)
 /* ----------------------------------------------------------------
  * fd2_set_word_global_52758 @ 0x3615E
  *
- * Swap AIL alloc function pointer. Returns old value.
+ * Get-and-set helper for the AIL internal allocator slot
+ * data_ail_alloc_fnptr (0x52758): stores new_val as the new allocator
+ * function pointer and returns the prior pointer (so a caller can save
+ * and restore it). The AIL internal load/alloc routines call through
+ * this slot to allocate; game main installs malloc here at startup.
+ * Dword (32-bit pointer) value, not a word. No callers in static xrefs
+ * (the API entry; the slot itself is consumed by the AIL_internal_*
+ * routines as a data pointer). Paired with the +4 slot helper @ 0x3616E
+ * which swaps data_ail_free_fnptr.
  * ---------------------------------------------------------------- */
 uint32 fd2_set_word_global_52758(uint32 new_val)
 {
@@ -41,7 +49,15 @@ uint32 fd2_set_word_global_52758(uint32 new_val)
 /* ----------------------------------------------------------------
  * fd2_set_word_global_5275c @ 0x3616E
  *
- * Swap AIL free function pointer. Returns old value.
+ * Get-and-set helper for the AIL internal de-allocator slot
+ * data_ail_free_fnptr (0x5275C): stores new_val as the new free
+ * function pointer and returns the prior pointer (so a caller can save
+ * and restore it). The AIL internal routines call through this slot to
+ * release memory; default value is the CRT free. Dword (32-bit pointer)
+ * value, not a word. No callers in static xrefs (the API entry; the slot
+ * itself is consumed as a data pointer by AIL_internal_decommit_and_free
+ * and the AIL load/install routines). Paired with the alloc-slot helper
+ * @ 0x3615E which swaps data_ail_alloc_fnptr (the +4-below sibling).
  * ---------------------------------------------------------------- */
 uint32 fd2_set_word_global_5275c(uint32 new_val)
 {
@@ -415,9 +431,10 @@ void fd2_delay_ms(uint32 ms)
 /* ----------------------------------------------------------------
  * fd2_delay_400ms_via_idle_thunk @ 0x353CC  (1 caller)
  *
- * 400ms idle-delay wrapper: PUSH 0x190 (=400); CALL fd2_delay_ms;
- * ADD ESP,4; RET. No params, void return. The single argument is pushed
- * by the caller and cleaned up by the caller's ADD ESP,4, i.e. cdecl.
+ * Fixed 400ms delay wrapper: PUSH 0x190 (=400); CALL fd2_delay_ms;
+ * ADD ESP,4; RET. No params, void return. The 400 argument is pushed
+ * and cleaned up around the call (cdecl); fd2_delay_ms forwards it to
+ * the Watcom CRT delay(ms), so 400 is the delay duration in milliseconds.
  *
  * Caller: fd2_cinematic_chapter_portrait_dump_with_white_flash @ 0x35822.
  * (The same 4-instruction body is also reached as the fall-through tail of

@@ -1,0 +1,43 @@
+{
+  "address": "0x00035a2f",
+  "name_current": "fd2_chapter_event_handler_43__unref_dyn_turn_event",
+  "name_final": "fd2_chapter_event_handler_43__unref_dyn_turn_event",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> with domain=chapter_event. The '43' is the dispatch index 0x43 in the per-event handler table @ 0x51B91 (entry @ 0x51C9D holds this fn's address 0x35A2F; neighbor 0x35A48 is index 0x44), a meaningful domain ID consistent with sibling handlers (handler_42, handler_44), NOT a Ghidra address residue (0x35A2F has no 43 tail). Descriptor accurately reflects behavior: 'unref' = no chapter FDFIELD turn-event/tile-step hook references this slot; 'dyn_turn_event' = arms a dynamic turn-event by writing the current turn counter into the hook table.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter per-event dispatch handler (idx 0x43, currently unreferenced by any chapter hook): arm a dynamic turn-event for the current battle turn by writing the live turn counter into hook entry 1's turn byte of the tile-event data table.",
+  "logic_summary": "Stack-frame __CHK(4) prologue (no real params consumed). Reads the global byte data_fd2_battle_turn_counter and stores it (as a single byte, no +1) into *(uint8*)(data_fd2_tile_event_data_table_ptr + 6) -- i.e. the turn byte of hook entry 1 in the tile-event data table. No consume-flag gate, so repeated calls keep overwriting the same slot. Disasm: MOV EAX,[tile_event_data_table_ptr]; MOV DL,byte ptr [turn_counter@0x53BEF]; MOV byte ptr [EAX+0x6],DL; RET -- the (uint8) truncation on store reproduces the 8-bit MOV exactly.",
+  "signature": "void __cdecl fd2_chapter_event_handler_43__unref_dyn_turn_event(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Generic event argument supplied by the per-event dispatcher (table @ 0x51B91 signature is 1-arg cdecl void fn(uint event_arg)). This handler does not read it (cast to void); present only to match the uniform dispatch ABI.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Conventional, accurate name for the dispatcher-supplied event argument; matches sibling handlers' parameter naming; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect only: arms the dynamic turn-event slot."
+  },
+  "reads_globals": [
+    "data_fd2_tile_event_data_table_ptr",
+    "data_fd2_battle_turn_counter"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Writes a global (data_fd2_tile_event_data_table_ptr+6) but does not write a named global symbol directly (it dereferences the table pointer), hence writes_globals is empty; data_fd2_tile_event_data_table_ptr is read (the pointer load) and listed under reads_globals. Disassembly confirms the src comment exactly (MOV DL,[0x53BEF] / MOV [EAX+0x6],DL). Src comment block (chevt2.c lines 869-887) is already concise, accurate and ASCII-clean -> kept verbatim (no Edit). Ghidra plate is detailed, semantically consistent with src (same facts, more verbose) and non-contradictory -> left untouched (none). Both referenced global symbol names are established across globals.h and many .c files. No logic change (refine touches name-judgement + comments only)."
+}

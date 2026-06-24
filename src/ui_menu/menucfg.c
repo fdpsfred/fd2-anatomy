@@ -445,14 +445,24 @@ void fd2_maybe_free_speed_mode_overlay(void)
 /* ----------------------------------------------------------------
  * data_fd2_battle_fast_mode_walk_overlay_ptr @ 0x53B0F  (4 bytes, .object2)
  *
- * Fast-mode walk-animation overlay resource handle. NULL in the initial
- * image (zero-bss); first touched by a write. When fast mode is on,
- * fd2_maybe_load_speed_mode_overlay stores NULL then assigns the
+ * Speed-mode attack-hit SFX sample bank pointer (NOT a walk-animation
+ * overlay -- the only reader uses it solely as an SFX bank base). Holds
+ * FDOTHER.DAT resource index 0x40, the SFX sample bank used for weapon
+ * attack-hit sounds while fast/speed mode is on. Sibling of the audio-domain
+ * SFX banks (data_fd2_audio_fdother_sfx_bank_buf_ptr = FDOTHER.DAT[0x1F],
+ * the default bank loaded at startup); this one is loaded lazily only in
+ * fast mode and holds index 0x40 instead.
+ *
+ * NULL in the initial image (zero-bss); first touched by a write. When fast
+ * mode is on, fd2_maybe_load_speed_mode_overlay stores NULL then assigns the
  * fd2_load_dat_resource(FDOTHER.DAT, 0, 0x40) result here;
- * fd2_maybe_free_speed_mode_overlay frees it and
- * fd2_animate_attack_hit_sequence passes it to fd2_play_sfx_with_handle as
- * the SFX resource handle. When fast mode is off it stays NULL and is never
- * read. Accessor: MOV dword ptr [0x53B0F] (32-bit), a single pointer-sized
- * resource handle.
+ * fd2_maybe_free_speed_mode_overlay frees it; fd2_animate_attack_hit_sequence
+ * passes it as the sfx_table_base (arg1) to fd2_play_sfx_with_handle. When
+ * fast mode is off it stays NULL and is never read. Accessor: MOV dword ptr
+ * [0x53B0F] (32-bit), a single pointer-sized SFX-bank handle.
+ *
+ * Name note: the live "walk_overlay" name is misleading; Stage 2 renames to
+ * data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr (audio-domain SFX-bank
+ * family, *_sfx_bank_buf_ptr suffix).
  * ---------------------------------------------------------------- */
 uint32 data_fd2_battle_fast_mode_walk_overlay_ptr;

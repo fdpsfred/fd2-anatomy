@@ -1,0 +1,42 @@
+{
+  "address": "0x00034696",
+  "name_current": "fd2_chapter_event_handler_10__ch5_dialog",
+  "name_final": "fd2_chapter_event_handler_10__ch5_dialog",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Matches fd2_<domain>_<descriptor> convention. The '10' is the dispatch-table index 0x10, a domain ID (verified: table base 0x51B91 + 0x10*4 = 0x51BD1 = the sole xref source via read_memory -> 0x00034696 LE), not a Ghidra address residue. The '__ch5_dialog' suffix correctly states the chapter (5) and category (dialog-only beat) matching the body (portrait set 3 reload + dialog page 5). No address residue.",
+  "kind": "function",
+  "home": "C:/Users/fdpsf/Documents/fd2-wt/rp1/src/field/chevt1.c",
+  "purpose": "Chapter 5 turn-event slot 2 (turn 7 / phase 0): a dialog-only beat that reloads portrait set 3 and shows chapter dialog page 5.",
+  "logic_summary": "Straight-line, no-branch handler. Calls fd2_load_chapter_portraits_and_dump_tmp(3) to swap to portrait set 3, then fd2_display_dialog_scene(data_fd2_current_chapter_text, page=5, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) to render dialog page 5 with the fixed dialog geometry. event_arg is never read. No RNG, no numeric computation, no CALL-return value used. In the original binary the trailing dialog call is reached by preparing the 8 PUSHes then JMP 0x3452F into handler_09's shared tail (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET); the src reproduces it as the inline call for Layer-2 equivalence.",
+  "signature": "void __cdecl fd2_chapter_event_handler_10__ch5_dialog(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl argument of the per-event handler table at 0x51B91; never read by this turn-event handler (cast to void). Same name and convention as all sibling handlers in the table.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches the uniform dispatch-table arg convention shared by all sibling handlers; no address residue; accurately reflects that the value is the (unused) dispatch argument."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects only (portrait set swap + dialog render). fd2_display_dialog_scene's return is discarded."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Src comment (chevt1.c lines 669-698) is already accurate, precise, ASCII-only, and consistent with the decompile + disasm (dispatch idx 0x10, ch5 turn-7 slot 2, portrait set 3, dialog page 5, original JMP 0x3452F into handler_09 shared tail) -> comment_verdict=keep. Ghidra plate conveys the same facts and does not contradict the refined understanding -> ghidra_plate_action=none. Disasm confirmed: PUSH 0x28; CALL __CHK; PUSH 3; CALL fd2_load_chapter_portraits_and_dump_tmp; ADD ESP,4; 8x PUSH (1,0x13,0x4A,0x4C,0xCD,0x140,0xA0000,5); JMP 0x3452F. Global name data_fd2_current_chapter_text verified against the decompile (read as _data_fd2_current_chapter_text). No src edit needed; only the shard is added in this commit."
+}

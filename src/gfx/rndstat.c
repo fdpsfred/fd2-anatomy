@@ -62,11 +62,15 @@ void fd2_paint_portrait_to_dialog_area(uint32 frame)
  *   (filled_count-1) middle sprites (sprite_base+1) at dst_offset+1 ..,
  *   then right cap (sprite_base+2) at dst_offset+filled_count.
  *
- * Sprite base indices: 0x17 = HP bar (red), 0x1A = MP bar (blue).
+ * All segment sprites come from the shared UI/anim sprite sheet
+ * (data_fd2_ui_anim_sprite_sheet_ptr). Sprite base indices: 0x17 = HP bar
+ * (red, caps 0x17/middle 0x18/cap 0x19), 0x1A = MP bar (blue, 0x1A/0x1B/0x1C);
+ * 0x1D/0x1E are the empty-bar middle/right-cap sprites used when filled_count
+ * is 0. (Ghidra mislabels the 4th param as dst_buf; it is sprite_base.)
  *
  * Cdecl, 4 stack params; void return. Mirrors the binary's shared-final-blit
- * control flow: the offset of the trailing cap (uVar1) is the value left in
- * EAX by the last LEA inside whichever branch ran.
+ * control flow: the offset of the trailing cap (cap_offset) is the value left
+ * in EAX by the last LEA inside whichever branch ran.
  * ---------------------------------------------------------------- */
 void fd2_render_horizontal_bar_segments(uint32 dst_offset, uint32 dst_pitch,
                                         uint32 filled_count, uint32 sprite_base)
@@ -187,9 +191,9 @@ void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buff
  *   set, else 0x2A white; 3-digit):
  *     +0x545D  ap           (red if status_flags_block[1])
  *     +0x635D  dp           (red if status_flags_block[2])
- *     +0x4535  ai_target_and_dx_block[1] as word (DX base) — always 0x2A
+ *     +0x4535  ai_target_and_dx_block[1] as word (DX base) -- always 0x2A
  *     +0x5435  dx_current   (red if status_flags_block[3])
- *     +0x6335  stat4_current (evade) — SAME color flag as dx_current
+ *     +0x6335  stat4_current (evade) -- SAME color flag as dx_current
  *                            (the binary reuses the dx color in ESI)
  *
  *   Text labels (fd2_display_dialog_scene against data_fd2_all_game_text_ptr,
@@ -200,7 +204,7 @@ void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buff
  *
  *   Team / status icons (sheet = data_fd2_ui_anim_sprite_sheet_ptr):
  *     +0x25E5  team flag: sprite 0x36 when team == 0 (enemy), else 0x35
- *     +0x55C2 + i*0x23 (i=0..2): status-icon slot — sprite 0x37+i when the
+ *     +0x55C2 + i*0x23 (i=0..2): status-icon slot -- sprite 0x37+i when the
  *              byte at struct offset 0x25+i is non-zero. Offsets 0x25/0x26/0x27
  *              are status_flags_block[4], status_sleep_flag and
  *              combat_aux_block[0]; the binary reads them as a flat
@@ -262,7 +266,7 @@ void fd2_render_full_char_stat_panel(uint32 char_idx, uint32 overlay_buffer)
     fd2_render_decimal_number_to_buffer(overlay_buffer + 0x635d, 0x140,
                                         (uint32)(int32)(int16)rc->dp, color, 3);
 
-    /* DX base (always white) — word at ai_target_and_dx_block[1] */
+    /* DX base (always white) -- word at ai_target_and_dx_block[1] */
     fd2_render_decimal_number_to_buffer(
         overlay_buffer + 0x4535, 0x140,
         (uint32)(int32)*(int16 *)(rc->ai_target_and_dx_block + 1), 0x2a, 3);

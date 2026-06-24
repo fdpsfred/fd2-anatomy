@@ -1,0 +1,66 @@
+{
+  "address": "00021b18",
+  "name_current": "fd2_dispatch_variant_b_cast",
+  "name_final": "fd2_execute_variant_b_heal_cast",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_execute_variant_b_heal_cast",
+  "name_reason": "Prefix fd2_ + battle/spell domain is fine and there is no Ghidra address residue ('_b' is the literal variant letter, a domain distinction vs the offensive A-variant, not a hex suffix). But the body does NOT dispatch: it directly runs the variant-B heal cast (reset AoE fx counter, per-target impact + status-overlay animation, deduct MP, per-target heal, finale). The actual dispatcher is the caller fd2_cast_spell_0d_variant_b. The parallel offensive worker @ 0x21227 is named fd2_execute_offensive_targeted_spell (verb 'execute'), so 'execute' + the distinguishing 'heal' is more accurate and consistent. Recorded only; not applied (Stage 2).",
+  "kind": "function",
+  "home": "src/spell/spellcin.c",
+  "purpose": "Variant-B spell cast executor (heal-style worker): animates the per-target impact and status-overlay flicker, deducts the caster's MP, applies the heal to each target, shows the healed amount, then runs the shared spell finale.",
+  "logic_summary": "Resets data_fd2_battle_spell_aoe_count_and_fx_queue_idx to 0. Calls fd2_animate_spell_impact_per_target(caster, spell_id, n_targets, p_targets) then fd2_animate_status_effect_overlay_flicker(...same 4 args...). Calls fd2_deduct_caster_mp(caster, spell_id). For target_idx in 0..n_targets-1: target_id = p_targets[target_idx]; heal_amount = fd2_apply_heal_spell_to_target(target_id, spell_id); fd2_show_damage_number(heal_amount, 0x69 /* 'i' heal/info indicator */, target_id). Finishes via fd2_composite_then_animate_projectiles() (composite frame + projectile-path animation). No explicit RET in the binary; normal path tail-JMPs to that finale helper @ 0x21190. Distinct from the offensive A-variant @ 0x21227 which uses fd2_calc_magic_damage instead of the heal worker.",
+  "signature": "void __cdecl fd2_dispatch_variant_b_cast(uint caster, uint spell_id, uint n_targets, int p_targets)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Caster unit id (runtime_char_array index); passed straight to the two animation helpers and fd2_deduct_caster_mp. Bound to EDI/etc by the Watcom prologue.",
+      "verdict": "rename",
+      "proposed": "caster",
+      "reason": "param_1 is a generic auto-name; the value is the caster unit id (matches src param name 'caster')."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Spell id (one of 0xD/0xE/0xF/0x10 in the variant-B family); passed to both animation helpers, fd2_deduct_caster_mp, and as arg2 of fd2_apply_heal_spell_to_target.",
+      "verdict": "rename",
+      "proposed": "spell_id",
+      "reason": "param_2 is a generic auto-name; the value is the spell id (matches src param name 'spell_id')."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Target count; loop bound for the per-target heal loop and passed to both animation helpers.",
+      "verdict": "rename",
+      "proposed": "n_targets",
+      "reason": "param_3 is a generic auto-name; the value is the number of targets (matches src param name 'n_targets')."
+    },
+    {
+      "name": "caster_idx",
+      "type": "int",
+      "semantics": "Base pointer to the uint8 target-id array; indexed as p_targets[target_idx] in the loop (reloaded into EBX). NOT a caster index.",
+      "verdict": "rename",
+      "proposed": "p_targets",
+      "reason": "Ghidra auto-name 'caster_idx' is actively misleading; the value is the target-id array base pointer (matches src param name 'p_targets')."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Binary has no explicit RET; the normal path tail-JMPs into fd2_composite_then_animate_projectiles @ 0x21190 (shared finale + register restore). Emitted in src as a plain call + compiler-generated return."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_battle_spell_aoe_count_and_fx_queue_idx"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "f25412b1a3183add74f07a15a7918ef19fa294ed",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (src/spell/spellcin.c lines 227-256) is already accurate, concise, and ASCII-clean (it even notes the misleading Ghidra auto-name 'caster_idx' = target-array base), so comment_verdict=keep and no Edit was made. Ghidra plate is consistent with the refined understanding (more detailed: register bindings, instruction addresses, sibling-thunk reach map) and does not contradict src, so plate left untouched (ghidra_plate_action=none). Verified: caller fd2_cast_spell_0d_variant_b @ 0x21ad9 (sole direct caller, CALL @ 0x21b0f) passes (caster, 0xd, num_targets, target_id_array); offensive A-variant counterpart confirmed as fd2_execute_offensive_targeted_spell @ 0x21227 (uses fd2_calc_magic_damage). No logic/equivalence issues found. Only global touched is data_fd2_battle_spell_aoe_count_and_fx_queue_idx (written = 0, no read)."
+}

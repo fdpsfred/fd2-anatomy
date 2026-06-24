@@ -1,0 +1,45 @@
+{
+  "address": "00035f92",
+  "name_current": "fd2_chapter_event_handler_52__ch30_major_cinematic",
+  "name_final": "fd2_chapter_event_handler_52__ch30_major_cinematic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>. '_52' is the per-event handler dispatch index 0x52 (table @0x51B91, entry @0x51CD9, offset 0x148/4 = 82 = 0x52), a meaningful domain ID matching every sibling handler in chevt2.c (handler_2f..handler_53); it is NOT a Ghidra address residue (function addr 0x35f92 shares no digits with 0x52). Descriptor '__ch30_major_cinematic' is accurate: triggered in chapter 30 (the final chapter, per walkthrough) turn-event slot 0 (turn 0xFF/phase 0) as the final-boss multi-stage reinforcement cinematic.",
+  "kind": "function",
+  "home": "ROOT/src/field/chevt2.c",
+  "purpose": "Chapter 30 final-boss multi-stage cinematic / reinforcement-spawn handler (dispatch idx 0x52 from the per-event handler table @0x51B91), driven by a 5-step stage counter.",
+  "logic_summary": "Reads stage = tile_event_consumed_flags[0x10] (re-read from memory at every use). Each call: pan camera to tile (0x10,1); show dialog page stage+2 (pages 2..6); clear data_fd2_battle_anim_phase; pan camera to (0x10,0xE); warp boss-line char (0x18-stage) onto tile (0x16,0x12) -- descending boss idx 0x18..0x14 across the 5 stages. If stage != 4 (stages 0..3): load portrait set `stage`, disarm AI nibble (combat_aux_block[0xD] low4 = 0) of the warped boss char (0x18-stage), warp paired helper chars 2*stage+0x19 onto (0x15,0x12) and 2*stage+0x1A onto (0x17,0x12), then set battle_anim_phase = 1 and return. Final stage 4: arm AI mode 0xB for char 0x14, then set battle_anim_phase = 1. Matches the chapter-30 guide: the Sky Demon God (boss) teleports successive demon gods plus mech-captain pairs onto the field each player turn-end, culminating in the boss itself at the final stage.",
+  "signature": "void __cdecl fd2_chapter_event_handler_52__ch30_major_cinematic(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch-table ABI argument (one cdecl word passed by the per-event handler dispatcher). This handler does not read it ((void)event_arg). Name matches the convention used by all sibling chapter-event handlers for the unused dispatch arg.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, conventional across sibling handlers, no address residue, not a generic param_N. Unused but correctly typed/named per the dispatch-table ABI."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Both control-flow paths fall through to the shared fd2_set_battle_anim_phase_to_1 epilogue (binary JMP 0x35C15) then RET."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "c41c15d844048a586e6e82646788c6f90a826a5c",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly cross-check confirms: __CHK(0x28) prologue (PUSH 0x28; CALL 0x36cd7); stage byte re-read at every use (MOV EAX,[0x53ad5]; MOVZX EAX,byte ptr[EAX+0x10]); helper warps 2*stage+0x19 / 2*stage+0x1A (ADD EAX,EAX; ADD EAX,0x19/0x1A); both tails JMP 0x35C15. Global addrs match src: [0x53a79]=current_chapter_text, [0x53ad5]=tile_event_consumed_flags_ptr, [0x51a83]=battle_anim_phase. Knowledge base ch30 = final chapter 'Legendary Final Chapter / Ending'; the staged teleport-reinforcement event mechanic matches the handler. Src comment block (chevt2.c lines 1453-1481) is already a clean, accurate, ASCII final-conclusion description matching the decompilation exactly -- no edit needed. Ghidra plate is consistent (more verbose, same sequence) -- left untouched. No logic refine performed (rules: names recorded only; this is keep/keep)."
+}

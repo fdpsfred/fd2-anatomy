@@ -1,0 +1,40 @@
+{
+  "address": "000360e3",
+  "name_current": "fd2_chapter_event_handler_56__unref_sentinel",
+  "name_final": "fd2_chapter_event_handler_56__unref_sentinel",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the established file convention fd2_chapter_event_handler_<idx>__<descriptor>. The _56 is the dispatch-table index (meaningful domain ID), NOT an address residue: verified the single DATA xref comes from 0x51ce9, and (0x51ce9-table_base 0x51b91)/4 = 0x56, and memory at 0x51ce9 = e3600300 = this function's own address 0x000360e3. So 0x56 is the slot index, 0x56 != 0x360e3 and != 0x51ce9. __unref_sentinel accurately describes a no-op placeholder slot that no chapter FDFIELD turn-event/tile-step hook references (0 direct callers; the handler table is driven by fd2_handle_tile_event_interaction / fd2_fire_chapter_turn_events_for_phase / fd2_process_battle_drop_entries). Byte-identical naming to siblings 55/57/58/59 in the same file.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Unreferenced placeholder dispatch slot (index 0x56) in the per-event chapter handler table @ 0x51B91; a pure no-op sentinel that does nothing meaningful.",
+  "logic_summary": "7-byte stub: PUSH 4; JMP 0x360DD. 0x360DD is mid-body of sibling handler_55 (PUSH 4; CALL __CHK @0x36cd7; RET); this handler borrows the shared 'CALL __CHK; RET' tail. __CHK is the Watcom stack-overflow-probe routine and PUSH 4 is its frame-size argument, so the net effect is a no-op stack probe followed by an immediate return. No state mutation, no display, no dialog, not even a consumed-flag write. Functionally-exact source is an empty body, identical to handler_55. The dispatch-table ABI is 1-arg cdecl (void fn(uint event_arg)); this handler does not read the arg.",
+  "signature": "void __cdecl fd2_chapter_event_handler_56__unref_sentinel(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "The dispatch-table ABI's single cdecl argument (stepping char id under the tile-step ABI, or unused under the turn-event ABI). This handler never reads it.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Generic but accurate for an unref no-op sentinel that does not read the arg; matches the parameter name used by every sibling handler in the file. No address residue. Renaming to anything more specific would be guesswork since the slot is unreferenced and the arg is unused."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; no observable effect."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "0d1209ac",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (chevt2.c lines 1616-1640) is already precise, accurate, ASCII-clean and consistent with sibling handlers 55/57/58/59; left unchanged (comment_verdict=keep), so chevt2.c is NOT modified by this refine. Ghidra plate matches the refined understanding (idx 0x56, table @0x51B91, 7-byte stub, JMP into shared CALL __CHK; RET tail of handler_55, no-op), so plate left unchanged. Verified via: xref 0x51ce9 DATA -> index 0x56; read_memory 0x51ce9 = e3600300; disasm 0x360e3 = PUSH 4 / JMP 0x360dd; disasm 0x360d8 = PUSH 4 / CALL 0x36cd7 / RET; 0x36cd7 = __CHK. Shared worktree: other agents' shard changes present; commit staged only src/field/chevt2.c (unchanged so nothing staged from it) and this shard via explicit pathspec."
+}

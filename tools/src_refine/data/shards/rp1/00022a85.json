@@ -1,0 +1,56 @@
+{
+  "address": "00022a85",
+  "name_current": "fd2_cast_spell_14_dispatch_aa8",
+  "name_final": "fd2_cast_spell_14_dispatch",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_cast_spell_14_dispatch",
+  "name_reason": "The '_aa8' suffix is a Ghidra address residue: it equals the low bytes of the shared-tail call target 0x22AA8 (fd2_apply_status_effect_with_anim), not a domain ID. It carries no semantic meaning (the callee already has a proper name) and must be dropped. The '14' is the real spell_id 0x14 (解毒術 / cure-poison, a valid spell-ID 0x00-0x23) and MUST be preserved. 'dispatch' is an accurate descriptor (this is dispatch-table entry index 0x14 @ table 0x51D01). Proposed fd2_cast_spell_14_dispatch removes only the residue, keeps the spell ID and descriptor, follows the fd2_<domain>_<descriptor> convention, and does not collide (verified: only the _aa8-suffixed name exists in Ghidra). The 0x15 sibling fd2_cast_spell_15_dispatch_aa8 has the parallel issue and will be handled in its own shard.",
+  "kind": "function",
+  "home": "src/spell/spell.c",
+  "purpose": "Spell dispatch-table entry for spell_id 0x14 (解毒術, cure-poison); thin wrapper forwarding to the shared status-cure worker with animation/sprite id 0x25.",
+  "logic_summary": "Forwards its 3 caller args (caster, n_tgt, tgt_arr) to fd2_apply_status_effect_with_anim, injecting two literals: spell_id=0x14 and effect sprite/animation id=0x25. No branching (cyclomatic complexity 1); the leading PUSH 0x18 / CALL __CHK is the Watcom stack-probe prologue (0x18 = bytes the call frame needs). The body doubles as a shared-tail anchor: the 0x15 sibling (fd2_cast_spell_15_dispatch_aa8 @ 0x22BC6) jumps into this body's tail at 0x22A9B (the PUSH caster_unit_id instruction) after pushing its own sprite id 0x26 / spell id 0x15, so both entries share the {PUSH caster + CALL 0x22AA8 + ADD ESP,0x14 + RET} sequence.",
+  "signature": "void __cdecl fd2_cast_spell_14_dispatch_aa8(int caster, int n_tgt, uint8 *tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "Caster unit id (the unit casting the spell); passed through unchanged as arg1 of fd2_apply_status_effect_with_anim and used to deduct MP / select the caster.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, no address residue, matches documented role (caster_unit_id). Concise game-domain name."
+    },
+    {
+      "name": "n_tgt",
+      "type": "int",
+      "semantics": "Number of target units in tgt_arr; passed through as the n_targets arg of the worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear and accurate (count of targets), no residue."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "uint8 *",
+      "semantics": "Pointer to the array of target unit ids; passed through (cast to int) as the target_id_array arg of the worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear and accurate (target id array pointer), no residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; pure forwarding wrapper (effect applied as side effect by the callee)."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "No per-function comment existed; the function sat directly under the shared banner '/* === Status effect family (id 0x14-0x15) === */' with no description, unlike the 0x11/0x12/0x13 sibling wrappers above it which each carry their own comment.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified dispatch table: table base 0x51D01, entry 0x14 at 0x51D51 holds 0x00022A85 (this function); entry 0x15 at 0x51D55 holds 0x00022BC6 (sibling). Spell 0x14 = 解毒術 (cure-poison), spell 0x15 = 祛麻術 (cure-paralysis) per fd2-knowledge; both are 輔助法術 status-cure spells, consistent with callee fd2_apply_status_effect_with_anim -> fd2_cast_status_cure_spell. Ghidra plate is detailed and consistent with the refined understanding (documents body, shared-tail mechanism, table xref, params, system=battle); left untouched. The 'in_stack_00000000' var in the decompile is just the __CHK probe artifact, not a real 4th param. Sole xref to this function is the DATA pointer at 0x51D51 (no direct callers); invoked indirectly via the dispatch table (btltab.c line 353)."
+}

@@ -1,0 +1,50 @@
+{
+  "address": "0002c39b",
+  "name_current": "fd2_show_portrait_dialog_with_input",
+  "name_final": "fd2_show_portrait_dialog_with_input",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name accurately reflects the body: load a portrait (fd2_load_chapter_portrait(param_1)), display a dialog scene (fd2_display_dialog_scene(...,param_2,...)), then block on user input (fd2_wait_for_input_dialog_with_blink). Matches fd2_<domain>_<descriptor> convention (domain=show/portrait-dialog UI). No address residue in the name.",
+  "kind": "function",
+  "home": "src/dialog/dialog.c",
+  "purpose": "Display a portrait + dialog scene for one ending-epilogue line and block until the player presses a key, then close the dialog panel.",
+  "logic_summary": "Linear, no branches (cyclomatic 1). Sequence: fd2_clear_keyboard_buffer; fd2_load_chapter_portrait(portrait_id) [loads portrait sprite from DATO.DAT]; fd2_clear_keyboard_buffer; fd2_display_dialog_scene(data_fd2_current_chapter_text, text_idx, 0xa9514 framebuffer, 0x140 stride, 0xcd height, 0x4c, 0x4a, 0x13 glyph-height, 1 blink-enable) -- return value discarded; fd2_paint_portrait_to_dialog_area(0); fd2_wait_for_input_dialog_with_blink(0) [blocking cursor blink]; fd2_close_intro_dialog_with_slide_out; fd2_clear_keyboard_buffer. The __CHK(0x2c) stack-probe is the compiler-injected prologue, not source-emitted.",
+  "signature": "void fd2_show_portrait_dialog_with_input(uint32 portrait_id, uint32 text_idx)",
+  "params": [
+    {
+      "name": "portrait_id",
+      "type": "uint32",
+      "semantics": "Portrait kind/id passed straight to fd2_load_chapter_portrait. Per that callee's contract, accepts the 5 special scripted-position ids 0x80-0x84 and standard DATO portrait ids (the ending cinematic passes ids such as 0x25/0x15/0x1a/0x69/0x11 etc.).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Body uses param_1 only as the argument to fd2_load_chapter_portrait(portrait_kind); confirmed via disasm (PUSH [ESP+8]=param_1 -> CALL fd2_load_chapter_portrait). Name is correct and free of address residue."
+    },
+    {
+      "name": "text_idx",
+      "type": "uint32",
+      "semantics": "Dialog page/entry index into the active chapter dialog text block; forwarded as fd2_display_dialog_scene's page_idx (start narrative chunk within data_fd2_current_chapter_text).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Body uses param_2 only as the page/index argument to fd2_display_dialog_scene; confirmed via disasm (PUSH [ESP+0x28]=param_2 -> 2nd arg of fd2_display_dialog_scene). 'text_idx' correctly describes an index into the chapter dialog text; not address residue, not a generic param_N. (Callee calls the same slot page_idx; a page_idx alias would be cosmetic only, so keep.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return; the fd2_display_dialog_scene return value (final render position) is discarded."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src/dialog/dialog.c comment block (lines 1211-1233) is already terse, accurate and ASCII; it states the param meaning, the discarded return, the magic-number args, and that __CHK is compiler-injected -- left unchanged. Ghidra plate is consistent (no contradiction), so plate left unchanged. OBSERVATION (in another symbol, NOT modified here): the sole caller fd2_play_game_ending_cinematic @ 0x2bce5 has a plate comment that labels the two args as 'portrait_id'/'dialog' in the order opposite to the actual call (e.g. BAD path sets uVar10=0x11,uVar5=4 then calls (uVar5,uVar10) so arg1=4=portrait, arg2=0x11=text, but its prose says 'portrait_id=0x11; dialog=4'). The machine code is self-consistent and correct; this is purely a comment-label mismatch in the caller, not a logic bug in this function. No fd2_load_chapter_portrait/fd2_display_dialog_scene semantics are affected. Did not stage the 12 pre-existing modified shards from concurrent refiners; staged only this shard (dialog.c untouched since comment_verdict=keep)."
+}

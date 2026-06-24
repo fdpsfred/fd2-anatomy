@@ -1,0 +1,42 @@
+{
+  "address": "0002084a",
+  "name_current": "fd2_chapter_16_post_action",
+  "name_final": "fd2_chapter_16_post_action",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. '16' is the chapter ID (chapters 01-30 are meaningful domain IDs, not address residue). Confirmed dispatched as per_chapter_post_action_handler_table[15] @ 0x51B55 (= entry index 15 = chapter 16 in 0-based indexing); the handler's lose condition keys on runtime_char[0x41] which is chapter 16's escort NPC. Consistent with all 19 sibling handlers in chpost.c.",
+  "kind": "function",
+  "home": "src/field/chpost.c",
+  "purpose": "Chapter 16 turn-cycle post-action handler: runs the default win/lose check then adds a lose-condition override when chapter 16's single escort NPC (runtime_char slot 0x41) is dead.",
+  "logic_summary": "Calls fd2_check_battle_end_condition() (default win/lose evaluation), then queries fd2_check_char_is_dead(0x41). If that NPC is dead, sets data_fd2_chapter_event_or_battle_end_code = 1 (game over). event_arg is the cdecl arg pushed by the dispatch site (active char_idx) and is unused by the body. Structurally identical to chapter 15's handler with slot 0x41 in place of 0x40.",
+  "signature": "void __cdecl fd2_chapter_16_post_action(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Active char_idx pushed by the per_chapter_post_action_handler_table dispatch site as one cdecl arg (cleaned with ADD ESP,4). Unused by the body (cast to void). Name is descriptive and matches all 19 sibling handlers; no address residue.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, convention-consistent across the whole handler family, no address residue. The arg is genuinely unused so any name is fine; event_arg accurately reflects its role as the dispatched event argument."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effect is the conditional write to data_fd2_chapter_event_or_battle_end_code."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_chapter_event_or_battle_end_code"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Function is clean. Source comment block (chpost.c lines 178-191) is precise, accurate, and matches decompiled behavior including the noted structural parallel to chapter 15 (slot 0x41 vs 0x40). Ghidra plate is consistent with the source understanding, so left unchanged. fd2_check_char_is_dead(0x41): 0x41 (decimal 65) is a runtime_char slot index for chapter 16's escort NPC, a meaningful domain value, NOT an address residue -> preserved. No source edit made (name keep + comment keep)."
+}

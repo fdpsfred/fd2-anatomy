@@ -1,0 +1,43 @@
+{
+  "address": "00034ff0",
+  "name_current": "fd2_chapter_event_handler_29__unref_drop",
+  "name_final": "fd2_chapter_event_handler_29__unref_drop",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>. The '29' suffix is a meaningful domain ID, not Ghidra address residue: it is dispatch idx 0x29 of the per-event handler table at 0x51B91 (sole xref to 0x34FF0 is DATA @ 0x51C35; idx = (0x51C35-0x51B91)/4 = 0x29), consistent with the _NN convention shared by every sibling (handler_27/_28/_2a). '__unref_drop' accurately reflects that no chapter FDFIELD turn-event/tile-step hook references this slot (unreferenced) and that its behaviour is a battle-item drop. No address residue.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter-event dispatch handler idx 0x29 (unreferenced/cut-content tile-step drop beat): show dialog page 3, drop battle item id 0xD5 (冰之眼, the enter-hidden-chapter item) to the stepping char, then show dialog page 4.",
+  "logic_summary": "Tile-step ABI handler (stepping_char_id = id of the char who stepped onto the trigger tile). Copies the inline 3-byte drop-entry blob data_fd2_chapter_event_handler_29_drop_entry_inline = {0x00, 0xD5, 0x00} (type 0 = ITEM pickup, little-endian uint16 value 0x00D5 = item id 0xD5) onto a 3-byte local, shows chapter-text dialog page 3, hands the local as a one-entry array to fd2_process_battle_drop_entries(stepping_char_id, 1, &blob), then shows chapter-text dialog page 4. Straight-line, no branch, no RNG, no numeric computation, no CALL-return value used (all three calls void-context). Order verified against disassembly @ 0x34FF0: blob copy (MOV ESI,0x52745; MOVSW+MOVSB) -> dialog page 3 (CALL 0x15F84) -> drop (CALL 0x1AA1D) -> page=4 prepushed then JMP 0x34FB7 into the borrowed display_dialog tail alt_43 hosted in fd2_chapter_event_handler_27; the borrowed tail is an in-binary code-folding artifact reproduced at Layer-2 as the inline page-4 dialog call.",
+  "signature": "void __cdecl fd2_chapter_event_handler_29__unref_drop(uint32 stepping_char_id)",
+  "params": [
+    {
+      "name": "stepping_char_id",
+      "type": "uint32",
+      "semantics": "Tile-step dispatch arg = id of the char who stepped onto the trigger tile; used as the drop recipient passed to fd2_process_battle_drop_entries. (The table at 0x51B91 is uniform 1-arg cdecl; tile-step slots pass the stepping char id rather than the unread turn-event arg.)",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of the tile-step recipient contract, consistent with the sibling drop handler fd2_chapter_event_handler_27__unref_drop, and carries no address residue. Body reads it (disasm: PUSH dword ptr [ESP+0x18]) so it is not marked unused."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_event_handler_29_drop_entry_inline",
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "9d8be9cee6ffbf64238784eeeb8eb01c52039351",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified disasm @ 0x34FF0: __CHK(0x34) prologue; PUSH ESI/EDI; SUB ESP,4 (drop-entry slot); MOV ESI,0x52745; MOVSW+MOVSB (3-byte blob copy); dialog page 3 PUSH 0x3 + CALL 0x15F84 (fd2_display_dialog_scene) + ADD ESP,0x24; drop MOV EAX,ESP/PUSH EAX/PUSH 1/PUSH [ESP+0x18]/CALL 0x1AA1D (fd2_process_battle_drop_entries)/ADD ESP,0xC; then PUSH page=4 (0x4) + JMP 0x34FB7 (borrowed alt_43 tail in handler_27). read_memory(0x52745,3) = 00 d5 00 confirms the inline blob bytes the src declares. fd2-knowledge item 0xD5 = 冰之眼, raw desc '進入隱藏關物品' (enter-hidden-chapter item) -- confirms the src comment's item identity. Sole xref to 0x34FF0 is DATA @ 0x51C35 (handler-table slot), no direct callers, confirming dispatch idx 0x29 + unreferenced classification. src comment block (chevt1.c lines 1863-1907) and the data-blob comment (lines 1852-1858) are already accurate/precise/ASCII and consistent with the Ghidra plate; no edit to src, no plate change. The 'team == 2 gates the drop-reward dialog' note in the src comment is a cross-reference into fd2_process_battle_drop_entries (external to this symbol) consistent with the verified sibling handler_27 comment; not re-derived here as it is outside this symbol's scope."
+}

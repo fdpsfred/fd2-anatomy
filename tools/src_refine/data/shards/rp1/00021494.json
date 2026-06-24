@@ -1,0 +1,56 @@
+{
+  "address": "00021494",
+  "name_current": "fd2_spell_handler_id_8_via_targeted_blink",
+  "name_final": "fd2_spell_handler_id_8_via_targeted_blink",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. Domain=spell. The '8' is a meaningful spell ID (valid spell IDs are 00h-23h), NOT a Ghidra address residue. Descriptor 'via_targeted_blink' correctly reflects delegation to fd2_execute_offensive_targeted_spell (the targeted blink-overlay worker). Consistent with the four sibling handlers id 0/1/2/3 that share the identical naming pattern.",
+  "kind": "function",
+  "home": "src/spell/spell.c",
+  "purpose": "Spell dispatch thunk for spell_id=8: forwards the cast to the targeted blink-overlay offensive worker with spell_id literal 8.",
+  "logic_summary": "Thin wrapper registered as entry index 8 of the spell dispatch table @ 0x51D01 (slot @ 0x51D21). Calls fd2_execute_offensive_targeted_spell(caster, 8, n_tgt, tgt_arr). In the binary the body is a multi-entry/shared-tail thunk: PUSH 0x14; CALL __CHK (stack probe); push args; PUSH 0x8 (spell_id); JMP 0x2121A which lands in the id-0 sibling's tail (PUSH caster + CALL worker @ 0x21227 + ADD ESP,0x10 + RET). The __CHK probe and shared tail are compiler-emitted artifacts; the source expresses an equivalent self-contained wrapper.",
+  "signature": "void fd2_spell_handler_id_8_via_targeted_blink(int caster, int n_tgt, uint8 *tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "Caster unit id; forwarded unchanged as the caster argument to the offensive targeted-spell worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches usage (caster unit id), no address residue."
+    },
+    {
+      "name": "n_tgt",
+      "type": "int",
+      "semantics": "Number of targets in tgt_arr; forwarded unchanged to the worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive abbreviation of 'number of targets', matches usage, no address residue."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "uint8 *",
+      "semantics": "Pointer to the target unit-id array; cast to int and forwarded to the worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive abbreviation of 'target array', matches usage, no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effect is the spell cast performed by fd2_execute_offensive_targeted_spell."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "No per-symbol source comment block exists; the function is documented by the file header (lines 8-9: 'id 0-3,8: fd2_execute_offensive_targeted_spell (blink overlay)') and the section banner '=== Targeted blink family (id 0-3, 8) ===' @ line 24, both accurate and precise -> comment_verdict=keep, no edit to spell.c. Ghidra plate is more detailed (binary shared-tail mechanism, dispatch-table xref @ 0x51D21, sibling list) and is consistent with the source understanding, so plate left unchanged. Dispatch table @ 0x51D01 verified: index 8 dword = 0x21494 (this fn); only xref is from 0x51D21 [DATA]. Param names evaluated against the live source declaration (Ghidra-internal names caster_unit_id/num_targets/target_id_array are equivalents)."
+}

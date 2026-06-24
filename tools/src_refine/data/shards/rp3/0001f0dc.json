@@ -1,0 +1,50 @@
+{
+  "address": "0001f0dc",
+  "name_current": "fd2_check_can_counter_attack",
+  "name_final": "fd2_check_can_counter_attack",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (battle counter-attack precondition check). No Ghidra address residue. Accurately reflects purpose: returns whether the defender may counter-attack the attacker.",
+  "kind": "function",
+  "home": "src/battle/battle.c",
+  "purpose": "Battle precondition check: returns whether defender_idx may counter-attack attacker_idx (1 = can, -1 = cannot).",
+  "logic_summary": "Reads runtime_char for attacker and defender from data_fd2_battle_runtime_char_array_ptr. Returns -1 if defender is asleep (status_sleep_flag @ +0x26 != 0). Computes Manhattan distance between attacker and defender tiles (abs(dx)+abs(dy)); returns -1 if != 1 (not orthogonally adjacent). Looks up defender's equipped weapon via fd2_find_equipped_item_by_kind(defender_idx, 0); returns -1 if none (0xffffffff). Fetches the weapon's item_entry via fd2_get_item_effect_entry(weapon_id) and returns -1 if item_entry[0xB] (R1 = min attack range) != 1, i.e. the weapon is not a true melee weapon. Otherwise returns 1.",
+  "signature": "int __cdecl fd2_check_can_counter_attack(uint32 attacker_idx, uint32 defender_idx)",
+  "params": [
+    {
+      "name": "attacker_idx",
+      "type": "uint32",
+      "semantics": "Runtime-char index of the attacking unit. Used only as the adjacency reference point (its pos_x/pos_y compared against the defender's). No weapon/status checks read the attacker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches role: it is the attacker the defender would be countering. No address residue. All 6 call sites pass the acting attacker here."
+    },
+    {
+      "name": "defender_idx",
+      "type": "uint32",
+      "semantics": "Runtime-char index of the potential counter-attacker. The function inspects THIS char's sleep flag, equipped weapon slot, and weapon min-range to decide eligibility.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches role: it is the defender being tested for counter-attack capability. No address residue. All 6 call sites pass the target/defender here."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "1 = defender can counter-attack (awake + orthogonally adjacent + melee weapon with R1 == 1); -1 = cannot (any precondition fails)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment was correct but terse ('adjacent + awake + melee weapon'); it omitted the precise R1 == 1 weapon-range condition and the distinction from the sibling default-attack check (R1 > 1), and did not note that attacker_idx is used only as the adjacency reference.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "9b7d992d",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified parameter order (attacker_idx, defender_idx) against all callers: fd2_execute_ai_physical_attack (x3), fd2_animate_combat_speech_bubbles (x1), fd2_play_full_combat_cinematic (x2) -- every site passes (acting attacker, target/defender). Struct offsets confirmed via src/include/types.h: pos_x +0x00, pos_y +0x01, status_sleep_flag +0x26. Item byte 0xB = R1 (min attack range) confirmed via fd2-knowledge struct item (item_entry 23-byte layout: TY,AP,AP,HT,HT,DP,DP,EV,EV,S1,S2,R1,R2,...). Semantic note: this fn requires R1 == 1 exactly (R1 == 0 also fails), whereas sibling fd2_check_can_default_attack_target rejects only R1 > 1; for normal melee weapons (R1 == 1) both agree. Ghidra plate already detailed/consistent (in zh-Hant) -> left unchanged. Source code logic unchanged; only the comment block was augmented."
+}

@@ -1,0 +1,44 @@
+{
+  "address": "0x00034a0e",
+  "name_current": "fd2_chapter_event_handler_1c__ch8_ai_ctrl",
+  "name_final": "fd2_chapter_event_handler_1c__ch8_ai_ctrl",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor>. 'chapter_event_handler' is the domain; '1c' is the per-event dispatch-table index 0x1C (DATA xref at 0x51c01 = table_base 0x51b91 + 0x1C*4 holds LE 0x00034a0e), a meaningful domain ID, NOT a Ghidra address residue; '__ch8_ai_ctrl' accurately describes the chapter-8 turn-15 AI-control beat. No address residue.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 8 turn-15 AI-control beat: clear the low 7 bits of combat_aux_block[0xD] (the ai_class / sub-state byte) for the 18 runtime-char slots 0x0A..0x1B, preserving only bit 7.",
+  "logic_summary": "for (i = 0; i < 0x12; i++) runtime_char[i + 10].combat_aux_block[0xD] &= 0x80;  -- 18 iterations over runtime-char slots 0x0A..0x1B; AND-mask keeps bit 7 (high 'locked' bit) and clears bits 0-6. No dialog, no RNG, no numeric computation, no CALL-return value used. Disasm confirms: __CHK(8) probe; per-slot address = runtime_char_array_base[0x53a45] + (i+10)*0x50, field +0x34 (= combat_aux_block base +0x27, index 0xD); AND byte ptr,0x80; loop bound CMP EDX,0x12. EBX is callee-saved (PUSH/POP EBX).",
+  "signature": "void __cdecl fd2_chapter_event_handler_1c__ch8_ai_ctrl(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch arg from the uniform 1-arg cdecl per-event handler table at 0x51b91. The body never reads it (cast to (void)). The sole direct caller fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34a3c forwards its own [ESP+4] unchanged, but the value is unused here.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name 'event_arg' is apt and matches the uniform convention used by every sibling handler dispatched from the 0x51b91 table; no address residue, not a generic param_N."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (plain RET after the masked-write loop)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "comment_original_issue": "Comment body was accurate but contained one non-ASCII em-dash (U+2014) in the header line, violating the code-ASCII-only rule (all sibling handlers in this file already use '--').",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Coordinate-system check: types.h C struct runtime_char puts combat_aux_block[21] at struct offset +0x27, so combat_aux_block[0xD] = struct +0x34 (matches disasm 'byte ptr [EBX+EAX+0x34]'), labeled ai_class in types.h. This is a different byte from the fd2-knowledge strategy-guide 'struct+0x0D = action-state'; the C struct (types.h) governs the source and is internally consistent with the disasm. data_fd2_battle_runtime_char_array_ptr @ 0x53a45 (globals.h matches disasm [0x00053a45]). The single write target is one byte of the combat_aux_block array within the runtime_char that data_fd2_battle_runtime_char_array_ptr points at (no other global mutated). Dispatch index confirmed 0x1C via DATA xref at 0x51c01."
+}

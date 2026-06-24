@@ -1,0 +1,56 @@
+{
+  "address": "0001ff79",
+  "name_current": "fd2_render_chapter_status_panel_segments",
+  "name_final": "fd2_render_chapter_status_panel_segments",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the fd2_<domain>_<descriptor> convention (domain=render, descriptor=chapter_status_panel_segments) and carries no Ghidra address residue. Descriptor is reasonably descriptive and matches the terminology already used consistently in the source comment and the Ghidra plate ('chapter overview status tabs'). The thing rendered is technically the end-of-game clear-status panel's menu-option tabs (NEW GAME / CONTINUE / continue-cleared), so 'chapter_status' is slightly loose, but not misleading enough to mandate a rename.",
+  "kind": "function",
+  "home": "src/gfx/rndstat.c",
+  "purpose": "Render the end-of-game clear-status panel's option 'tabs' (up to 3 segments), blitting one indexed sprite per segment at a fixed mode13h framebuffer row offset, with the active segment drawn highlighted.",
+  "logic_summary": "Blits up to three segment sprites onto the 0xA0000 surface (pitch 0x140) via fd2_blit_indexed_sprite_at_xy. Segment 0 is always drawn at 0xACD81; segment 1 at 0xAD8C1 only if segment_count > 1; segment 2 at 0xAE401 only if segment_count > 2 (offsets spaced 0xB40 = 9*320, ~9 scanlines apart). Sprite index per segment i: 2*i+1 = inactive, 2*i+2 = active; the segment whose index equals active_idx is drawn active, all others inactive. Passing active_idx outside 0..2 (caller uses -1) draws every segment inactive (used for the commit highlight-blink). active_idx comparisons are unsigned equality (JNZ); the segment_count gates are signed (>1 / >2, JLE). Compiler __CHK(0x14) stack probe omitted in src.",
+  "signature": "void __cdecl fd2_render_chapter_status_panel_segments(uint32 sheet, uint32 active_idx, uint32 segment_count)",
+  "params": [
+    {
+      "name": "sheet",
+      "type": "uint32",
+      "semantics": "Source sprite sheet pointer for the segment sprites. Caller passes ptr_00 = FDOTHER.DAT[7] (clear-status panel sprite sheet).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, concise, no address residue; describes the sprite-sheet source the blits index into."
+    },
+    {
+      "name": "active_idx",
+      "type": "uint32",
+      "semantics": "Active segment index (0/1/2): the segment whose index equals this value is drawn with the active sprite; any value outside 0..2 (caller uses -1) draws all segments inactive (highlight-blink dim frame).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches usage: compared by unsigned equality against 0/1/2 to pick active vs inactive sprite. No address residue, descriptive."
+    },
+    {
+      "name": "segment_count",
+      "type": "uint32",
+      "semantics": "Total number of segments to draw (1, 2, or 3); gates whether segments 1 and 2 are blitted. Caller passes menu_options (1/2/3).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches the signed >1 / >2 gate logic and caller's menu_options. No address residue, descriptive."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "ce835a130531690a13bc5b085dfd3315ac23b086",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (rndstat.c lines 1011-1068) is already refined, accurate, ASCII, with good param names (sheet/active_idx/segment_count) -> no src edit needed (comment_verdict=keep). Ghidra plate is detailed and consistent with the refined source understanding (it documents the same blit offsets, sprite-index scheme, and the -1 -> all-inactive behavior using param_1/2/3 naming) -> plate left unchanged. Ghidra decomp still shows params as param_1/param_2/param_3 (unnamed in Ghidra); the source already uses sheet/active_idx/segment_count, so no Stage-2 param rename is needed there, though Ghidra-side param naming could optionally be synced later. Minor descriptor imprecision noted under name_reason: these are menu-option tabs on the game-clear status panel rather than per-chapter status, but the name is convention-compliant, residue-free, and consistent with existing KB/plate terminology, so kept. No logic concerns: the function only blits sprites; behavior verified equivalent between src and decomp."
+}

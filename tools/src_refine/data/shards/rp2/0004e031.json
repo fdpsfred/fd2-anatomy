@@ -1,0 +1,31 @@
+{
+  "address": "0004e031",
+  "name_current": "fd2_clear_keyboard_buffer",
+  "name_final": "fd2_clear_keyboard_buffer",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor>: fd2_ prefix, input domain (lives in input.c, operates on the BIOS keyboard buffer), descriptor 'clear_keyboard_buffer' accurately reflects the body. No Ghidra address residue, no leftover hex suffix. Name matches verified behavior (drain BIOS keyboard buffer by copying HEAD to TAIL).",
+  "kind": "function",
+  "home": "src/input/input.c",
+  "purpose": "Drains the BIOS keyboard buffer so any pending scancodes are discarded.",
+  "logic_summary": "Sets the BDA keyboard-buffer TAIL pointer (0x40:001C) equal to the HEAD pointer (0x40:001A), which empties the BIOS keyboard buffer (a circular queue). Asm: MOV ESI,0x41A; MOV AX,[ESI]; MOV [ESI+2],AX -> *(uint16*)0x41C = *(uint16*)0x41A. Single basic block, no branches, no stack frame (only PUSH/POP ESI). Called between cursor pulses, after SFX triggers, and at frame/wait boundaries to keep stale input from feeding the next wait_for_input.",
+  "signature": "void __cdecl fd2_clear_keyboard_buffer(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": ["BIOS_KBD_HEAD (BDA 0x41A keyboard buffer head)"],
+  "writes_globals": ["BIOS_KBD_TAIL (BDA 0x41C keyboard buffer tail)"],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment (input.c lines 28-36) is already concise and accurate ('Drains keyboard buffer by setting TAIL = HEAD'), matching the disassembly-verified behavior -- left as keep. Ghidra plate is detailed and consistent with the src understanding (TAIL=HEAD drain of the circular BIOS keyboard queue, used between cursor pulses / after SFX / at frame boundaries), no contradiction -> plate left unchanged. The parenthetical '(62 callers)' annotation in the src comment is informal; get_function_callers reports 41 distinct caller functions across 64 call sites -- substance of the comment is correct so it was not rewritten for the count alone. void function so params=[]. No logic concerns: behavior is a single store and is correct."
+}

@@ -1,0 +1,42 @@
+{
+  "address": "000350cc",
+  "name_current": "fd2_chapter_event_handler_2e__ch19_reinforcement",
+  "name_final": "fd2_chapter_event_handler_2e__ch19_reinforcement",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the file convention fd2_chapter_event_handler_<idx>__<chapter>_<category>. '2e' is the dispatch table index (slot 0x2E of the per-event handler table at 0x51B91; confirmed by the only xref, a DATA pointer at 0x51c49 whose 4 bytes are CC 50 03 00 = 0x000350cc), NOT an address residue (the function's own address is 0x350cc). 'ch19' = chapter 19 (meaningful chapter ID). 'reinforcement' correctly classifies the body, which recruits a reinforcement char via fd2_init_runtime_char_from_base_growth. No address residue. Matches every sibling handler in chevt1.c.",
+  "kind": "function",
+  "home": "ROOT/src/field/chevt1.c",
+  "purpose": "Chapter 19 turn-event slot 1 (dispatch idx 0x2E): the turn-6 reinforcement beat that reloads portrait set 1, shows dialog page 1, and recruits char_id 0x1B (龍劍士巴拿羅西亞 / Banarosia) as a reinforcement.",
+  "logic_summary": "Straight-line, no-branch, no-RNG sequence. __CHK(0x28) stack probe (compiler-injected). fd2_load_chapter_portraits_and_dump_tmp(1) reloads portrait set 1. fd2_display_dialog_scene(data_fd2_current_chapter_text, page=1, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) shows dialog page 1 with the group's fixed dialog geometry; its uint32 return is discarded. fd2_init_runtime_char_from_base_growth(0x1B) appends one menu-party (template_chars) roster slot built from the static char_base+char_growth tables (writes team=2/player, char_id at +7 and +8) and increments the member count. event_arg is never read. Disassembly (PUSH 0x28;CALL __CHK / PUSH 1;CALL load_portraits / 8 dialog PUSHes + [0x53a79];CALL display_dialog / PUSH 0x1b;CALL init_runtime_char / RET) matches the src exactly. Cross-checked against chapter_19 walkthrough: 'after the player's 6th turn, 巴拿羅西亞 appears at the bottom to help; recruit: 龍劍士巴拿羅西亞'.",
+  "signature": "void __cdecl fd2_chapter_event_handler_2e__ch19_reinforcement(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform dispatch argument passed by the per-event handler table at 0x51B91 (all slots are 1-arg cdecl). This handler never reads it; it is only the stack value implicitly visible to the __CHK stack-probe prologue. Cast to (void) in the body.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately describes the role (the dispatch table's per-event argument) and matches every sibling handler. Not param_1, not a generic placeholder, no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects only: portrait reload, dialog display, and one appended menu-party roster slot (member count incremented)."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Comment content was accurate and concise, but contained two non-ASCII em-dashes (U+2014) at the lines describing the chapter/slot and the fd2_init_runtime_char_from_base_growth recruit, violating the code-text-ASCII-only rule.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "078d807a916c5b3277a3ae80cc84aa0272cd34bc",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Indirect global read of data_fd2_current_chapter_text confirmed via xref_from 0x350f9 (READ to 0x53a79 = data_fd2_current_chapter_text). The two roster-slot byte writes (team=2, char_id) live inside the callee fd2_init_runtime_char_from_base_growth, not in this handler, so writes_globals is empty for this function. Plate left unchanged: it already states dispatch idx 0x2E / ch19 turn 6 / reinforcement spawner / the 3-call sequence / __CHK(0x28) / no params, all consistent with the refined src. comment_verdict=rewrite reflects only the two em-dash -> '--' ASCII fixes; the prose was not otherwise changed. Walkthrough SOT line in the src comment (assets/chapters/chapter_19.md) cross-checked against fd2-knowledge chapter 19 events."
+}

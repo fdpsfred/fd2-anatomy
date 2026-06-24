@@ -163,9 +163,9 @@ out_of_memory:
  * generic summon / chapter-event rising sparkle.
  *
  * Params (cdecl, 3 stack args):
- *   caster_unit_id  — index into runtime_char_array (* 0x50 stride)
- *   initial_height  — circle-band radius on frame 0 (ESI accumulator)
- *   rise_step       — radius increment applied after each frame
+ *   caster_unit_id  -- index into runtime_char_array (* 0x50 stride)
+ *   initial_height  -- circle-band radius on frame 0 (ESI accumulator)
+ *   rise_step       -- radius increment applied after each frame
  *
  * Per frame (0..9):
  *   restore the saved backdrop into the large game-state buffer, draw the
@@ -352,7 +352,7 @@ void fd2_scatter_sprite_around_origin_with_random_offset(
 
 /* ----------------------------------------------------------------
  * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter @ 0x21bd0
- *   (0 callers — ORPHAN / UNREACHABLE)
+ *   (0 callers -- ORPHAN / UNREACHABLE)
  *
  * AoE radial sprite-scatter cinematic with a caster portrait. Implemented in
  * the binary but never invoked by any caller, not present in the spell dispatch
@@ -366,12 +366,12 @@ void fd2_scatter_sprite_around_origin_with_random_offset(
  * each function is emitted as its own self-contained C routine.
  *
  * Params (cdecl, 7 stack args):
- *   origin_x, origin_y       — AoE center pixel coordinates
- *   portrait_idx             — caster portrait_sheet entry index
- *   scatter_range_max        — sprite radial scatter max radius
- *   animation_frame_count    — total animation frames
- *   max_active_sprites       — simultaneous active-sprite cap (<= 50)
- *   ptr_game_state_snapshot  — backdrop source, memmove'd in each frame
+ *   origin_x, origin_y       -- AoE center pixel coordinates
+ *   portrait_idx             -- caster portrait_sheet entry index
+ *   scatter_range_max        -- sprite radial scatter max radius
+ *   animation_frame_count    -- total animation frames
+ *   max_active_sprites       -- simultaneous active-sprite cap (<= 50)
+ *   ptr_game_state_snapshot  -- backdrop source, memmove'd in each frame
  *
  * sprite_mask is the caster portrait's pixel data, located via the portrait
  * sheet's self-relative offset table: *(int*)(sheet + 6 + portrait_idx*4) is
@@ -1041,9 +1041,8 @@ void fd2_cast_screen_wide_spell_with_fade(uint32 epicenter_tile_x,
  *
  * Cdecl, 4 stack params; void return. The binary's __CHK(0x100) stack-probe
  * prologue is compiler-injected and not part of the source. Self-contained
- * epilogue with explicit RET at 0x27FC8 (POP EBP/EDI/ESI/EBX). The plate at
- * 0x52393 previously mis-labelled the string as FDSHAP/FIGANI; it is TAI.DAT
- * (corrected during emit).
+ * epilogue with explicit RET at 0x27FC8 (POP EBP/EDI/ESI/EBX). The string at
+ * 0x52393 is TAI.DAT (the caster base sprite bank), not FDSHAP/FIGANI.
  *
  * KNOWN DECOMPILER NOTE: every CALL-then-EAX-use site here is a genuine
  * return-value capture (resource ptrs, terrain byte, applied damage, SFX
@@ -1587,24 +1586,30 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
 }
 
 /*
- * Shared game-state working buffer pointer (0x53A49).
+ * Shared off-screen render workspace pointer (0x53A49).
  * Holds a malloc(0x25680)=153216-byte block allocated once at startup by
- * main; callers index it as base+byte-offset (e.g. base+0x8088 for the
- * combat panel scratch region). Several cinematic routines temporarily swap
+ * main; it is the primary mode-13h back-buffer that battle/dialog/menu/FX
+ * code composites into before blitting to the visible surface (0xA0504).
+ * Callers index it as base+byte-offset: base+0x8088 is the render-workspace
+ * origin (the back-buffer the scene is drawn into; see
+ * fd2_composite_battle_frame). Several cinematic routines temporarily swap
  * it to a scratch allocation and restore it. Zero (NULL) until the startup
  * allocation fills it in.
  */
 uint32 data_fd2_large_game_state_buffer_ptr;
 
 /*
- * Battle scene tile-graphics cache pointer (0x53A5D).
+ * Battle scene tile-graphics buffer pointer (@ 0x53A5D).
  * void*-semantic runtime buffer pointer (stored as uint32 per the engine's
- * idiom for malloc'd buffer pointers). Points at a tile graphics/attribute
- * cache loaded from a packed DAT resource; callers index it as
- * base + tile_attr*0x240 + 6 (per-tile entry = 0x240 = 576 bytes, 6-byte
- * header). Loaded/reloaded via fd2_load_dat_resource(name, old_ptr, index)
- * which frees the previous buffer and returns the new one. Several routines
- * (e.g. tactical overview zoom) temporarily swap it to a 24px-converted
- * scratch cache and restore it. Zero (NULL) until first load fills it in.
+ * idiom for malloc'd buffer pointers). Points at the per-chapter tile sprite
+ * graphics loaded from FDSHAP.DAT. Two index views of the same buffer:
+ *   - hot render path (fd2_composite_battle_tile_map / terrain-info HUD): an
+ *     offset-table header at base+6, so tile sprite = base + base[6 + id*4].
+ *   - fixed-stride view (earthquake screen-shake compose): per-tile entry is
+ *     0x240 = 576 bytes (24x24) after a 6-byte header, base + id*0x240 + 6.
+ * Loaded/reloaded via fd2_load_dat_resource(name, old_ptr, index) which frees
+ * the previous buffer and returns the new one. Several routines (e.g. tactical
+ * overview zoom) temporarily swap it to a 24px-converted scratch cache and
+ * restore it. Zero (NULL) until first load fills it in.
  */
 uint32 data_fd2_battle_scene_snapshot;

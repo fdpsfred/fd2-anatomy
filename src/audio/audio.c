@@ -13,8 +13,24 @@
 /* ----------------------------------------------------------------
  * fd2_set_bgm_track_with_fade @ 0x25977
  *
- * BGM track manager. Stop (0xFF), change track with fade, or
- * no-op if already playing.
+ * BGM track manager. No-op if track_id already matches the cached
+ * last-set id (data_fd2_audio_bgm_last_set_track_id); otherwise
+ * caches the new id and acts:
+ *   - track_id == 0xFFFFFFFF: stop with a 4s fade-out
+ *     (AIL_set_sequence_volume vol=0, 4000ms) and return.
+ *   - else, only if the MDI driver is present
+ *     (data_fd2_audio_bgm_driver_available_flag != 0): stop any
+ *     current sequence, load FDMUS.DAT[track_id] via
+ *     fd2_load_dat_resource, DPMI-lock it, then init + start.
+ *     Initial volume/fade:
+ *       BGM disabled        -> vol 0,    fade 0   (muted)
+ *       track 0x10 or 0x11  -> vol 0x7F, fade 0   (instant cues)
+ *       other tracks        -> vol 0x7F, fade 2000ms (anchored
+ *                              by a prior vol 0, fade 0)
+ *     Finally set the AIL loop count to loop_count.
+ *
+ * loop_count is passed straight to AIL_set_sequence_loop_count
+ * (0 = loop indefinitely per AIL convention).
  * ---------------------------------------------------------------- */
 void fd2_set_bgm_track_with_fade(uint32 track_id,
                                   uint32 loop_count)
@@ -94,10 +110,15 @@ void fd2_load_status_effect_sfx(void)
 /* ----------------------------------------------------------------
  * fd2_play_and_free_status_effect_sfx @ 0x1d4f6 (5 callers)
  *
- * Companion to fd2_load_status_effect_sfx: play the loaded
- * status-effect SFX bank in kill-all mode (handle == -1 tells
- * fd2_play_sfx_with_handle to stop every currently-playing sample
- * first), then release the bank buffer.
+ * Teardown counterpart to fd2_load_status_effect_sfx: stop the
+ * status-effect SFX and release the bank buffer. Despite the name,
+ * this does NOT start playback -- passing sfx_id == -1 routes
+ * fd2_play_sfx_with_handle to its stop-only branch (it issues
+ * AIL_stop_sample on the shared sample slot and returns before the
+ * playback code). The actual SFX playback for this bank happens
+ * earlier in the cast sequence via fd2_play_spell_palette_flash_with_sfx
+ * (which passes sfx_id 0). After stopping, free() releases the bank
+ * loaded into data_fd2_audio_status_effect_sfx_handle_ptr.
  *
  * Cdecl, void(void). The binary's __CHK(0x10) stack-probe prologue
  * is compiler-injected and not source. The final free() is emitted
@@ -269,7 +290,8 @@ uint32 fd2_load_figani_sfx_bank(uint32 figani_data)
  * fd2_set_bgm_track_with_fade to skip reloading a track that is
  * already playing. Read via MOVZX byte and written via MOV AL
  * (unsigned 8-bit). Static initial value 0xFF marks "no track set
- * yet" (the stop sentinel, since 0xFFFFFFFF requests fade-out). */
+ * yet": it zero-extends to 0x000000FF, so it never matches the
+ * 0xFFFFFFFF fade-out/stop request. */
 uint8 data_fd2_audio_bgm_last_set_track_id = 0xFF;
 
 /* data_fd2_audio_status_effect_sfx_handle_ptr @ 0x53B13

@@ -1,0 +1,40 @@
+{
+  "address": "0002f883",
+  "name_current": "fd2_run_equip_member_menu",
+  "name_final": "fd2_run_equip_member_menu",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name follows fd2_<domain>_<descriptor> convention (fd2_ + run_equip_member_menu) and accurately describes the function: the top-level run-loop for the EQUIP branch of the chapter-intro shop menu. No Ghidra address residue (no hex suffix matching 0x2f883 or any data address). Domain=ui_menu.",
+  "kind": "function",
+  "home": "src/ui_menu/shop.c",
+  "purpose": "Top-level run-loop for the EQUIP MEMBER branch of the chapter-intro shop menu: repeatedly pick a party member, run that member's per-member equip/unequip inventory submenu, then reload the chapter speaker portrait, until Esc.",
+  "logic_summary": "Infinite for(;;) loop. Each iteration: (1) set data_fd2_ui_menu_visible_item_count = data_fd2_shared_menu_party_member_count to present the full roster; (2) call fd2_party_roster_single_select_loop() and capture the full int selection; (3) fd2_close_intro_dialog_with_slide_out() to tear down the roster panel; (4) snapshot data_fd2_dialog_active_portrait_blit_offset (binary loads this after the JZ since it is unused on the Esc path); (5) if selection == -1 (Esc) return; (6) fd2_equip_unequip_inventory_menu(data_fd2_ui_menu_cursor_idx) runs the 8-slot per-member equip UI; (7) restore data_fd2_dialog_active_portrait_blit_offset; (8) reload the speaker portrait sprite from DATO.DAT (path string 0x51a70, 80x80 portrait archive) into data_fd2_portrait_sprite_buffer, indexed by data_fd2_chapter_intro_menu_speaker_portrait_id_table[data_fd2_chapter_intro_menu_cursor_state].",
+  "signature": "void fd2_run_equip_member_menu(void)",
+  "params": [],
+  "returns": { "type": "void", "semantics": "No return value; loops until the player presses Esc on the roster select, then returns to fd2_run_chapter_intro_menu_main." },
+  "reads_globals": [
+    "data_fd2_shared_menu_party_member_count",
+    "data_fd2_dialog_active_portrait_blit_offset",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_portrait_sprite_buffer",
+    "data_fd2_chapter_intro_menu_speaker_portrait_id_table",
+    "data_fd2_chapter_intro_menu_cursor_state",
+    "data_fd2_string_resource_filename_dato_dat_51a70"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_menu_visible_item_count",
+    "data_fd2_dialog_active_portrait_blit_offset",
+    "data_fd2_portrait_sprite_buffer"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly at 0x2f883 verified all comment claims: __CHK(0x14) prologue (compiler-injected, omitted from src); MOV [0x5413f],[0x53bfb] = visible_item_count=party_member_count; CALL 0x2e6b8 (roster select) MOV EBX,EAX CMP EBX,-1 JZ = full int selection captured; the blit-offset snapshot (MOV EBX,[0x53c67]) is physically after the JZ at 0x2f8a7 -- src code orders snapshot before the if for readability, which is equivalence-preserving because saved_blit_offset is unused on the Esc/return path; this ordering is already documented in the src comment (step 3) and is a code-ordering note only, NOT a logic issue. MOVZX EAX,byte ptr [EAX+0x52659] = byte-table portrait id lookup; CALL 0x111ba (load_dat_resource) MOV [0x53a85],EAX = stored straight into portrait buffer. Src comment block (shop.c lines 580-617) is precise, ASCII-clean, and matches the binary; left as-is (keep). Ghidra plate is consistent (same loop/globals/caller), so plate left untouched (none). void(void) -> params=[]. Name keep."
+}

@@ -1,0 +1,56 @@
+{
+  "address": "0001e739",
+  "name_current": "fd2_render_combat_hp_bar_segments",
+  "name_final": "fd2_render_combat_hp_bar_segments",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>: domain=render/combat, descriptor=hp_bar_segments. No address residue. 'segments' is semantic (bar is composed of per-segment sprite blits), not an address suffix. Accurately reflects purpose: draw the segmented HP bar inside a combat VS panel.",
+  "kind": "function",
+  "home": "src/gfx/rndscene.c",
+  "purpose": "Draw the segmented HP bar inside a combat VS panel by blitting a horizontal run of 1-byte-wide sprite segments from the UI/anim sprite sheet, advancing the destination address by one byte per segment.",
+  "logic_summary": "Takes dst_addr, stride, filled_count. If filled_count<=0 (empty bar): blits sprite 0x1D (empty middle) at dst+0..0x44 (69 segments), then falls through to a trailing sprite 0x1E (final right cap) at dst+0x45. If filled_count>0: blits sprite 0x17 (left cap) at dst; sprite 0x18 (filled middle) at dst+1..dst+(filled_count-1); sprite 0x19 (fill right cap) at dst+filled_count. If filled_count>0x45 returns early (exceeds max width, no final cap). Otherwise fills remaining positions filled_count+1..0x45 with sprite 0x1D (empty middle), then falls through to one trailing sprite 0x1E (final right cap). Both terminal paths (empty-bar loop exit and filled-bar empty-middle loop break) share the same trailing 0x1E blit using the last computed seg_addr (asm: shared EAX held across the merge near 0x1E7DF). Bar max width = 0x45 (69) segments.",
+  "signature": "void __cdecl fd2_render_combat_hp_bar_segments(uint32 dst_addr, uint32 stride, uint32 filled_count)",
+  "params": [
+    {
+      "name": "dst_addr",
+      "type": "uint32",
+      "semantics": "Destination framebuffer/back-buffer linear address of the bar's leftmost segment (callers compute it as render base + panel anchor.x + (anchor.y+6)*stride + 7). Advanced by +seg (one byte) per segment to draw the horizontal run.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the destination pixel address; no residue."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Row stride in bytes of the destination buffer (callers pass 0x1c8 = 456). Forwarded unchanged to fd2_blit_sheet_sprite_at_offset for each segment blit.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Standard graphics term, matches use as the per-row byte pitch; no residue."
+    },
+    {
+      "name": "filled_count",
+      "type": "uint32",
+      "semantics": "Number of filled head segments to draw (proportional HP wrapper passes hp_current*0x45/hp_max + 1). <=0 -> render fully empty bar; 1..0x45 -> filled head + empty tail; >0x45 -> filled run only, no final cap.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Precisely describes the count-of-filled-segments role; no residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; output is the sprite blits written to the destination buffer."
+  },
+  "reads_globals": ["data_fd2_ui_anim_sprite_sheet_ptr"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (rndscene.c lines 764-798) and Ghidra plate are both accurate, mutually consistent, and faithfully match the decompilation (control flow, sprite indices 0x17/0x18/0x19/0x1D/0x1E, max width 0x45, shared trailing 0x1E blit). No src edit and no plate change needed. __CHK(0x24,...) is the Watcom stack-frame check intrinsic, not a game global. Only global read is data_fd2_ui_anim_sprite_sheet_ptr (sprite-sheet base pointer); no globals written."
+}

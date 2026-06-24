@@ -1,0 +1,40 @@
+{
+  "address": "000360f1",
+  "name_current": "fd2_chapter_event_handler_58__unref_sentinel",
+  "name_final": "fd2_chapter_event_handler_58__unref_sentinel",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. The _58 suffix is the per-event dispatch-table index (slot @ 0x51CF1; index = (0x51CF1 - table_base 0x51B91)/4 = 0x58), a meaningful domain ID, NOT an address residue (0x58 != self addr 0x360f1 and is not a data address). __unref_sentinel correctly describes the role: an unreferenced no-op placeholder dispatch slot. Consistent with the sibling sentinel handlers 55/56/57/59 in the same file.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Per-event dispatch-table slot 0x58 (table @ 0x51B91): an unreferenced no-op sentinel placeholder that does nothing.",
+  "logic_summary": "7-byte stub: PUSH 4; JMP 0x360DD, which falls into the shared 'CALL __CHK; RET' tail hosted in fd2_chapter_event_handler_55 @ 0x360D8. Net effect is a Watcom __CHK stack-probe (frame size 4) followed by an immediate return -- no state mutation, no display, no dialog. The arg is not read. The only xref is the dispatch-table data pointer at 0x51CF1; no chapter FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut content). The borrowed __CHK;RET tail is a binary size optimisation; the functionally-exact source is an empty body (matches siblings 55/56/57/59).",
+  "signature": "void __cdecl fd2_chapter_event_handler_58__unref_sentinel(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch-table ABI argument (1-arg cdecl per-event handler). Not read by this handler; cast to (void) in source.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches the dispatch-table ABI naming used by the sibling sentinel handlers; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (cdecl). Effect is none beyond the inherited __CHK stack-probe."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "f172eebf0580bb7e618922c0f202faab528f93e4",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "No source change (comment already precise/accurate/ASCII and consistent with sibling sentinels 55/56/57/59). Name and param kept. Ghidra plate is consistent with the refined understanding (same stub, same borrowed tail, same unref/sentinel conclusion), so plate left unchanged. Verified table index: xref to 0x360f1 is the data slot @ 0x51CF1; (0x51CF1-0x51B91)/4 = 0x58. Disassembly confirms PUSH 0x4; JMP 0x000360DD; 0x360DD = CALL 0x36CD7 (__CHK); RET. Staged scope limited to this shard only since chevt2.c is unmodified."
+}

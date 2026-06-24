@@ -1,0 +1,53 @@
+{
+  "address": "0001bbdc",
+  "name_current": "fd2_item_command_menu_dispatch",
+  "name_final": "fd2_item_command_menu_dispatch",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (domain=item/ui_menu, descriptor=command_menu_dispatch). No address residue. Accurately names the function's role: the dispatcher for the 4-way item command popup (Use/Give/Sort-Equip/Drop) opened from the inline action submenu.",
+  "kind": "function",
+  "home": "src/ui_menu/status.c",
+  "purpose": "4-way item command popup (Use / Give / Sort-Equip / Drop) opened when the player picks 'Item' in the inline action submenu during their battle turn; dispatches to the chosen sub-action and reports whether the turn was consumed.",
+  "logic_summary": "Copies the 4-int options template (@0x51F05 {8,9,10,11}) and 4-int state template (@0x53F32 {0,0,0,0}) into locals. If the char has no usable inventory slots, return -1. Pre-disables 'Give' (menu_state[1]=1) when there is no adjacent ally tile (fd2_compute_aoe_targets cursor range 1 kind 3 == 0). Renders the menu, loops fd2_settings_menu_input_step until non-zero, closes it, recomposites, snapshots cursor world pos. On menu cancel (input==-1) return -1. Dispatch on data_fd2_ui_menu_cursor_idx: 0=USE (loop: pick usable slot via modal gate=1; on commit look up item entry, set anim_phase=item[0x12]+2, compute AoE target set (range item[0x10], is_spell item[0xD]==0x17, kind item[0x15]) and wait for target (mode item[0x15]); anim_phase=1, compute apply-AoE (range item[0x12], kind item[0x15]) into final_aoe; if spellbook item[0xD]==0x17 require caster job_id 0x18 Magician with mp_max>=0x14 else target=-1, on success wait mode 6 then stash cursor as teleport dest and pan to caster; if target!=-1 apply use effect, mark acted, return 1; else pan back and re-prompt; modal cancel returns 0). 1=GIVE (pick slot gate=0; compute adjacent-ally AoE into malloc(100), wait mode 3 for recipient, find char under cursor, pan back to origin tile, free buffer; if target chosen add this slot's item to recipient; if recipient full open their modal to pick a swap slot (remove recipient slot + add my item + remove my slot + add swapped item) else just remove my slot; set player_action_result_code=1; always recalc stats, return 0). 2=SORT/EQUIP (fd2_equip_unequip_inventory_menu, return 0). 3=DROP (pick slot gate=0; if confirmed remove it; recalc, return 0).",
+  "signature": "int __cdecl fd2_item_command_menu_dispatch(uint32 char_idx)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index of the acting character into data_fd2_battle_runtime_char_array_ptr. The sole caller fd2_player_inline_action_menu_dispatch passes its own char_idx straight through. Used as the subject of every inventory/modal/stat operation in the body.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Already accurately named char_idx in the src (no param_1 residue, no address suffix); matches usage as the acting character index."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "1 = action committed (turn used; from the USE branch after applying the use effect). 0 = re-prompt the outer inline menu (GIVE/SORT/DROP paths, USE modal cancel). -1 = no usable items (menu not opened) or outer command menu cancelled. Ghidra types the return undefined4 but the sole caller consumes it as int (-1/0/1)."
+  },
+  "reads_globals": [
+    "data_fd2_ui_item_command_menu_template",
+    "data_fd2_ui_item_command_menu_state_template",
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_world_y",
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_battle_teleport_dest_world_x",
+    "data_fd2_battle_teleport_dest_world_y",
+    "data_fd2_battle_player_action_result_code"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Src comment block (status.c lines 594-647) is already comprehensive, accurate, and ASCII-clean: documents purpose, setup, all 4 dispatch branches, return semantics, the __CHK(0x94) stack-probe prologue, and EAX-bug verification notes. Verified against the live decompilation (matches branch-by-branch including the goto recalc_and_exit path that skips player_action_result_code=1 on target-modal cancel). All referenced globals match globals.h live names and the protos.h prototype matches. Ghidra plate is detailed and not contradictory with the refined understanding (its prose uses descriptive address-tagged aliases like current_menu_cursor_idx @0x53C57 / cursor_world_x/y which map to the live data_fd2_* names; not a contradiction), so plate left untouched. No logic concerns found. Pre-existing unrelated modified shards in working tree were left alone; staged scope limited to this shard (src/ui_menu/status.c not modified since comment kept)."
+}

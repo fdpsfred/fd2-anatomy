@@ -5,8 +5,10 @@
 #include "globals.h"
 
 /* 0x50004  " Out of Memory !!!\n" + NUL (20 bytes).
- * malloc-failure message printed by fd2_load_save_and_init_engine before
- * exit(1). Read-only; consumed as a char* by printf. */
+ * Message printed by fd2_load_save_and_init_engine on the save-buffer
+ * malloc(0x59CB) failure path before exit(1) (BIOS int 10h text-mode reset
+ * then printf). Read-only; consumed as a char* by printf. Distinct literal
+ * copy from the sibling OOM strings at 0x50023/0x50037 in the same function. */
 const char data_fd2_string_save_load_oom_msg_load_pbuf_50004[20] = {
     0x20, 0x4f, 0x75, 0x74, 0x20, 0x6f, 0x66, 0x20, 0x4d, 0x65,
     0x6d, 0x6f, 0x72, 0x79, 0x20, 0x21, 0x21, 0x21, 0x0a, 0x00
@@ -14,8 +16,10 @@ const char data_fd2_string_save_load_oom_msg_load_pbuf_50004[20] = {
 
 /* 0x50023  " Out of Memory !!!\n" + NUL (20 bytes).
  * Distinct literal copy used on the tile_event_data_table malloc(0x8a3)
- * failure path inside fd2_load_save_and_init_engine, printed before exit(1).
- * Read-only; consumed as a char* by printf. */
+ * failure path inside fd2_load_save_and_init_engine, printed (after a BIOS
+ * int 10h text-mode reset) before exit(1). Read-only; consumed as a char* by
+ * printf. Sibling OOM copies in the same function: 0x50004 (pBuf malloc),
+ * 0x50037 (runtime_char_array malloc). */
 const char data_fd2_string_save_load_oom_msg_tile_event_50023[20] = {
     0x20, 0x4f, 0x75, 0x74, 0x20, 0x6f, 0x66, 0x20, 0x4d, 0x65,
     0x6d, 0x6f, 0x72, 0x79, 0x20, 0x21, 0x21, 0x21, 0x0a, 0x00
@@ -78,13 +82,16 @@ const char data_fd2_string_resource_filename_fdother_dat[12] = {
 
 /* 0x51A59  "FDFIELD.DAT" + NUL (12 bytes).
  * Resource filename passed as the first argument to fd2_load_dat_resource to
- * open the per-chapter field/battle archive FDFIELD.DAT. Readers:
- * fd2_load_save_and_init_engine and fd2_load_chapter_battle_data load three
- * indices per chapter (chapter*3+2 -> portrait load buffer, chapter*3+1 ->
- * tile-event data table, chapter*3 -> battle tile map), plus
- * fd2_load_chapter_portraits_and_dump_tmp and fd2_chapter_23_end. The address
- * is taken (array decays) and consumed as a char* path; never written.
- * Immediately follows the "FDOTHER.DAT" string at 0x51A4D. */
+ * open the per-chapter field/battle archive FDFIELD.DAT, indexed by chapter:
+ * chapter*3 -> battle tile map, chapter*3+1 -> tile-event data table,
+ * chapter*3+2 -> portrait load buffer. Readers: fd2_load_chapter_battle_data
+ * loads all three indices; fd2_load_save_and_init_engine loads chapter*3 and
+ * chapter*3+2 (it restores the tile-event table from FD2.SAV instead);
+ * fd2_load_chapter_portraits_and_dump_tmp re-loads chapter*3+2; and
+ * fd2_chapter_23_end loads the fixed index 0x45 for the chapter's second
+ * battlefield. The address is taken (array decays) and consumed as a char*
+ * path; never written. Immediately follows the "FDOTHER.DAT" string at
+ * 0x51A4D. */
 const char data_fd2_string_resource_filename_fdfield_dat_51a59[12] = {
     0x46, 0x44, 0x46, 0x49, 0x45, 0x4c, 0x44, 0x2e, 0x44, 0x41,
     0x54, 0x00
@@ -177,15 +184,20 @@ const char data_fd2_string_resource_filename_figani_dat_52388[11] = {
 
 /* 0x52393  "TAI.DAT" + NUL (8 bytes).
  * Resource filename passed as the first argument to fd2_load_dat_resource to
- * open the caster character-base sprite archive TAI.DAT. The combat/spell/
- * skill cinematic routines (fd2_play_full_combat_cinematic,
- * fd2_play_spell_cast_sequence, fd2_execute_special_attack_skill,
- * fd2_play_figani_char_intro_animation, fd2_execute_summon_spell_cast,
- * fd2_play_final_chapter_30_ending) load the caster base sprite (indexed by the
- * tile attribute byte at the caster position) into the cast-pose resource
- * buffer. The address is taken (PUSH 0x52393 / array decays) and consumed as a
- * char* path; never written. Immediately follows the "FIGANI.DAT" string at
- * 0x52388. */
+ * open the terrain-overlay sprite archive TAI.DAT (the "Terrain AI" archive;
+ * 56 entries, loaded as a pair with BG.DAT and sharing its placeholder entry
+ * constant -- see resource_info/tai.md). The combat/spell/skill cinematic
+ * routines (fd2_play_full_combat_cinematic, fd2_play_spell_cast_sequence,
+ * fd2_execute_special_attack_skill, fd2_execute_summon_spell_cast,
+ * fd2_play_final_chapter_30_ending) load the entry by the tile-attribute
+ * (terrain) byte read at the caster position -- the same index used for the
+ * paired BG.DAT load -- and hand the overlay to fd2_play_char_intro_zoom_anim /
+ * fd2_play_figani_animation_loop as an extra sprite layer. The lone exception
+ * is fd2_play_figani_char_intro_animation, which loads the fixed index 3 (the
+ * character-intro name-banner sprite). The caster's own pose sprite is NOT from
+ * here: that comes from FIGANI.DAT[portrait_id*3]. The address is taken
+ * (PUSH 0x52393 / array decays) and consumed as a char* path; never written.
+ * Immediately follows the "FIGANI.DAT" string at 0x52388. */
 const char data_fd2_string_resource_filename_tai_dat[8] = {
     0x54, 0x41, 0x49, 0x2e, 0x44, 0x41, 0x54, 0x00
 };

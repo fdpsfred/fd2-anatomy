@@ -1,0 +1,44 @@
+{
+  "address": "00034377",
+  "name_current": "fd2_chapter_event_handler_03__ch1_dialog_with_state",
+  "name_final": "fd2_chapter_event_handler_03__ch1_dialog_with_state",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor> convention. Domain = chapter_event_handler; descriptor 03 is the dispatch index (idx 0x03 of the per-event handler table at 0x51B91 -- verified: table entry at 0x51b9d = 0x00034377 LE), a legitimate domain ID, NOT an address residue. The __ch1_dialog_with_state suffix accurately reflects the role: a chapter-1 turn-event beat that shows a dialog while bracketing a portrait reload with data_fd2_chapter_init_phase_flag (the 'with_state' part). No hex address tail.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 1 turn-event slot 3 (turn 6 / phase 1): a mid-turn dialog beat that swaps the portrait set to index 6 -- bracketed as an init-phase load -- recomposites the battle frame, plays cutscene event 6, resets all char facing, flushes the keyboard, and shows dialog page 6.",
+  "logic_summary": "Straight-line, no-branch sequence (cyclomatic complexity 1): fd2_pan_cursor_and_window(0xB,0xB); set data_fd2_chapter_init_phase_flag=1; fd2_load_chapter_portraits_and_dump_tmp(6); set data_fd2_chapter_init_phase_flag=0; fd2_composite_battle_frame(1); fd2_cutscene_event_trigger(6); fd2_clear_all_chars_facing(); fd2_clear_keyboard_buffer(); fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1). No RNG, no numeric computation, no CALL-return value used. The init_phase_flag is set to 1 before the portrait reload and back to 0 after so the reload is handled as an 'init phase' load.",
+  "signature": "void __cdecl fd2_chapter_event_handler_03__ch1_dialog_with_state(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "The uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91. This handler ignores it ((void)event_arg in src; body never reads it).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately describes the dispatch arg; no address residue. The whole table is uniform 1-arg cdecl and this turn-event handler does not consume the arg, so the generic 'event_arg' is the correct name (matches the sibling handlers in this file)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. fd2_display_dialog_scene's uint32 return is discarded."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_init_phase_flag"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "4ccf13d10e096213ba901f57fe0c175159d1dcc7",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Src comment (chevt1.c lines 253-291) is already accurate, precise, ASCII, and free of process-narrative; matches the decompilation exactly (camera pan, init-phase-bracketed portrait swap to 6, composite frame, cutscene 6, facing reset, kbd flush, dialog page 6). Ghidra plate is consistent with my understanding (more detailed re: the in-binary JMP-into-shared-tail at 0x3430D borrowed from handler_01, which is an allowed plate-only layout note) and does not contradict src, so plate left untouched. Dispatch idx confirmed via table read at 0x51b9d = 0x00034377 LE; next entry 0x000343e2 = handler_04. No logic concerns: function is a verbatim straight-line beat."
+}

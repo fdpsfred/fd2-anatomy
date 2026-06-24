@@ -1,0 +1,56 @@
+{
+  "address": "0004e916",
+  "name_current": "fd2_decode_dialog_pixel_byte",
+  "name_final": "fd2_decode_dialog_pixel_byte",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (game function called by the dialog/portrait sprite blitters). Name accurately reflects behavior: it decodes one pixel-byte at a time from the dialog-portrait encoded sprite stream, returning the next pixel plus remaining run length. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "Per-pixel state-machine decoder for the dialog-portrait sprite encoded byte stream; returns the next pixel together with the remaining run length packed into one 16-bit value.",
+  "logic_summary": "run_remain = state>>8. If run_remain != 0, still inside a run: return ((run_remain-1)<<8)|pixel with no stream read. Otherwise read one stream byte b (advancing the cursor): if b<=0xC0 it is a direct pixel value, return (uint16)b (run_remain=0); if b>=0xC1 it is a run marker, read the following byte as the pixel value and return ((b-0xC1)<<8)|next, where (b-0xC1) is the count of additional pixels that reuse this value. Binary holds the stream cursor in ESI (LODSB) and passes state in/out via AX; the C port models the cursor as an in/out uint8** advanced past every byte consumed.",
+  "signature": "uint16 fd2_decode_dialog_pixel_byte(uint16 state, uint8 **stream)",
+  "params": [
+    {
+      "name": "state",
+      "type": "uint16",
+      "semantics": "Packed (run_remain << 8) | pixel returned by the previous call (AX in the binary); caller passes 0 on the first call of a sprite. High byte = pixels still remaining in the current run, low byte = the pixel value being repeated.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the packed in/out decoder state; no address residue."
+    },
+    {
+      "name": "stream",
+      "type": "uint8 **",
+      "semantics": "In/out pointer to the stream cursor, modeling the binary's ESI register that persists across chained calls; each byte consumed advances *stream by one (LODSB). 0..2 bytes are read per call.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the stream cursor; the pointer-to-pointer form correctly captures the persistent-ESI side effect. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "uint16",
+    "semantics": "Packed (run_remain << 8) | pixel for the pixel to write now. High byte = how many MORE pixels will reuse this value after the one being returned; low byte = the pixel value to write. Caller writes the low byte per destination pixel and feeds the whole value back as the next state."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "The 'Stream encoding' block (and the Ghidra plate) overstated the run length: it claimed bytes 0xC1..0xFF start a run of '(b - 0xC1) + 1 extra pixels' / '(b - 0xC1) + 2 pixels total', and the plate claimed 'Run length = (byte + 0x3F) + 1 = 257..319 pixels'. The binary does SUB AH,0xC1 on the 8-bit AH register, so run_remain = (b - 0xC1) in 0..0x3E = the number of ADDITIONAL pixels; total painted = (b - 0xC1) + 1 = 1..63 pixels. The C code itself is correct (faithful to SUB AH,0xC1); only the prose was inaccurate.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [
+    {
+      "category": "documentation",
+      "severity": "low",
+      "title": "Run-length prose was off by one and used a byte-overflowing expression (now corrected)",
+      "description": "Both the src comment and the Ghidra plate previously described the 0xC1..0xFF run marker as producing '(b - 0xC1) + 2 pixels total' / 'Run length = (byte + 0x3F) + 1 = 257..319 pixels'. The binary computes run_remain via SUB AH,0xC1 on an 8-bit register, giving (b - 0xC1) in 0..0x3E = the number of ADDITIONAL pixels beyond the one painted at marker time. Total pixels painted of that value = (b - 0xC1) + 1 = 1..63. This was a comment/documentation inaccuracy only; the C statement '((b - 0xC1) << 8) | next' is correct and was not changed. Both the src comment and the Ghidra plate have been corrected during this refine.",
+      "evidence": "Disassembly @ 0x4E925-0x4E92B: MOV AH,AL; SUB AH,0xC1; LODSB ESI; RET (AH is 8-bit, result 0..0x3E for b=0xC1..0xFF). State-machine trace: marker call writes 1 pixel and sets run_remain=(b-0xC1); each subsequent call with run_remain!=0 writes 1 pixel and decrements, giving (b-0xC1) further writes; total = (b-0xC1)+1. For b=0xC1 -> run_remain=0 -> exactly 1 pixel."
+    }
+  ],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "98c3c222571a021900aef96c745e1f7a43e72c9c",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly (13 insns, cyclomatic 1, no stack frame) fully corroborates the C body; semantics verified against all 3 callers (fd2_blit_sprite_with_decoded_pixels @ 0x4E85B, fd2_dialog_sprite_blit_normal @ 0x4E8AF, fd2_dialog_sprite_blit_mirrored @ 0x4E8E1) and the src callers (blitspr.c lines 1520/1606/1690 use 'state = fd2_decode_dialog_pixel_byte(state, &cursor)', matching the uint8** cursor model). Name and both params verdict=keep; no logic changed. Only edit to game logic source was the run-length prose in the function's comment block; Ghidra plate re-synced to match."
+}

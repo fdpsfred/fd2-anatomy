@@ -1,0 +1,64 @@
+{
+  "address": "00018409",
+  "name_current": "fd2_play_status_screen_outro_step",
+  "name_final": "fd2_render_status_screen_slide_frame",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_render_status_screen_slide_frame",
+  "name_reason": "Current name says 'outro' but the function is direction-agnostic and is driven in BOTH directions by callers. Hard evidence: fd2_spell_selection_menu_main @ 0x1cff0 calls it twice -- a slide-IN loop 'for (n=0xb; -1<n; n--)' (frame 0xB->0, panels slide in) AND a slide-OUT loop 'for (i=0; i<0xc; i++)' (frame 0->0xB, panels slide out). The body just maps frame_idx 0..0xB to panel positions; the caller's iteration order chooses intro vs outro. The plate already documents 'each open/close screen drives this both intro 0xB->0 and outro 0->0xB', confirming 'outro' is a misnomer. Proposed name reflects 'render one composite frame of the status/menu panel slide' and matches fd2_<domain>_<descriptor> + the file's sibling fd2_slide_panel_*_step naming. No address residue in current name; this is a semantic-accuracy fix, not address cleanup.",
+  "kind": "function",
+  "home": "src/anim/aniwalk.c",
+  "purpose": "Render one frame (frame_idx 0..0xB) of the 12-frame status/menu-panel slide animation, compositing left/right/middle panels at frame-dependent offsets onto a workspace and flushing to mode-13h VRAM. Used bidirectionally: callers drive frame 0xB->0 for slide-in, 0->0xB for slide-out.",
+  "logic_summary": "1) memmove(workspace, snapshot_b, 64000) resets workspace to the clean background snapshot. 2) Left panel: x_left = 5 while frame<6, else 5-(frame*0x10-0x60) (slides left as frame increases); always painted via fd2_paint_status_panel_layer_left. 3) Right panel: if 3<=frame<9 y_right=7-(frame*0x10-0x30) (slides up); elif frame<=2 y_right=7; else (frame>=9) skip drawing; painted via fd2_paint_status_panel_layer_right. 4) Middle panel: only when frame<6, fd2_slide_panel_up_partial_step(frame*0x10+0x5E,...). 5) memmove(0xA0000, workspace, 64000) composites the workspace to VRAM. Verified equivalent to the disassembly @ 0x18409 (EBX=frame_idx, ESI=workspace, [ESP+0x14]=src_buffer, [ESP+0x10]=snapshot_b).",
+  "signature": "void __cdecl fd2_play_status_screen_outro_step(uint32 frame_idx, uint32 workspace, uint32 src_buffer, int snapshot_b)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Animation frame index 0..0xB (ordinal 0, Stack[0x4]). Drives all panel offset math (CMP EBX,0x6/0x9/0x2; SHL EBX,4). src C source already names it 'frame_idx'.",
+      "verdict": "rename",
+      "proposed": "frame_idx",
+      "reason": "Ghidra auto-name param_1 is a generic placeholder; the real role is the frame index. src already uses 'frame_idx'. Stage 2 should rename live Ghidra param_1 -> frame_idx."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Destination/working composite buffer pointer (ordinal 1, Stack[0x8] = ESI). memmove destination for the background reset and the VRAM flush source; passed as the middle arg to both paint helpers and the slide helper. Maps to data_fd2_ui_slide_anim_accumulator_buf_ptr at call sites.",
+      "verdict": "rename",
+      "proposed": "workspace",
+      "reason": "Generic placeholder name; real role is the working composite buffer. src already uses 'workspace'. Stage 2 rename param_2 -> workspace."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Source panel-pixel buffer pointer (ordinal 2, Stack[0xc]). Passed as the last arg to fd2_paint_status_panel_layer_left/right and fd2_slide_panel_up_partial_step (read-only panel art source). Maps to data_fd2_ui_slide_composed_target_buf_ptr at call sites.",
+      "verdict": "rename",
+      "proposed": "src_buffer",
+      "reason": "Generic placeholder name; real role is the panel-art source buffer. src already uses 'src_buffer'. Stage 2 rename param_3 -> src_buffer."
+    },
+    {
+      "name": "frame_idx",
+      "type": "int",
+      "semantics": "Clean-background snapshot buffer pointer (ordinal 3, Stack[0x10]). Used ONLY as the memmove source that resets workspace at step 1. Maps to data_fd2_ui_slide_bg_snapshot_buf_ptr at call sites. NOTE: live Ghidra has this MISNAMED as 'frame_idx' -- it is the snapshot source, not the frame index (the real frame index is ordinal 0).",
+      "verdict": "rename",
+      "proposed": "snapshot_b",
+      "reason": "Live Ghidra name 'frame_idx' is actively wrong/misleading for this param (ordinal 3 is the background snapshot pointer). src already correctly names it 'snapshot_b'. Stage 2 rename live ordinal-3 frame_idx -> snapshot_b."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is compositing one slide frame into the workspace and onto mode-13h VRAM at 0xA0000."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "None. The existing src comment block (header @ aniwalk.c lines 629-652) is accurate and precise: it documents frame_idx 0..0xB, both intro (0xB->0) and outro (0->0xB) directions, the 5-step body, and the caller list. Logic, signature, and param names in src all match the binary.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src body is logic-equivalent to disasm @ 0x18409 (manually traced stack: arg1=frame_idx via EBX, arg2=workspace via ESI, arg3=src_buffer via [ESP+0x14], arg4=snapshot_b via [ESP+0x10]; first memmove dest=workspace src=snapshot_b). No src edit needed (comment kept, no logic change allowed/needed). No plate edit (plate consistent with src, already documents bidirectional use). Only deliverable is the name-rename proposal (function + 4 params), to be applied in Stage 2. All comment-referenced helper names (fd2_paint_status_panel_layer_left/right, fd2_slide_panel_up_partial_step) verified live and accurate."
+}

@@ -1,0 +1,45 @@
+{
+  "address": "00034ccc",
+  "name_current": "fd2_chapter_event_handler_25__unref_major_cinematic",
+  "name_final": "fd2_chapter_event_handler_25__unref_major_cinematic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>. domain=chapter_event_handler; '25' is the per-event handler-table index 0x25 at 0x51B91 (a meaningful dispatch/event-slot ID, same scheme as all sibling handlers 00..2E in this file), not an address remnant; '__unref' = no FDFIELD turn-event/tile-step hook references this slot (xref-to is only the table data slot at 0x51c25, 0 direct callers); 'major_cinematic' = its category (2-stage cutscene). No hex address suffix. Name accurately reflects purpose and internal logic.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Unreferenced (cut-content/non-chapter) major endgame cinematic event handler, dispatch slot 0x25: show dialog page 1 then play a 2-stage portrait+cutscene cinematic and flip battle-animation phase to 1.",
+  "logic_summary": "Straight-line, no branch/RNG/numeric-compute, no CALL-return used. fd2_display_dialog_scene(current_chapter_text, page=1, fixed dialog geometry). Stage A: fd2_pan_cursor_and_window(0xF,0x22); chapter_init_phase_flag=1; fd2_load_chapter_portraits_and_dump_tmp(3); chapter_init_phase_flag=0; fd2_cutscene_event_trigger(0x2B); fd2_clear_all_chars_facing(). Stage B: fd2_pan_cursor_and_window(0,0x1A); chapter_init_phase_flag=1; fd2_load_chapter_portraits_and_dump_tmp(4); chapter_init_phase_flag=0; fd2_cutscene_event_trigger(0x2C); fd2_clear_all_chars_facing(). Closes with battle_anim_phase=1. Each portrait load is bracketed by the init-phase flag. __CHK(0x28) prologue; EBX untouched; final store reached via tail-JMP 0x34D63 -> 0x35C18 (MOV [0x51A83],1; RET) shared epilogue tail, inlined in src for Layer-2 equivalence.",
+  "signature": "void __cdecl fd2_chapter_event_handler_25__unref_major_cinematic(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument per the per-event handler table at 0x51B91; body never reads it (cast to void). Same arg convention as every sibling handler in this file.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches the file-wide convention for this dispatch family, no address remnant; param is unread so a generic-but-meaningful 'event_arg' is the correct name."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text (ptr @ 0x53a79, passed to dialog scene)"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_init_phase_flag (@ 0x53afa, set 1 then 0 around each of the two portrait loads)",
+    "data_fd2_battle_anim_phase (@ 0x51a83, set to 1 at end via shared tail at 0x35C18)"
+  ],
+  "comment_original_issue": "src comment block was accurate and precise but used non-ASCII em-dash (U+2014) on 5 lines, violating the code-ASCII-only rule.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "4097b5802d897a03d2929f53c4550651f6bf3547",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly @ 0x34ccc confirms src comment exactly: PUSH 0x28;CALL __CHK; no PUSH/POP EBX; sequence dialog page1 -> pan(0xF,0x22)/initflag/portrait3/cutscene0x2B/clearfacing -> pan(0,0x1A)/initflag/portrait4/cutscene0x2C/clearfacing -> JMP 0x35C18 (MOV [0x51A83],1;RET). Globals match named symbols (0x53a79 chapter text ptr, 0x53afa init-phase flag, 0x51a83 battle_anim_phase). Only edit made: 5 em-dash -> '--' within this function's own comment block; no logic/type/signature/symbol-name change. Ghidra plate is accurate and consistent with refined understanding (describes same 2-stage cinematic), so left unchanged."
+}

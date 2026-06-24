@@ -1,0 +1,52 @@
+{
+  "address": "0x0001b14b",
+  "name_current": "fd2_slide_panel_step_bottom_small",
+  "name_final": "fd2_slide_panel_step_bottom_small",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; accurately describes the bottom narrow strip (0x3F=63 bytes wide, 0xF=15 rows) slide-step, parallel to sibling fd2_slide_panel_step_bottom_main (the wide bottom panel). No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/anim/aniwalk.c",
+  "purpose": "Render one frame of the Party Status Overview screen's bottom narrow strip sliding up from below into its settled position at y=0xAC.",
+  "logic_summary": "row_count starts 0xF. Frames < 8 return early (other panels still entering; this strip is the last). For frame >= 0xD the strip is settled at dst_y = 0xAC. For frames 8..0xC, y_shift = (4 - (frame-8))*4 (frame 8=16,9=12,0xA=8,0xB=4,0xC=0) and dst_y = y_shift + 0xAC, descending toward 0xAC by 4 rows/frame; if dst_y+0xF > 200 (bottom-edge overrun) row_count = dst_y - 200 (frame 8 -> dst_y=188 -> row_count=-12, so nothing drawn that frame). Source row 0 = src_buffer + 0xD781; dst row 0 offset = dst_y*0x140 + 0x81. Loop row 0..row_count: memmove(data_fd2_large_game_state_buffer_ptr + dst_off, src_row_ptr, 0x3F); both pointers advance by 0x140 (320, screen stride) per row.",
+  "signature": "void __cdecl fd2_slide_panel_step_bottom_small(uint32 src_buffer, uint32 frame_idx)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "Source panel content buffer base (the malloc'd 64000-byte panel_buf populated by fd2_render_party_status_overview_content). Row 0 of the bottom narrow strip is read from src_buffer + 0xD781.",
+      "verdict": "rename",
+      "proposed": "src_buffer",
+      "reason": "Ghidra live name param_1 is a generic placeholder that does not reflect purpose; src declaration already uses src_buffer (matches sibling slide-step functions). Stage 2 should rename the Ghidra param to src_buffer."
+    },
+    {
+      "name": "param_2",
+      "type": "uint32",
+      "semantics": "Slide animation frame index, 0..0xB. Caller drives it 0->0xB (intro slide-in) and 0xB->0 (outro slide-out). Selects skip (<8) / sliding (8..0xC) / settled (>=0xD).",
+      "verdict": "rename",
+      "proposed": "frame_idx",
+      "reason": "Ghidra live name param_2 is a generic placeholder; src declaration already uses frame_idx (matches sibling slide-step functions). Stage 2 should rename the Ghidra param to frame_idx."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; writes directly into the data_fd2_large_game_state_buffer_ptr workspace."
+  },
+  "reads_globals": [
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "comment_original_issue": "Original src comment was a single terse one-liner ('Bottom narrow strip slide-in from below (0x3F-wide, 0xF rows).') lacking the frame-range / clipping / settled-position / caller documentation present on the sibling slide-step functions (bottom_main, top_small).",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "6008d936edc3d8b37fb1e1ea78deff4ae90aaf8b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src signature already uses good param names (src_buffer, frame_idx); rename verdicts apply to the Ghidra live params (param_1/param_2) for Stage 2. Plate is detailed, accurate, and semantically consistent with the refined src comment, so left untouched. The reads/writes of data_fd2_large_game_state_buffer_ptr are via base+offset; the actual pixel source is the src_buffer parameter (not a global). __CHK(0x20,...) prologue is the compiler-injected stack probe, not source logic. Caller (sole): fd2_open_party_status_overview_screen @ 0x1b1e7, 2 call sites (intro 0x1b2c8, outro 0x1b3c9)."
+}

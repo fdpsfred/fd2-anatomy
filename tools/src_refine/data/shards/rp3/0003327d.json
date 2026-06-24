@@ -1,0 +1,37 @@
+{
+  "address": "0003327d",
+  "name_current": "fd2_chapter_09_init",
+  "name_final": "fd2_chapter_09_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor> convention: domain=chapter, descriptor=09_init. The '09' is a meaningful chapter ID (chapters 01-30 per game domain), not an address residue (function address is 0x3327d; '09' matches no part of it). Name accurately reflects the verified body: the chapter-9 init/prologue handler dispatched from data_fd2_chapter_init_handler_table.",
+  "kind": "function",
+  "home": "src/field/chinit.c",
+  "purpose": "Chapter 9 (騎士的抉擇) init/prologue handler: turns all 11 on-field units to face north, plays two dialog pages bracketing one cutscene (event 0x23), and pans the camera, before handing the chapter off to the player.",
+  "logic_summary": "After the Watcom __CHK(0x2C) frame probe, calls fd2_init_battle_state_for_chapter(). Then a loop i=0..10 (CMP EDX,0xB / JL) writes byte 2 to each runtime_char element at offset +0x03 (= sprite_state[1], the facing field), computing the element address as base[0x53A45] + i*0x50 + 3 (i*0x50 via SHL EAX,2 -> LEA EBX,[EDX+EAX] -> SHL EBX,4), i.e. all 11 units face north (2). Then fd2_pan_cursor_and_window(6,0); fd2_display_dialog_scene(page 0); data_fd2_battle_anim_phase=0; fd2_cutscene_event_trigger(0x23); fd2_display_dialog_scene(page 1) (no anim_phase reset on this tail page); fd2_pan_cursor_to_char(0); fd2_clear_all_chars_facing(). Body is fully self-contained (POP EBX; RET) with no tail-JMP into another chapter's epilogue and no shared alt-entry of its own.",
+  "signature": "void __cdecl fd2_chapter_09_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; pure side-effect orchestrator (writes runtime_char facing fields + global data_fd2_battle_anim_phase, drives camera/dialog/cutscene subsystems)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (base ptr @0x53A45 to runtime char array; iterated for the facing writes)",
+    "data_fd2_current_chapter_text (@0x53A79; passed as the text-set pointer to both fd2_display_dialog_scene calls)"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr[0..10].sprite_state[1] (facing field, struct +0x03; set to 2 = north for all 11 units)",
+    "data_fd2_battle_anim_phase (@0x51A83; reset to 0 after dialog page 0)"
+  ],
+  "comment_original_issue": "src comment block (chinit.c lines 558-587) is already accurate, precise, and matches the verified disassembly (loop offset +0x03, 11 units facing north=2, dialog/cutscene sequence, fully self-contained body, no tail-JMP). No change needed.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "531aa9a166eb6100d38d6842e4cbf2ff54660c9a",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Dispatch table xref: handler-table slot @0x51D91 holds this function address (data_fd2_chapter_init_handler_table; 0 direct callers, dispatched). Plate updated only to (a) correct stale struct field name pSprite_state -> sprite_state[1] (current struct field per src/include/types.h: sprite_state[3] @+0x02, [1]=facing) and (b) align body summary with the refined, more precise src comment (added +0x03 offset note + 'fully self-contained'). Verified loop element address (base + i*0x50 + 3), 11 iterations, and the facing=2 (north) write against disassembly @0x3327D. No rename performed (name compliant; per Stage-2 rule no symbol/param rename applied here anyway). src/field/chinit.c not edited (comment kept)."
+}

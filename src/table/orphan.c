@@ -12,14 +12,18 @@
 /* ----------------------------------------------------------------
  * data_fd2_orphan_table_60181 @ 0x60181  (299 bytes)
  *
- * Read-only table of packed 3-byte records (all field values 0x00..0x3F).
- * Sole accessor fd2_get_orphan_table_60181_entry returns
+ * Read-only table of packed 3-byte records; every byte is a 6-bit value
+ * (0x00..0x3F). Sole accessor fd2_get_orphan_table_60181_entry returns
  * (data_fd2_orphan_table_60181 + idx * 3): a raw byte pointer to the idx-th
  * 3-byte record, so element type is uint8 and the stride is 3. The accessor
- * has 0 static callers (orphan); the table size is fixed by the .object3
- * layout -- it spans from 0x60181 up to data_fd2_battle_item_effect_table at
- * 0x602AC, i.e. 299 bytes (98 full 3-byte records 0x60181..0x602A9 plus a
- * 2-byte tail at 0x602AA..0x602AB). No writers; emitted as const.
+ * has 0 static callers (orphan -- reached, if ever, only via indirect/
+ * function-pointer dispatch). Table size is fixed by the .object3 layout: it
+ * runs from 0x60181 up to data_fd2_battle_item_effect_table at 0x602AC, i.e.
+ * 299 bytes = 99 full 3-byte records (indices 0..98, 0x60181..0x602A9) plus a
+ * 2-byte tail (0x602AA..0x602AB). In FD2.LE the array is immediately preceded
+ * by a 4-byte zero pad at 0x6017D..0x60180 that nothing references; it is not
+ * emitted here because the accessor indexes only from the 0x60181 base. No
+ * game-side writers; emitted as const.
  * ---------------------------------------------------------------- */
 const uint8 data_fd2_orphan_table_60181[299] = {
     0x01, 0x2D, 0x29, 0x0B, 0x12, 0x27, 0x15, 0x0C, 0x1B, 0x01, 0x21, 0x18,

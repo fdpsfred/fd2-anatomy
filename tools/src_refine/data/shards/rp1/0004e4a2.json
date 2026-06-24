@@ -1,0 +1,40 @@
+{
+  "address": "0004e4a2",
+  "name_current": "fd2_get_spell_learning_entry",
+  "name_final": "fd2_get_spell_learning_entry",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; 'get_spell_learning_entry' accurately reflects returning a pointer into the spell-learning table. No Ghidra address residue. Confirmed by body (idx*0xC + 0x626B3) and sole caller fd2_process_xp_and_level_up_for_char which iterates 6 (req_level, spell_id) pairs of the returned entry.",
+  "kind": "function",
+  "home": "src/table/table.c",
+  "purpose": "Leaf accessor returning a pointer to the idx-th entry of the spell-learning table (12-byte stride, base 0x626B3).",
+  "logic_summary": "EBP-framed leaf. EAX = idx*0xC (stride 12) + 0x626B3 (table base); returns the byte pointer. No side effects, no global writes. Each 12-byte entry holds 6 pairs of (required_level, spell_id) bytes; the caller compares required_level against the character's current level to decide which spell to grant on level-up.",
+  "signature": "undefined * __cdecl fd2_get_spell_learning_entry(int idx)",
+  "params": [
+    {
+      "name": "idx",
+      "type": "int",
+      "semantics": "Index into the spell-learning table. Caller passes growth_entry[10] (the bSpell_learning_idx byte at offset 10 of the 11-byte character_growth_table entry); 0xFF means 'no spell list' and the caller skips this call.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Genuinely an array index; matches the established naming of all sibling accessors in table.c (e.g. fd2_get_enemy_data_entry(int idx)). No address residue, accurate."
+    }
+  ],
+  "returns": {
+    "type": "undefined * (uint8 *)",
+    "semantics": "Pointer to spell_learning_table[idx] = base 0x626B3 + idx*12. Points to a 12-byte entry of 6 (level, spell_id) byte pairs."
+  },
+  "reads_globals": ["data_fd2_battle_spell_learning_table (base @ 0x626B3, read as table base address only)"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (table.c lines 80-89) is already concise and correct (purpose + address + assembly formula EAX = idx*0xC + 0x626B3); left unchanged. Ghidra plate is more detailed but consistent (not stale/contradictory); left unchanged. KB confirms spell_learning_entry is 12 bytes = 6 pairs of (level, spell_id); guide records base 0x564B3 vs this build's 0x626B3 = version offset drift, stride 12 stable. No edit made to table.c, so commit stages only the shard file."
+}

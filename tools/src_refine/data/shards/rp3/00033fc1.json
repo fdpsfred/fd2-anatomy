@@ -1,0 +1,48 @@
+{
+  "address": "00033fc1",
+  "name_current": "fd2_fill_palette_blink_pattern_6byte",
+  "name_final": "fd2_fill_palette_blink_pattern_6byte",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Already compliant: fd2_ game prefix + descriptor 'fill_palette_blink_pattern' accurately describes the action (fills a caller buffer with a 6-entry palette-index blink pattern). The '6byte' suffix is a structural dimension (the loop writes exactly 6 contiguous bytes, i<6), not a Ghidra address residue -- 0x33fc1 bears no relation to 6, and the value is meaningful domain semantics, so it is preserved.",
+  "kind": "function",
+  "home": "src/gfx/palette.c",
+  "purpose": "Fills a 6-byte caller buffer with a contiguous, anchor-based palette-index sequence used for double-buffered blink/highlight effects.",
+  "logic_summary": "base = input_index & 0xF8 (floor to a multiple of 8). bump = (input_index % 8 > 3) ? 2 : 0. for i in 0..5: out[i] = (uint8)(base + bump + i). The +2 bump shifts the anchor when the low 3 bits of input_index fall in the high half (4-7), mapping the two halves of an 8-step cycle onto palette pair A (offset 0) vs pair B (offset 2) -- a double-buffered blink swap. Binary uses signed IDIV by 8 for the remainder; for the documented 0..255 byte domain this equals the unsigned remainder, so `int % 8` reproduces it. Sum is truncated in an 8-bit register, mirrored by the uint8 store.",
+  "signature": "void __cdecl fd2_fill_palette_blink_pattern_6byte(int input_index, uint32 output_buffer_addr)",
+  "params": [
+    {
+      "name": "input_index",
+      "type": "int",
+      "semantics": "Anchor index value (byte domain 0..255). Used two ways: input_index & 0xF8 gives the base (floor to multiple of 8); input_index % 8 selects the +2 bump when the low 3 bits are in [4,7].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate; no address residue; matches body usage as the per-call anchor index."
+    },
+    {
+      "name": "output_buffer_addr",
+      "type": "uint32",
+      "semantics": "Destination buffer address; the loop writes 6 consecutive bytes (out[0..5]) starting here.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate; clearly identifies the write target; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; the result is the 6 bytes written into the caller-provided buffer."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly confirmed: PUSH 0xc + CALL __CHK (0x36cd7) stack-probe prologue (frame 0xC, compiler-generated, omitted in src); AND CH,0xf8 = base; SAR EDX,0x1f + IDIV [ESP]=8 -> EDX remainder; CMP EDX,3 / JLE / MOV CL,2 = bump; loop DH=CH+CL+DL stored at [EBX+EAX]; POP EBX (callee-saved) / RET (cdecl, caller cleans). src code and src comment are already precise, ASCII, and functionally equivalent. Ghidra plate is consistent with the refined understanding (same algorithm, double-buffered blink intent, __CHK 0xC, indirect dispatch, 0 direct callers) -- left untouched. 0 direct callers / 0 xrefs confirmed (invoked indirectly via palette-effect dispatch table). No logic concerns. Comment block left as-is (already the refined conclusion)."
+}

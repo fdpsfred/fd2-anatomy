@@ -15,9 +15,10 @@
  * Per-candidate spell scorer for AI. Dispatch by spell_id range:
  *   <0xD  damage (kill=0x18, else=8, priority*=1.5)
  *   0xD-0x10 heal (HP deficit scoring, heal-boost doubles)
- *   0x11-0x13 status-effect (tally with spell_id+0x11)
- *   0x14 cure poison, 0x15 cure sleep, 0x16 silence
- *   0x1A/0x1B summon (tally with 0x25/0x26)
+ *   0x11-0x13 buff (tally targets lacking the buff at field spell_id+0x11)
+ *   0x14 cure poison, 0x15 cure paralysis, 0x16 silence
+ *   0x1A poison-strike / 0x1B paralysis
+ *     (tally targets lacking the status at field 0x25 / 0x26)
  * ---------------------------------------------------------------- */
 int fd2_score_spell_candidate(uint32 spell_id, uint32 n_targets,
                                uint32 target_array_ptr)
@@ -124,8 +125,23 @@ int fd2_score_spell_candidate(uint32 spell_id, uint32 n_targets,
 /* ----------------------------------------------------------------
  * fd2_score_item_candidate @ 0x15880
  *
- * Score an item for AI use: sum per-target priority based on
- * HP thresholds and effect type.
+ * Per-candidate offensive-item scorer for enemy AI. Called by
+ * fd2_ai_score_item_use for one (item, tile) candidate to sum a
+ * priority score over the affected targets. Dispatches on the
+ * item effect-code (item_effect_entry[0xD]):
+ *
+ *   0x05 / 0x0D (HP-damage item): per target by current HP vs max,
+ *     +0 if hp > max/2, +3 if hp > max/3, +8 if hp <= max/3; then
+ *     x3 if the target's combat_aux_block[0xD] bit 0x80 is set
+ *     (high-value / vulnerable target amplification).
+ *   0x14 / 0x15 / 0x18 (spell-wrapper item): threshold is the wrapped
+ *     spell's base damage (spell_effect_entry[0]), or item[0xE] when
+ *     effect-code == 0x18; per target +8 if hp > threshold, else +0x12
+ *     (kill shot).
+ *   other effect-codes: score 0 (not treated as offensive).
+ *
+ * Returns the summed score. Reads runtime_char wHP_current (+0x40),
+ * wHP_max (+0x42), combat_aux_block[0xD] (+0x34).
  * ---------------------------------------------------------------- */
 int fd2_score_item_candidate(uint32 item_id, uint32 n_targets,
                               uint32 target_array_ptr)
@@ -191,8 +207,34 @@ int fd2_score_item_candidate(uint32 item_id, uint32 n_targets,
 /* ----------------------------------------------------------------
  * fd2_ai_score_offensive_spell @ 0x1598A
  *
- * Score every castable spell × every reachable tile. Writes best
- * to ai_best_spell_* globals. Returns 0.
+ * Enemy AI offensive-spell planner. Scores every castable spell over
+ * every reachable cast tile and records the single best candidate
+ * into the ai_best_spell_* globals:
+ *   ai_best_spell_score    @ 0x53C23  (best score so far)
+ *   ai_best_spell_target_x @ 0x53C27  (chosen cast tile x)
+ *   ai_best_spell_target_y @ 0x53C2B  (chosen cast tile y)
+ *   ai_best_spell_id       @ 0x53C2F  (chosen spell id)
+ *
+ * caster_idx = runtime_char index of the casting enemy.
+ * ctx_flag   = AoE-shape selector: when 0 the spell's "needs an
+ *              actual target" AoE byte (pSpell[6]) is inverted to a
+ *              0/1 flag; when non-zero pSpell[6] is passed through.
+ *
+ * Steps:
+ *   1. Reset ai_best_spell_score to 0; preload job-0 move-cost table.
+ *   2. fd2_build_usable_spell_list -> spell_list (MP/learn gated).
+ *   3. Gate: bail if no castable spells OR caster is silenced
+ *      (pCaster[0x27] != 0).
+ *   4. Per spell with MP <= caster_mp: flood-fill movement range
+ *      (range = pSpell[3]), enumerate reachable tiles, and for each
+ *      tile compute AoE targets (shape = pSpell[4]). When the
+ *      candidate beats the running best (score, tie-broken by spell
+ *      base damage *(uint16*)pSpell), update the ai_best_spell_*
+ *      globals.
+ *
+ * Paired executor: fd2_execute_ai_offensive_spell.
+ * Callers: fd2_attack_action_dispatch, fd2_enemy_turn_action_dispatcher
+ *          (AI class 11), fd2_enemy_turn_phase_team0 (precompute pass).
  * ---------------------------------------------------------------- */
 void fd2_ai_score_offensive_spell(uint32 caster_idx,
                                    uint32 ctx_flag)
@@ -393,8 +435,27 @@ void fd2_ai_score_item_use(uint32 caster_idx, uint32 ctx_flag)
 /* ----------------------------------------------------------------
  * fd2_ai_score_physical_attack @ 0x14237
  *
- * Score every reachable tile for physical attack. Writes best
- * candidate to ai_best_physical_* globals. Returns 0.
+ * Enemy AI: score every reachable tile for a physical attack with the
+ * caster's equipped weapon and record the single best candidate into the
+ * ai_best_physical_* result globals (target_x/y/idx/score). Returns 0.
+ *
+ * Setup: find the equipped weapon (kind 0), read its AoE shape; pick the
+ * movement-cost table by job, or by class 0x13 when the caster passes the
+ * status-immunity predicate; flood-fill reachable tiles minus friendly
+ * occupants. ctx_flag selects the team/context (passed to the threat and
+ * occupant passes) and, when 0, enables small-AoE evaluation mode.
+ *
+ * Per candidate tile x AoE target: effective AP/DP = base stat + terrain
+ * percent bonus (mv/def modifier tables), applied only when the status-
+ * immunity predicate holds for that unit. raw_dmg = effective_AP -
+ * target_DP, yielding score class 0 (negligible, raw_dmg <= 2), 8 (normal
+ * hit), or 0x12 (kill shot when raw_dmg > target HP; raw_dmg doubled).
+ * Bonuses: +counter when the target can default-attack back; *3/2 when the
+ * target is the party leader (char_id 0). Best is chosen by (score class,
+ * then raw_dmg tiebreak). Allocates 3 scratch buffers and frees them.
+ *
+ * Called by fd2_attack_action_dispatch and fd2_enemy_turn_action_dispatcher;
+ * paired with fd2_execute_ai_physical_attack, which reads the result globals.
  * ---------------------------------------------------------------- */
 int fd2_ai_score_physical_attack(uint32 caster_idx, uint32 ctx_flag)
 {

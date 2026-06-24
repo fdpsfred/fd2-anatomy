@@ -1,0 +1,58 @@
+{
+  "address": "0002185f",
+  "name_current": "fd2_cast_spell_0b_with_prefx",
+  "name_final": "fd2_cast_spell_0b_with_prefx",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>. '0b' is spell_id 0xB (11), a meaningful domain ID in the 00h-23h spell range (keep, not address residue). 'with_prefx' = 'with pre-effect/pre-fx', describing the SFX (id 2) + rising pre-cast effect that distinguishes this entry from the basic 0xA variant. Consistent with siblings fd2_cast_spell_0a_basic and fd2_cast_spell_0c_with_prefx in the same earthquake family. No address residue.",
+  "kind": "function",
+  "home": "src/spell/spell.c",
+  "purpose": "Spell dispatch handler for spell_id 0xB: plays a pre-cast SFX and rising pre-cast effect, then delegates to the earthquake worker.",
+  "logic_summary": "Thin dispatch wrapper (entry 0xB of spell dispatch table @ 0x51D01). Plays generic cast SFX (id 2) via fd2_play_sfx_with_handle, runs fd2_play_rising_pre_cast_effect(caster, 0xF, 0xA) as the pre-effect, then invokes the earthquake worker with spell_id 0xB. In the binary the final call is a JMP into fd2_cast_spell_0a_basic's shared tail (after pushing 2 args + spell_id 0xB), which performs PUSH caster + CALL fd2_cast_earthquake_spell_with_screen_shake + cleanup + RET; src renders this functionally-equivalent shared tail as a direct call to fd2_cast_earthquake_spell_with_screen_shake(caster, 0xb, n_tgt, tgt_arr).",
+  "signature": "void fd2_cast_spell_0b_with_prefx(int caster, int n_tgt, uint8 *tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "Caster unit id; forwarded to pre-cast effect and the earthquake worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, no address residue; matches src declaration. (Ghidra-side name caster_unit_id is also descriptive.)"
+    },
+    {
+      "name": "n_tgt",
+      "type": "int",
+      "semantics": "Number of targets; passed through to the earthquake worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive abbreviation of num_targets, no address residue; matches src declaration."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "uint8 *",
+      "semantics": "Pointer to the target unit-id array; passed through to the earthquake worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive abbreviation of target_id_array, no address residue; matches src declaration."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No meaningful return value; dispatch handler called for its side effects (SFX + pre-effect + earthquake spell execution)."
+  },
+  "reads_globals": [
+    "data_fd2_audio_status_effect_sfx_handle_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Function had no dedicated comment block, only the family-level header '=== Earthquake family (id 0xA-0xC) ===' which does not explain how this entry differs from the basic 0xA variant.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src expresses the binary's JMP-to-shared-tail (into fd2_cast_spell_0a_basic @ 0x2153B) as a direct, functionally-equivalent call to fd2_cast_earthquake_spell_with_screen_shake; this is an established equivalence already documented in both plates, not a logic discrepancy. Sibling fd2_cast_spell_0c_with_prefx @ 0x21A9E follows the identical shape with pre-effect params {0x1E,0x10} and spell_id 0xC. Ghidra plate already accurately documents the SFX id, rising pre-cast params, shared-tail JMP, and net worker call; consistent with refined understanding so left unchanged."
+}

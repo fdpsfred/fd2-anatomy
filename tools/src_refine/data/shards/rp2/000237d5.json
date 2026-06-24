@@ -1,0 +1,39 @@
+{
+  "address": "000237d5",
+  "name_current": "fd2_chapter_12_end",
+  "name_final": "fd2_chapter_12_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. '12' is a valid chapter ID (1-30 domain range), not an address residue (function is at 0x237d5, unrelated to 12). Descriptor 'end' correctly reflects its role as the chapter-12 end handler dispatched via the chapter-end handler pointer table (xref from data @ 0x51E15).",
+  "kind": "function",
+  "home": "src/field/chend1.c",
+  "purpose": "Chapter 12 (北山道) end handler: stages the post-battle recruit scene, plays the closing cutscene, persists the party, recruits 米亞斯多德 (char id 0x11), and advances the current-chapter id.",
+  "logic_summary": "Unconditionally copies three 14-byte scene tables (recruit-scene X @ 0x52129 / Y @ 0x52137 / facing @ 0x52145) into three on-stack placement blocks. Calls fd2_setup_chars_and_camera_for_intro(x,y,facing,0,0xd,0xe,0xa,2,0,4,0) to place chars 0..0xD plus extra char 0xE at tile (0xA,2) facing 0, camera origin (4,0). Then plays the cutscene: fd2_display_dialog_scene(text,3,...); fd2_cutscene_event_trigger(0x2D); fd2_display_dialog_scene(text,4,...). Persists party via fd2_save_runtime_char_to_template(), recruits char #17 (0x11 = 米亞斯多德) via fd2_init_runtime_char_from_base_growth(0x11), then INC current_chapter_id. In the binary the tail is `JMP 0x239B1` into the shared `INC [0x53c03]; RET` snippet that closes fd2_chapter_13_end; emitted as a self-contained function (Layer 2 functional equivalence). The leading __CHK(0x68,...) is the Watcom compiler-inserted stack-probe (not game logic), correctly absent from the C source.",
+  "signature": "void __cdecl fd2_chapter_12_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects only: stages scene, plays cutscene/dialog, persists party, recruits char 0x11, and increments the global current-chapter id."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch12_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch12_end_scene_char_pos_y_table",
+    "data_fd2_chapter_ch12_end_scene_char_facing_table",
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (chend1.c lines 528-551) is accurate and precise; validated against decompilation and fd2-knowledge (chapter 12 = 北山道; walkthrough confirms 龍劍士米亞斯多德 joins; char id 0x11 = 米亞斯多德). Ghidra plate is consistent with the refined understanding, so left untouched. Only the shard is staged (chend1.c unchanged). Note (no issue): the linked post-action handler checks char[0xE] (in-battle NPC instance of 米亞斯多德) while this handler recruits roster slot 0x11 -- a known FD2 NPC-vs-roster dual-index pattern; both plate and src agree, nothing to fix."
+}

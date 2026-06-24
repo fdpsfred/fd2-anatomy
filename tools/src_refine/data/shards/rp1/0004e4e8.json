@@ -1,0 +1,40 @@
+{
+  "address": "0004e4e8",
+  "name_current": "fd2_get_char_base_entry",
+  "name_final": "fd2_get_char_base_entry",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; accurately describes 'get character base table entry'. No Ghidra address residue. char_base = the per-character starting-attribute table (24-byte stride, 32 playable-character entries), matching KB struct char_base_entry (人物出場屬性, 24 bytes).",
+  "kind": "function",
+  "home": "src/table/table.c",
+  "purpose": "Leaf accessor that returns a pointer to character_base_table[idx], the per-character starting-attribute table (one 24-byte entry per playable character).",
+  "logic_summary": "Pure index-to-pointer: returns &data_fd2_battle_character_base_table[idx], i.e. EAX = idx*0x18 + 0x61DA1. Standard EBP frame, 1 stack arg, no side effects, no callees. Entry layout (24B): bRA(+0) bCL(+1) bLV(+2) wHP(+3,u16) wMP(+5,u16) bMV(+7) pMG[4](+8 spell bitmap) pIT[6](+0xC item ids, 0xFF=empty) wAP(+0x12,u16) wDP(+0x14,u16) wDX(+0x16,u16).",
+  "signature": "byte * __cdecl fd2_get_char_base_entry(uint idx)",
+  "params": [
+    {
+      "name": "idx",
+      "type": "uint32",
+      "semantics": "char_id (0..0x1F = 32 playable characters). Used as table index: idx*0x18 + base. This is a meaningful domain ID (character id), must be preserved.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive index name; no address residue. Both callers (fd2_init_runtime_char_for_battle, fd2_init_runtime_char_from_base_growth) pass a char_id, so 'idx' is appropriate and accurate."
+    }
+  ],
+  "returns": {
+    "type": "byte * (uint8 *)",
+    "semantics": "Pointer to the idx-th character_base_table entry's first byte (bRA field at +0). Callers cast it and read base stats/equipment, combining with char_growth scaled by level to build a runtime char slot."
+  },
+  "reads_globals": ["data_fd2_battle_character_base_table"],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment ('Returns pointer to character_base_table[idx].') was correct but terse: it did not state the index domain (char_id 0..0x1F, 32 entries) or the entry layout that callers rely on.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Ghidra plate already exhaustive and accurate (full struct layout, 9-inst body, both callers); src comment now a consistent precis, so plate left unchanged. File header (lines 1-8) says '13 leaf functions' / address range 0x4E48D..0x4E7F8, but the file also contains fd2_get_orphan_table_60181_entry @ 0x4DB84 (14 functions, range extends below 0x4E48D); not touched per single-symbol scope (out of this symbol's comment block). KB sample LE addr for char_base_entry is 0x55BA1 vs this build's 0x61DA1 -- expected per-build address drift; 24-byte stride is the stable anchor and matches exactly."
+}

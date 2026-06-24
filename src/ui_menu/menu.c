@@ -15,11 +15,14 @@
  * Covers both field/map exploration and in-battle input. Reads one
  * keyboard scancode from fd2_wait_for_input_with_idle and dispatches.
  *
- * Returns an int consumed by main: the field-command path returns
- * the command-loop result (0 mapped to non-zero / 1 mapped to 0), every
- * other path returns 0. (Ghidra decompiles this as void and drops the
- * EAX return values; the disassembly shows MOV EAX,EBX / XOR EAX,EAX
- * return paths and main consuming EAX via MOV ESI,EAX.)
+ * Returns an int consumed by main (which re-invokes this on 0, exits its
+ * inner loop on non-zero). Only the field-command path (Space/Enter on an
+ * empty tile) can return non-zero: it loops fd2_field_command_menu_loop
+ * until that returns non-zero, then maps 1 back to 0 and returns the rest
+ * unchanged. Every other dispatch path returns 0. (Ghidra decompiles this
+ * as void and drops the EAX return values; the disassembly shows MOV
+ * EAX,EBX / XOR EAX,EAX return paths and main consuming EAX via MOV
+ * ESI,EAX.)
  * ---------------------------------------------------------------- */
 /* ----------------------------------------------------------------
  * fd2_field_command_menu_loop @ 0x16F55  (1 caller: fd2_game_main_loop)
@@ -463,8 +466,10 @@ int fd2_player_action_menu_loop(uint32 char_idx)
  * Selection dispatch:
  *   0 Attack — AoE target pick, then combat cinematic + damage, death
  *     animation, loot-drop processing.
- *   1 Spell  — spell menu; on commit, divide pending_xp_credit by the AP
- *     divisor (status_flags_block[0], +30 for job_id > 8 priest/cleric).
+ *   1 Spell  — spell menu; on commit, divide pending_xp_credit by the cast
+ *     divisor = character level (status_flags_block[0]), +30 when job_id > 8
+ *     (i.e. a promoted/advanced class, 09h and up) -- throttles spell XP for
+ *     higher-level and promoted casters.
  *   2 Item   — item menu; item use grants no XP (pending_xp_credit = 0).
  *   3 Wait   — recover 20% HP if not yet moved, run tile-event interaction.
  *
@@ -626,13 +631,17 @@ uint8  data_fd2_ui_click_debounce_skip_count = 3;
 
 /*
  * data_fd2_battle_ai_post_action_consequence_idx @ 0x51A8F (.object2), 4 bytes.
- * Pending post-action consequence selector. Set to 0xFF ("none") before each
- * actor finishes its action; an action handler may store an index into
- * data_fd2_battle_ai_post_action_consequence_table here. After the action,
- * callers (fd2_game_main_loop, fd2_field_command_menu_loop, the battle AI turn
- * phases, etc.) test it: if != 0xFF they invoke the indexed consequence handler
- * (counter-attack / death / status proc), then reset it to 0xFF.
- * Accessed as a full dword (MOV dword ptr [0x51A8F],EDX); initial value 0xFF.
+ * Pending post-action consequence selector: an index into the 90-entry
+ * data_fd2_battle_ai_post_action_consequence_table (whose slots are the
+ * fd2_chapter_event_handler_NN__* chapter-event handlers). Set to 0xFF ("none")
+ * before each actor finishes its action; fd2_check_tile_event_post_action stores
+ * the event record's consequence byte here when the actor lands on a matching
+ * event tile. After the action, callers (fd2_game_main_loop,
+ * fd2_field_command_menu_loop, the battle AI turn phases, etc.) test it: if
+ * != 0xFF they tail-call the indexed handler with the active char_idx, then
+ * reset it to 0xFF.
+ * Accessed as a full dword (MOV dword ptr [0x51A8F],EDX); the stored value
+ * itself is an 8-bit id (MOVZX from a byte). Initial value 0xFF.
  */
 uint32 data_fd2_battle_ai_post_action_consequence_idx = 0xFF;
 

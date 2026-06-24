@@ -1,0 +1,53 @@
+{
+  "address": "0x0001c81f",
+  "name_current": "fd2_apply_damage_and_award_xp",
+  "name_final": "fd2_apply_damage_and_award_xp",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>; accurately describes purpose (apply HP damage + award kill XP). No address residue. Verified against decompile/disasm and 3 callers.",
+  "kind": "function",
+  "home": "C:/Users/fdpsf/Documents/fd2-wt/rp3/src/battle/battle.c",
+  "purpose": "Battle damage-application primitive: applies jittered HP damage to a runtime_char and accumulates pending enemy XP; returns the actual damage dealt.",
+  "logic_summary": "Reads target hp_current/hp_max from data_fd2_battle_runtime_char_array_ptr[target_idx]. actual = base*9/10 + (advance_rng()%100)*base/1000 (90%..100% of base). hp_current = max(0, hp_current - actual). If portrait_id >= 0x44 (enemy): xp = enemy_entry[+9](per-level EX) * status_flags_block[0](level); if target survived (hp_after!=0) scale xp by actual/hp_max (kill keeps full xp); add xp to data_fd2_battle_pending_xp_credit. Returns actual damage. Body ends in Watcom tail-merge JMP 0x14230 (shared epilogue), source re-expresses as plain return.",
+  "signature": "int __cdecl fd2_apply_damage_and_award_xp(uint32 target_idx, uint32 base_damage)",
+  "params": [
+    {
+      "name": "target_idx",
+      "type": "uint32",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr selecting the unit that takes damage. Callers pass per-target ids (fd2_calc_magic_damage forwards its target_idx; fd2_cast_status_inflict_spell and fd2_execute_special_attack_skill pass target_idx_buf[i]).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the array index; no address residue."
+    },
+    {
+      "name": "base_damage",
+      "type": "uint32",
+      "semantics": "Pre-jitter base damage; the 90%..100% randomized scaling is applied inside. Callers pass spell/skill raw damage (e.g. resist-scaled magic damage, AP*mult/10 - DP skill damage, or flat 10 for status spells).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clearly names the input damage magnitude; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Actual damage dealt (after jitter, before HP clamp). Callers clamp it against current HP and use it for the on-screen damage number and progressive animation."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45)"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr[target_idx].hp_current (0x53A45)",
+    "data_fd2_battle_pending_xp_credit (0x53EC8)"
+  ],
+  "comment_original_issue": "Original one-line comment said 'XP for enemy kills', which understates the logic: XP is awarded on any damage to an enemy (proportionally scaled by damage when the target survives), not only on kills. Also omitted the HP-clamp and the per-level-EX*level XP basis.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "62d7195",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly (0x1c81f) confirms: HP +0x40/+0x42, base*9/10 via SHL3+ADD+IDIV10, RNG at 0x4e893, portrait_id +0x07 CMP 0x44 JL, enemy_entry+9, status_flags_block +0x21, pending_xp_credit 0x53EC8. enemy_entry +9 = EX (per-level XP) confirmed via fd2-knowledge struct enemy_entry (RA CL HP HP MP AP DP DX MV EX). Struct fields match src/include/types.h. Globals match src/include/globals.h."
+}

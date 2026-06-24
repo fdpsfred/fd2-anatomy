@@ -1,0 +1,42 @@
+{
+  "address": "00034c76",
+  "name_current": "fd2_chapter_event_handler_23__ch12_cinematic",
+  "name_final": "fd2_chapter_event_handler_23__ch12_cinematic",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. '_23' is the dispatch-table index (domain ID 0x23, verified: table entry at 0x51B91+0x23*4=0x51C1D holds 0x00034C76), NOT address residue (0x23 != self addr 0x34C76). '__ch12_cinematic' correctly captures the chapter (ch12) and category (cinematic, no dialog). Name accurately reflects purpose and internal logic.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 12 turn-event slot 0 (turn 1 / phase 0): a no-dialog cinematic beat -- pan camera to world (0xC,5), reload portrait set 2 (bracketed as an init-phase load), play cutscene event 0x2A, then reset every character's facing.",
+  "logic_summary": "Straight-line, single basic block, cyclomatic complexity 1, no branch/RNG/numeric computation and no CALL-return value used. Sequence: __CHK(0xC) stack probe (compiler-injected); fd2_pan_cursor_and_window(0xC,5); data_fd2_chapter_init_phase_flag=1; fd2_load_chapter_portraits_and_dump_tmp(2); data_fd2_chapter_init_phase_flag=0; fd2_cutscene_event_trigger(0x2A); then a tail-JMP (0x34CAE -> 0x000134E4) into fd2_clear_all_chars_facing (folded shared tail, rendered as an inline call in C). The single uint event_arg is the uniform dispatch arg and is never read.",
+  "signature": "void __cdecl fd2_chapter_event_handler_23__ch12_cinematic(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91. The body never reads it (void)event_arg.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate generic name for the unread uniform dispatch arg; no address residue, consistent with sibling handlers in this file."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_chapter_init_phase_flag"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "a543b923d2f5756bc9b1fe4dd089524e7ed08bad",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified dispatch slot via table entry 0x51C1D (=0x51B91+0x23*4) -> 0x00034C76, and only xref to function is 'From 00051C1D [DATA]'. Disassembly matches src body exactly (final JMP 0x000134E4 = fd2_clear_all_chars_facing folded tail). All callee signatures confirm arg counts/types: fd2_pan_cursor_and_window(uint,uint), fd2_load_chapter_portraits_and_dump_tmp(uint), fd2_cutscene_event_trigger(uint), fd2_clear_all_chars_facing(void). Src comment (lines 1552-1574) and Ghidra plate are both accurate, precise, and mutually consistent -> no edit to either (comment kept). Chinese chars in comment (米亞斯多德 char name, 龍劍士 class name, walkthrough quote) are proper nouns, allowed. The em-dash glyph used in the comment block is the file-wide style across all 40+ handler blocks; not a single-symbol precision defect, left unchanged to preserve file consistency. data_fd2_chapter_init_phase_flag is written 1 then 0 (bracketing the portrait reload); not read here."
+}

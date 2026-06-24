@@ -1,0 +1,63 @@
+{
+  "address": "0x00030550",
+  "name_current": "fd2_save_slot_selector_ui",
+  "name_final": "fd2_save_slot_selector_ui",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>; accurately describes a 4-slot save-file picker UI (allocates render buffers, paints the slot grid, runs Up/Down navigation, returns 1=commit / -1=cancel). No Ghidra address residue.",
+  "kind": "function",
+  "home": "C:/Users/fdpsf/Documents/fd2-wt/rp2/src/save/save.c",
+  "purpose": "Interactive 4-slot save-file picker UI: paints the slot grid with a 6-frame slide-down reveal, then runs an Up/Down navigation loop until the user commits (Enter/Space) or cancels (Esc).",
+  "logic_summary": "Setup: __CHK(0x20); allocate 3 x 64000-byte render workspaces (a/b/c at [0x53C5B/5F/63]); snapshot the live VGA framebuffer (0xA0000) into b, clone into c; blit the panel-header sprite into c at +0x8C05 (sprite atlas entry at atlas[+0x46]); paint the initial slot grid into c keyed on data_fd2_ui_menu_cursor_idx; play SFX 5 (panel-open chime); reveal the panel with a 6-frame slide-down (frame_iter 5..0, y = 0x70 + frame_iter*0xD). Input loop: if manual_mode==0, set key_input_mode=0x10 and read a key via BIOS int 16h (int386), folding extended/numpad scancodes 0xE0/0x52 -> 0x1C (Enter) and 0x53 -> 0x01 (Esc); else read via fd2_wait_for_input_dialog_with_blink(0). Down (0x50) when cursor!=3: SFX 7, cursor++, repaint grid. Up (0x48) when cursor!=0: SFX 7, cursor--, repaint grid. Enter (0x1C) or Space (0x39): result=1. Esc (0x01): result=-1. Loop exits when result!=0; returns result. The 3 workspace buffers are NOT freed here -- the caller frees them via fd2_close_intro_dialog_with_slide_out (shared 3-buffer state).",
+  "signature": "int __cdecl fd2_save_slot_selector_ui(uint32 sav_decrypted_buf, uint32 manual_mode)",
+  "params": [
+    {
+      "name": "sav_decrypted_buf",
+      "type": "uint32",
+      "semantics": "Pointer (as uint32) to the plaintext (decrypted) FD2.SAV image; forwarded to fd2_render_save_slot_grid so each slot row can be summarized. Callers malloc(0x59CB), fread+decrypt or memset 0xFF, then pass it in.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate (decrypted FD2.SAV buffer); no address residue, not a generic param_N name."
+    },
+    {
+      "name": "manual_mode",
+      "type": "uint32",
+      "semantics": "Selects the input source: 0 = read keys directly via BIOS int 16h (with extended-scancode folding); nonzero = use the poll-and-blink helper fd2_wait_for_input_dialog_with_blink. Callers: continue-dispatcher passes 0, load passes 1, save passes prompt_flag & 0xFF.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Not an address residue and not a generic param_N name; meaning (0 vs nonzero) is documented in the src comment. Slightly ambiguous as a name but adequate and consistent with caller intent (nonzero = interactive blink-cursor input), so no clear-improvement rename under the tightened criteria."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "1 = user committed a slot (chosen slot index left in data_fd2_ui_menu_cursor_idx, 0..3); -1 = user cancelled. Never returns 0 (the loop only exits once result is +/-1)."
+  },
+  "reads_globals": [
+    "data_fd2_ui_menu_cursor_idx (@0x53C57) - slot cursor, read for highlight",
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr (@0x54147) - panel-header sprite atlas + entry at +0x46",
+    "data_fd2_audio_fdother_sfx_bank_buf_ptr (@0x53EEC) - SFX bank for panel-open (5) and cursor-move (7)",
+    "data_fd2_input_key_input_mode (@0x53A8E) - read back after int 16h",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr (@0x53C5F)",
+    "data_fd2_ui_slide_composed_target_buf_ptr (@0x53C63)",
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr (@0x53C5B)"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr (@0x53C5B) = malloc(64000)",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr (@0x53C5F) = malloc(64000)",
+    "data_fd2_ui_slide_composed_target_buf_ptr (@0x53C63) = malloc(64000)",
+    "data_fd2_ui_menu_cursor_idx (@0x53C57) - incremented/decremented by Down/Up",
+    "data_fd2_input_key_input_mode (@0x53A8E) - set to 0x10 before int 16h; folded to 0x1C/0x01 for extended scancodes",
+    "data_fd2_input_last_key_pressed (@0x53A8D) - filled by int 16h"
+  ],
+  "comment_original_issue": "src comment (save.c lines 385-412) was already accurate, precise, ASCII, and free of phase/flux narrative; kept as-is.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Ghidra plate updated: the previous plate grouped scancodes '0x52 / 0x53' together and claimed both fold to 0x1C / return 1, which is wrong -- 0x52 (and 0xE0) fold to 0x1C (Enter, commit) but 0x53 folds to 0x01 (Esc, cancel -> return -1). Plate now states the two foldings separately and matches the decompilation. src comment did not contain this error and was left unchanged. The src comment already documents the tail-JMP into the shared epilogue at 0x2D3F8 (MOV EAX,ESI / POP / RET) being equivalent to 'return result;'. No logic changes made."
+}

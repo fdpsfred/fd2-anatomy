@@ -226,12 +226,13 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
  *             dialog 0x19C. Then return 1.
  *   3 QUIT  : portrait 0x4B, dialog 0x19F prompt, typewriter. On YES: dialog 0x1A0
  *             "quitting", fade BGM off, close -> return -1. On NO: dialog 0x19C,
- *             close -> return -1.
+ *             close -> return 1.
  *
  * The body tail-jumps into fd2_field_command_menu_loop's epilogue (JMP 0x16FDD /
  * 0x16FD8); the recovered return values (0 / 1 / -1) are emitted directly.
  *
- * Returns: 0 = Esc-cancelled selection; 1 = Status/Save/Load done; -1 = Quit.
+ * Returns: 0 = Esc-cancelled selection; 1 = Status/Save/Load done OR any
+ *          Save/Load/Quit sub-prompt answered NO; -1 = Quit confirmed.
  *
  * int __cdecl with the __CHK(0x54) stack-probe prologue.
  * ---------------------------------------------------------------- */

@@ -1,0 +1,37 @@
+{
+  "address": "00022f37",
+  "name_current": "fd2_chapter_02_end",
+  "name_final": "fd2_chapter_02_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>: fd2_ prefix + domain 'chapter_02' (02 is a meaningful chapter ID 1-30, must be preserved) + descriptor 'end' (chapter-end handler). No Ghidra address residue. Confirmed slot 1 of the chapter-end handler pointer table @ 0x51DE9 (table[0]=0x22ef6 chapter_01_end, table[1] @ 0x51DED = 0x22f37); dispatched via CALL [id*4 + 0x51DE9].",
+  "kind": "function",
+  "home": "src/field/chend1.c",
+  "purpose": "Chapter 2 (羅德鎮) end handler: grants a reward if all 6 villagers survived, plays the closing cutscene, recruits 弓兵希莉亞, and advances the chapter id.",
+  "logic_summary": "Scans runtime chars[5..0xA] (the 6 villager units); if any has flags bit0 set (dead) shows failure dialog page 7, else shows page 6 and grants item 0xC6 (力量藥水, AP+9) to the first player char. Then runs the post-battle cutscene: pan_cursor_and_window(0xE,2); load portraits race 4; delay 100ms; cutscene event 0xE; dialog page 8 (reset battle_anim_phase=0; delay 200ms); cutscene event 0xF; dialog page 9 (reset battle_anim_phase=0; delay 200ms); pan_cursor_and_window(0xE,1); delay 200ms; cutscene event 0x10; delay 200ms; dialog page 10. Recruits char #8 (弓兵希莉亞) via init_runtime_char_from_base_growth(8), persists the party (save_runtime_char_to_template), then writes current_chapter_id = 2 (direct literal assignment, like chapter_01_end, not the INC pattern used by most siblings).",
+  "signature": "void __cdecl fd2_chapter_02_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effects only (party state, recruit, dialog/cutscene rendering, current_chapter_id update)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Comment block (chend1.c lines 33-50) is already accurate and precise: villager scan chars[5..0xA] dead->page7/alive->page6+力量藥水, cutscene events 0xE/0xF/0x10 with dialog pages 8/9/10, recruit char #8 (弓兵希莉亞), direct current_chapter_id=2 write. Verified vs decompile and fd2-knowledge (item 0xC6 = 力量藥水 AP+9; char #8 = 希莉亞 archer; chapter 2 = 羅德鎮, walkthrough failure condition '索爾死亡，村民全滅', 3 male + 3 female villagers = 6 friendly units matching chars[5..0xA]). Ghidra plate is consistent with the source comment; no plate change. The decompile's in_stack_* vars are __CHK stack-probe artifacts, not real params (Ghidra param_count=0). Left chend1.c untouched (comment_verdict=keep); only the shard is staged."
+}

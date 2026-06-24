@@ -117,7 +117,7 @@ void fd2_animate_status_effect_overlay_flicker(uint32 param_1, uint32 status_kin
  * spells).
  *
  * Parameters (__cdecl, 4 args; param_1 only forwarded to the stack check):
- *   param_1            unused by the body
+ *   param_1 (caster_idx)  unused by the body (callers pass caster_idx)
  *   spell_id           index 0..35 into the three per-spell byte tables
  *   target_count       number of entries in char_idx_array
  *   char_idx_array     byte array of runtime-char indices to overlay
@@ -313,7 +313,7 @@ void fd2_animate_spell_full_screen_flash(uint32 param_1, uint32 spell_id,
  * steps 7..0 across the loop so the mark fades out.
  *
  * Parameters (__cdecl, 4 args; param_1 only forwarded to the stack check):
- *   param_1            unused by the body
+ *   param_1            unused by the body (callers pass the caster char index)
  *   spell_id           index into the per-spell tint-mask byte table
  *   target_count       number of entries in char_idx_array
  *   char_idx_array     byte array of runtime-char indices to overlay
@@ -603,10 +603,10 @@ void fd2_play_death_animation_and_mark_dead(void)
  *         + floating_damage_x_offset_queue[fx_iter]
  *         + (y_offset_table[fx_iter % 4 + frame] - 3) * 0x1C8
  *     fd2_blit_sprite_with_decoded_pixels(dst, sprite_addr, 0x1C8)
- *   flush composite to the mode13h primary; delay 2 BIOS ticks.
+ *   flush composite to the mode13h primary; fd2_delay_ms(2) (~2ms pacing).
  *
- * End: free the snapshot, a ~500ms settle delay, then tail-jump to the
- * shared epilogue (reproduced as the function return).
+ * End: free the snapshot, fd2_delay_ms(500) (~500ms settle), then tail-jump
+ * to the shared epilogue (reproduced as the function return).
  * ---------------------------------------------------------------- */
 void fd2_animate_spell_projectile_paths(void)
 {
@@ -966,8 +966,9 @@ int fd2_animate_combat_hit_with_hp_drain(uint32 attacker_idx, uint32 defender_id
  *       fd2_delay_ms(0x50)   (~80 ms)
  *       fd2_cleanup_dialog_sprite_buffer(saved, 0xA0000, 0x140)
  *
- * The paint target index is the defender (EBP = arg2 = defender_idx at
- * 0x1E99D / 0x1EA4E / 0x1EA4E), per both the disassembly and the decompiler.
+ * The paint target index is the defender: arg2 is loaded into EBP at 0x1E99D
+ * and pushed as the paint target at 0x1EA4E (both pose paths converge there),
+ * per both the disassembly and the decompiler.
  *
  * EAX-bug note: the cleanup call receives the SAVE-BLOCK HANDLE returned by
  * fd2_alloc_and_blit_indexed_sprite_chunk (asm 0x1EA86 MOV ESI,EAX captures

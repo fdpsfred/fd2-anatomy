@@ -22,11 +22,14 @@ static uint8 *g_ani_cursor;
  * the binary (filled at runtime). */
 uint16 data_fd2_animation_ani_decoder_target_width;
 
-/* ANI frame decoder destination buffer address @ 0x52762.
+/* ANI frame decoder destination buffer base @ 0x52762.
  * Linear address of the destination row start. Written each frame by
- * fd2_ani_decoder_set_target_buffer; read by the row/sparse chunk handlers
- * (REP STOSD/memcpy target). Zero-initialized in the binary (filled at
- * runtime by the setter before the decoder runs). */
+ * fd2_ani_decoder_set_target_buffer; read as the row base by the row/sparse
+ * chunk handlers: the row handlers write target_width bytes from offset 0
+ * (memset/memcpy/RLE), while the sparse handlers index into it as base[offset].
+ * Palette chunk handlers use data_fd2_animation_ani_decoder_src_buf instead.
+ * Zero-initialized in the binary (filled at runtime by the setter before the
+ * decoder runs). */
 uint32 data_fd2_animation_ani_decoder_dst_buf;
 
 /* ANI frame decoder source/palette-area base address @ 0x52766.
@@ -40,6 +43,14 @@ uint32 data_fd2_animation_ani_decoder_src_buf;
 
 /* ----------------------------------------------------------------
  * fd2_ani_decoder_set_target_buffer @ 0x36C7D
+ *
+ * Stores the three decoder target-buffer parameters into the adjacent
+ * globals consumed by the chunk handlers:
+ *   width   -> target_width @ 0x52760 (per-chunk output byte length)
+ *   dst_buf -> dst_buf      @ 0x52762 (destination linear address)
+ *   src_buf -> src_buf      @ 0x52766 (palette-area base address)
+ * Called once per frame by fd2_play_ani_file_animation_sequence before
+ * fd2_ani_decoder_decode_frame_bytes runs. Void return, no state read.
  * ---------------------------------------------------------------- */
 void fd2_ani_decoder_set_target_buffer(uint16 width, uint32 dst_buf,
                                         uint32 src_buf)
@@ -52,8 +63,16 @@ void fd2_ani_decoder_set_target_buffer(uint16 width, uint32 dst_buf,
 /* ----------------------------------------------------------------
  * fd2_ani_decoder_decode_frame_bytes @ 0x36C9E
  *
- * Main decoder loop: reads chunk_count chunk-type bytes from the
- * stream, dispatches each to the handler table.
+ * Top-level ANI frame decoder. Points the shared stream cursor
+ * g_ani_cursor at src_buf_ptr, then runs chunk_count iterations: each
+ * reads one chunk-type byte and dispatches it through
+ * data_fd2_animation_ani_decoder_frame_dispatch_table[chunk_type]().
+ * Only the chunk-type byte is consumed here; each handler advances the
+ * same g_ani_cursor by however many operand bytes it needs, so the
+ * cursor walks the whole stream cooperatively (mirrors the binary's
+ * single ESI loaded once before the loop, advanced by LODSB and by
+ * every handler). Called once per frame after
+ * fd2_ani_decoder_set_target_buffer sets the output triple. No return.
  * ---------------------------------------------------------------- */
 void fd2_ani_decoder_decode_frame_bytes(uint16 chunk_count,
                                          uint32 src_buf_ptr)

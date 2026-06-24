@@ -1,0 +1,34 @@
+{
+  "address": "0x00052635",
+  "name_current": "data_fd2_chapter_intro_portrait_pose_y_row_table",
+  "name_final": "data_fd2_chapter_intro_portrait_pose_y_row_table",
+  "name_verdict": "rename",
+  "name_proposed": "data_fd2_chapter_intro_portrait_pose_x_within_row_table",
+  "name_reason": "Current name says 'y_row' but the compositor disassembly (fd2_render_chapter_intro_overlay @ 0x2D031/0x2D046) proves this table is the one ADDED DIRECTLY to the destination address (MOVZX [EAX+0x52635]; ADD EDX,base) = the WITHIN-ROW (X/column) contribution, while the companion @ 0x52647 is the one IMUL'd by the 0x1C8 row pitch = the ROW (Y) contribution. So the X/Y labels of this table and its companion are swapped relative to the blit math. Both the 0x52635 data plate (now corrected) and the companion's plate/name carried the inverted label. Proposed name reflects the true X/within-row role. The companion at 0x52647 (currently '..._pose_x_column_table') should be renamed in the same Stage-2 swap to '..._pose_y_row_table' so the pair is consistent. Recorded only; not applied (Stage 2 will swap both, touching globals.h and all call sites).",
+  "kind": "global_data",
+  "home": "ROOT/src/table/chtab2.c",
+  "purpose": "One member of the (X,Y) coordinate-pair lookup for the chapter-intro portrait pose zoom-in/zoom-out animation; this table @ 0x52635 supplies the within-row (X/column) component of the portrait blit position.",
+  "logic_summary": "Indexed flat as table[chapter_meta_byte*6 + chapter_transition_state] (a logical [3][6] grid, stride 6, 18 bytes). chapter_meta_byte in {0,1,2} comes from the first byte of fd2_get_chapter_intro_metadata_entry; chapter_transition_state in {0..5} is the intro variant. In the static compositor (0x2D031) the byte is added directly to the working-buffer base (= within-row/X offset). In the four animated readers the value is (v - 0x96) * frame / 10 * 0x80 + 0x5000, passed as the first positional argument to fd2_blit_scaled_chapter_pose to drive the per-frame zoom (10-frame zoom-in for fd2_chapter_transition_with_intro; 11-frame zoom-out for the three menu functions).",
+  "datatype": "const uint8[18] (byte[18])",
+  "element_semantics": "Each byte is an unsigned screen pixel coordinate (within-row/X offset; some entries exceed signed-byte range, e.g. 0x9A=154, 0xDE=222). Logical [chapter_meta_byte][chapter_transition_state] = [3][6].",
+  "is_const": true,
+  "comment_original_issue": "Two defects: (1) said 'Used by 3 reader sites' and listed only 3, but there are 5 readers (typeB @ 0x2FF26 and typeC @ 0x3099C were missing); (2) the X/Y semantics were inverted -- it described this table as the 'target Y pixel coordinate' / 'Y row offset' and the overlay reader as adding it 'as a Y row offset', but the disassembly shows the overlay ADDS it directly (= within-row/X) and the companion @ 0x52647 is the pitch-multiplied Y. The inverted label matched the (also-inverted) symbol name.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [
+    {
+      "category": "naming",
+      "severity": "medium",
+      "title": "pose X/Y table pair (0x52635, 0x52647) names are swapped vs blit math",
+      "description": "0x52635 is named '..._pose_y_row_table' but is added directly to the destination (within-row/X); 0x52647 is named '..._pose_x_column_table' but is multiplied by the 0x1C8 row pitch (row/Y). The two names should be swapped together in Stage 2 so each name matches the axis it actually supplies. Recorded as a paired rename: 0x52635 -> '..._pose_x_within_row_table', 0x52647 -> '..._pose_y_row_table'. No logic change.",
+      "evidence": "fd2_render_chapter_intro_overlay disassembly: 0x2D031 'MOVZX EDX, byte ptr [EAX + 0x52635]' then 0x2D044 'ADD EDX,EBX' (EBX = base+0x8088) = direct add; 0x2D046 'MOVZX EAX, byte ptr [EAX + 0x52647]' then 0x2D04D 'IMUL EAX,EAX,0x1C8' = multiply by row pitch. The overlay function's own Ghidra plate also notes 'the names read inverted vs their actual use'."
+    }
+  ],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "e12d9604e1f9fbd299006664e168a088e1166bff",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified content byte-identical: src array == read_memory(0x52635,18) == {29,41,59,154,182,10, 90,33,53,148,222,196, 59,10,59,130,242,136}. xrefs_to(0x52635) = exactly 5 DATA reads (the 5 reader functions), zero writers -> is_const=true. Ghidra data plate was in PRE_COMMENT (old convention) AND factually inverted; replaced with a corrected PLATE_COMMENT via run_script_inline Java API (PLATE_COMMENT field per project_ghidra_data_plate_mechanism) and cleared the stale PRE_COMMENT (OK=true, PLATE_NOW_LEN=1726, PRE_NOW=null). I did NOT fully resolve fd2_blit_scaled_chapter_pose's arg0/arg1 X-vs-Y mapping, so the animated-reader notes are stated axis-neutrally ('first positional argument'); the X/Y determination rests on the unambiguous overlay compositor (direct-add vs pitch-multiply). Only this symbol's comment block in chtab2.c was edited (Edit, not Write)."
+}

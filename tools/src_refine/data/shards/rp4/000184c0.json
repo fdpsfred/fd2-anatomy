@@ -1,0 +1,60 @@
+{
+  "address": "000184c0",
+  "name_current": "fd2_render_inventory_item_grid",
+  "name_final": "fd2_render_inventory_item_grid",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=render, descriptor=inventory_item_grid). Accurately describes the function: renders the 8-slot inventory grid for a runtime character into a destination pixel buffer. No Ghidra address residue. Confirmed by callers fd2_inventory_grid_input_step (redraws grid each input step) and fd2_open_status_screen_with_slide_in (renders grid into status panel).",
+  "kind": "function",
+  "home": "ROOT/src/gfx/rndstat.c",
+  "purpose": "Render the 8-slot inventory grid for runtime_char[char_idx] into dst_buf, packing non-empty slots into a 4-column x 2-row grid, with the slot at highlight_slot drawn with a highlighted name border.",
+  "logic_summary": "Iterates slots 0..7 of runtime_char[char_idx].inventory_slots. Empty slots (bSlot_flag bit7 set) are skipped without advancing active_slot_count. For each present slot it computes grid cell position from active_slot_count (col=count/4, row=count%4; col_x=col*0x96+0x2A, row_y=row*0x16), fetches the 23-byte item-effect record via fd2_get_item_effect_entry(bItem_id), and blits: (1) a background icon sprite chosen by item type (type<0x15 weapon=0x3B, <0x20 armor/shield=0x3C, else other=0x3D; +3 if equipped per slot_flag bit6); (2) the item name label (page=bItem_id+0xB5) with a highlighted border sprite 0xC9 when the RAW slot index == highlight_slot else 0xCD; (3) a value-label sprite plus a 3-digit value depending on type/subtype (weapon->0x40, value=int16 at item+1; armor->0x41, value=int16 at item+5; consumable type 0x20 sub 5 ->0x42 / sub 0xB ->0x43, value=int16 at item+0xE; unrecognized->placeholder dot sprite 0x29 with no number). active_slot_count is incremented for every present slot including the unrecognized path.",
+  "signature": "void __cdecl fd2_render_inventory_item_grid(uint32 char_idx, int highlight_slot, uint32 dst_buf)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr selecting the character whose inventory is rendered.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the runtime_char array index; no address residue. Matches sibling renderers in this file (char_idx)."
+    },
+    {
+      "name": "highlight_slot",
+      "type": "int",
+      "semantics": "Raw inventory slot index (0..7) to draw with the highlighted name border; -1 = no slot highlighted. Compared against the RAW slot iterator, not the packed active_slot_count.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate: callers pass the menu cursor index (fd2_inventory_grid_input_step) or -1 (fd2_open_status_screen_with_slide_in). No address residue."
+    },
+    {
+      "name": "dst_buf",
+      "type": "uint32",
+      "semantics": "Destination pixel-buffer base address (0x140-stride surface). Callers pass either 0xA0000 (live VGA) or an off-screen 320x200 workspace.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate destination buffer name; no address residue. Ghidra types it void* but src uses uint32 base address arithmetic consistently with sibling renderers."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; renders into dst_buf as a side effect."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_ui_anim_sprite_sheet_ptr",
+    "data_fd2_all_game_text_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "a1e4bb2bc14cfe3b5f73f02e66510c6a5068df5c",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Clean function: name, all 3 params, and the existing src comment block (lines 404-446) are already correct, ASCII, and precise. Source comment and Ghidra plate are mutually consistent (same logic, type categories, sprite indices, offsets, and the unrecognized-path active_slot_count note), so neither was modified. The @ 0x184c0 annotation in the src comment is allowed (annotation, not a symbol name). Only globals read are the three runtime/sprite/text pointers; nothing written. No logic/equivalence concerns found."
+}

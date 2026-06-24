@@ -1,0 +1,44 @@
+{
+  "address": "00011cac",
+  "name_current": "fd2_composite_battle_frame",
+  "name_final": "fd2_composite_battle_frame",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name follows fd2_<domain>_<descriptor> convention (domain=composite/gfx, descriptor=battle_frame) and accurately reflects the function's role as the battle screen frame finalizer/compositor. No Ghidra address residue in the name. No domain ID involved.",
+  "kind": "function",
+  "home": "src/gfx/rndscene.c",
+  "purpose": "Battle screen frame finalizer: composite the tile map, cursor overlay, character/enemy sprites, and terrain-info HUD into the render workspace, then blit the visible 312x192 region to the mode13h primary surface.",
+  "logic_summary": "1) fd2_tick_chapter_palette_animation() advances the chapter-tied palette anim counter. 2) If skip_palette_cycle==0, fd2_update_palette_cycle_anim() applies cyclic palette rotation (water/torch). 3) ws = data_fd2_large_game_state_buffer_ptr + 0x8088 (render back-buffer). 4) fd2_composite_battle_tile_map(ws,456,13,8,origin_x,origin_y) paints the 13x8-tile tilemap. 5) fd2_paint_cursor_overlay_pattern() composites the tile-cursor highlight. 6) fd2_composite_all_chars_overlay() composites all live character/enemy sprites. 7) fd2_render_terrain_info_hud_panel(ws,456) paints the terrain-info HUD. 8) fd2_blit_rectangle(0xA0504,320,ws,456,312,192) blits the composite to mode13h primary (dst stride 320). The __CHK call is the Watcom stack-probe prologue (no game logic).",
+  "signature": "void __cdecl fd2_composite_battle_frame(int skip_palette_cycle)",
+  "params": [
+    {
+      "name": "skip_palette_cycle",
+      "type": "int",
+      "semantics": "0 = advance the cyclic palette rotation this frame (call fd2_update_palette_cycle_anim); non-zero = skip the cycle advance (used inside animation loops where the caller drives palette timing). The chapter palette anim counter advances unconditionally regardless of this flag.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Source param name skip_palette_cycle accurately describes the flag's effect (gating the fd2_update_palette_cycle_anim call) and carries no address residue. Ghidra decompile shows generic 'param_1' but the home-file declaration already uses skip_palette_cycle; no rename needed."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment block (lines 79-83) used em-dash (U+2014) in the pixel-constants list, violating the ASCII-only rule for src/tests .c/.h files; otherwise the comment was accurate and well-formed.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "d08ce506cab7c4dc43eb16c2a3220394fce21f2b",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Name kept (correct + convention-compliant). Param skip_palette_cycle kept. Comment refined: converted 4 em-dashes to '--' (ASCII fix) in the pixel-constants block; no semantic change. Ghidra plate left untouched -- it is consistent with the refined understanding (same pipeline order, same constants); its em-dashes are acceptable in a Ghidra plate (ASCII rule scopes to src/tests). Source declaration uses 'int skip_palette_cycle'; Ghidra signature shows 'uint param_1' -- a type/name display difference only, no Stage-2 rename recorded for the symbol; param rename also unnecessary since home-file decl is already descriptive. Verified 61 distinct caller functions via get_function_callers (matches comment); xrefs_to lists 84 CALL sites (some callers call it multiple times)."
+}

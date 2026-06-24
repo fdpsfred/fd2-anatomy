@@ -1,0 +1,73 @@
+{
+  "address": "0001088d",
+  "name_current": "fd2_load_chapter_battle_data",
+  "name_final": "fd2_load_chapter_battle_data",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; accurately describes loading all per-chapter battle data and building runtime_char_array. No Ghidra address residue. Matches actual behavior verified in decompilation and all three callers (fd2_init_battle_state_for_chapter, fd2_chapter_30_end, fd2_play_final_chapter_30_ending).",
+  "kind": "function",
+  "home": "src/rsrc/rsrc.c",
+  "purpose": "CRITICAL chapter init: loads every per-chapter battle resource (text, tile map, tile-event table, portrait table, scene snapshot, tile-attribute flags) from packed DAT files and builds the runtime_char_array of player units for the upcoming battle.",
+  "logic_summary": "1) fd2_load_chapter_background_layers(). 2) FDTXT.DAT[chapter_id+1] -> data_fd2_current_chapter_text. 3) FDFIELD.DAT[chapter_id*3 +2/+1/+0] -> chapter_portrait_load_buffer / tile_event_data_table / battle_tile_map. 4) map width/height = first two int16 of battle_tile_map. 5) scene_id = tile_event_data_table[0]; FDSHAP.DAT[scene_id*2] -> battle_scene_snapshot, FDSHAP.DAT[scene_id*2+1] -> tile_attribute_flags_buffer. 6) fd2_obfuscate_battle_tile_map(battle_tile_map). 7) portrait_cache_total_size = tile_event[1], portrait_cache_alloc_offset = tile_event[2], party_member_count = portrait_cache_total_size. 8) free old portrait_sprite_cache + old runtime_char_array. 9) malloc 0x1E00 (96 chars x 0x50) for runtime_char_array. 10) fopen FDICON.B24 'rb'. 11) loop char_iter 0..portrait_cache_total_size: empty-slot test ((chapter<0xd && slot==6 && roster_template[8]!=2) || active_count>=menu_party_member_count) -> zero 0x50 bytes + flags=1 (dead); else copy 0x50-byte roster template, set pos_x/pos_y from FDFIELD position table (6-byte stride from alloc_offset, +2 header skip), load portrait sprite via fd2_load_portrait_to_cache -> sprite_state[0], zero sprite_state[1..2], team=2 (player), combat_aux_block[10]=0xff, zero status_flags_block[1..6], fd2_recalculate_combat_stats(char_iter), advance template_ptr, active_count++. 12) fclose; free+NULL chapter_portrait_load_buffer. 13) fd2_load_chapter_portraits_and_dump_tmp(0). malloc/fopen failure -> INT 10h text reset + printf + exit(1). Normal tail falls through into shared epilogue fragment fd2_noop_stub_b43 @ 0x10b43.",
+  "signature": "void fd2_load_chapter_battle_data(uint32 chapter_id)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "Chapter id (1-30). Index into per-chapter resource tables: FDTXT.DAT[chapter+1], FDFIELD.DAT[chapter*3+0/1/2]. Also gates the empty-slot rule (chapter<0xd reserves slot 6 unless roster template flag==2). Caller fd2_init_battle_state_for_chapter passes data_fd2_chapter_current_chapter_id.",
+      "verdict": "rename",
+      "proposed": "chapter_id",
+      "reason": "Ghidra live parameter is the generic placeholder param_1; src/ home file already uses descriptive name chapter_id. Stage 2 should rename the Ghidra parameter to chapter_id to match the source declaration and proto. Domain id 1-30, not an address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: populates runtime_char_array and many battle globals; on malloc/fopen failure resets text mode and exit(1) (does not return)."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_portrait_load_buffer",
+    "data_fd2_tile_event_data_table_ptr",
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_battle_scene_snapshot",
+    "data_fd2_tile_attribute_flags_buffer_ptr",
+    "data_fd2_resource_portrait_cache_total_size",
+    "data_fd2_resource_portrait_cache_alloc_offset",
+    "data_fd2_portrait_sprite_cache",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_shared_menu_party_roster_buffer_ptr",
+    "data_fd2_shared_menu_party_member_count",
+    "data_fd2_string_resource_filename_fdtxt_dat",
+    "data_fd2_string_resource_filename_fdfield_dat_51a59",
+    "data_fd2_string_resource_filename_fdshap_dat_51a65",
+    "data_fd2_string_field_map_oom_msg_chapter_runtime_50064",
+    "data_fd2_string_field_map_fdicon_not_found_err_50086"
+  ],
+  "writes_globals": [
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_portrait_load_buffer",
+    "data_fd2_tile_event_data_table_ptr",
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_battle_map_width_tiles",
+    "data_fd2_battle_map_height_tiles",
+    "data_fd2_battle_scene_snapshot",
+    "data_fd2_tile_attribute_flags_buffer_ptr",
+    "data_fd2_resource_portrait_cache_total_size",
+    "data_fd2_resource_portrait_cache_alloc_offset",
+    "data_fd2_battle_party_member_count",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_resource_portrait_cache_count",
+    "data_fd2_input_last_key_pressed"
+  ],
+  "comment_original_issue": "src/ block comment was already accurate, concise and ASCII; step 5 correctly attributes the FDSHAP index to tile_event[0]. No factual issue in src. (The Ghidra plate, by contrast, mis-stated step 5 as FDSHAP.DAT[tile_map[0]*2]; the index actually derives from tile_event_data_table[0]. Plate corrected.)",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source block comment kept verbatim (already correct). Ghidra plate step 5 fixed: FDSHAP index = tile_event_data_table[0] (scene_id), not battle_tile_map[0] (battle_tile_map[0] supplies map width only). Param name param_1 (Ghidra) -> proposed chapter_id for Stage 2 to sync with source/proto. Function name kept. fall-through tail fd2_noop_stub_b43 @ 0x10b43 carries an address-residue suffix but is a different symbol, out of scope here."
+}

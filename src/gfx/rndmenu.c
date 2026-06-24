@@ -27,10 +27,15 @@
  *   3. Blit the intro panel sprite at working-surface offset 0x1A20C.
  *   4. Render the chapter title text at offset 0x1ACC4 (FDTXT page
  *      = chapter_intro_menu_cursor_state + 0x1EF).
- *   5. Blit the speaker portrait icon. The animation frame index is
- *      remapped 3 -> 1; the destination is keyed off the per-chapter
- *      pose X (column) / Y (row) tables indexed by
- *      chapter_category * 6 + chapter_intro_menu_cursor_state.
+ *   5. Blit the chapter-intro character portrait icon. The animation
+ *      frame index is remapped 3 -> 1; the destination is keyed off two
+ *      per-chapter pose-byte tables indexed by
+ *      chapter_category * 6 + chapter_intro_menu_cursor_state. One table
+ *      (data_fd2_chapter_intro_portrait_pose_x_column_table) is multiplied
+ *      by the 0x1C8 row pitch -> the row (Y) contribution; the other
+ *      (data_fd2_chapter_intro_portrait_pose_y_row_table) is added
+ *      directly -> the within-row (X) contribution. NOTE the two global
+ *      names read inverted vs this behaviour (see issues).
  *   6. Commit the visible 312x192 region from working-surface +0x8088
  *      to the VGA primary at 0xA0504.
  *
@@ -49,17 +54,17 @@
  *   if (frame_idx & 1) subframe_counter++;
  *   if (subframe_counter == 4) subframe_counter = 0;     // unconditional
  *
- * mode 0  — single-corner cursor indicator:
+ * mode 0  -- single-corner cursor indicator:
  *   blit corner_offs[cursor_idx]+0xAD430 with atlas sprite
  *   atlas[+6 + (frame_idx/2 + cursor_idx*2 + 3)*4].
  *
- * mode 1 / 3 — two scroll panels (+ party roster overlay when mode 3):
+ * mode 1 / 3 -- two scroll panels (+ party roster overlay when mode 3):
  *   if mode 3: fd2_render_party_roster_grid(cursor_idx, 0xA0000).
  *   left  @ 0xA972A : scroll==0 ? atlas[+0x4A] : atlas[+6+(frame_idx/2+0xB)*4]
  *   right @ 0xAE36A : (scroll+6 < visible_count) ? atlas[+6+(frame_idx/2+0xD)*4]
  *                                                 : atlas[+0x4A]
  *
- * mode 2  — same two panels (right cap uses scroll+3 instead of +6) plus a
+ * mode 2  -- same two panels (right cap uses scroll+3 instead of +6) plus a
  *   3-icon party roster row:
  *     icon_count = min(3, visible_count)
  *     anim_phase = (subframe_counter == 3) ? 1 : subframe_counter  // 0,1,2,3->0,1,2,1
@@ -697,14 +702,16 @@ void fd2_render_save_slot_grid(uint32 highlight_slot, uint32 surface_offset,
 /* ----------------------------------------------------------------
  * fd2_render_promote_members_grid @ 0x30A47  (1 caller)
  *
- * Render the promote / revive candidate grid — up to 3 visible chars in
+ * Render the church-revive candidate grid -- up to 3 visible chars in
  * a single column, each showing portrait + char name + archetype + job +
- * a per-job price (5-digit decimal). Shared by both the promote-member and
- * class-promotion menu loops (both display the same fields).
+ * a per-job revive price (5-digit decimal). Used ONLY by the church-revive
+ * picker; class promotion has its own grid fd2_render_promote_candidates_grid
+ * @ 0x31019 (which shows the post-promotion target job instead of a price).
  *
  * Sole caller: fd2_promote_members_select_loop @ 0x30C22 (the in-grid
- * Up/Down cursor loop), which passes the candidate count, the compose
- * surface, the highlight cursor index, and the candidate index list.
+ * Up/Down cursor loop of the church-revive picker), which passes the
+ * candidate count, the compose surface, the highlight cursor index, and
+ * the candidate index list.
  *
  * Blink-frame mapping:
  *   blink_frame = (subframe_counter == 3) ? 1 : counter   // 0,1,2,3->0,1,2,1

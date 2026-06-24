@@ -1,0 +1,54 @@
+{
+  "address": "0002fc85",
+  "name_current": "fd2_run_chapter_intro_menu_typeB",
+  "name_final": "fd2_run_chapter_intro_menu_typeB",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=run_chapter_intro_menu, descriptor=typeB). The 'typeB' suffix is a real variant designator, not address residue: this is one of three sibling orchestrators (_main @ 0x2E341, _typeB @ 0x2FC85, _typeC @ 0x3072F) selected by the caller fd2_chapter_transition_with_intro on data_fd2_chapter_intro_menu_cursor_state (0/others -> _main, 3 -> _main with FDOTHER 0x1D, 4 -> _typeC, 0 -> _typeB). Name accurately reflects 'the between-chapters intro menu used for non-shop/battle-only chapters'. No hex address tail.",
+  "kind": "function",
+  "home": "src/ui_menu/chintro.c",
+  "purpose": "Chapter-intro menu TYPE B: the between-chapters menu for non-shop (battle-only) chapters (cursor_state == 0), offering Status / Save / Load / Begin-battle; returns 1 when the player confirms starting the battle, else 0.",
+  "logic_summary": "Reads the chapter-meta category byte for the current chapter (used later by the pose-out animation index), loads the fixed FDOTHER BG atlas (idx 0x0D), fades it in, paints the speaker portrait (portrait_id_table[0]) and shows greeting dialog 0x249. Main loop: restore saved cursor, play open animation, run the shared 4-way fd2_chapter_intro_menu_input_loop, save cursor on commit, play outro animation, unconditionally slide-close the dialog. On commit, dispatch by data_fd2_ui_menu_cursor_idx: 0=fd2_run_status_screen_member_menu, 1=fd2_save_current_state_to_slot(1), 2=fd2_load_state_from_selected_slot, 3='begin battle?' sub-prompt (portrait[0] + dialog 0x19F, run typewriter loop + page-advance collapse; if typewriter != -1 AND confirm cursor==0(yes) show 'battle starting' dialog 0x1A0, delay, slide-close and return 1). After a non-battle action, re-show greeting 0x24A; loop while input committed (1), cancel(-1) exits. Exit path: blit BG, fade to black, 11-frame (iVar5 10..0) nearest-neighbour pose-out scaling snapshot_buf via fd2_blit_scaled_chapter_pose (src_cx from y-row table -0x96 +0x5000, src_cy from x-column table -100 +0x3200, both scaled iVar5/10*0x80; pose index = cursor_state + chapter_meta_byte*6), commit each frame from the large game-state buffer, ramp brightness; then free the BG atlas and return 0.",
+  "signature": "uint32 __cdecl fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)",
+  "params": [
+    {
+      "name": "snapshot_buf",
+      "type": "uint32",
+      "semantics": "Heap pointer to the caller's previously-allocated 64000-byte backdrop VGA snapshot (caller does pose_bitmap = malloc(64000); memmove(pose_bitmap, 0xA0000, 64000)). Used as the source bitmap for the exit pose-out scaled-blit animation (fd2_blit_scaled_chapter_pose). Owned/freed by the caller, not by this function.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate and descriptive of the actual value passed (the saved framebuffer snapshot fed to the pose-out animation). No param_1 placeholder, no address residue. Sibling functions name the analogous arg 'pose_bitmap'; either is acceptable and no rename is required here."
+    }
+  ],
+  "returns": {
+    "type": "uint32",
+    "semantics": "1 when the player confirms starting the battle (cursor 3 -> 'begin battle?' -> yes, i.e. typewriter result != -1 AND confirm cursor == 0); 0 otherwise (any other exit, including cancel out of the menu)."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_current_chapter_id",
+    "data_fd2_chapter_intro_menu_cursor_state",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_string_resource_filename_fdother_dat",
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr",
+    "data_fd2_chapter_intro_menu_speaker_portrait_id_table",
+    "data_fd2_all_game_text_ptr",
+    "data_fd2_chapter_intro_portrait_pose_y_row_table",
+    "data_fd2_chapter_intro_portrait_pose_x_column_table",
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr",
+    "data_fd2_ui_menu_cursor_idx"
+  ],
+  "comment_original_issue": "Source comment block (chintro.c lines 231-281) was already accurate, precise, ASCII-clean, and used the correct live global name data_fd2_chapter_intro_menu_cursor_state; no change needed. The Ghidra plate, however, referred to global 0x5412B by the stale name 'chapter_transition_state' (in both prose and its Globals-touched list), which no longer matches the live symbol data_fd2_chapter_intro_menu_cursor_state and contradicts the source/caller.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "9710902b6156bbab07ef5741f4497d253e41f282",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against decompilation of self (0x2FC85) and sole caller fd2_chapter_transition_with_intro (0x2D093): caller dispatches typeB when data_fd2_chapter_intro_menu_cursor_state==0 and passes the malloc'd 64000-byte VGA snapshot as snapshot_buf. Live global symbol names confirmed via Ghidra symbol-table dump (0x5412B=data_fd2_chapter_intro_menu_cursor_state, 0x53C57=data_fd2_ui_menu_cursor_idx, 0x52659=data_fd2_chapter_intro_menu_speaker_portrait_id_table, 0x52635/0x52647=pose y-row/x-column tables, 0x54147=atlas ptr, 0x53A49=large game-state buffer). No source code/logic/type/signature changes made (comment kept as-is). Only the Ghidra plate was updated to replace the stale 'chapter_transition_state' name with the live data_fd2_chapter_intro_menu_cursor_state and align the menu-option/atlas notes; plate detail preserved. snapshot_buf vs sibling 'pose_bitmap' naming difference left untouched (Stage-2 / not required)."
+}

@@ -1,0 +1,40 @@
+{
+  "address": "0x00032975",
+  "name_current": "fd2_mark_char_as_dead",
+  "name_final": "fd2_mark_char_as_dead",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>; descriptor 'mark_char_as_dead' accurately reflects the action (sets the runtime-char flags byte to dead). No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/battle/btl_turn.c",
+  "purpose": "Mark a runtime character (by array index) as dead by writing its flags byte = 1.",
+  "logic_summary": "Computes runtime_char[char_idx] via base pointer data_fd2_battle_runtime_char_array_ptr plus char_idx * 0x50 (RUNTIME_CHAR_SIZE), then writes byte 0x1 to the entry's flags field at struct offset +5. Overwrites the whole byte, so all other flag bits are reset; bit 0 = dead is the only convention used at runtime. Leading PUSH 4 / CALL is the Watcom __CHK stack-overflow guard (4-byte frame), not game logic. No return value.",
+  "signature": "void fd2_mark_char_as_dead(uint32 char_idx)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index into the runtime character array (data_fd2_battle_runtime_char_array_ptr); selects which char's flags byte (offset +5) is set to dead.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and matches body usage as the runtime_char array index; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": ["data_fd2_battle_runtime_char_array_ptr"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly verified: EAX = char_idx*5 then <<4 = char_idx*0x50 (stride 0x50 = runtime char entry size); MOV byte [base+EAX+0x5],0x1 -> flags at offset +5 = CHARFLAG_DEAD (1). src comment ('Set runtime_char[char_idx].flags = 1 (dead). Overwrites all bits.') is already concise and correct -> keep. Ghidra plate is more detailed (caller list, __CHK note) but consistent with src and not stale -> leave untouched. writes_globals empty: the write targets a heap entry reached through the global pointer, not a static global. 6 callers: mid-battle kill (fd2_enemy_turn_action_dispatcher) and story-driven chapter death marking (chapters 01/23/28 init, 23 end, event handler 17)."
+}

@@ -11,14 +11,20 @@
 /* ----------------------------------------------------------------
  * data_fd2_dialog_advance_collapse_template @ 0x51EE5  (16 bytes, int32[4])
  *
- * Left-corner sprite-coordinate base values for the dialog box "fold in"
- * transition. Accessed as two int32 pairs:
- *   [0],[1] read by fd2_animate_dialog_page_advance_collapse
- *           (local base + corner data, copied via two MOVSD from 0x51EE5)
- *   [2],[3] read by fd2_text_dialog_typewriter_loop
- *           (same layout, copied via two MOVSD from 0x51EED)
- * Each element is used as a signed int in sprite-blit address arithmetic.
- * Read-only constant table.
+ * Corner-box sprite selector pair for the dialog box's 4-frame fold (collapse /
+ * expand) animation. The two selectors are 0x10 (left corner box) and 0x11
+ * (right corner box); each consumer block-copies its own pair via two MOVSD into
+ * the first two dwords of a local 4-dword corner-state frame, where dwords [2],[3]
+ * hold the animated corner offsets (initialized in code to +/-16, ramped toward /
+ * away from center per frame -- NOT taken from this table). The selectors are not
+ * coordinates: each is multiplied (*0xC, or *3 in the typewriter main loop) to
+ * index the menu_dialog_state_handle sprite-pointer table and fetch the box
+ * sprite. Stored as two identical pairs so the two consumers read disjoint slots:
+ *   [0],[1] copied by fd2_animate_dialog_page_advance_collapse (two MOVSD from
+ *           0x51EE5)  -- collapse / fold-in after a Yes/No confirm
+ *   [2],[3] copied by fd2_text_dialog_typewriter_loop (two MOVSD from 0x51EED)
+ *           -- the intro fold-out slide
+ * Read-only constant table; no writers.
  */
 const int32 data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0x11 };
 
@@ -53,11 +59,12 @@ const int16 data_fd2_dialog_shop_inventory_full_dialog_text_id_table[6] = {
  * data_fd2_chapter_intro_menu_cursor_state (0..5).
  *
  * Sole reader fd2_run_buy_item_menu @ 0x2F0CE block-copies the 12 bytes into a
- * stack-local buffer (3x MOVSD from 0x526FA), then reads it back as a signed
- * 16-bit word: MOVSX EAX, word ptr [ESP + cursor_state*2 + ...] @ 0x2F184, and
- * passes the value as the FDTXT page id to fd2_display_dialog_scene. The *2
- * stride + MOVSX word confirms int16 (signed) elements; index range 0..5 gives
- * the 6-element dimension.
+ * stack-local buffer (3x MOVSD from 0x526FA), then on the confirm branch reads
+ * it back as a signed 16-bit word: MOVSX EAX, word ptr [ESP + cursor_state*2 +
+ * 0x48] @ 0x2F282, passes the value as the FDTXT page id to
+ * fd2_display_dialog_scene, then runs fd2_text_dialog_typewriter_loop for the
+ * Yes/No reply. The *2 stride + MOVSX word confirms int16 (signed) elements;
+ * index range 0..5 gives the 6-element dimension.
  * Read-only constant table; no writers.
  */
 const int16 data_fd2_dialog_shop_buy_for_dialog_text_id_table[6] = {

@@ -190,10 +190,25 @@ void fd2_apply_item_stat_modifier_with_anim(
 }
 
 /* ----------------------------------------------------------------
- * fd2_apply_attack_spell_damage @ 0x2111A
+ * fd2_apply_attack_spell_damage @ 0x2111A  (2 callers)
  *
- * Attack spell (effect 0x15): animate impact + full-screen flash,
- * then apply magic damage per target. Shows miss or damage number.
+ * Attack-spell damage applier with full impact + full-screen-flash
+ * animations. Plays the per-target impact animation and the full-screen
+ * flash (both keyed by the spell id in arg 4), then for every target in
+ * the byte array calls fd2_calc_magic_damage(target_id, spell_id): a 0
+ * return is a miss (draw the miss indicator), otherwise draw the damage
+ * number with glyph 0x5E ('^'). Closes with fd2_composite_battle_frame(0)
+ * + fd2_animate_spell_projectile_paths().
+ *
+ * fd2_calc_magic_damage applies the HP decrement internally; this
+ * function only drives the visual presentation (impact + flash + per-
+ * target number + composite + projectile trail) and never touches HP.
+ *
+ * Arg 4 is a spell id (used for the animations and the damage calc), not
+ * an item field: caller fd2_apply_use_effect_dispatch @ 0x20C6F passes
+ * the item's effect_param (item effect 0x15 = the attack-spell variant),
+ * and caller fd2_execute_summon_spell_cast @ 0x27FC9 passes literal 0x20
+ * (the 熾天使 summon finale).
  * ---------------------------------------------------------------- */
 void fd2_apply_attack_spell_damage(uint32 caster_idx,
                                     uint32 target_count,
@@ -241,7 +256,7 @@ void fd2_apply_attack_spell_damage(uint32 caster_idx,
  * fd2_composite_battle_frame(0) then fd2_animate_spell_projectile_
  * paths() (inlined here; the wrapper is a shared-epilogue fragment,
  * not a standalone C function). The function has no explicit RET of
- * its own — it borrows 0x21190's POP/RET epilogue.
+ * its own -- it borrows 0x21190's POP/RET epilogue.
  *
  * damage is the per-target return of fd2_calc_magic_damage: asm
  * 0x2142F CALL leaves it in EAX, 0x21434 ADD ESP,8 / 0x21412 PUSH EAX
@@ -308,12 +323,15 @@ void fd2_apply_status_effect_with_anim(int caster_idx,
 /* ----------------------------------------------------------------
  * fd2_cast_status_cure_spell @ 0x22AF6  (2 callers)
  *
- * STATUS-CURE spell worker (Antidote / De-Sleep / De-Silence family).
- * Plays the per-target impact + status-overlay-flicker animations, then
- * for each target in the byte array checks the status byte at runtime_char
- * offset `sprite_id` (e.g. 0x25=poison, 0x26=sleep, 0x27=silence): if the
- * byte is 0 the unit has no such status -> draw the miss indicator;
- * otherwise heal +10 HP via fd2_apply_hp_heal_and_award_xp, draw the heal
+ * STATUS-CURE spell worker (Antidote / De-Paralyze family). Plays the
+ * per-target impact + status-overlay-flicker animations, then for each
+ * target in the byte array checks the status byte at the raw runtime_char
+ * byte offset `sprite_id` (item effect 6 / antidote passes 0x25 = the
+ * poison byte at pStatus_flags_block[4]; effect 7 / de-paralyze passes
+ * 0x26 = bStatus_sleep_flag; sprite_id is a struct byte offset, not a
+ * fixed status enum): if the byte is 0 the unit has no such status ->
+ * draw the miss indicator; otherwise heal +10 HP via
+ * fd2_apply_hp_heal_and_award_xp, draw the heal
  * number (glyph 0x69 = 'i'), clear the status byte, and credit level_mod*4
  * pending XP (cure XP is 4x level_mod vs 2x for the AP/DP/speed buffs).
  * Closes with fd2_composite_battle_frame(0) + its own POP/RET epilogue.
@@ -525,24 +543,26 @@ void fd2_execute_offensive_targeted_spell(int caster, int spell_id,
  *
  * Reached only through the spell dispatch table @ 0x51D01 (entry index
  * 9 = 0x51D01 + 0x24); no direct callers. spell_id literal 9 is baked
- * into the body. Dedicated SINGLE-TARGET offensive worker: unlike the
- * looping siblings (0x21227 / 0x213B7) it hits only target_id_array[0],
- * has no per-target loop, plays NO second (blink/flash) animation, and
- * ends with its own explicit RET instead of borrowing the 0x21190
- * shared epilogue.
+ * into the body. Dedicated SINGLE-TARGET offensive worker for spell 9
+ * (咒殺術, an attack spell whose AoE radius is 0, so by design it can
+ * only strike one unit). Unlike the looping siblings (0x21227 / 0x213B7)
+ * it hits only target_id_array[0], has no per-target loop, plays NO
+ * second (blink/flash) animation, and ends with its own explicit RET
+ * instead of borrowing the 0x21190 shared epilogue.
  *
  * Resets the AoE/fx-queue counter, plays the per-target impact
- * animation (spell_arg is forwarded as its 3rd arg = n_targets so the
- * sprite covers every selected target even though only target[0] is
- * damaged), deducts the caster's MP for spell 9, then applies magic
- * damage to target[0]: a miss (damage 0) shows the miss indicator,
- * otherwise the damage number is drawn with glyph 0x5E ('^'). Finishes
- * by compositing the battle frame and animating the projectile paths.
+ * animation (the 2nd parameter is the selected-target count, forwarded
+ * as the impact animation's 3rd arg = n_targets so the sprite covers
+ * every selected target even though only target[0] is damaged), deducts
+ * the caster's MP for spell 9, then applies magic damage to target[0]:
+ * a miss (damage 0) shows the miss indicator, otherwise the damage
+ * number is drawn with glyph 0x5E ('^'). Finishes by compositing the
+ * battle frame and animating the projectile paths.
  *
- * damage is the return of fd2_calc_magic_damage: asm 0x214ED CALL
- * leaves it in EAX, and on the hit path 0x21513 .. only MOVZX EBX /
- * PUSH 0x5E intervene before 0x2150D PUSH EAX (no EAX clobber between
- * TEST and PUSH), so the inner return IS the displayed number.
+ * damage is the return of fd2_calc_magic_damage: asm 0x214ED CALL leaves
+ * it in EAX; on the hit path only 0x21507 MOVZX EBX / 0x2150B PUSH 0x5E
+ * intervene before 0x2150D PUSH EAX (no EAX clobber between the TEST at
+ * 0x214F5 and the PUSH), so the inner return IS the displayed number.
  * ---------------------------------------------------------------- */
 void fd2_execute_offensive_single_target_spell_id_9(
     int caster_unit_id, int spell_arg, uint8 *target_id_array)
@@ -908,19 +928,28 @@ void fd2_cast_speed_boost_spell(uint32 caster_unit_id, uint32 num_targets,
  * dispatched via the spell table @ 0x51D01, entry index 0x19 = 25,
  * data xref at 0x51D65)
  *
- * STATUS-CLEAR "holy word" spell worker (spell id 0x19 = 25). Resets the
- * AoE/fx queue index, deducts the caster's MP for spell 0x19, then plays
- * the per-target impact + status-overlay-flicker animations (id 0x19).
- * For each target in the byte array:
- *   if the target's flags bit-7 (the "acted"/status bit, flags & 0x80) is
- *   NOT set -> the unit has no such status, draw the miss indicator;
- *   otherwise clear bit-7 (flags &= 0x7F), take status_value =
- *   status_flags_block[0] (the unit's level byte), add +30 if its job_id
- *   is an intermediate class (9..0x18), and credit status_value*8 pending
- *   XP (the 8x multiplier is the highest, distinguishing status-clear from
- *   the 4x cure / 2x buff workers). Closes with fd2_composite_battle_frame
- *   (0) followed by a conditional fd2_animate_spell_projectile_paths() when
- *   the AoE/fx queue index is non-zero.
+ * Worker for spell id 0x19 (25) = 行動術 ("act again"): lets a unit that has
+ * already acted this turn act again. The runtime_char "acted" state is
+ * flags bit-7 (flags & 0x80); the spell hits a unit only if it has acted,
+ * and grants the re-action by clearing that bit. Resets the AoE/fx queue
+ * index, deducts the caster's MP for spell 0x19, then plays the per-target
+ * impact + status-overlay-flicker animations (id 0x19). For each target in
+ * the byte array:
+ *   if flags bit-7 is NOT set -> the unit has not acted yet, nothing to
+ *   re-enable, draw the miss indicator;
+ *   otherwise clear bit-7 (flags &= 0x7F) so the unit may act again, take
+ *   status_value = status_flags_block[0] (the unit's level byte), add +30
+ *   if its job_id is an intermediate class (9..0x18), and credit
+ *   status_value*8 pending XP (the 8x multiplier is the highest reward tier,
+ *   shared with the status-inflict worker; vs 4x cure / 2x buff). Closes
+ *   with fd2_composite_battle_frame(0) followed by a conditional
+ *   fd2_animate_spell_projectile_paths() when the AoE/fx queue index is
+ *   non-zero.
+ *
+ * Naming note: the current symbol calls this "status_clear_holy_word", which
+ * is a misnomer -- 0x19 is 行動術 (re-activate), not the heal spell 神恩術;
+ * the bit it clears is specifically the "acted" bit. Pending Stage-2 rename
+ * to fd2_execute_reactivate_spell_id_25.
  *
  * The third parameter is a byte array of target unit ids (Ghidra
  * byte *target_id_array); each entry is read as target_id_array[iter],
@@ -1101,7 +1130,8 @@ void fd2_cast_status_inflict_spell(uint32 caster_unit_id, uint32 spell_id,
  *   2) FX-queue write cursor: the damage-number and miss-indicator
  *      routines load it as a base index/offset (MOV EAX,[0x53EC4]) into the
  *      parallel FX queue byte arrays at 0x53C6C / 0x53D34 / 0x53DFC, write
- *      a batch of up to 4 entries, then advance it (ADD dword [0x53EC4],4).
+ *      a 4-entry batch (some sprite-id slots may be 0 for blank digits),
+ *      then advance it (ADD dword [0x53EC4],4).
  *
  * Accessed exclusively as a full 32-bit cell: written via
  * MOV dword ptr [0x53EC4],0 and ADD dword ptr [0x53EC4],4; read via

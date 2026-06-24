@@ -1,0 +1,40 @@
+{
+  "address": "000348fc",
+  "name_current": "fd2_chapter_event_handler_18__unref_dialog",
+  "name_final": "fd2_chapter_event_handler_18__unref_dialog",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with the fd2_<domain>_<descriptor> convention and consistent with every sibling in chevt1.c (handler_00..handler_2e). The '18' is the dispatch-table index (idx 0x18 of the per-event handler table at 0x51B91; entry at 0x51BF1 = 0x51B91 + 0x18*4 holds this function's address 0x000348fc) -- a meaningful domain ID, not a Ghidra address residue (the function address 0x348FC does not end in 18). '__unref' is accurate: the only xref is the data dispatch table (from 0x51BF1), 0 direct callers, and no chapter FDFIELD turn-event/tile-step hook dispatches this slot. '__dialog' is accurate: the body is a minimal dialog-only beat.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Unreferenced dispatch-table slot idx 0x18: a minimal dialog-only chapter event handler that shows chapter-text dialog page 3 and returns.",
+  "logic_summary": "Straight-line, no-branch. After the compiler-injected __CHK(0x28) stack probe, it calls fd2_display_dialog_scene(data_fd2_current_chapter_text, page=3, 0xA0000 VGA base, 0x140 stride, 0xCD/0x4C window X/Y, 0x4A style, 0x13 max lines, 1 wait-for-input) and returns. No portrait reload, no camera pan, no global state writes, no RNG, no numeric computation; the dialog call's return value is discarded. In the original binary the body is PUSH 0x28; CALL __CHK, then falls through into the 8-PUSH chain at 0x34906 (also the named helper fd2_show_chapter_intro_text_dialog_mode_3) which JMPs (0x3491F -> 0x34C0F) into the shared tail of fd2_show_chapter_dialog_with_portrait_set_1 (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET). It also exposes a Class-3 shared entry at 0x34901 (the CALL __CHK instruction) that fd2_chapter_event_handler_22 @ 0x34C6C borrows via PUSH 0x28; JMP 0x34901, reusing this entire body. Reproduced as a single inline dialog call for Layer-2 equivalence.",
+  "signature": "void __cdecl fd2_chapter_event_handler_18__unref_dialog(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "The uniform per-event dispatch argument from the handler table at 0x51B91 (1-arg cdecl). The body never reads it.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of the uniform dispatch-table arg, no address residue. The body does not consume it, so a more specific name is not warranted; matches the convention used across sibling handlers in chevt1.c."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (void). fd2_display_dialog_scene's uint32 return is discarded."
+  },
+  "reads_globals": ["data_fd2_current_chapter_text"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Comment block (chevt1.c lines 981-1006) is already a refined, accurate conclusion -- kept unchanged, so chevt1.c is not modified by this refiner. Ghidra plate matches the src understanding (idx 0x18, unref, dialog-only, the sequence, the Class-3 shared-entry detail with handler_22) -- left untouched. Verified: disasm = PUSH 0x28; CALL 0x36cd7 (__CHK __stdcall stack probe), then fall-through to the 8-PUSH chain at 0x34906 (page=3,0xA0000,0x140,0xCD,0x4C,0x4A,0x13,1) -> JMP 0x34c0f shared tail. xrefs_to = only DATA from 0x51bf1 (dispatch table idx 0x18); get_function_callers = none. Dispatch entry bytes at 0x51bf1 = fc 48 03 00 = 0x000348fc. Parallel refiners have other shard files modified in the worktree; only src/field/chevt1.c and this shard were considered for staging."
+}

@@ -1,0 +1,52 @@
+{
+  "address": "00012cea",
+  "name_current": "fd2_pan_cursor_to_tile_animated",
+  "name_final": "fd2_pan_cursor_to_tile_animated",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor>: domain 'pan_cursor' (battle UI camera), descriptor 'to_tile_animated' precisely reflects behavior -- animated pan of the battle cursor to a target tile (target_x,target_y), stepping one tile per frame X-axis first then Y-axis. No Ghidra address residue; no domain-ID suffix to preserve. Distinguishes it from the sibling fd2_pan_cursor_to_char (char-index convenience wrapper) and fd2_pan_cursor_and_window (scrolls window origin instead of cursor).",
+  "kind": "function",
+  "home": "src/ui_menu/cursor.c",
+  "purpose": "Animated battle-cursor camera pan: step the cursor one tile per frame from its current world position toward target tile (target_x, target_y), X-axis first then Y-axis, redrawing each step; used for camera-focus sequences (attack-target highlight, AI move/destination preview, chapter-end cinematics).",
+  "logic_summary": "composite_battle_frame(0) once up front. Then X loop: while target_x != cursor_world_x, call cursor_move_left() if target_x < cursor_world_x else cursor_move_right(); if anim_phase != 0 && anim_phase != 6, wait_n_bios_ticks(1) (pulse pacing, skipped during phase 0/6 to avoid double-pulsing); clear_keyboard_buffer(). Identical Y loop using cursor_move_up()/cursor_move_down() against cursor_world_y. The directional move handlers themselves clamp at map edges, so callers must pass in-bounds tile coords. Leading __CHK(0x14,...) in the decompile is the Watcom stack-overflow check prologue (CRT artifact), correctly omitted from src.",
+  "signature": "void __cdecl fd2_pan_cursor_to_tile_animated(int target_x, int target_y)",
+  "params": [
+    {
+      "name": "target_x",
+      "type": "int",
+      "semantics": "Destination tile column (world X) the cursor should pan to. Compared SIGNED against data_fd2_battle_cursor_world_x to pick left vs right stepping. Caller fd2_pan_cursor_to_char passes runtime_char[char_idx].pos_x, confirming this is a map tile column.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches usage (target tile X), no address residue."
+    },
+    {
+      "name": "target_y",
+      "type": "int",
+      "semantics": "Destination tile row (world Y) the cursor should pan to. Compared SIGNED against data_fd2_battle_cursor_world_y to pick up vs down stepping. Caller fd2_pan_cursor_to_char passes runtime_char[char_idx].pos_y, confirming this is a map tile row.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches usage (target tile Y), no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is the animated cursor pan (mutates cursor world/screen position and view window origin via the move handlers, repeatedly composites the battle frame)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_world_y",
+    "data_fd2_battle_anim_phase"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Comment kept: existing src block (lines 163-167) 'Animated pan: step cursor one tile per frame, X first then Y.' is correct and precise about purpose+primary logic, matching the deliberate terse style shared by the pan trio (fd2_pan_cursor_to_tile_animated/_to_char/_and_window) in this file. Ghidra plate is the verbose-but-accurate version and is consistent with src (no contradiction) -> plate left untouched. No rename (function name + both param names already compliant). No logic issue: the theoretical infinite loop if target is out of map bounds is precluded by callers passing in-bounds tile coords and is by-design, not a bug. Function-level reads_globals reflects direct accesses in this body; the move handlers (separate functions) touch the screen-pos/window-origin globals."
+}

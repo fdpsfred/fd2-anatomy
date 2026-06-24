@@ -13,6 +13,14 @@
 
 /* ----------------------------------------------------------------
  * fd2_cursor_move_up @ 0x11B48  (3 callers)
+ *
+ * Up-arrow (scancode 0x48) battle cursor handler. Moves the cursor one
+ * tile up unless already at the map top (world_y == 0, no-op). Near the
+ * top viewport edge (screen_y < 2) with room to scroll (window_origin_y
+ * != 0) it scrolls the view up instead of moving the cursor on screen;
+ * otherwise it steps the cursor up one screen row. Composites a fresh
+ * frame except in the plain inner-step case while no battle animation is
+ * running (anim_phase == 0), where the main loop redraws on its next tick.
  * ---------------------------------------------------------------- */
 void fd2_cursor_move_up(void)
 {
@@ -39,6 +47,16 @@ void fd2_cursor_move_up(void)
 
 /* ----------------------------------------------------------------
  * fd2_cursor_move_down @ 0x11B9B  (3 callers)
+ *
+ * Down-arrow (scancode 0x50) battle cursor handler; vertical mirror of
+ * fd2_cursor_move_up. Moves the cursor one tile down unless already at the
+ * map bottom (world_y == map_height_tiles - 1, no-op). When the cursor sits
+ * in the upper part of the viewport (screen_y < 6) or the view is already
+ * scrolled to its lowest position (window_origin_y == map_height_tiles - 8),
+ * it steps the cursor down one screen row; otherwise it scrolls the view
+ * down instead of moving the cursor on screen. Composites a fresh frame
+ * except in the plain inner-step case while no battle animation is running
+ * (anim_phase == 0), where the main loop redraws on its next tick.
  * ---------------------------------------------------------------- */
 void fd2_cursor_move_down(void)
 {
@@ -68,6 +86,17 @@ void fd2_cursor_move_down(void)
 
 /* ----------------------------------------------------------------
  * fd2_cursor_move_right @ 0x11BFA  (3 callers)
+ *
+ * Right-arrow (scancode 0x4D) battle cursor handler; horizontal mirror
+ * of fd2_cursor_move_down. Moves the cursor one tile right unless already
+ * at the map right edge (world_x == map_width_tiles - 1, no-op). When the
+ * cursor sits in the left part of the viewport (screen_x < 0xB) or the view
+ * is already scrolled to its rightmost position (window_origin_x ==
+ * map_width_tiles - 0xD, the 13-tile-wide viewport's max scroll), it steps
+ * the cursor right one screen column; otherwise it scrolls the view right
+ * instead of moving the cursor on screen. Composites a fresh frame except
+ * in the plain inner-step case while no battle animation is running
+ * (anim_phase == 0), where the main loop redraws on its next tick.
  * ---------------------------------------------------------------- */
 void fd2_cursor_move_right(void)
 {
@@ -97,6 +126,16 @@ void fd2_cursor_move_right(void)
 
 /* ----------------------------------------------------------------
  * fd2_cursor_move_left @ 0x11C59  (3 callers)
+ *
+ * Left-arrow (scancode 0x4B) battle cursor handler; horizontal mirror
+ * of fd2_cursor_move_up. Moves the cursor one tile left unless already
+ * at the map left edge (world_x == 0, no-op). Near the left viewport
+ * edge (screen_x < 2) with room to scroll (window_origin_x != 0) it
+ * scrolls the view left instead of moving the cursor on screen;
+ * otherwise it steps the cursor left one screen column. Composites a
+ * fresh frame except in the plain inner-step case while no battle
+ * animation is running (anim_phase == 0), where the main loop redraws
+ * on its next tick.
  * ---------------------------------------------------------------- */
 void fd2_cursor_move_left(void)
 {
@@ -174,7 +213,14 @@ void fd2_pan_cursor_to_char(uint32 char_idx)
 /* ----------------------------------------------------------------
  * fd2_pan_cursor_and_window @ 0x135DD  (98 callers)
  *
- * Scroll viewport + cursor together until window origin matches target.
+ * Animated camera pan: scroll the viewport window AND the cursor together,
+ * one tile per frame, until window_origin reaches (target_ox, target_oy).
+ * Resets anim_phase to 0, then pans the X axis to target_ox first and the
+ * Y axis to target_oy second; each step composites a fresh frame and drains
+ * the keyboard buffer. The cursor's WORLD position is moved in lockstep with
+ * the window origin (same delta each step), so the cursor stays at the same
+ * SCREEN position while the world scrolls beneath it. Used for cutscene /
+ * chapter-intro camera focus that scrolls to a fixed viewport origin.
  * ---------------------------------------------------------------- */
 void fd2_pan_cursor_and_window(uint32 target_ox, uint32 target_oy)
 {

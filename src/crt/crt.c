@@ -442,14 +442,14 @@ unsigned long crt_equivalent_get_eflags_thunk(void)
  * expression (its way of showing PUSHFD;POP EAX) and cannot represent the
  * CLI; the disassembly is authoritative.
  *
- * Emit form: identical to the thunk above — the raw opcodes
+ * Emit form: identical to the thunk above -- the raw opcodes
  * PUSHFD; POP EAX; CLI are spliced in from the shared #pragma aux in-line
  * helper crt_capture_eflags_cli (declared once above; reused here, NOT
  * re-declared). The optimiser inlines it, so this externally-linked
- * wrapper expands to PUSHFD; POP EAX; CLI; RET — exactly the original
+ * wrapper expands to PUSHFD; POP EAX; CLI; RET -- exactly the original
  * 4-byte body. As anticipated when the thunk was emitted, the program now
  * holds two byte copies of these opcodes (the thunk's inline copy and this
- * one); that is Layer 2 (functionally exact) — byte-exact deduplication of
+ * one); that is Layer 2 (functionally exact) -- byte-exact deduplication of
  * the JMP-to-shared-target structure is a Layer 3 detail not pursued.
  *
  * __cdecl unsigned long(void): no parameters, returns EFLAGS in EAX. The
@@ -577,21 +577,21 @@ int crt_equivalent_matherr_default_thunk_4d340(void *exc)
  *
  * The "return 0" primitive the default _matherr handler forwards to. It is
  * the JMP target of crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340
- * (slot [0x539A8]'s default contents); no direct callers — control only
+ * (slot [0x539A8]'s default contents); no direct callers -- control only
  * arrives via that thunk's tail JMP, then RETs straight back to _matherr.
  * Returning 0 signals "I did not handle this error", so _matherr proceeds
  * with its default behaviour.
  *
  * Original body (7 bytes): PUSH EBP; MOV EBP,ESP; XOR EAX,EAX; POP EBP; RET
- * — the standard Watcom prologue/epilogue around `return 0`. This is exactly
+ * -- the standard Watcom prologue/epilogue around `return 0`. This is exactly
  * what Watcom 9.5a emits for an `int f(args){ return 0; }` with a referenced
  * (kept) frame, so the C source below reproduces it.
  *
  * __cdecl int(void *exc): the matherr ABI passes the exception-struct pointer
  * as a single cdecl stack arg. The body never reads it (it just returns 0);
  * the parameter exists so the symbol _matherr binds to (via the thunk/slot)
- * carries the correct cdecl signature. RET has no operand (caller — _matherr,
- * via its ADD ESP,4 — cleans the arg), confirming __cdecl. The only EAX write
+ * carries the correct cdecl signature. RET has no operand (caller -- _matherr,
+ * via its ADD ESP,4 -- cleans the arg), confirming __cdecl. The only EAX write
  * is `XOR EAX,EAX`; no CALL precedes it, so there is no EAX-tracking concern.
  * ---------------------------------------------------------------- */
 int crt_equivalent_matherr_default_return_zero_4d8ea(void *exc)

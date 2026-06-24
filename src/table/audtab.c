@@ -13,10 +13,14 @@
  * data_fd2_audio_per_chapter_player_turn_bgm_track @ 0x51E63  (30 bytes)
  *
  * BGM track id played during the player's turn, one entry per chapter
- * (index 0 = chapter 1 .. index 29 = chapter 30). Read-only; consumed by
- * fd2_run_full_turn_cycle (player-turn phase) and
- * fd2_main_menu_continue_dispatcher (NEW GAME / CONTINUE / reload paths).
- * Compared against the enemy-turn table to decide whether to fade BGM out
+ * (index 0 = chapter 1 .. index 29 = chapter 30). Read-only (no writers).
+ * Accessor: MOVZX EAX, byte ptr [chapter_id + 0x51E63] -> uint8 FDMUS track
+ * id, unsigned, stride 1; the value is passed to fd2_set_bgm_track_with_fade.
+ * Read by: fd2_run_full_turn_cycle (new-player-turn phase),
+ * fd2_main_menu_continue_dispatcher (NEW GAME / CONTINUE / fallback-reload),
+ * fd2_load_save_and_init_engine (full engine reload), and main (NEW-GAME
+ * re-entry after a chapter event). fd2_run_full_turn_cycle also compares this
+ * table against the enemy-turn table to decide whether to fade BGM out
  * between phases.
  * ---------------------------------------------------------------- */
 const uint8 data_fd2_audio_per_chapter_player_turn_bgm_track[30] = {
@@ -60,10 +64,12 @@ const uint8 data_fd2_audio_figani_sfx_bank_fdother_index_lut[6] = {
  * data_fd2_audio_footstep_sfx_per_job_cadence_class_table @ 0x52618  (29 bytes)
  *
  * Per-job footstep-SFX cadence-class table, indexed as table[job_id - 1] by
- * fd2_tick_tutorial_progress_with_sfx; each byte selects the walk-step SFX
- * cadence class (0/1/other) for that job. 28 entries cover job_id 1..0x1C plus
- * 1 trailing byte that the caller's dword block-copy (7 dwords + 1 byte = 29)
- * sweeps along. Accessor: MOVZX -> unsigned byte per element. Read-only.
+ * fd2_tick_tutorial_progress_with_sfx; each byte is the walk-step footstep-SFX
+ * cadence class for that job: class 0 -> step every 6 frames (sfx 9), class 1
+ * -> every 4 frames (sfx 9), any other value -> every 9 frames (sfx 11).
+ * 28 entries cover job_id 1..0x1C plus 1 trailing byte that the caller's dword
+ * block-copy (7 dwords + 1 byte = 29) sweeps along onto its stack-local copy.
+ * Accessor: MOVZX -> unsigned byte per element. Read-only (never written).
  * ---------------------------------------------------------------- */
 const uint8 data_fd2_audio_footstep_sfx_per_job_cadence_class_table[29] = {
     1, 1, 2, 1, 0, 0, 1, 1, 1, 1, 2, 1, 0, 0, 3, 1,

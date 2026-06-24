@@ -1,0 +1,60 @@
+{
+  "address": "00030437",
+  "name_current": "fd2_render_save_slot_grid",
+  "name_final": "fd2_render_save_slot_grid",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=render, descriptor=save_slot_grid). No Ghidra address residue. Accurately reflects behavior: renders the 4-slot SAVE-slot selection grid (per-slot 'Slot N' header + chapter intro icon/title or EMPTY sentinel, selected slot in highlight border glyph).",
+  "kind": "function",
+  "home": "src/gfx/rndmenu.c",
+  "purpose": "Render the 4-slot save-slot grid: for each of slots 0..3 draw a 'Slot N' header plus either the chapter intro-icon + chapter title (from the slot's stored chapter id) or an 'EMPTY' sentinel sprite, with the currently-highlighted slot drawn in a distinct border glyph.",
+  "logic_summary": "Loops slot_iter 0..3. slot_base = sav_decrypted_buf + 0x312B + slot_iter*0xA28 (SAV header 0x312B, per-slot stride 0xA28). border_glyph = (slot_iter==highlight_slot) ? 0xC9 : 0xCD. Writes data_fd2_dialog_last_action_value_param (@0x53AE1) = slot_iter+1 (1-indexed slot number consumed by the dialog text formatter's literal-number op). row_off = surface_offset + (slot_iter*0x13 + 0x77)*0x140 (0x140 = 320-byte VGA row pitch). Renders 'Slot N' header sprite 0x225 at row_off+0xA. Reads chapter_id = slot_base[0xA00]; if 0xFF (empty) the shared tail call renders 'EMPTY' sprite 0x202 at row_off+0x58; otherwise renders chapter intro icon (sprite chapter_id+0x202) at row_off+0x28 and the shared tail call renders the chapter title (sprite chapter_id+0x226) at row_off+0x82. All three dialog draws go through fd2_display_dialog_scene(all_game_text, page, pos, 0x140, border_glyph, 0x4C, 0,0,0). Compiler-injected __CHK(0x38) stack-probe prologue.",
+  "signature": "void __cdecl fd2_render_save_slot_grid(uint32 highlight_slot, uint32 surface_offset, uint8 *sav_decrypted_buf)",
+  "params": [
+    {
+      "name": "highlight_slot",
+      "type": "uint32",
+      "semantics": "Index (0..3) of the currently-selected slot; the slot whose slot_iter equals this value is drawn with the highlight border glyph 0xC9 (others 0xCD). Caller passes the live cursor index from fd2_save_slot_selector_ui.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Source-level name already descriptive and address-free; matches its sole use (border-glyph selection comparison)."
+    },
+    {
+      "name": "surface_offset",
+      "type": "uint32",
+      "semantics": "Base byte offset into the compose-target surface; added into per-row row_off to position each slot's text/sprites. Passed by the caller as the compose target surface.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Source-level name already descriptive and address-free; matches use as the row_off base."
+    },
+    {
+      "name": "sav_decrypted_buf",
+      "type": "uint8 *",
+      "semantics": "Pointer to the decrypted FD2.SAV buffer; indexed at +0x312B + slot_iter*0xA28 + 0xA00 to read each slot's stored chapter id (0xFF = empty). Passed by the caller.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Source-level name already descriptive and address-free; matches use as the decrypted SAV source for per-slot chapter id."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; renders directly into the compose surface and writes the dialog literal-number global as a side effect."
+  },
+  "reads_globals": [
+    "data_fd2_all_game_text_ptr (0x53A7D) -- FDTXT.DAT source for 'Slot N' + chapter title strings; passed as the first arg to fd2_display_dialog_scene."
+  ],
+  "writes_globals": [
+    "data_fd2_dialog_last_action_value_param (0x53AE1) -- set to slot_iter+1 each iteration; the 1-indexed slot number consumed by the dialog text formatter's literal-number op."
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompiled body matches src/gfx/rndmenu.c lines 657-700 semantically (loop bounds, slot_base offset 0x312B+iter*0xA28, border glyph 0xC9/0xCD, three fd2_display_dialog_scene draws, 0xFF empty sentinel branch, tail page chapter_id+0x226 / pos row_off+0x82). Sole caller fd2_save_slot_selector_ui @ 0x30550 confirmed via callers + xrefs (2 call sites 0x305FD, 0x306CF). Both global names verified in src/include/globals.h (lines 332, 336) and consistent with decompile. Source comment block (lines 608-656) is accurate and precise -> keep, no Edit needed. Ghidra plate is consistent (more verbose but not contradictory) -> no change. Live Ghidra still shows param_1/2/3 in the decompile; the descriptive param names live in src; per Stage-2 policy no rename applied here."
+}

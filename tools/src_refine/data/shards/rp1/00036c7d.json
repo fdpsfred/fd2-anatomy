@@ -1,0 +1,60 @@
+{
+  "address": "0x00036c7d",
+  "name_current": "fd2_ani_decoder_set_target_buffer",
+  "name_final": "fd2_ani_decoder_set_target_buffer",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (domain=ani_decoder, descriptor=set_target_buffer). No address residue. Accurately reflects purpose: stores the decoder's target-buffer parameters into globals before each frame decode.",
+  "kind": "function",
+  "home": "src/anim/anidec.c",
+  "purpose": "Stores the ANI.DAT frame-decoder target-buffer parameters (width, dst_buf, src_buf) into three adjacent globals that the chunk handlers read.",
+  "logic_summary": "EBP frame, no __CHK. Three straight stores: word param_1 -> 0x52760 (target_width), dword param_2 -> 0x52762 (dst_buf), dword param_3 -> 0x52766 (src_buf). Returns void. Disassembly (MOV [0x52760],AX / MOV [0x52762],EAX / MOV [0x52766],EAX) matches source exactly.",
+  "signature": "void __cdecl fd2_ani_decoder_set_target_buffer(uint16 width, uint32 dst_buf, uint32 src_buf)",
+  "params": [
+    {
+      "name": "width",
+      "type": "uint16",
+      "semantics": "Per-chunk output byte length stored to target_width @ 0x52760. Consumed by row chunk handlers as REP STOSD/MEMSET/MEMCPY count and as the RLE/copy total-output target (write exactly width bytes). Caller fd2_play_ani_file_animation_sequence passes 64000 (full 320x200 mode13h framebuffer), so in this game it is the full-frame chunk length rather than a 320 row stride.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches the consumed global's domain name (target_width); not address residue; descriptive enough. Renaming the param would not change the symbol value semantics; consistent with handler usage."
+    },
+    {
+      "name": "dst_buf",
+      "type": "uint32",
+      "semantics": "Destination linear address stored to dst_buf @ 0x52762. Used by row/sparse chunk handlers as the destination base pointer (REP STOSD / memcpy / sparse base[offset]). Caller passes 0xA0000 (VGA mode13h framebuffer).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, matches consumed global name; no address residue."
+    },
+    {
+      "name": "src_buf",
+      "type": "uint32",
+      "semantics": "Palette-area / source base address stored to src_buf @ 0x52766. Used by the palette chunk handlers as the 768-byte palette write base. Caller passes the malloc(0x300) scratch buffer.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches consumed global name; no address residue. (Acts as palette-area base, not a true source stream pointer, but the established global name is src_buf; consistency preserved.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; pure side-effect setter."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_animation_ani_decoder_target_width @ 0x52760",
+    "data_fd2_animation_ani_decoder_dst_buf @ 0x52762",
+    "data_fd2_animation_ani_decoder_src_buf @ 0x52766"
+  ],
+  "comment_original_issue": "Source comment block above the function was a bare divider with only the address; it did not describe what the setter stores or its role per frame.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Ghidra plate is accurate and consistent with refined understanding (correctly describes the three stores + consumers); left unchanged. Minor terminology nuance: plate and the width global's own comment call width a 'row stride', but the caller passes 64000 so it acts as a full-frame per-chunk output length; the width global's comment is a separate symbol (its own refine task) and was not edited here per single-symbol scope. Only the setter function's own comment block (src) was augmented."
+}

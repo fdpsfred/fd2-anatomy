@@ -1,0 +1,46 @@
+{
+  "address": "0001728c",
+  "name_current": "fd2_game_options_menu_loop",
+  "name_final": "fd2_game_options_menu_loop",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=game/ui options, descriptor=options_menu_loop). Accurately reflects purpose: the in-game Options/settings menu loop toggling BGM/SE/Speed/Other. No Ghidra address residue. Caller fd2_field_command_menu_loop invokes it from menu option 2 (OPTIONS), confirming the name.",
+  "kind": "function",
+  "home": "src/ui_menu/menucfg.c",
+  "purpose": "In-game Options/settings menu loop: presents a 4-direction (cross) toggle menu for BGM, SE (SFX), game Speed, and an 'Other' (terrain-HUD) preference, applying each chosen toggle until the player cancels.",
+  "logic_summary": "Copies the 16B slots template (@0x51EAF) into menu_options[0..3] and the 16B all-zero state template (@0x53F02) into menu_state[0..3], zeroes data_fd2_ui_menu_cursor_idx. Loops: rebuild the 4 text-token labels from current toggle states (BGM 0x12/0x13, SE 0x14/0x15, Speed 0x16/0x17, Other 0x18/0x19), open the slide-in dialog, poll fd2_settings_menu_input_step until non-zero (0=navigating,1=selection,-1=cancel), close the dialog. On cancel (-1) return. On selection, dispatch on cursor index: 0 toggles data_fd2_audio_bgm_enabled_flag and calls AIL_set_sequence_volume(handle, on?0x7F:0, 1000) for a 1-sec BGM fade; 2 XORs data_fd2_ui_game_speed_flag; 3 XORs data_fd2_ui_terrain_hud_user_enabled; else toggles data_fd2_audio_sfx_enabled_flag via explicit 0/1 store. Then re-render and continue.",
+  "signature": "void __cdecl fd2_game_options_menu_loop(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; loops until the player cancels the settings menu (Esc -> input step returns -1), then returns to the caller."
+  },
+  "reads_globals": [
+    "data_fd2_ui_game_options_menu_slots_template",
+    "data_fd2_ui_game_options_menu_state_template",
+    "data_fd2_audio_bgm_enabled_flag",
+    "data_fd2_audio_sfx_enabled_flag",
+    "data_fd2_ui_game_speed_flag",
+    "data_fd2_ui_terrain_hud_user_enabled",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_audio_bgm_sequence_handle"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_audio_bgm_enabled_flag",
+    "data_fd2_audio_sfx_enabled_flag",
+    "data_fd2_ui_game_speed_flag",
+    "data_fd2_ui_terrain_hud_user_enabled"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "1a363ffa88d7e5beb35df52b8810ecb1db6be959",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Src comment block (menucfg.c lines 10-30) was already accurate and precise vs the decompilation (correctly notes the __CHK(0x3c) prologue, the per-label toggle conditions, and the explicit 0/1 SFX store); kept as-is. Confirmed all 8 referenced globals' live Ghidra names via symbol lookup. Ghidra function plate was stale for slot 3: it called the global 'tile_anim_lookup_table[0x14]' (old name) and described it as a generic 'variant flag'. The global has been renamed to data_fd2_ui_terrain_hud_user_enabled and its own data plate documents it as the per-save cursor terrain-info HUD overlay toggle (Game Options option 3). Updated the function plate to use the current global names throughout and the correct slot-3 semantics, consistent with src; saved program. No parameters (void). No logic concerns found; decompilation matches the verified src exactly."
+}

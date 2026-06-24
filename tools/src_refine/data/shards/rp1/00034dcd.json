@@ -1,0 +1,45 @@
+{
+  "address": "00034dcd",
+  "name_current": "fd2_chapter_event_handler_08__ch13_first_time",
+  "name_final": "fd2_chapter_event_handler_08__ch13_first_time",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor>. '08' is the dispatch-table index (idx 0x08 of the per-event handler table at 0x51B91; entry confirmed at 0x51BB1 = base 0x51B91 + 8*4, bytes cd 4d 03 00 -> 0x34DCD), a meaningful slot ID matching the uniform handler_NN naming across all siblings in chevt1.c, not an address residue. 'ch13' is chapter 13 (valid 1-30 chapter ID). 'first_time' accurately describes the consumed-flag gate that limits the beat to running once. No hex address residue in the name.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 13 first-time-gated tile-step item pickup: when the lord (char 0) steps on the trigger tile with a non-full inventory and the trigger unfired, give the lord item 0x59 (勇者徽章, the item that class-changes 索爾/Sol to Hero), show dialog page 0xB, and consume the trigger so it runs at most once.",
+  "logic_summary": "Dispatched as idx 0x08 of the handler table at 0x51B91; the arg is the id of the char who stepped on the tile (tile-step calling convention). Three gates: (1) stepping_char_id == 0 (only the lord triggers it); (2) fd2_count_usable_inventory_slots(0) != 8 (the lord's used-slot count; 8 == full inventory); (3) tile-event consumed-flag byte [0x10] == 0 (not yet fired). When all three pass: fd2_add_item_to_inventory(0, 0x59), fd2_display_dialog_scene(current_chapter_text, page 0xB, fixed dialog geometry), then write 1 to consumed-flag byte [0x10] to consume the trigger. No RNG, no numeric computation; the only CALL-return value used is the slot count. Inside the char-0 gate stepping_char_id is provably 0, so it is the value passed to both inventory calls (matches the original PUSH of the stack arg).",
+  "signature": "void __cdecl fd2_chapter_event_handler_08__ch13_first_time(uint32 stepping_char_id)",
+  "params": [
+    {
+      "name": "stepping_char_id",
+      "type": "uint32",
+      "semantics": "Id of the character who stepped onto the trigger tile (tile-step dispatch arg). Gated to == 0, so only the lord (char 0) fires the beat; within the gate it is provably 0 and is passed to fd2_count_usable_inventory_slots and fd2_add_item_to_inventory.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects the tile-step arg semantics (the stepping char id) and carries no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. fd2_display_dialog_scene's uint32 return is discarded."
+  },
+  "reads_globals": [
+    "data_fd2_field_map_tile_event_consumed_flags_ptr",
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [
+    "data_fd2_field_map_tile_event_consumed_flags_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "f0f93a655c4bdeb5f3a5e6eb4a1aa3013badc311",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (chevt1.c lines 405-446) is already detailed, accurate, concise, and ASCII (with allowed @0x34DCD-style address annotations): correctly states the three gates, item 0x59, dialog page 0xB, consume of flag [0x10], the tile-step calling convention, and the consumed-flags pointer offset -> kept as-is. Ghidra plate is consistent with the source (same gates, same item/page/flag), so left untouched. The note on writes_globals: the write is to the 0x20-byte block pointed to by data_fd2_field_map_tile_event_consumed_flags_ptr (byte [0x10]), not to the pointer global itself. Item 0x59 verified via fd2-knowledge as 勇者徽章 (索爾轉職英雄物品)."
+}

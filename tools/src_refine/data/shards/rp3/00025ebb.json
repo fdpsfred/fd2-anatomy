@@ -1,0 +1,52 @@
+{
+  "address": "00025ebb",
+  "name_current": "fd2_main_menu_continue_dispatcher",
+  "name_final": "fd2_main_menu_dispatcher",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_main_menu_dispatcher",
+  "name_reason": "Function is the top-level main-menu dispatcher: it runs fd2_play_ending_and_record_clear() then branches on the selection across THREE co-equal paths -- NEW GAME (choice 0), CONTINUE (choice 1), and a fallback engine-reload (else). The 'continue' qualifier in the current name describes only one of the three branches and omits NEW GAME (which is branch A / the first path), so it misrepresents the overall scope. 'fd2_main_menu_dispatcher' (domain=main_menu, descriptor=dispatcher) accurately captures the dispatch-on-menu-choice purpose. No address residue in either name; no collision (grep src found no existing fd2_main_menu_dispatcher).",
+  "kind": "function",
+  "home": "src/life/main.c",
+  "purpose": "Top-level main-menu dispatcher: runs the title/record-clear menu and branches on the player's selection into NEW GAME, CONTINUE (load save slot), or a fallback engine reload, returning a code that drives fd2_main's outer loop.",
+  "logic_summary": "Calls fd2_play_ending_and_record_clear() and switches on its EAX return (menu_choice). (A) choice==0 NEW GAME: fade to black, current_chapter_id=0, reload FDOTHER[0] palette, reset menu_party_member_count, clear play-active flag, invoke chapter_init_handler_table[0] (chapter 01 init), set chapter-0 player-turn BGM, re-arm play-active flag, clear keyboard; returns 0. (B) choice==1 CONTINUE: load FDOTHER[0xD] intro atlas + FDOTHER[0] palette, clear VGA framebuffer, malloc 0x59CB save buffer, read+decrypt FD2.SAV (or fill 0xFF if absent), then a do/while save-slot selector loop calling fd2_save_slot_selector_ui; for a chosen slot it memmoves the 0xA00 roster block and restores chapter id / party count / gold / hud+speed+audio flags from the per-slot state at +0x312B (an all-0xFF empty slot resets slot_result=0 to re-prompt). After freeing buffers, if a slot was committed (slot_result==1) it clears play-active, calls fd2_chapter_transition_menu() (reassigning slot_result), and on its 0 result runs the chapter init handler + sets that chapter's BGM; returns the (reassigned) slot_result. (C) else (incl. choice==2): mute BGM (-1), call fd2_load_save_and_init_engine() for a full engine reload, set the loaded chapter's BGM; returns 0. The leading PUSH 0x20 / CALL 0x36cd7 is a Watcom __CHK stack-probe (no logic).",
+  "signature": "int __cdecl fd2_main_menu_continue_dispatcher(void)",
+  "params": [],
+  "returns": {
+    "type": "int",
+    "semantics": "Dispatch code for fd2_main's outer loop, with semantics INVERTED relative to the branch labels: 0 = run gameplay this iteration then re-show the menu (returned by NEW GAME, by fallback, and by CONTINUE after a committed slot whose chapter-transition returns 0); 1 = quit the game (terminates fd2_main's do/while outer loop); -1 (0xFFFFFFFF) = stay in / re-enter the main menu next iteration (CONTINUE when the slot selector / chapter-transition backs out). Confirmed by caller fd2_main: return 0 enters the inner gameplay loop; return 0xFFFFFFFF is mapped to 0 to re-loop the menu; return 1 falls through 'while (menu_result==0)' to AIL_shutdown."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_current_chapter_id (0x53C03)",
+    "data_fd2_vga_palette_data_ptr (0x53A65)",
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr (0x54147)",
+    "data_fd2_ui_menu_cursor_idx (0x53C57)",
+    "data_fd2_shared_menu_party_roster_buffer_ptr (0x53BF7)",
+    "data_fd2_chapter_init_handler_table (0x51D71)",
+    "data_fd2_audio_per_chapter_player_turn_bgm_track (0x51E63)",
+    "data_fd2_string_resource_filename_fdother_dat (0x51A4D)"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_current_chapter_id (0x53C03)",
+    "data_fd2_vga_palette_data_ptr (0x53A65)",
+    "data_fd2_shared_menu_party_member_count (0x53BFB)",
+    "data_fd2_ui_play_active_flag (0x51AAC)",
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr (0x54147)",
+    "data_fd2_ui_menu_cursor_idx (0x53C57)",
+    "data_fd2_shared_party_total_gold (0x53BF3)",
+    "data_fd2_ui_terrain_hud_user_enabled (0x51AAB)",
+    "data_fd2_ui_game_speed_flag (0x53AF9)",
+    "data_fd2_audio_bgm_enabled_flag (0x51E61)",
+    "data_fd2_audio_sfx_enabled_flag (0x51E62)"
+  ],
+  "comment_original_issue": "Both the src comment and the Ghidra plate stated the return-code meanings INVERTED from the actual semantics. The src comment said 'Returns 0 (menu), 1 (gameplay), or -1 (quit)'; the plate top said '0 -> stay in main menu; 1 -> run gameplay; -1 -> quit'. Tracing caller fd2_main shows the opposite: return 0 -> run gameplay; return 1 -> quit (exits the outer while-loop); return -1 (0xFFFFFFFF) -> mapped back to 0 to re-enter the menu. Additionally the plate's Branch-B tail claimed 'return slot_result (1 = run gameplay, -1 = back to main menu)', but slot_result is reassigned by fd2_chapter_transition_menu() before return, where 0 (not 1) is the 'enter gameplay' value. This was a documentation error only; the code matches the binary and was not changed.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Sole caller is fd2_main @ 0x25DBD (the C entry point, prefix-exempt). void function: the in_stack_* vars in the decompile are __CHK stack-probe artifacts, not real params. Rename recorded only (applied in Stage 2 across protos.h + comment headers + xref docs). Plate warnings about missing Algorithm/Parameters/Returns sections are advisory only, not errors."
+}

@@ -1,0 +1,40 @@
+{
+  "address": "0004e4b9",
+  "name_current": "fd2_get_chapter_intro_metadata_entry",
+  "name_final": "fd2_get_chapter_intro_metadata_entry",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=chapter intro metadata, descriptor=get entry accessor). Name accurately reflects body: returns a pointer to data_fd2_chapter_intro_metadata_table[chapter_id-1]. No Ghidra address residue. All 7 callers pass the 1-based current chapter id and consume the result as a chapter-intro metadata entry pointer.",
+  "kind": "function",
+  "home": "src/table/table.c",
+  "purpose": "Chapter-intro metadata table accessor: returns a pointer to the 0x1F-byte metadata entry for a 1-based chapter id.",
+  "logic_summary": "Computes &data_fd2_chapter_intro_metadata_table + (chapter_id - 1) * 0x1F (base immediate 0x6238D, stride 0x1F). Pure address arithmetic on the stack arg; no branches, no memory reads, no calls. Disassembly: PUSH EBP; MOV EBP,ESP; MOV EAX,[EBP+8]; DEC EAX; MOV EDX,0x1F; MUL EDX; LEA EDX,[0x6238D]; ADD EAX,EDX; POP EBP; RET.",
+  "signature": "uint8 *fd2_get_chapter_intro_metadata_entry(int chapter_id)",
+  "params": [
+    {
+      "name": "chapter_id",
+      "type": "int",
+      "semantics": "1-based chapter index. Callers pass data_fd2_chapter_current_chapter_id. Used as (chapter_id-1) to index the metadata table (0-based entry).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches its actual use as the 1-based chapter index that drives the table offset. No address residue; not a generic param_N."
+    }
+  ],
+  "returns": {
+    "type": "uint8 *",
+    "semantics": "Pointer to data_fd2_chapter_intro_metadata_table[chapter_id-1], a 0x1F-byte chapter-intro metadata entry (bCategory, bHotkey_state, bHotkey_scancode, weapons/items/mystery shop id arrays)."
+  },
+  "reads_globals": ["data_fd2_chapter_intro_metadata_table"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "8d7d53924b907a31a06c2076dc3bd72beb42349f",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Clean table accessor consistent with sibling functions in table.c (fd2_get_char_base_entry/growth/spell_learning/etc). src comment block (table.c lines 68-73) is already concise and correct (formula and 7-caller count verified against disassembly), so kept. Ghidra plate is the verbose superset (entry layout + table span + caller list) and does not contradict the refined understanding, so left untouched. The base address 0x6238D is referenced only by this accessor (single DATA xref); the data symbol there is data_fd2_chapter_intro_metadata_table. No change made to table.c; only this shard is staged."
+}

@@ -1,0 +1,59 @@
+{
+  "address": "00015880",
+  "name_current": "fd2_score_item_candidate",
+  "name_final": "fd2_score_item_candidate",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention: domain implied 'score' (AI scoring family alongside fd2_ai_score_item_use / fd2_ai_score_offensive_spell), descriptor 'item_candidate'. Accurately reflects behavior (scores one item-use candidate by summing per-target priority for the affected targets). No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/battle/btl_aisc.c",
+  "purpose": "Per-candidate offensive-item scorer for enemy AI: given one item and a list of target char-indices, returns the summed priority score over those targets, used by fd2_ai_score_item_use to compare (item, tile) candidates.",
+  "logic_summary": "total=0. pItem = fd2_get_item_effect_entry(item_id); spell_or_damage = *(uint16*)(pItem+0xE); effect_code = pItem[0xD]. Dispatch: (A) effect_code==5||0xD (HP-damage item): for each target_id in target_array_ptr[0..n_targets): pChar = runtime_char_array + target_id*0x50; hp=*(uint16*)(pChar+0x40); hp_max=*(uint16*)(pChar+0x42); per_score = (hp<=hp_max/3)?8 : (hp>hp_max/2)?0 : 3; if (pChar[0x34] & 0x80) per_score*=3; total+=per_score. (B) effect_code==0x14||0x15||0x18 (spell-wrapper item): pSpell = fd2_get_spell_effect_entry(spell_or_damage); if (effect_code!=0x18) spell_or_damage = *(uint16*)pSpell (spell base damage; for 0x18 keep item[0xE] as threshold); for each target: hp=*(uint16*)(pChar+0x40); per_score = (spell_or_damage>=hp)?0x12 : 8; total+=per_score. (C) any other effect_code: total stays 0. return total.",
+  "signature": "int fd2_score_item_candidate(uint32 item_id, uint32 n_targets, uint32 target_array_ptr)",
+  "params": [
+    {
+      "name": "item_id",
+      "type": "uint32",
+      "semantics": "Item ID of the candidate being scored; passed to fd2_get_item_effect_entry to fetch the item effect entry, from which effect-code (+0xD) and spell/damage value (+0xE) are read. Caller supplies caster.inventory_slots[slot].item_id.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate; matches live Ghidra prototype param name 'item_id' and src declaration. No address residue. item_id is a meaningful domain ID (item 00h-D6h)."
+    },
+    {
+      "name": "n_targets",
+      "type": "uint32",
+      "semantics": "Number of valid entries in target_array_ptr (count of affected targets). Used as the loop bound for both dispatch branches. Caller passes the count returned by fd2_compute_aoe_targets / fd2_scan_chars_along_line_with_team_filter.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate; matches live Ghidra prototype 'n_targets' and src declaration. No address residue."
+    },
+    {
+      "name": "target_array_ptr",
+      "type": "uint32",
+      "semantics": "Base address of a byte array of target char-indices (each index*0x50 + runtime_char_array_ptr resolves a runtime_char). Caller passes a byte[32] target buffer. Indexed as target_array_ptr[i] for i in 0..n_targets.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate; matches live Ghidra prototype 'target_array_ptr' (Ghidra types it byte*, src types it uint32 address -- representation difference only, name unchanged). No address residue."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Aggregate priority score summed over the affected targets (0 for non-offensive effect-codes). Consumed by fd2_ai_score_item_use to pick the best (item, tile) candidate.",
+    "semantics_note": ""
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment was correct but terse: it stated only 'sum per-target priority based on HP thresholds and effect type' and omitted the two-class effect-code dispatch (HP-damage 0x05/0x0D vs spell-wrapper 0x14/0x15/0x18), the exact HP-threshold scores (0/3/8), the x3 high-value-target amplification via combat_aux_block[0xD] bit 0x80, and the spell-wrapper kill-shot score (0x12).",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified functional equivalence src vs decompile and struct offsets via Ghidra runtime_char layout: pCombat_aux_block @ +39(0x27), so pCombat_aux_block[0xD] == struct +0x34 == src pChar[0x34] (cross-confirmed by btl_turn.c fd2_set_combat_aux_block_byte_d_low4_for_char_range writing pChar[0x34]); wHP_current @ +0x40, wHP_max @ +0x42 match src. HP-threshold dispatch logically equivalent: decompile (hp_max/3<hp ? (hp_max/2<hp ? 0 : 3) : 8) == src (hp<=hp_max/3 ? 8 : hp>hp_max/2 ? 0 : 3). Spell-branch decompile (spell_or_damage<hp ? 8 : 0x12) == src (spell_or_damage>=hp ? 0x12 : 8). RUNTIME_CHAR_SIZE=0x50 confirmed (consts.h). Sole caller fd2_ai_score_item_use @0x1567e forwards (item_id, n_targets, target_buf) correctly. Name keep (all 3 params + function already descriptive, no address residue, match live Ghidra prototype). Comment augmented in src to document the full dispatch; Ghidra plate already accurate and detailed and consistent with refined src -> left untouched (ghidra_plate_action=none). No logic touched. The (int) casts in src HP comparisons are an emit-equivalence detail (HP values are uint16 0..65535), not a logic concern."
+}

@@ -1,0 +1,39 @@
+{
+  "address": "000342b5",
+  "name_current": "fd2_chapter_event_handler_01__ch1_dialog_with_state",
+  "name_final": "fd2_chapter_event_handler_01__ch1_dialog_with_state",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> name. The '01' is a meaningful domain ID: dispatch index 0x01 of the per-event handler table at 0x51B91 (xref confirmed from the 2nd table slot 0x51B95; table bytes 0x342B5 sit at offset +4). NOT a Ghidra address residue. Descriptor '__ch1_dialog_with_state' accurately reflects the body (chapter 1 turn-event slot, dialog page 4 shown after party-slot-4 addition which mutates runtime char state) and is consistent with the sibling family handlers 00/02/03 which share the same __ch1_dialog_with_state descriptor. Renaming a single member would break a consistent family without benefit. All 8 callees correctly named (fd2_pan_cursor_and_window, fd2_animate_party_addition_with_appear_effect, fd2_clear_keyboard_buffer, fd2_composite_battle_frame, fd2_cutscene_event_trigger, fd2_clear_all_chars_facing, fd2_display_dialog_scene, __CHK).",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 1 turn-event slot 1 (turn 4 / phase 0): mid-turn beat that pans the camera, makes party slot 4 join the field with the new-char appearance animation, plays cutscene 3, resets all facings, and shows dialog page 4.",
+  "logic_summary": "__CHK(0x2C) stack-probe prologue (compiler-injected); EBX pushed/popped (callee-saved, unused). Straight-line, no branch (cyclomatic 1), no RNG, no numeric computation, no CALL-return value used: fd2_pan_cursor_and_window(0xB,0x10); fd2_animate_party_addition_with_appear_effect(4) -- party slot 4 joins with appear/explosion effect; fd2_clear_keyboard_buffer(); fd2_composite_battle_frame(1); fd2_cutscene_event_trigger(3); fd2_clear_all_chars_facing(); fd2_display_dialog_scene(data_fd2_current_chapter_text, page=4, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1). In the original binary the final 4 instructions (PUSH [data_fd2_current_chapter_text @ 0x53A79]; CALL fd2_display_dialog_scene @ 0x15F84; ADD ESP,0x24; POP EBX; RET) form a class-3 shared tail at 0x3430D reused by handlers 02 (page=5) and 03 (page=6) via JMP; the src reproduces it as a plain inline call for Layer-2 equivalence.",
+  "signature": "void __cdecl fd2_chapter_event_handler_01__ch1_dialog_with_state(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument passed by the per-event handler table at 0x51B91. This handler never reads it (body ignores the arg).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate descriptive name for the dispatch event argument; not a param_1 placeholder and carries no address residue. Matches the convention used by every sibling handler in the table."
+    }
+  ],
+  "returns": { "type": "void", "semantics": "none" },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (chevt1.c lines 188-216) is already precise, accurate, ASCII-only, and matches the verified disassembly: chapter 1 turn-event slot 1 (turn 4 / phase 0), pan to (0xB,0x10), party slot 4 appearance animation, cutscene 3, facing reset, dialog page 4; documents the uniform 1-arg cdecl, unread arg, EBX callee-saved, __CHK(0x2C) prologue. No source edit needed; shard-only commit. Ghidra plate is more detailed (documents the 0x3430D class-3 shared tail consumed by handlers 02/03) but is consistent with (not contradictory to) the src understanding, so left untouched. Note: the decompiler's 'fixup to -> 00003a79' is the low-16 displacement of the LE relocation; the real linear address of data_fd2_current_chapter_text is 0x53A79 (plate states this correctly). reads_globals lists only data_fd2_current_chapter_text (pushed as the dialog text arg); 0xA0000 is a VGA framebuffer immediate, not a named global. Verified write-xref: none (function writes no global). Per-event handler table dispatch confirmed via get_xrefs_to (single DATA xref from 0x51B95)."
+}

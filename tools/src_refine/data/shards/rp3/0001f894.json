@@ -1,0 +1,42 @@
+{
+  "address": "0x0001f894",
+  "name_current": "fd2_play_ending_and_record_clear",
+  "name_final": "fd2_title_attract_and_main_menu",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_title_attract_and_main_menu",
+  "name_reason": "Current name implies the function's job is to play an ending cutscene and clear a record, but caller disassembly proves it is the top-level title-screen attract cinematic + main menu: fd2_main_menu_continue_dispatcher @ 0x25EBB calls it UNCONDITIONALLY at the top of its body (call site 0x25EC8) on every return to the top level, then TEST EAX,EAX / JNZ dispatches on the EAX return (0=NEW GAME, 1=CONTINUE, 2=continue-cleared). The Ghidra plate's own first line already states 'title-screen attract cinematic + main menu'. The cinematic is built from ending/credit-roll art but serves as the attract sequence; 'record_clear' captures only Phase 7 (clear-status panel) + Phase 8 (FD2.SAV completion-flag read deciding the 3rd menu option). Proposed name fd2_title_attract_and_main_menu (domain=title, descriptor=attract_and_main_menu) better reflects the primary role. No address residue in either name. NOTE: rename only recorded here; Stage 2 applies it across protos.h + call site.",
+  "kind": "function",
+  "home": "ROOT/src/anim/aniend.c",
+  "purpose": "Title-screen attract cinematic (built from ending/credit-roll art) followed by the 2/3-option main menu; returns the chosen menu index that drives NEW GAME / CONTINUE / continue-cleared dispatch.",
+  "logic_summary": "Phase 1 setup: copy data_fd2_chapter_ending_music_trigger_frames[15] (descending frame indices, last=0x3E8) to a stack array. Phase 2 title splash: FDOTHER.DAT[0x4D] SFX bank held for whole fn; clear VGA; load [0x4C] palette; darken; blit [0x4A] title sprite; fade in; ~31-tick hold; fade to black. Phase 3 mid ANI: [0x63] palette, ANI seq 3, fade to black. Phase 4 build scroll panel: [0x65] palette; malloc 0x396C0 (234KB) panel_buf; rle_blit 5 segments [0x45..0x49] at row i*0x93; clear keyboard; realloc data_fd2_battle_runtime_char_array_ptr to 0xA0 (2x0x50 runtime_char, for ending duels). Phase 5 scrolling-credit countdown for iVar4=0x217..0: blit one 0x140-stride row each frame; scripted cinematic inserts at iVar4 in {0x19,0x14A,0xD2,0x6E,0x1C2,0xA}; music_trigger_frames[music_idx]-driven SFX(0x66 palette swap); music_step==0xB re-loads [0x65]; 30-tick/frame delay; 1000-tick final hold at iVar4==0; keypress breaks early. Phase 6 red-tint fade (uVar5=0x28..0, R=0x3F). Phase 7 clear-status panel: [7] sprite + [8] palette, zoom-in ANI seq 1, chime SFX, white-flash add 0x40, blit panel, soft-cyan fade-up (R=0x38,G=0x3C,B=0x3F). Phase 8 FD2.SAV read: fopen rb; fread 0x59CB; decrypt; checksum vs save[0x59C7]; if ok menu_options=2, and if save[0x30C5] (current_chapter_id completion flag) != 0xFF then menu_options=3. Phase 9 menu loop: INT 16h key read into data_fd2_input_key_input_mode/last_key_pressed; scancode 0x48 up (wrap), 0x50 down (wrap via XOR), Enter/Space/0xE0/0x52 commit. Phase 10 commit-blink 4x (dim sentinel 0xFFFFFFFF vs active). Phase 11 cleanup: fade to black, clear VGA, free panel sprite, stop all SFX (-1), free SFX bank; original tail-jumps shared epilogue fd2_noop_stub_13994 @ 0x13994 (ADD ESP,0x5C; POP x4; RET) returning active_idx_var.",
+  "signature": "int __cdecl fd2_play_ending_and_record_clear(void)",
+  "params": [],
+  "returns": {
+    "type": "int",
+    "semantics": "Final main-menu selection (0..menu_options-1): 0=NEW GAME, 1=CONTINUE (save-slot loader), 2=continue an already-completed game (full engine reload). Consumed by fd2_main_menu_continue_dispatcher via TEST EAX,EAX dispatch."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ending_music_trigger_frames (@0x5204e, 15x int4 descending frame indices)",
+    "data_fd2_string_resource_filename_fdother_dat (FDOTHER.DAT name)",
+    "data_fd2_battle_runtime_char_array_ptr (freed/reallocated)",
+    "data_fd2_input_key_input_mode (INT 16h scancode/mode)",
+    "data_fd2_input_last_key_pressed (INT 16h ASCII)"
+  ],
+  "writes_globals": [
+    "data_fd2_vga_palette_data_ptr (@0x53a65; repeatedly load-buf + load-result for palette swaps)",
+    "data_fd2_battle_runtime_char_array_ptr (free old + malloc 0xA0)",
+    "data_fd2_input_key_input_mode (set to 0x10 before each INT 16h)",
+    "data_fd2_input_last_key_pressed (INT 16h output)"
+  ],
+  "comment_original_issue": "Function comment header (lines 23-25) wrongly stated 'Sole caller ... entered when the player selects Continue on the main menu and the save shows the final chapter cleared' -- that describes the dispatcher's menu_choice==2 fallback branch, not this function. Caller disassembly shows this function is called UNCONDITIONALLY at the top of fd2_main_menu_continue_dispatcher (0x25EC8) on every top-level iteration, and its EAX return drives the NEW/CONTINUE/fallback dispatch. Also a non-ASCII arrow on the Phase 11 line and em-dashes in the Phase 1-11 inline comments violated the ASCII-only rule.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Ghidra plate left unchanged: it already correctly documents the unconditional-call/attract-menu semantics and is consistent with the refined src comment (rule: only update plate if contradictory/outdated/empty). Plate first line already reads 'title-screen attract cinematic + main menu', which corroborates the rename proposal. Only the function's own comment region (header 20-48 + Phase 1-11 body comments) was edited; the file header (line 2) and the other three functions' comments (with their own non-ASCII) are out of scope and left for their refiners. The decompiler's 'menu_choice = __CHK(...)' then discarded call return is an artifact; disassembly confirms EAX from the call is the real selection used by the caller. Tail call to fd2_noop_stub_13994 is the shared free-wrapper/epilogue, modeled in src as plain 'return active_idx_var' (functionally equivalent)."
+}

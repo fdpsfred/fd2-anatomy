@@ -1,0 +1,58 @@
+{
+  "address": "0002282f",
+  "name_current": "fd2_cast_spell_12_stage_b",
+  "name_final": "fd2_cast_spell_12_dp_boost",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_cast_spell_12_dp_boost",
+  "name_reason": "Current '_stage_b' suffix is misleading. KB confirms spell 0x11/0x12/0x13 are three distinct buff spells -- 魔刃術 (AP boost) / 魔鎧術 (DP/defense boost) / 風行術 (speed boost) -- not three stages of one spell; the sibling 0x11 plate explicitly flagged this 'stage' interpretation as unverified. This function is spell 0x12 = 魔鎧術 and delegates to fd2_cast_dp_boost_spell (DP-boost worker), so 'dp_boost' is the accurate descriptor. Keeps the valid spell-id domain '12' (verified via dispatch table entry index 0x12 @ 0x51D49 = 0x51D01+0x48) and the fd2_cast_spell_ family prefix. Note: actual rename applied in Stage 2 (touches protos.h + all call sites / dispatch usage).",
+  "kind": "function",
+  "home": "src/spell/spell.c",
+  "purpose": "Spell dispatch wrapper for spell_id 0x12 (魔鎧術 / DP-defense boost): resets the AoE target counter, deducts caster MP, and delegates to the DP-boost worker.",
+  "logic_summary": "13-inst CHK(0x10) leaf wrapper (single basic block, no branches). Sets global data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0, calls fd2_deduct_caster_mp(caster, 0x12) to charge MP via cost-table index 0x12, then calls fd2_cast_dp_boost_spell(caster, n_targets, target_id_array) which performs the actual DP buff + impact animation. Returns void. Structurally mirrors the 0x11 AP-boost wrapper (fd2_cast_spell_11_stage_a @ 0x226EA) and the 0x13 speed-boost wrapper, differing only in the delegate worker.",
+  "signature": "void __cdecl fd2_cast_spell_12_stage_b(int caster, int n_tgt, uint8 *tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "Caster unit id; passed through to fd2_deduct_caster_mp (to charge MP) and to fd2_cast_dp_boost_spell (to identify the buffing unit).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, matches the caster_unit_id role used in both delegate calls; no address residue."
+    },
+    {
+      "name": "n_tgt",
+      "type": "int",
+      "semantics": "Number of AoE targets; passed straight to fd2_cast_dp_boost_spell as the target count.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear, matches the n_targets role; no address residue."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "uint8 *",
+      "semantics": "Pointer to the target-id array (one byte per target); cast to uint32 and passed to fd2_cast_dp_boost_spell.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, matches the target_id_array role; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effects are the global AoE-counter reset, the MP deduction, and the delegated DP-boost cast."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_battle_spell_aoe_count_and_fx_queue_idx"
+  ],
+  "comment_original_issue": "Source had no comment block above this function (the preceding 0x11 wrapper carried the family note, but the 0x12 wrapper itself was undocumented). Added a parallel comment identifying it as the 魔鎧術 / DP-defense boost spell-0x12 wrapper, noting the cost-table-index-0x12 MP deduction and the shared DP-boost worker (item-use path + 破壞神 summon).",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "8276bb32e7911bdd05a124bf90e02ee7d6cbb112",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Dispatch-table entry verified: 0x51D49 (=0x51D01+0x48, entry index 0x12) holds 2f280200 = 0x0002282f. DP-boost worker fd2_cast_dp_boost_spell @ 0x22866 is called from 3 sites (this wrapper, fd2_apply_use_effect_dispatch item-use path @ 0x20EA8, fd2_execute_summon_spell_cast 破壞神 @ 0x28625). No direct callers (function is reached only via the dispatch table). Aside (outside this symbol's scope, not actioned): dispatch table entry 0x13 @ 0x51D4D reads 0x29660 which resolves to fd2_execute_combat_hit_cinematic rather than the source's fd2_cast_spell_13_stage_c -- a possible mapping mismatch to investigate for the 0x13 symbol, unrelated to 0x12."
+}

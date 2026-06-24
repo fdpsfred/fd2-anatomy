@@ -1,0 +1,40 @@
+{
+  "address": "0001b8a6",
+  "name_current": "fd2_count_usable_inventory_slots",
+  "name_final": "fd2_count_usable_inventory_slots",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Already conforms to fd2_<domain>_<descriptor>; accurately reflects behavior (counts the active/usable inventory slots of a runtime character). No Ghidra address residue. Descriptor 'usable_inventory_slots' matches the body (8 slots, flag bit 0x80 clear => usable).",
+  "kind": "function",
+  "home": "src/ui_menu/status.c",
+  "purpose": "Return how many of a runtime character's 8 inventory slots are currently active/usable (flag byte bit 0x80 clear).",
+  "logic_summary": "Loops slot_iter 0..7 over data_fd2_battle_runtime_char_array_ptr[char_idx]; each slot is 2 bytes (flag at index slot*2, item_id at slot*2+1). A slot counts as usable when its flag byte AND 0x80 == 0. Accumulates the count and returns it. The leading __CHK(8,...) is a compiler-injected stack probe, not source logic.",
+  "signature": "int __cdecl fd2_count_usable_inventory_slots(uint32 char_idx)",
+  "params": [
+    {
+      "name": "ci",
+      "type": "uint32",
+      "semantics": "Index into the runtime character array (data_fd2_battle_runtime_char_array_ptr); selects whose inventory is counted. Callers (item/buy/give/equip dispatch, AI, chapter events, slot search) all pass a character index.",
+      "verdict": "rename",
+      "proposed": "char_idx",
+      "reason": "'ci' is a terse non-descriptive abbreviation; the plate comment itself names it char_idx, and the four sibling functions in the same file (fd2_open_status_screen_with_slide_in, fd2_open_char_status_screen, fd2_item_command_menu_dispatch, fd2_equip_unequip_inventory_menu) all use char_idx for the same value. Renaming aligns with the file convention. (Recorded only; applied in Stage 2.)"
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Number of usable inventory slots (0..8). Callers treat 0 as 'character has no items' (e.g. item_command/buy/give dispatch return -1 / skip the menu)."
+  },
+  "reads_globals": ["data_fd2_battle_runtime_char_array_ptr"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "a1faec790664190be086e7ab5d625b8fea257e18",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (status.c 105-119) and Ghidra plate are both accurate and mutually consistent (8 slots, flag bit 0x80 clear, caller list, __CHK(8) prologue note); neither edited. Only change is the recorded param rename ci->char_idx (Stage 2). Decompiled struct-field access (pInventory_slots[i].bSlot_flag) maps to src inventory_slots[slot*2] (2-byte slot stride) -- equivalent, no logic concern."
+}

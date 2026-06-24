@@ -1,0 +1,50 @@
+{
+  "address": "00010b4e",
+  "name_current": "fd2_load_chapter_portraits_and_dump_tmp",
+  "name_final": "fd2_load_chapter_portraits_and_dump_tmp",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>; domain implied by rsrc.c (resource/portrait loading), descriptor accurately captures the two-phase behavior: (1) load chapter character portraits filtered by race_id into the sprite cache, then (2) dump the 0x32A00-byte portrait_sprite_cache to the FD2.TMP swap file. No address residue. Verified byte-identical against the KB (resource_info/fdfield.md), which documents the function as fd2_load_chapter_portraits_and_dump_tmp(target_race_id).",
+  "kind": "function",
+  "home": "src/rsrc/rsrc.c",
+  "purpose": "Load the chapter's character portraits whose char_spawn_record.race_id matches target_race_id (via fd2_init_runtime_char_for_battle), then rewrite the 200KB portrait sprite cache to the FD2.TMP cross-chapter swap file.",
+  "logic_summary": "fopen(\"FDICON.B24\",\"rb\"); on NULL -> INT 10h text-mode reset + printf(\"File 'FDICON.B24' error !!\\n\") + exit(1). Re-reads FDFIELD.DAT[current_chapter_id*3+2] into data_fd2_chapter_portrait_load_buffer (the buffer was freed by fd2_load_chapter_battle_data after its own load). Iterates char_spawn_records of the tile-event table (count = data_fd2_resource_portrait_cache_alloc_offset, stride 0x1A; the byte at +0x98 = header 0x83 + record race_id at +0x15): for each record whose race_id == target_race_id, calls fd2_init_runtime_char_for_battle(record_index, fdicon_fp) to populate a runtime_char and load its portrait sprite from FDICON.B24. Then fclose(FDICON); free + null data_fd2_chapter_portrait_load_buffer. Finally fopen(\"FD2.TMP\",\"wb\"); fwrite(data_fd2_portrait_sprite_cache, 1, 0x32A00, fp); fclose -- truncating and rewriting the swap file so the working portrait set persists across chapters.",
+  "signature": "void __cdecl fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "race_id filter: only char_spawn_records whose race_id byte (entry +0x98 = header 0x83 + record offset +0x15) equals this value get their portrait loaded. Callers pass 0 from chapter battle-data setup (load the base record set) and small ids (e.g. 3, 7) from turn-event handlers to load reinforcement/cinematic character subsets (annotated 'load portrait set N' at call sites).",
+      "verdict": "rename",
+      "proposed": "target_race_id",
+      "reason": "Live Ghidra name is the generic placeholder param_1; the value is the race_id selector compared against each record's +0x98 byte. src already declares it as 'target_race_id', which matches the KB and is the accurate descriptor (no address residue; the small numeric values are domain race/portrait-set ids, not address tails)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: populates runtime_char portrait slots for matching records and rewrites FD2.TMP from data_fd2_portrait_sprite_cache."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_current_chapter_id",
+    "data_fd2_chapter_portrait_load_buffer",
+    "data_fd2_resource_portrait_cache_alloc_offset",
+    "data_fd2_tile_event_data_table_ptr",
+    "data_fd2_portrait_sprite_cache",
+    "data_fd2_string_resource_filename_fdfield_dat_51a59"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_portrait_load_buffer",
+    "data_fd2_input_last_key_pressed"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "bdbbc8482b1e4ecb8a7abb5bc5e5eff52316bcea",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decomp (0x10b4e) cross-checked against src rsrc.c lines 439-476 and the KB resource_info/fdfield.md (char_spawn_record layout + race_id mechanism): the +0x98 access decomposes as header 0x83 + race_id at +0x15, confirming the 'race byte' wording in both src and Ghidra plate. Two callers/uses confirm parameter semantics: fd2_load_chapter_battle_data (0x1088d) tail-calls with 0 to finalize the base portrait set; event handler 0x341db calls with 3 then 7 ('load portrait set 3' / 'swap to portrait set 7') for the ch1 turn-3 reinforcement (char_id 0x01 = 哈諾). ~56 call sites total, all uniform 1-arg cdecl. Ghidra plate is detailed and fully consistent with src + my refined understanding -> left untouched (ghidra_plate_action=none). src comment (lines 414-438) is accurate, precise, ASCII-only, and matches the decompilation and KB -> kept (comment_verdict=keep). No logic issues: the FDFIELD.DAT re-read each call is the documented intentional vendor behavior (buffer freed by fd2_load_chapter_battle_data), not a bug. Only change recorded is the param rename param_1 -> target_race_id, to be applied in Stage 2. No src edit performed (comment kept), so the only staged file is the shard."
+}

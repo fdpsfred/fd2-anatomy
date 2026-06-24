@@ -1,0 +1,56 @@
+{
+  "address": "00021462",
+  "name_current": "fd2_spell_handler_id_6_via_full_screen_flash",
+  "name_final": "fd2_spell_handler_id_6_via_full_screen_flash",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=spell). The trailing _6 is the spell dispatch ID (valid spell-ID range 00h-23h per domain knowledge), a meaningful domain ID, not an address residue (function address 0x21462; suffix 6 matches no address fragment). Name accurately reflects: dispatch handler for spell_id=6 using the full-screen-flash animation variant. via_full_screen_flash correctly distinguishes it from the blink-overlay family (id 0-3,8).",
+  "kind": "function",
+  "home": "src/spell/spell.c",
+  "purpose": "Spell dispatch table handler (index 6): thin wrapper that invokes the full-screen-flash offensive-spell worker with hardcoded spell_id=6.",
+  "logic_summary": "Forwards its three incoming args to fd2_execute_offensive_full_screen_flash_spell(caster, 6, n_tgt, (int)tgt_arr), injecting the constant spell_id literal 6. In the binary it shares the {PUSH caster + CALL worker @0x213B7 + ADD ESP,0x10 + RET} tail with the id 4/5/7 siblings via JMP 0x213AA (alt-entry of the id-4 anchor @0x21396); the leading PUSH 0x14 + CALL __CHK is the Watcom auto-inserted stack-overflow probe, not game logic. No branching (cyclomatic complexity 1).",
+  "signature": "void __cdecl fd2_spell_handler_id_6_via_full_screen_flash(int caster, int n_tgt, uint8 *tgt_arr)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "caster_unit_id; passed straight through as the worker's caster argument.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Concise descriptive name, no address residue, matches usage (caster unit id forwarded to worker)."
+    },
+    {
+      "name": "n_tgt",
+      "type": "int",
+      "semantics": "num_targets; count of entries in the target id array, forwarded to the worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear abbreviation of num_targets; no address residue; matches usage."
+    },
+    {
+      "name": "tgt_arr",
+      "type": "uint8 *",
+      "semantics": "target_id_array; pointer to the list of target unit ids, cast to int when forwarded to the worker.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear descriptive name (target array); no address residue; matches usage."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; delegates entirely to the worker."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "aecf01a094f903187a4873a79cf933a0a6903a96",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Clean one-line dispatch wrapper for spell_id=6. Family-level comment banner (line 56 '=== Full screen flash family (id 4-7) ===') plus the file header (lines 1-17) already document this concisely and accurately, so no per-function comment was added (would be redundant noise on a one-liner). Ghidra plate is detailed and consistent (shared-tail/sibling-list/xref); left untouched. Worker fd2_execute_offensive_full_screen_flash_spell @0x213B7 confirmed; protos.h declaration matches. Sole xref is the DATA dispatch-table entry @0x51D19 (index 6), confirmed by reading 0x51D01 table (entry 6 = 0x00021462). Out-of-scope note (NOT an issue for this symbol): the worker's own Ghidra signature labels its 4th param 'caster_unit_id' while the call passes the target array there -- a param-naming artifact in the worker, to be handled when that symbol is refined."
+}

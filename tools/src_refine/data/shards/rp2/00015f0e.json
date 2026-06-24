@@ -1,0 +1,80 @@
+{
+  "address": "00015f0e",
+  "name_current": "fd2_alloc_and_blit_indexed_sprite_chunk",
+  "name_final": "fd2_alloc_and_blit_indexed_sprite_chunk",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<descriptor> convention and accurately captures the function's two effects: malloc a save-under buffer AND blit one indexed sprite (resolved via the atlas offset table). No Ghidra address residue in the name; the 0x30 constant in callers is a caller-supplied atlas sprite index, not part of this symbol's name.",
+  "kind": "function",
+  "home": "src/gfx/blitspr.c",
+  "purpose": "One-shot decode + paint of an indexed sprite from a sprite-atlas sheet into a destination surface, allocating a scratch save-under buffer on the fly.",
+  "logic_summary": "Resolves sprite_hdr = sheet_base + *(int32*)(sheet_base + 6 + sprite_idx*4) using the atlas's 4-byte-per-entry offset table at sheet_base+6. Reads signed 16-bit width (sprite_hdr+0) and height (sprite_hdr+2). Computes dst_off = row_idx*surface_pitch + col_offset. mallocs width*height+8 bytes (the +8 is the snapshot header). Calls fd2_save_screen_block_to_buffer to snapshot the destination block under the sprite into save_buf, then fd2_blit_sprite_with_decoded_pixels to decode + paint the sprite pixels at dst+dst_off. Returns save_buf via the shared MOV EAX,EDI tail at 0x15983 -> shared epilogue at 0x22bbe.",
+  "signature": "uint32 __cdecl fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_base, uint32 dst, uint32 surface_pitch, uint32 col_offset, uint32 row_idx, uint32 sprite_idx)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "sprite-atlas sheet base linear address (arg1, ESP+0x18); base for the offset table and resolved sprite header",
+      "verdict": "rename",
+      "proposed": "sheet_base",
+      "reason": "Live Ghidra name is the generic placeholder param_1; src home already uses the correct semantic name sheet_base. Confirmed arg1 by stack-offset trace (ESI=[ESP+0x18])."
+    },
+    {
+      "name": "param_2",
+      "type": "uint32",
+      "semantics": "destination surface base linear address (arg2); sprite is painted at dst + dst_off and the save-under snapshot reads from here",
+      "verdict": "rename",
+      "proposed": "dst",
+      "reason": "Live Ghidra name is the generic placeholder param_2; src home already uses dst. arg2 confirmed (passed as the dst/buffer base to fd2_save_screen_block_to_buffer and added to dst_off for the blit)."
+    },
+    {
+      "name": "param_3",
+      "type": "uint32",
+      "semantics": "destination row stride / surface pitch (arg3, ESP+0x20); multiplies row_idx and is forwarded as the pitch to both helper calls",
+      "verdict": "rename",
+      "proposed": "surface_pitch",
+      "reason": "Live Ghidra name is the generic placeholder param_3; src home already uses surface_pitch. arg3 confirmed (IMUL EBP,[ESP+0x20] then forwarded as stride)."
+    },
+    {
+      "name": "sprite_blob",
+      "type": "uint32",
+      "semantics": "column byte offset within the destination row (arg4, ESP+0x24); added into dst_off = row_idx*surface_pitch + col_offset",
+      "verdict": "rename",
+      "proposed": "col_offset",
+      "reason": "Live Ghidra name sprite_blob is wrong -- this arg is a column byte offset, not a sprite blob. arg4 confirmed (ADD EBP,[ESP+0x24]). src home already uses col_offset."
+    },
+    {
+      "name": "dst_buf",
+      "type": "uint32",
+      "semantics": "destination row index (arg5, ESP+0x28); scaled by surface_pitch to form dst_off",
+      "verdict": "rename",
+      "proposed": "row_idx",
+      "reason": "Live Ghidra name dst_buf is wrong -- this arg is a row index, not a destination buffer. arg5 confirmed (MOV EBP,[ESP+0x28] then IMUL by pitch). src home already uses row_idx."
+    },
+    {
+      "name": "dst_pitch",
+      "type": "uint32",
+      "semantics": "index into the sheet's 4-byte-per-entry offset table (arg6, ESP+0x2c); selects which sprite header is resolved",
+      "verdict": "rename",
+      "proposed": "sprite_idx",
+      "reason": "Live Ghidra name dst_pitch is wrong -- this arg is the atlas sprite index, not a pitch. arg6 confirmed (EDI=[ESP+0x2c] used as ESI+EDI*4+6 table index). src home already uses sprite_idx."
+    }
+  ],
+  "returns": {
+    "type": "uint32",
+    "semantics": "The malloc'd save-under buffer pointer (EDI held across both helper calls, loaded into EAX by the shared tail at 0x15983). Every one of the 8 callers discards this return value; the snapshot it points to is restored/freed on a separate path, so each call effectively leaks it at the call site -- but the function itself does return it."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Both the src header (lines 145-148) and the Ghidra plate claimed the function had a 'sole live caller (fd2_load_save_and_init_engine's chapter-intro slideshow)'. That is factually wrong and self-contradictory with the same header's own '(8 callers)' line: get_function_callers returns 8 distinct callers across the combat-overlay and chapter-intro render paths (e.g. fd2_render_combat_combatant_panels uses it for the VS panel with sprite 0x30, return value discarded). Param/atlas/return behavior in the rest of the comment was accurate.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "7e99c3f989961cd718fd27bc948fc6934c36cee7",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Logic/signature/callees/return fully verified: callee fd2_blit_sprite_with_decoded_pixels @ 0x4e85b, fd2_save_screen_block_to_buffer @ 0x4e96f, malloc @ 0x36d16, __CHK @ 0x36cd7; tail JMP 0x15983 = fd2_score_item_candidate_tail_15983 (MOV EAX,EDI -> shared epilogue 0x22bbe). All 6 stack args mapped via disasm offsets ESP+0x18..0x2c. Comment fix: corrected false 'sole live caller' claim in both src and plate; also normalized em-dash to '--' in the src args list (ASCII rule). All renames recorded only (Stage 2 applies). No logic touched."
+}

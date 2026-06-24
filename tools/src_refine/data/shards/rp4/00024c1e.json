@@ -1,0 +1,37 @@
+{
+  "address": "0x00024c1e",
+  "name_current": "fd2_chapter_24_end",
+  "name_final": "fd2_chapter_24_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. The trailing 24 is the chapter ID (chapters 01-30 are meaningful domain IDs), not a Ghidra address residue. Name accurately reflects role as the chapter-24 end-of-chapter handler.",
+  "kind": "function",
+  "home": "src/field/chend2.c",
+  "purpose": "Chapter 24 (Beyond the Sky) end-of-chapter handler: a text-scroll cinematic that displays two dialog pages and scrolls credits/story text lines past the screen, ending with a palette fade-out and chapter advance. No character is recruited.",
+  "logic_summary": "Resets brightness accumulator to 0 and shows dialog page 2; clears battle_anim_phase. Phase 1: scrolls text lines 2..9 (fd2_scroll_text_screen_up_by_lines), holding each line for 30 composite-frame ticks (fd2_composite_battle_frame(1) + fd2_wait_n_bios_ticks(1)). Shows dialog page 3; clears battle_anim_phase. Phase 2: scrolls text lines 10..14, holding each for 12 frames while ramping a VGA palette fade-out via fd2_set_vga_palette_range(0,0xFF,brightness_sub); brightness_sub accumulates across all 5 lines (5*12 = 60 increments) for a complete fade-to-black. Finishes by zeroing the 64000-byte framebuffer at 0xA0000, calling fd2_save_runtime_char_to_template, and incrementing data_fd2_chapter_current_chapter_id.",
+  "signature": "void __cdecl fd2_chapter_24_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; an end handler dispatched via data_fd2_chapter_end_handler_table[24]."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "0 direct callers; dispatched as a function pointer from data_fd2_chapter_end_handler_table at 0x51e45 (verified: bytes 1e 4c 02 00 = 0x00024c1e, next entry f2 4d 02 00 = fd2_chapter_25_end at 0x00024df2). Only one xref (DATA) to the function, consistent with the dispatch mechanism. Source comment block at chend2.c lines 482-494 already precise/correct/ASCII and matches the decompilation, so no source edit was made. Ghidra plate is more verbose (includes a pseudo-code body trace and linked-handler list) but is semantically consistent with src and decompilation -> left untouched per consistent-is-enough rule. No logic concerns: brightness_sub correctly continues across both phase-2 loop iterations (declared once, never reset between lines)."
+}

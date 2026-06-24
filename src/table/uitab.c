@@ -82,7 +82,10 @@ const int32 data_fd2_ui_item_command_menu_template[4] = { 8, 9, 10, 11 };
  * data_fd2_ui_tactical_overview_team_colors_table @ 0x5208A  (12 bytes)
  *
  * Tactical-overview (zoom-out battlefield map) per-team palette color bases:
- * 3 x int32 entries { 0x20, 0x50, 0x48 } for player / enemy / neutral team.
+ * 3 x int32 entries { 0x20, 0x50, 0x48 } indexed by runtime_char team id:
+ *   [0] 0x20 -> team 0 (enemy)
+ *   [1] 0x50 -> team 1 (ally / NPC)
+ *   [2] 0x48 -> team 2 (player)
  * The sole reader fd2_open_tactical_overview_zoom copies all three 32-bit
  * words into a local team_color_table_a[3] stack buffer with a count-3 MOVSD
  * (MOV ESI,0x5208A; 3 x MOVSD -> 32-bit elements), then indexes that buffer by
@@ -120,17 +123,28 @@ const int16 data_fd2_ui_per_job_revive_or_promote_cost_table[30] = {
  *   (18 bytes, = 0x5266B + 0x3C, immediately after the cost table above)
  *
  * Per-basic-class required class-change key-item id, indexed directly by
- * runtime_char.bPortrait_id (basic classes 0..0x11 -> 18 entries). Both
- * readers load a single byte and zero-extend it (MOVZX EAX, byte ptr
- * [idx + 0x526A7]) to use as an item id:
+ * runtime_char.bPortrait_id. Portrait ids 0..0x11 are the 18 early-game
+ * recruitable characters in their basic (un-promoted) form, so each table
+ * entry names the key item that unlocks that character's *alternate* (special)
+ * promotion path. Both readers load a single byte and zero-extend it (MOVZX
+ * EAX, byte ptr [idx + 0x526A7]) to use as an item id:
  *   - fd2_build_promotion_candidates_with_targets (@ 0x3180A) passes
- *       table[portrait_id] to fd2_find_inventory_slot_with_item to test
- *       whether the member carries the item that unlocks the alt promotion.
- *   - fd2_run_class_promotion_menu_main (@ 0x31525) reads
- *       table[bPortrait_id] as the item to consume when class_id > 0x31.
+ *       table[portrait_id] to fd2_find_inventory_slot_with_item; carrying that
+ *       item switches the target class from default portrait_id+0x20 to the alt
+ *       portrait_id+0x32.
+ *   - fd2_run_class_promotion_menu_main (@ 0x31525) reads table[bPortrait_id]
+ *       as the item to consume when the chosen class_id > 0x31 (an alt path).
  * Stride 1, unsigned byte, never written -> const uint8 flat table.
- * 0xFF marks classes with no table-driven item; the 0xCD bytes at indices
- * 4..7 are unused filler (portrait_id 7 is skipped by the candidate loop).
+ * All values except 0xFF are real class-change ("轉職") item ids:
+ *   0x58 聖者之戒 (priest/mage->saint), 0x59 勇者徽章 (Sol->hero),
+ *   0x5B 領悟之書 (monk->martial-saint), 0x5C 心眼之書 (archer->sniper),
+ *   0x5D 白金徽章 (soldier->magic-warrior), 0xCD 飛龍卵 (knight->dragon-knight).
+ * Index meaning: [0]索爾 0x59, [1]哈諾/[3]哈瓦特 0x5D, [4]亞雷斯/[5]洛娜/[6]萊汀
+ * 0xCD (the three knight chars), [8]希莉亞/[13]貝克威 0x5C, [9]悠妮/[10]瑪琳/
+ * [11]索菲亞/[14]珊 0x58, [12]凱麗/[15]賽可邦勒 0x5B. 0xFF (idx 2,16,17) marks
+ * characters with no table-driven alt item. Index 7 (蘭斯洛特) is the one entry
+ * never read: the candidate loop skips portrait_id == 7. (悠妮/idx 9 has an
+ * extra hard-coded path: carrying Sword 0x5A also unlocks class 0x34.)
  */
 const uint8 data_fd2_ui_per_basic_portrait_class_change_key_item_id_table[18] = {
     0x59, 0x5D, 0xFF, 0x5D, 0xCD, 0xCD, 0xCD, 0xCD, 0x5C,

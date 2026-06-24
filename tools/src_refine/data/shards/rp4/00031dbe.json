@@ -1,0 +1,54 @@
+{
+  "address": "00031dbe",
+  "name_current": "fd2_require_char_id_in_active_party",
+  "name_final": "fd2_require_char_id_in_active_party",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>: require/check verb is the domain action; 'char_id_in_active_party' precisely names what is verified (a char_id present in the live battle party). No Ghidra address residue. Param is the required char_id (low byte), NOT a class/job id, so this name (which replaced the old misnomer fd2_check_party_has_required_class) is correct. Also disambiguated from the menu/template-scope fd2_check_party_has_char_id @ 0x33499 by 'active_party'.",
+  "kind": "function",
+  "home": "ROOT/src/util/misc.c",
+  "purpose": "Verify a required char_id is present in the live battle party (runtime_char_array slots 1..max_chars); on a miss show a 'you need [char-name]' portrait dialog and return 0, on a hit return 1 silently.",
+  "logic_summary": "found=0; for iter in [0,max_chars): if data_fd2_battle_runtime_char_array_ptr[iter+1].char_id == (uint8)req_char_id then found=1 (slot 0 is the always-present lord, skipped via the +1 offset; only player-selected slots 1..max_chars are checked). If found==0: fd2_load_chapter_portrait(0x4B); set data_fd2_dialog_last_action_sprite_id_param = (req_char_id&0xFF)+1 (per-char dynamic portrait slot); fd2_display_dialog_scene(all_game_text,0x291,0xA951F,0x140,0xCD,0x4C,0x4A,0x13,1) renders the 'you need [name]' scene; fd2_paint_portrait_to_dialog_area(0); raise input guard data_fd2_battle_tile_map_ptr=1; fd2_wait_for_input_dialog_with_blink(0); lower guard=0; fd2_close_intro_dialog_with_slide_out(). Return found. Compiler __CHK(0x30) stack-probe prologue.",
+  "signature": "char __cdecl fd2_require_char_id_in_active_party(uint32 max_chars, uint32 req_char_id)",
+  "params": [
+    {
+      "name": "max_chars",
+      "type": "uint32",
+      "semantics": "Active-party iteration cap = number of non-lord party slots to scan. Caller passes 0x0F (current_chapter_id <= 0x1A) or 0x13 (> 0x1A). Loop scans runtime_char_array[1..max_chars].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches caller's own 'max_chars' variable and accurately describes the iteration cap. No address residue."
+    },
+    {
+      "name": "req_char_id",
+      "type": "uint32",
+      "semantics": "Required char_id (only low byte used); compared against each runtime slot's char_id field, and used as (req_char_id&0xFF)+1 to pick the per-char error-portrait slot. Caller supplies chapter-specific char_ids (0x12, 9, 0x10, 0x15, 0x18, 0x1D) from its branch table.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name correctly states this is a char_id (not a class/job id) and that it is the value being required. No address residue."
+    }
+  ],
+  "returns": {
+    "type": "char",
+    "semantics": "1 = required char_id found in active party (no dialog). 0 = missing (error dialog was shown). Caller stores it into result_flag, which gates whether the recruitment commit proceeds."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_all_game_text_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_dialog_last_action_sprite_id_param",
+    "data_fd2_battle_tile_map_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompilation byte-matches the existing plate and the existing src comment block (misc.c lines 149-204); both are already concise, accurate, and ASCII -> comment keep, plate none, no Edit to misc.c. Caller fd2_run_recruitment_or_branch_screen @ 0x318AD confirmed both call sites pass (max_chars, chapter-specific char_id) and consume the 0/1 return into result_flag. No logic concerns. Pre-existing unrelated working-tree change to shards/rp4/0005414b.json left untouched (staged only my two files)."
+}

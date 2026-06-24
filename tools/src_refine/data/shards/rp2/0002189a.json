@@ -1,0 +1,62 @@
+{
+  "address": "0002189a",
+  "name_current": "fd2_play_rising_pre_cast_effect",
+  "name_final": "fd2_play_rising_pre_cast_effect",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; no Ghidra address residue; descriptor accurately captures the function's role (play a rising pre-cast/sparkle effect). Although it is reused beyond spell pre-cast (chapter-23 ending and AI item use), the name is still descriptive and not misleading, so keep.",
+  "kind": "function",
+  "home": "ROOT/src/spell/spellcin.c",
+  "purpose": "Plays a 10-frame rising 'sparkle' band effect anchored at a unit's screen position, used both as a spell pre-effect (spell 0xB/0xC) and as a generic summon/chapter-event rising sparkle.",
+  "logic_summary": "Computes caster screen x/y from runtime_char_array[caster_unit_id].pos_x/pos_y minus the battle view-window origin, scaled by 0x18 plus a fixed offset. malloc's a 0x25680 backdrop snapshot and composites the battle tile map into it. Loops frame 0..9: reads a self-relative sprite offset from the 10-entry tile-anim table (base + 6 + frame*4 + base), restores the snapshot into the large game-state buffer via memmove, draws the filled circle/anim row at the caster screen pos with the current height (initial_height accumulator), repaints all unit sprites over it, then blits the composed scene to the mode-13h framebuffer at 0xA0504; after each frame initial_height += rise_step. Frees the snapshot, composites a final battle frame, then returns (binary tail-JMPs to the shared inline-epilogue fragment fd2_noop_stub_b43 @ 0x10b43).",
+  "signature": "void fd2_play_rising_pre_cast_effect(int caster_unit_id, int initial_height, int rise_step)",
+  "params": [
+    {
+      "name": "caster_unit_id",
+      "type": "int",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr (0x50-byte stride); identifies the unit whose screen position anchors the rising effect.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the runtime-char array index; no address residue."
+    },
+    {
+      "name": "initial_height",
+      "type": "int",
+      "semantics": "Starting circle-band radius/height passed to fd2_render_circle_anim_row on frame 0; serves as the per-frame accumulator (grows by rise_step each frame).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches caller intent (e.g. 0xF for spell 0xB) and body usage as the rising height accumulator; no address residue."
+    },
+    {
+      "name": "rise_step",
+      "type": "int",
+      "semantics": "Per-frame increment added to the height/radius after each of the 10 frames (rise speed).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches caller intent (e.g. 0xA for spell 0xB) and body usage as the per-frame radius increment; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; performs the animation as a side effect and leaves the final battle frame composited."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_tile_anim_table_base",
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment block was accurate and comprehensive but contained three non-ASCII em-dash characters (U+2014) on the param lines (caster_unit_id / initial_height / rise_step), violating the ASCII-only code-text rule.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompilation, source definition, and existing Ghidra plate are all mutually consistent. Only change was replacing 3 em-dashes with '--' in the src comment. No logic touched. Ghidra plate left as-is (consistent with refined understanding). Verified param semantics via caller fd2_cast_spell_0b_with_prefx @ 0x2185f which passes (caster, 0xF=initial_height, 0xA=rise_step)."
+}

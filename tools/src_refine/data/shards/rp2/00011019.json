@@ -1,0 +1,58 @@
+{
+  "address": "00011019",
+  "name_current": "fd2_load_portrait_to_cache",
+  "name_final": "fd2_load_portrait_to_cache",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=portrait/resource, descriptor=load_portrait_to_cache). No Ghidra address residue. Accurately reflects behavior: loads a portrait's 12 sprite frames from FDICON.B24 into the global 200KB sprite cache, idempotent (returns existing cache index on a hit).",
+  "kind": "function",
+  "home": "src/rsrc/rsrc.c",
+  "purpose": "Load one portrait's 12-sprite frame set from FDICON.B24 into the global 200KB sprite cache, returning the portrait's cache slot index (idempotent: a cache hit short-circuits with no disk I/O).",
+  "logic_summary": "fseek(fp,6) past FDICON.B24 magic; malloc(0x1A40) and fread the sprite-header table; extract 13 int32 abs-offsets for this portrait (12 frame offsets + 1 trailing end-mark) at hdr+(portrait_id*12+i)*4; data_size = offsets[12]-offsets[0]; free header. If cache empty (count==0): first-time init -- record id_list[0], malloc(0x32A00) cache buffer, fseek to offsets[0], fread data into cache+0x780, fill 12 frame-offset table entries as (offsets[i]-offsets[0])+0x780, set buffer_used=data_size+0x780, idx=0. Else: scan id_list[0..count-1]; on match return that index (no I/O); on miss append at tail -- id_list[count]=portrait_id, fseek offsets[0], fread into cache+buffer_used, fill frame-offset table at slot count, buffer_used+=data_size, idx=count. Finally count++, return idx.",
+  "signature": "int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)",
+  "params": [
+    {
+      "name": "portrait_id",
+      "type": "uint32",
+      "semantics": "Portrait/character ID (domain 00h-41h) used to index the FDICON.B24 sprite-header table (portrait_id*12 frame offsets) and as the cache id_list key. Callers pass dst->portrait_id (rsrc.c:393) and char_id/bChar_id (fd2_init_runtime_char_for_battle).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate domain-ID name (portrait IDs are a meaningful FD2 ID space, must be preserved); no address residue."
+    },
+    {
+      "name": "fp",
+      "type": "uint32",
+      "semantics": "Open FILE* handle to FDICON.B24 (cast to void*), consumed by fseek/fread for the header table and the per-portrait sprite payload reads.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Standard, clear file-pointer name matching its use; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Cache slot index of the loaded (or already-cached) portrait. Callers store it into runtime_char sprite_state[0] as the per-unit portrait reference."
+  },
+  "reads_globals": [
+    "data_fd2_resource_portrait_cache_count",
+    "data_fd2_resource_portrait_cache_id_list_base",
+    "data_fd2_portrait_sprite_cache",
+    "data_fd2_resource_portrait_cache_buffer_used"
+  ],
+  "writes_globals": [
+    "data_fd2_resource_portrait_cache_count",
+    "data_fd2_resource_portrait_cache_id_list_base",
+    "data_fd2_portrait_sprite_cache",
+    "data_fd2_resource_portrait_cache_buffer_used"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (rsrc.c:185-205) already accurate, concise and ASCII-clean -- kept. Ghidra plate is more detailed and fully consistent with the refined understanding (no contradiction), so left untouched (it contains non-ASCII glyphs but plate ASCII is not required; src comment is the ASCII-clean source of truth). Parameter semantics confirmed against both callers (rsrc.c:393 dst->portrait_id; fd2_init_runtime_char_for_battle char_id_uint) and FDICON.B24 cache global docs (rsrc.c:704-839). Portrait ID 00h-41h domain confirmed via fd2-knowledge (0x20 = char_idx). No logic/equivalence issues found."
+}

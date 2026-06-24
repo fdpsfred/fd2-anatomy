@@ -1,0 +1,48 @@
+{
+  "address": "00036284",
+  "name_current": "fd2_dpmi_lock_region",
+  "name_final": "fd2_dpmi_lock_region",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_dpmi_* convention and accurately describes purpose (DPMI INT 31h fn 0x600 = Lock Linear Region). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/util/dpmi.c",
+  "purpose": "DPMI INT 31h function 0x600 (Lock Linear Region) wrapper: locks a linear memory region in physical RAM (prevents page-out).",
+  "logic_summary": "Auto-swaps the two args so base = min(arg1, arg2) and size_bytes = (max - base) + 1. Zeroes a local REGS struct, sets EAX=0x600, packs base linear address into BX:CX (BX = base>>16, CX = base&0xFFFF) and size-in-bytes into SI:DI (SI = size>>16, DI = size&0xFFFF), calls int386(0x31, &in, &out), returns (out.cflag == 0) i.e. CF clear = success.",
+  "signature": "int __cdecl fd2_dpmi_lock_region(uint32 page_start, uint32 page_end)",
+  "params": [
+    {
+      "name": "page_start",
+      "type": "uint32",
+      "semantics": "One endpoint (start or end, auto-swapped) of the LINEAR byte-address range to lock. Callers pass raw linear addresses (e.g. AIL passes 0x52a54/0x3fdb0; fd2_dpmi_alloc_dos_memory passes segment*16; fd2_dpmi_lock_size passes its base), NOT page numbers.",
+      "verdict": "rename",
+      "proposed": "region_start",
+      "reason": "Current name asserts a page number but the value is a raw linear byte address (packed verbatim into BX:CX as the base linear addr; size derived in bytes). 'page' is misleading. region_start matches sibling fd2_dpmi_lock_size's (start,end) framing."
+    },
+    {
+      "name": "page_end",
+      "type": "uint32",
+      "semantics": "The other endpoint (start or end, auto-swapped) of the LINEAR byte-address range to lock. Region size in bytes = (max - min) + 1.",
+      "verdict": "rename",
+      "proposed": "region_end",
+      "reason": "Same as page_start: it is a linear byte address, not a page number. region_end is accurate and consistent with the swap/(start,end) semantics."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "bool: 1 = success (DPMI host cleared CF), 0 = failure (CF set)."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment stated 'page_start and page_end are page numbers (addr >> 12)', which is incorrect: all callers (AIL_internal_* setup, fd2_dpmi_lock_size, fd2_dpmi_alloc_dos_memory) pass raw linear byte addresses, and the body packs them as BX:CX = base linear addr with size computed in bytes (end - start + 1). Corrected the comment to describe linear start/end addresses and byte-size packing.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Param-rename (page_start->region_start, page_end->region_end) recorded only; NOT applied this stage (Stage 2 applies, touching the decl + all call sites). Verified semantics against disassembly (BX:CX base linear, SI:DI byte size) and three callers (fd2_dpmi_alloc_dos_memory, AIL_internal_register_state_globals, AIL_internal_init_clock_globals via fd2_dpmi_lock_size). No logic/equivalence concern found."
+}

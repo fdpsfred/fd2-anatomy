@@ -72,11 +72,11 @@ void fd2_wait_one_bios_tick(void)
  *
  * Both cache-stores read the BIOS tick as a SIGN-EXTENDED 16-bit
  * word (asm: MOVSX EAX,word ptr [0x46C]; MOV [0x53A2C],EAX), NOT as
- * a full 32-bit dword — identical to the sibling fd2_wait_one_bios_tick.
+ * a full 32-bit dword -- identical to the sibling fd2_wait_one_bios_tick.
  * The sign-extended int32 is stored verbatim, so a low word of 0xFFFF
  * caches as 0xFFFFFFFF.
  *
- * NOTE: Ghidra decompiler has a bug here — renders the subtraction
+ * NOTE: Ghidra decompiler has a bug here -- renders the subtraction
  * as "tick - tick" (= 0). Assembly confirms it reads
  * wait_n_bios_ticks_last_seen as the second operand.
  * ---------------------------------------------------------------- */
@@ -267,11 +267,18 @@ void fd2_wait_input_with_status_panel_repaint(uint32 char_idx)
 }
 
 /* ----------------------------------------------------------------
- * fd2_wait_input_with_dialog_repaint @ 0x17898
+ * fd2_wait_input_with_dialog_repaint @ 0x17898  (1 caller)
  *
  * Wait for key while repainting dialog background + borders.
- * Includes blink oscillator (0/1 toggle every >3 ticks) and
- * full tile-map + chars + HUD composite each frame.
+ * Includes blink oscillator (0/1 toggle every >3 ticks, or on tick
+ * rollover) and full tile-map + chars + HUD composite each frame.
+ * On key, reads via INT 16h and remaps extended keys (E0/Down->Enter,
+ * Right/0x53->Esc); returns the resulting scancode.
+ *
+ * menu_state and pSlot_disable_arr are not used by this loop directly;
+ * both are passed through to fd2_repaint_settings_dialog_borders, which
+ * draws the cross-shape settings menu (pSlot_disable_arr = int[4] of
+ * per-direction slot-disable flags).
  * ---------------------------------------------------------------- */
 int fd2_wait_input_with_dialog_repaint(uint32 menu_state,
                                         uint32 pSlot_disable_arr)
@@ -678,9 +685,13 @@ wait_input:
 
 /* data_fd2_input_idle_current_bios_tick_word @ 0x539F0  (zero-bss)
  *
- * Latest BIOS midnight-tick counter (0:046C, 18.2 Hz word) snapshot,
- * captured each idle iteration of fd2_wait_for_input_with_idle. Compared
- * against the last-rendered tick to drive the 18.2 Hz cursor-blink redraw.
+ * Latest BIOS midnight-tick counter (0:046C, 18.2 Hz word) snapshot, stored
+ * each idle iteration of fd2_wait_for_input_with_idle. Write-only latch: the
+ * snapshot is stored here (asm: MOV [0x539F0],AX) but the redraw decision
+ * compares the freshly-read tick (held in the register) against the
+ * last-rendered tick data_fd2_input_idle_last_rendered_tick_word (0x539F2),
+ * not a re-read of this word -- it has no runtime readers. Sized as a word
+ * (uint16) to match the stored 16-bit tick.
  * Zero-initialized in BSS; first touched by a runtime write. */
 uint16 data_fd2_input_idle_current_bios_tick_word;
 

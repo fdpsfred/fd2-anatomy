@@ -1,0 +1,48 @@
+{
+  "address": "0001b83d",
+  "name_current": "fd2_find_equipped_item_by_kind",
+  "name_final": "fd2_find_equipped_item_by_kind",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Already matches fd2_<domain>_<descriptor> (domain=battle/inventory helper). Descriptor accurately reflects 'find the equipped inventory slot filtered by item kind'. No address residue; trailing tokens (by_kind) are semantic words, not hex. Verified accurate against decompile and all 8 callers.",
+  "kind": "function",
+  "home": "src/battle/battle.c",
+  "purpose": "Scan a combatant's 8 inventory slots and return the index of the first slot that is equipped (flag bit6/0x40) and whose item_id falls in the requested kind range (physical <0x80 vs magical >=0x80); -1 if none.",
+  "logic_summary": "Loops slot_iter 0..7 over data_fd2_battle_runtime_char_array_ptr[char_idx].inventory_slots[] (16-byte array at runtime_char +0x0A = 8 two-byte slots: [0]=flag, [1]=item_id; 80-byte runtime_char stride). Match condition: (flag & 0x40)!=0 AND ((kind==0 && item_id<0x80) || (kind!=0 && item_id>=0x80)). Returns first matching slot_iter, else 0xFFFFFFFF. The 0x80 cut is the physical(0x00..0x7F)/magical(0x80..0xD6) item split per assets/items.md. Leading __CHK(0xC,...) is the Watcom stack/bounds-check CRT intrinsic, not game logic.",
+  "signature": "uint32 fd2_find_equipped_item_by_kind(uint32 char_idx, uint32 kind)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Index into the runtime_char array (which combatant). Used as data_fd2_battle_runtime_char_array_ptr[param_1]. Callers pass attacker/defender/caster/char unit indices. src already names this char_idx.",
+      "verdict": "rename",
+      "proposed": "char_idx",
+      "reason": "Live Ghidra name param_1 is a generic placeholder carrying no semantics; char_idx matches the src declaration and the runtime_char-array index usage. Rename recorded only; applied in Stage 2."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Item-kind selector controlling the item_id range branch: 0 = physical (item_id<0x80, weapon/armor); non-zero = magical (item_id>=0x80, spellbook/magic item). src already names this kind. All 8 current callers pass 0.",
+      "verdict": "rename",
+      "proposed": "kind",
+      "reason": "Live Ghidra name param_2 is a generic placeholder; kind matches the src declaration and the selector usage (chooses the <0x80 vs >=0x80 branch). Rename recorded only; applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "uint32",
+    "semantics": "Index (0..7) of the first matching equipped inventory slot, or 0xFFFFFFFF (-1) when no equipped slot matches the requested kind. Callers typically feed the slot to fd2_get_inventory_slot_item_id, and treat 0xFFFFFFFF as 'no weapon equipped' (disable attack / cannot counter / -1 hit-rate)."
+  },
+  "reads_globals": ["data_fd2_battle_runtime_char_array_ptr"],
+  "writes_globals": [],
+  "comment_original_issue": "src comment was accurate and concise on the algorithm and the 0x80 split, but did not note that every current caller passes kind=0 (so the kind!=0 / >=0x80 branch is presently unexercised); added one clarifying sentence.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "189a7a9",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "All 8 callers (fd2_ai_score_physical_attack, fd2_animate_attack_hit_sequence, fd2_animate_combat_hit_with_hp_drain, fd2_calculate_combat_hit_outcome, fd2_check_can_counter_attack, fd2_check_can_default_attack_target, fd2_execute_attack_damage_calculation, fd2_player_inline_action_menu_dispatch) pass kind=0 -> always the weapon/physical (<0x80) path. The kind!=0 (>=0x80) branch exists in the binary but is unused; the menu's spell-slot gating uses fd2_build_usable_spell_list, not this function. Ghidra plate previously claimed kind=1 is used for spell prerequisite/menu checks -- contradicted by call-site evidence, so plate 'usage' section was corrected to match. src represents the 2-byte slot layout as a flat byte array (inventory_slots[slot*2], [slot*2+1]); Ghidra views it as a struct array (pInventory_slots[slot].bSlot_flag/.bItem_id) -- equivalent. struct types.h: runtime_char +0x0A inventory_slots[16]. item 0x80=布衣 etc confirm 0x80+ range includes armor/consumables too, so the magical label is the binary's coarse split rather than strictly spellbooks; behavior is purely the numeric 0x80 cut. No logic issues."
+}

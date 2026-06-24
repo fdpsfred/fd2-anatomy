@@ -1,0 +1,45 @@
+{
+  "address": "000343e2",
+  "name_current": "fd2_chapter_event_handler_04__unref_dialog_with_state",
+  "name_final": "fd2_chapter_event_handler_04__unref_dialog_with_state",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. The '04' is the per-event handler dispatch-table index (table at 0x51B91; verified this function is entry idx 4 there), a meaningful domain ID that must be preserved, NOT an address residue. 'unref' accurately marks it as unreferenced by any FDFIELD turn-event/tile-step hook (no chapter wires to slot 4 -- likely cut content). 'dialog_with_state' matches the body: it mutates runtime-char team state then shows a dialog page. No hex address suffix.",
+  "kind": "function",
+  "home": "ROOT/src/field/chevt1.c",
+  "purpose": "Chapter event handler dispatched as index 0x04 of the per-event handler table at 0x51B91 (unreferenced by any chapter hook -- likely cut content): flips 哈瓦特 (char_id 0xD) to team 1 (npc/ally) and shows dialog page 7.",
+  "logic_summary": "__CHK(0x28) compiler stack-probe prologue; sets data_fd2_battle_runtime_char_array_ptr[0xD].team = 1 (0xD*0x50 stride = +0x410, .team at +0x6); calls fd2_display_dialog_scene(data_fd2_current_chapter_text, page=7, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) then returns. In the original binary the dialog call is the head of a shared tail at 0x343FA reused (JMP target) by fd2_chapter_event_handler_11 @ 0x346C8 for its page-7 dialog; reproduced inline in src for Layer-2 equivalence. event_arg is never read.",
+  "signature": "void __cdecl fd2_chapter_event_handler_04__unref_dialog_with_state(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Single uniform-cdecl argument passed by the dispatch table at 0x51B91; the body never reads it (cast to void in src). Present only to match the table's 1-arg calling convention.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of its role (the dispatched event argument), accurate (unused per disasm/decomp), no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; falls through to RET after the dialog call."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (0x53A45) -- base pointer for the runtime-char array; indexed [0xD]",
+    "data_fd2_current_chapter_text (0x53A79) -- chapter text/dialog source passed to fd2_display_dialog_scene"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr[0xD].team (via the pointer; sets char_id 0xD 哈瓦特 team = 1)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source body (chevt1.c:314-321) matches decompiled logic exactly: team=1 write + 9-arg fd2_display_dialog_scene with page=7. Globals confirmed in globals.h (0x53A45 / 0x53A79) and runtime_char.team at +0x06 (types.h: 0=enemy 1=npc 2=player) -- consistent with disasm MOV byte ptr [EAX+0x6],1 and the 0x410 offset. Source comment (lines 293-313) and Ghidra plate are both accurate, precise, and mutually consistent; no Edit and no plate update needed. xref-to confirms single DATA ref from 0x51BA1 (the handler table slot)."
+}

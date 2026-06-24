@@ -180,8 +180,19 @@ void main(void)
 /* ----------------------------------------------------------------
  * fd2_main_menu_continue_dispatcher @ 0x25EBB
  *
- * Main-menu: NEW GAME / CONTINUE / fallback. Returns 0 (menu),
- * 1 (gameplay), or -1 (quit) for main's outer loop.
+ * Main-menu dispatcher. Runs the title/record-clear menu
+ * (fd2_play_ending_and_record_clear) and branches on its result:
+ *   choice 0 -> NEW GAME    (chapter 1 init, BGM, returns 0)
+ *   choice 1 -> CONTINUE    (load FD2.SAV slot via selector UI,
+ *                            returns fd2_chapter_transition_menu
+ *                            result: 0 commit, -1 back out)
+ *   else     -> fallback    (engine reload, returns 0)
+ *
+ * Return code consumed by main's outer loop (NOTE inverted from
+ * what the labels suggest):
+ *   0  -> run gameplay this iteration, then re-show the menu
+ *   1  -> quit the game (exit outer loop)
+ *   -1 -> stay in / re-enter the main menu
  * ---------------------------------------------------------------- */
 int fd2_main_menu_continue_dispatcher(void)
 {
@@ -462,7 +473,7 @@ void fd2_load_save_and_init_engine(void)
     fd2_play_palette_fade_in();
 
     /* Cinematic intro: 9 sprite frames @ sheet idx 0x53..0x5B;
-       last 3 overlay save_metadata number. */
+       last 3 overlay the restored turn counter (data_fd2_battle_turn_counter). */
     for (i = 0; i < 9; i++) {
         saved_block = fd2_alloc_and_blit_indexed_sprite_chunk(
             data_fd2_ui_anim_sprite_sheet_ptr, 0xA0000, 0x140, 0x78,
@@ -519,8 +530,8 @@ void fd2_load_save_and_init_engine(void)
  *   data_fd2_battle_map_height_tiles = (int)*(short *)(_battle_tile_map + 2);
  * i.e. read the second 16-bit field of the decrypted tile map (MOVSX, signed)
  * and widen it into this 32-bit slot. It is then consumed by ~17 readers as the
- * column count / bottom-edge limit for tile-grid traversal, e.g. cursor clamping
- * uses `data_fd2_battle_map_height_tiles - 1`. Every access is a full 32-bit
+ * row count / y-axis bottom-edge limit for tile-grid traversal, e.g. cursor
+ * clamping uses `data_fd2_battle_map_height_tiles - 1`. Every access is a full 32-bit
  * dword load/store and the value is a small positive tile count. Zero-initialized
  * in the image; the first use is the load-time write, so this is a zero-init
  * (BSS) scalar.
@@ -566,8 +577,10 @@ uint32 data_fd2_resource_portrait_sheet_ptr;
  *   MOV byte ptr [tile_id + EAX],0x1
  * (fd2_handle_tile_event_interaction @ 0x19246/0x194EE); the ~60 chapter event
  * handlers test/set individual slots the same way. Element stride is 1 byte; the
- * index is a 16-bit tile id. Zero-initialized in the image; the first use is the
- * startup malloc write, so this is a zero-init (BSS) pointer slot.
+ * index is the tile's 5-bit terrain_class (0..31), which is why the block is
+ * exactly 32 bytes -- one consumed-flag slot per terrain_class. Zero-initialized
+ * in the image; the first use is the startup malloc write, so this is a zero-init
+ * (BSS) pointer slot.
  */
 uint32 data_fd2_field_map_tile_event_consumed_flags_ptr;
 
@@ -592,33 +605,39 @@ uint8 data_fd2_ui_game_speed_flag;
 
 /*
  * data_fd2_resource_portrait_cache_alloc_offset @ 0x53BE3 -- per-chapter count of
- * field-map portrait/character records, taken from the third byte of the loaded
- * FDFIELD.DAT tile-event table (tile_event_data_table[2]). Stored as a 32-bit
- * scalar (uint32), matching its two siblings in the same load block
- * data_fd2_resource_portrait_cache_count @ 0x53BDF and
- * data_fd2_resource_portrait_cache_total_size @ 0x53BE7. Both writers widen a
- * zero-extended byte into the full dword slot:
+ * field-character spawn records (the chapter's NPC/enemy definitions). Taken from
+ * the third byte of the loaded FDFIELD.DAT tile-event table (tile_event_data_table[2]).
+ * Despite the legacy name, this is NOT the portrait sprite cache size: the actual
+ * portrait-cache fill counter is the separate sibling
+ * data_fd2_resource_portrait_cache_count @ 0x53BDF (driven by fd2_load_portrait_to_cache).
+ * Stored as a 32-bit scalar (uint32). Both writers widen a zero-extended byte into
+ * the full dword slot:
  *   fd2_load_chapter_battle_data @ 0x10991  MOVZX EAX,byte ptr [EAX+2]; MOV [0x53BE3],EAX
  *   fd2_load_save_and_init_engine @ 0x10291 (same MOVZX byte -> MOV dword) i.e.
  *   data_fd2_resource_portrait_cache_alloc_offset = (uint32)tile_event_data_table[2];
- * so the value is an unsigned record count. It is consumed at 32-bit width as both
- * an index base and a loop bound: fd2_load_chapter_battle_data @ 0x10A5B does
- *   IMUL EAX,dword ptr [0x53BE3],0x6      (record index * 6-byte position stride)
- * to seed the field-position pointer (chapter_portrait_load_buffer + offset*6 + 2),
- * and fd2_load_chapter_portraits_and_dump_tmp @ 0x10BCC uses it as the record-scan
- * loop count (entries of stride 0x1A, race byte at +0x98). Every access is a full
- * dword load/store of a small positive count. Zero-initialized in the image; the
- * first use on every path is the load-time write, so this is a zero-init (BSS)
- * scalar.
+ * so the value is an unsigned record count. It is consumed at 32-bit width in two
+ * dual roles:
+ *   - As a loop bound: fd2_load_chapter_portraits_and_dump_tmp @ 0x10BCC scans the
+ *     tile-event records (stride 0x1A, race byte at +0x98) for indices 0..count and
+ *     spawns each matching-race entry via fd2_init_runtime_char_for_battle.
+ *   - As a position-table index base: fd2_load_chapter_battle_data @ 0x10A5B does
+ *     IMUL EAX,dword ptr [0x53BE3],0x6 to seed the field-position pointer
+ *     (chapter_portrait_load_buffer + count*6 + 2); player-party positions begin
+ *     after these N field-character position records.
+ * Every access is a full dword load/store of a small positive count. Zero-initialized
+ * in the image; the first use on every path is the load-time write, so this is a
+ * zero-init (BSS) scalar.
  */
 uint32 data_fd2_resource_portrait_cache_alloc_offset;
 
 /*
  * data_fd2_resource_portrait_cache_total_size @ 0x53BE7 -- per-chapter active
  * party/character count for the upcoming battle, taken from the second byte of the
- * loaded FDFIELD.DAT tile-event table (tile_event_data_table[1]). Sibling of
- * data_fd2_resource_portrait_cache_alloc_offset @ 0x53BE3 and
- * data_fd2_resource_portrait_cache_count @ 0x53BDF in the same load block; both
+ * loaded FDFIELD.DAT tile-event table (tile_event_data_table[1]). Despite the legacy
+ * name, this is NOT a portrait sprite-cache size: it is the chapter roster slot count
+ * that bounds the runtime_char fill loop. The actual portrait-cache fill counter is the
+ * separate sibling data_fd2_resource_portrait_cache_count @ 0x53BDF. Sibling also of
+ * data_fd2_resource_portrait_cache_alloc_offset @ 0x53BE3 in the same load block; both
  * writers widen a zero-extended byte into the full dword slot:
  *   fd2_load_chapter_battle_data    @ 0x10987 MOVZX EDX,byte ptr [EAX+1]
  *                                   @ 0x1098B MOV dword ptr [0x53BE7],EDX
@@ -634,10 +653,13 @@ uint32 data_fd2_resource_portrait_cache_alloc_offset;
 uint32 data_fd2_resource_portrait_cache_total_size;
 
 /*
- * data_fd2_battle_party_member_count @ 0x53BEB -- number of runtime_char slots in
- * the active battle party. Established at chapter/save load time and then consumed
- * throughout the battle as both a loop bound and the runtime_char_array element
- * count. Every access is a full 32-bit dword load/store of a small positive count;
+ * data_fd2_battle_party_member_count @ 0x53BEB -- total number of occupied
+ * runtime_char slots in the current battle (the full roster across all teams:
+ * player team 2, enemy team 0, NPC team 1 -- not only the player's party; readers
+ * such as fd2_check_battle_end_condition iterate 0..count and test bTeam to find
+ * enemies). Established at chapter/save load time and then consumed throughout the
+ * battle as both a loop bound and the runtime_char_array element count. Every
+ * access is a full 32-bit dword load/store of a small positive count;
  * it is widened from a byte at write time and used signed as a loop bound, so the
  * declared width is uint32 (not byte). Writers, in order of init:
  *   fd2_load_chapter_battle_data  @ 0x1099A  data_fd2_battle_party_member_count =
@@ -784,8 +806,8 @@ uint32 data_fd2_graphics_chapter_ambient_palette_anim_tick_latch;
  * startup and then handed to every AIL sequence call as an opaque 4-byte
  * handle. Every access is a full 32-bit dword (the writer stores EAX, every
  * reader does PUSH dword ptr [0x53ED0]), so the slot is a 4-byte value;
- * kept uint32 to match the handle width (the byte_data size hint was wrong --
- * caller width is dword, not byte).
+ * declared void * to match the opaque handle width (the byte_data size hint
+ * was wrong -- caller width is dword, not byte).
  * Writer:
  *   main @ 0x25C26  MOV [0x53ED0],EAX
  *     handle = AIL_allocate_sequence_handle(data_fd2_audio_bgm_driver_handle),
@@ -824,10 +846,8 @@ void *data_fd2_audio_bgm_driver_handle;
  * System) DIG driver handle for digital SFX. Installed once at startup and
  * then used only as the opaque dig_driver argument to
  * AIL_allocate_sample_handle (twice, for the two SFX channels). Every access
- * is a full 32-bit dword; kept uint32 to match the handle width and the
- * already-emitted main body (the byte_data size hint was wrong -- caller
- * width is dword, not byte). The handle is cast to void * at each
- * AIL_allocate_sample_handle(void *dig_driver) call site.
+ * is a full 32-bit pointer; declared void * to match the install return value
+ * and the AIL_allocate_sample_handle(void *dig_driver) parameter type.
  * Writer:
  *   main @ 0x25C32  MOV [0x53EDC],EAX
  *     data_fd2_audio_sfx_dig_driver_handle = (uint32)AIL_install_DIG_INI().
@@ -964,9 +984,14 @@ uint8 data_fd2_audio_sfx_driver_available_flag;
 uint8 data_fd2_ui_terrain_hud_user_enabled = 1;
 
 /*
- * data_fd2_ui_play_active_flag @ 0x51AAC -- "gameplay loop active" gate. uint8
- * boolean; ships set (image value 1). Cleared around chapter init/end + fanfare
- * transitions in main / fd2_main_menu_continue_dispatcher and re-set after.
+ * data_fd2_ui_play_active_flag @ 0x51AAC -- "gameplay active" gate. uint8
+ * boolean; ships set (image value 1). Sole reader is the terrain-info HUD
+ * panel render in fd2_render_terrain_info_hud_panel (gfx/rndstat.c): the
+ * panel is suppressed while this flag is 0. Cleared (0) then re-set (1) around
+ * any transition where that HUD must not draw -- the player-turn -> enemy-turn
+ * cycle (fd2_check_all_player_acted_or_asleep / fd2_field_command_menu_loop),
+ * chapter init/end + clear fanfare here in main, and the chapter
+ * transition / save-load paths in fd2_main_menu_continue_dispatcher.
  */
 uint8 data_fd2_ui_play_active_flag = 1;
 
@@ -985,16 +1010,59 @@ uint8 data_fd2_audio_bgm_enabled_flag = 1;
 uint8 data_fd2_audio_sfx_enabled_flag = 1;
 
 /*
- * data_fd2_runtime_battle_state_ptr @ 0x53A4D -- base pointer of the runtime
- * battle/cursor state block (FDOTHER.DAT resource index 1). uint32 address slot.
- * Written by main's load block; zero-init (BSS) pointer slot.
+ * data_fd2_runtime_battle_state_ptr @ 0x53A4D -- base pointer of the cursor /
+ * highlight 24x24 sprite atlas (FDOTHER.DAT resource index 1). uint32 address
+ * slot; not battle state -- the current symbol name is a misnomer (it holds a
+ * sprite sheet, like its siblings data_fd2_chinese_font_sheet /
+ * data_fd2_ui_anim_sprite_sheet_ptr / data_fd2_resource_portrait_sheet_ptr).
+ *
+ * Holds the malloc'd resource buffer returned by fd2_load_dat_resource; stored
+ * as a 32-bit address slot, matching the engine-wide convention for DAT
+ * resource pointers. The sole writer main @ 0x25BF4 does
+ *   data_fd2_runtime_battle_state_ptr =
+ *       fd2_load_dat_resource(<FDOTHER.DAT name>,
+ *                             data_fd2_runtime_battle_state_ptr, 1);
+ * passing the prior value (NULL on first call) so the loader frees-then-reloads.
+ *
+ * The three readers treat it as a sprite-sheet base, resolving each packed
+ * 24x24 tile via the in-buffer offset table at +6 (4-byte absolute offsets):
+ *   tile_src = base + *(int32 *)(base + 6 + tile_idx*4)
+ * fd2_blit_24x24_at_window_relative_pos @ 0x12779 uses tile_idx = caller arg;
+ * fd2_render_recruitment_select_screen @ 0x31F27 and
+ * fd2_render_battle_scene_with_portrait_grid_layout @ 0x3412C use tile 0 as the
+ * cursor / reserved-position highlight overlay.
+ *
+ * Zero-initialized in the image; the first use is the load-time write, so this
+ * is a zero-init (BSS) pointer slot.
  */
 uint32 data_fd2_runtime_battle_state_ptr;
 
 /*
  * data_fd2_tile_event_data_table_ptr @ 0x53A55 -- base pointer of the per-chapter
- * tile-event data table (0x8A3-byte malloc'd block restored from FD2.SAV).
- * uint32 address slot; zero-init (BSS) pointer slot.
+ * tile-event data table (0x8A3-byte block). uint32 address slot; zero-init (BSS)
+ * pointer slot, reloaded on each chapter-init / continue / load path.
+ *
+ * Source of the block:
+ *   - Normal chapter init (fd2_load_chapter_battle_data): loaded fresh via
+ *     fd2_load_dat_resource(FDFIELD.DAT, chapter*3 + 1).
+ *   - Load-game path (fd2_load_save_and_init_engine): malloc(0x8A3) + memmove
+ *     the leading 0x8A3 bytes of the decrypted FD2.SAV buffer (the save embeds a
+ *     snapshot of this same block).
+ *
+ * Layout of the pointed-to block (byte offsets):
+ *   [0]            scene_id -- selects FDSHAP.DAT scene snapshot (idx*2) and tile
+ *                  attribute flags (idx*2 + 1).
+ *   [1]            chapter roster slot count (-> party_member_count, bounds the
+ *                  runtime_char fill loop).
+ *   [2]            field-character spawn-record count (-> alloc_offset; also the
+ *                  base index into the FDFIELD.DAT 6-byte position table).
+ *   +0x33 + (terrain_class-1)*2  walk-step post-action consequence records (2B):
+ *                  +0 = consequence handler index (0xFF = none),
+ *                  +1 = event-type gate. Consumed by fd2_check_tile_event_post_action.
+ *   +0x53 + terrain_class*3      interaction event records (3B): +0 = type
+ *                  (0 = ITEM, 1 = GOLD, other = scripted EVENT),
+ *                  +1 = uint16 value (item_id / gold amount / event-handler index).
+ *                  Consumed by fd2_handle_tile_event_interaction.
  */
 uint32 data_fd2_tile_event_data_table_ptr;
 
@@ -1002,13 +1070,28 @@ uint32 data_fd2_tile_event_data_table_ptr;
  * data_fd2_vga_palette_data_ptr @ 0x53A65 -- base pointer of the loaded VGA
  * palette resource (FDOTHER.DAT resource index 0). uint32 address slot; reloaded
  * (free-then-load) on each new-game / continue / load path. Zero-init (BSS).
+ *
+ * Points at a 768-byte buffer = 256 palette entries x 3 RGB bytes (6-bit DAC
+ * values 0..0x3F). Palette primitives index it as ptr[idx*3 + component] to
+ * source the base colour for fade/flash/tint DAC writes. Cinematic / ending
+ * code reassigns it to other FDOTHER.DAT palettes for each scene (some paths
+ * save and restore the previous pointer).
  */
 uint32 data_fd2_vga_palette_data_ptr;
 
 /*
  * data_fd2_tile_attribute_flags_buffer_ptr @ 0x53A69 -- base pointer of the
  * battle tile-attribute buffer (FDSHAP.DAT resource, scene_id*2+1). uint32
- * address slot; zero-init (BSS) pointer slot.
+ * address slot; zero-init (BSS), reloaded (free-then-load) on each chapter /
+ * new-game / continue / load path.
+ *
+ * Points at an array of 4-byte attribute records, one per tile-sheet sprite,
+ * indexed as ptr[tile_id*4] where tile_id is the 10-bit (0..0x3FF) sprite index
+ * from the battle tile-map meta word. Byte 0 holds the animation/flag bits read
+ * by the tile compositor and tile-query accessors (0x04 / 0x08 swap-every-frame
+ * tile-id advance, 0x10 chapter-palette half-step; 0x60 event class, 0x80
+ * renderable also live in the record). Readers: fd2_read_tile_attribute_at_pos,
+ * fd2_composite_battle_tile_map, plus AI / menu / cursor tile-property queries.
  */
 uint32 data_fd2_tile_attribute_flags_buffer_ptr;
 
@@ -1021,7 +1104,12 @@ uint32 data_fd2_tile_anim_table_base;
 /*
  * data_fd2_chinese_font_sheet @ 0x53A75 -- base pointer of the Chinese glyph
  * sprite sheet (FDOTHER.DAT resource index 4). uint32 address slot; zero-init
- * (BSS) pointer slot.
+ * (BSS), written once at startup in main(). Game-mutable (not const).
+ *
+ * Passed as the font_data argument to fd2_blit_glyph_2bpp_with_outline, which
+ * indexes into the sheet by glyph id to render each character (the dialog VM
+ * fd2_display_dialog_scene uses it for both the literal-number path and the
+ * general text path).
  */
 uint32 data_fd2_chinese_font_sheet;
 
@@ -1034,21 +1122,55 @@ uint32 data_fd2_current_chapter_text;
 
 /*
  * data_fd2_all_game_text_ptr @ 0x53A7D -- base pointer of the global FDTXT.DAT
- * text bank (resource index 0). uint32 address slot; zero-init (BSS) pointer slot.
+ * text bank (resource index 0): the engine-wide, non-chapter-specific text used
+ * by system/menu dialog (shop buy/sell/give, save/load, revive, class promotion,
+ * recruitment, chapter-intro, level-up and status messages, ending), as distinct
+ * from data_fd2_current_chapter_text @ 0x53A79 which holds the per-chapter bank.
+ * uint32 address slot; zero-init (BSS) pointer slot. Loaded once at startup by the
+ * sole writer main @ 0x25BF4 (passing the prior value so the loader frees-then-
+ * reloads); ~90 readers pass it as the text_base argument of
+ * fd2_display_dialog_scene, which reads it as a page-index header table followed
+ * by an int16 dialog-opcode stream.
  */
 uint32 data_fd2_all_game_text_ptr;
 
 /*
  * data_fd2_ui_anim_sprite_sheet_ptr @ 0x53A81 -- base pointer of the UI/menu
- * animation sprite sheet (FDOTHER.DAT resource index 5). uint32 address slot;
- * zero-init (BSS) pointer slot.
+ * animation sprite sheet (FDOTHER.DAT resource index 5). Holds the malloc'd
+ * resource buffer returned by fd2_load_dat_resource; uint32 address slot,
+ * zero-init (BSS), matching the engine-wide convention for DAT resource
+ * pointers (siblings data_fd2_resource_portrait_sheet_ptr /
+ * data_fd2_all_game_text_ptr in the same main load block). Sole writer main @
+ * 0x25BF4 does
+ *   data_fd2_ui_anim_sprite_sheet_ptr =
+ *       fd2_load_dat_resource(<FDOTHER.DAT name>,
+ *                             data_fd2_ui_anim_sprite_sheet_ptr, 5);
+ * (passing the prior value so the loader frees-then-reloads). ~70 readers pass
+ * it as the sprite-sheet argument of the blit helpers
+ * (fd2_blit_sheet_sprite_at_offset / fd2_alloc_and_blit_indexed_sprite_chunk):
+ * the dialog/window frame is composed from 17 tiles in this sheet (corners,
+ * stretchable edges, center fill), and the rest of the menu UI, status/inventory
+ * panels, HP/phase banners, projectile animations, shop and recruitment screens
+ * index further sprites out of it.
  */
 uint32 data_fd2_ui_anim_sprite_sheet_ptr;
 
 /*
- * data_fd2_menu_dialog_state_handle @ 0x53A89 -- base pointer of the menu/dialog
- * state resource (FDOTHER.DAT resource index 2). uint32 address slot; zero-init
- * (BSS) pointer slot.
+ * data_fd2_menu_dialog_state_handle @ 0x53A89 -- base pointer of the dialog/menu
+ * box sprite sheet (FDOTHER.DAT resource index 2), a sibling resource pointer of
+ * data_fd2_ui_anim_sprite_sheet_ptr in the same main load block. uint32 address
+ * slot; zero-init (BSS), filled once by the sole writer main @ 0x25BF4:
+ *   data_fd2_menu_dialog_state_handle =
+ *       fd2_load_dat_resource(<FDOTHER.DAT name>,
+ *                             data_fd2_menu_dialog_state_handle, 2);
+ * (the prior value is passed so the loader frees-then-reloads). The buffer begins
+ * with an int32 offset table; a sprite's pixel data is
+ *   data_fd2_menu_dialog_state_handle
+ *     + *(int32 *)(data_fd2_menu_dialog_state_handle + index * stride)
+ * where readers use stride 4 (index*4: settings-panel 4-corner blit in
+ * fd2_open/close_settings_dialog_with_slide) or 0xC (3 ints/entry: the 2 Yes/No
+ * box corners in the page-advance / typewriter dialog). The sheet supplies the
+ * dialog/menu box corner+border sprites.
  */
 uint32 data_fd2_menu_dialog_state_handle;
 
@@ -1064,7 +1186,16 @@ union REGS data_fd2_input_int16_regs;
 
 /*
  * data_fd2_battle_map_width_tiles @ 0x53AC1 -- width of the current battle map in
- * tiles, read from the FDFIELD.DAT tile-map header (first 16-bit field, MOVSX)
- * and widened into this 32-bit slot. uint32; zero-init (BSS) scalar.
+ * tiles. Companion of data_fd2_battle_map_height_tiles @ 0x53AC5. Loaded at
+ * chapter\save-load time from the FDFIELD.DAT tile-map header: both writers
+ * (fd2_load_chapter_battle_data @ 0x10932 and
+ * fd2_load_save_and_init_engine @ 0x1022e) do
+ *   data_fd2_battle_map_width_tiles = (int)*(short *)_battle_tile_map;
+ * i.e. read the first 16-bit field of the decrypted tile map (MOVSX, signed) and
+ * widen it into this 32-bit slot. It is then consumed by many readers as the
+ * row-major column stride for tile-grid addressing -- e.g. the render loop indexes
+ * `((row + win_y) * data_fd2_battle_map_width_tiles + win_x) * 4` -- and as the
+ * right-edge limit for cursor clamping (`data_fd2_battle_map_width_tiles - 1`).
+ * uint32; zero-init (BSS) scalar.
  */
 uint32 data_fd2_battle_map_width_tiles;

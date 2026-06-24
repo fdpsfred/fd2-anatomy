@@ -1,0 +1,42 @@
+{
+  "address": "00035ed2",
+  "name_current": "fd2_chapter_event_handler_4e__unref_sentinel",
+  "name_final": "fd2_chapter_event_handler_4e__unref_sentinel",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with the fd2_<domain>_<descriptor> convention and consistent with every sibling in chevt2.c (handler_2f .. handler_4d, handler_4f). The '4e' suffix is the per-event dispatch-table index 0x4E (domain ID), NOT an address residue: the table base is 0x51B91 and this function's entry is at 0x51CC9 (0x51B91 + 0x4E*4 = 0x51CC9), confirmed by the sole xref-to being [DATA] from 0x51cc9. The function's own address is 0x35ED2, unrelated to 0x4E. '__unref_sentinel' accurately describes the role: unref (no chapter FDFIELD turn-event/tile-step hook references slot 0x4E) and sentinel (consumed-flag setter only).",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter event-handler slot 0x4E (dispatch table @ 0x51B91): a sentinel stub that unconditionally sets tile_event_consumed_flags[0x14] = 1.",
+  "logic_summary": "Watcom __CHK(4) stack-probe prologue, then a single byte store: *(uint8*)(tile_event_consumed_flags_ptr + 0x14) = 1; return. No branches, no other side effects. Ignores the dispatch arg. Self-contained 10-byte stub (PUSH 4; CALL __CHK; MOV EAX,[flags_ptr]; MOV byte[EAX+0x14],1; RET); no borrowed/hosted tail and nothing tail-JMPs into it (only the data table references it).",
+  "signature": "void __cdecl fd2_chapter_event_handler_4e__unref_sentinel(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch-table arg under the 1-arg cdecl per-event ABI (table @ 0x51B91). The body does (void)event_arg and never reads it, so it carries no semantic role here.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Generic 'event_arg' is the established chevt2.c convention for handlers that ignore the dispatch arg (vs 'stepping_char_id' used by tile-step handlers that consume it). No address residue. Matches sibling handler_4d. (Live Ghidra currently shows 'int stepping_char_id'; that Ghidra-side discrepancy is left for Stage 2 reconciliation -- src convention 'event_arg' is correct for an unread arg.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_field_map_tile_event_consumed_flags_ptr (dereferenced: writes byte at offset +0x14 = 1; the pointer global itself is read to obtain the base, the target flag byte is written)"
+  ],
+  "comment_original_issue": "Comment content was accurate (dispatch idx 0x4E, table/entry addresses, unref/sentinel category, flags[0x14]=1 effect, 10-byte stub shape all match disassembly and xrefs) but contained a non-ASCII em-dash '—' on the Effect line, violating the ASCII-only rule for code text.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "703375aba7e5da35f18e8fd048c7b74c185c6b5a",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly confirms body exactly: PUSH 0x4; CALL 0x36cd7 (__CHK); MOV EAX,[0x53ad5] (tile_event_consumed_flags_ptr); MOV byte[EAX+0x14],0x1; RET. xrefs_to: single [DATA] ref from 0x51cc9 (dispatch table slot 0x4E). get_function_callers returns none (table-dispatched only). Ghidra plate is semantically consistent with src (sets slot 0x14 consumed flag) so left untouched. Only change made to src: em-dash -> '--' on the Effect line; no logic/type/control-flow/symbol-name changes."
+}

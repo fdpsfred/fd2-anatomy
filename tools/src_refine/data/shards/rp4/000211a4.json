@@ -1,0 +1,64 @@
+{
+  "address": "000211a4",
+  "name_current": "fd2_cast_group_hp_heal_spell",
+  "name_final": "fd2_cast_group_hp_heal_spell",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; 'cast_group_hp_heal_spell' accurately reflects the multi-target (group) HP-heal spell effect confirmed by both callers and body. No Ghidra address residue. Domain=spell/battle.",
+  "kind": "function",
+  "home": "src/spell/spelleff.c",
+  "purpose": "Apply a multi-target HP-heal spell/item effect (Cure / Heal line): play heal animation, heal every target with XP credit, draw heal number, then run the shared spell-projectile epilogue.",
+  "logic_summary": "Plays heal sparkles impact (sprite id 0x0D) via fd2_animate_spell_impact_per_target and the status-effect overlay flicker. Loops over the n_targets entries of the targets byte array: for each target_id it calls fd2_apply_hp_heal_and_award_xp(target_id, heal_base) (applies the HP delta and credits XP) and forwards that returned heal amount straight into fd2_show_damage_number(amount, 0x69='i', target_id). After the loop it runs the Pattern-A shared epilogue: fd2_composite_battle_frame(0) then fd2_animate_spell_projectile_paths() (the loop-exit falls through into the fd2_composite_then_animate_projectiles wrapper; inlined in src). __CHK(0x24) is the compiler-injected stack probe (not game logic).",
+  "signature": "void fd2_cast_group_hp_heal_spell(uint32 caster_idx, uint32 n_targets, uint32 targets, uint32 heal_base)",
+  "params": [
+    {
+      "name": "caster_idx",
+      "type": "uint32",
+      "semantics": "Caster runtime_char index; passed to the impact/overlay animation helpers as the source char. Caller fd2_apply_use_effect_dispatch forwards its own caster_idx; fd2_execute_summon_spell_cast forwards param_1.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the caster runtime-char index; no address residue."
+    },
+    {
+      "name": "n_targets",
+      "type": "uint32",
+      "semantics": "Number of target char indices in the targets byte array; loop bound (compared signed in body).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the target count; matches caller target_count / param_3."
+    },
+    {
+      "name": "targets",
+      "type": "uint32",
+      "semantics": "Pointer (as uint32) to a byte array of target runtime_char indices; indexed by iter to obtain each target_id.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the target-id array pointer; matches caller p_target_array / target-id array. No address residue."
+    },
+    {
+      "name": "heal_base",
+      "type": "uint32",
+      "semantics": "Base heal amount passed to fd2_apply_hp_heal_and_award_xp for each target. From the item effect_param (item_entry+0xE) for HP-heal items/spells, or the literal 800 for the 風妖精 (0x21) summon heal branch.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the base heal magnitude; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Both callers verified: fd2_apply_use_effect_dispatch @0x20C6F (effect_code 0x05 HP-heal item / 0x0D HP-heal spell, heal_base=effect_param from item entry +0xE) and fd2_execute_summon_spell_cast @0x27FC9 (spell_id 0x21 風妖精 summon, heal_base=800). Callee fd2_apply_hp_heal_and_award_xp returns int (heal amount), forwarded with no EAX clobber to fd2_show_damage_number. protos.h:169 declares the matching 4x uint32 signature. src comment (lines 440-457) already a precise final-conclusion description (ASCII, no phase/date narration) -> keep. Ghidra plate consistent with refined understanding (describes decompiled fall-through wrapper as the single fd2_composite_then_animate_projectiles call; src inlines its two components -- not a contradiction) -> no plate change. No logic touched."
+}

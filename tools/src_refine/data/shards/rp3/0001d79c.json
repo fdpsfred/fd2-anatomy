@@ -1,0 +1,53 @@
+{
+  "address": "0001d79c",
+  "name_current": "fd2_grant_spell_to_char",
+  "name_final": "fd2_grant_spell_to_char",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (domain=spell, descriptor=grant_spell_to_char). Accurately describes the function: it marks a spell as learned for a runtime character by OR-ing the spell's bit into the character's spells_known_bitmap. No Ghidra address residue; no embedded domain IDs to preserve.",
+  "kind": "function",
+  "home": "src/spell/spellsel.c",
+  "purpose": "Mark spell_id as learned for the runtime character at char_idx by setting the corresponding bit in that character's 5-byte spells_known_bitmap.",
+  "logic_summary": "Copies the 8-byte single-bit mask table (data_fd2_battle_spell_bit_mask_lookup_table @ 0x52024 = {1,2,4,8,0x10,0x20,0x40,0x80}) into a local array (mirrors the binary's MOVSD-to-stack), computes pChar = data_fd2_battle_runtime_char_array_ptr + char_idx, then OR-sets pChar->spells_known_bitmap[spell_id/8] |= bit_mask_table[spell_id % 8] (= 1 << (spell_id % 8)). The binary uses signed div/mod by 8, but spell_id is always a small non-negative id so plain /8 and %8 reproduce it. __cdecl, void return.",
+  "signature": "void fd2_grant_spell_to_char(uint32 char_idx, uint32 spell_id)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "char_idx: index into data_fd2_battle_runtime_char_array_ptr (runtime_char, stride 0x50) selecting the character that learns the spell.",
+      "verdict": "rename",
+      "proposed": "char_idx",
+      "reason": "Live Ghidra name is the generic placeholder param_1; src already uses char_idx. Rename to char_idx to align Ghidra with src and reflect actual use (runtime char array index). Applied in Stage 2."
+    },
+    {
+      "name": "param_2",
+      "type": "uint32",
+      "semantics": "spell_id: spell identifier 0x00..0x23 (36 spells); decomposed into byte offset (spell_id/8) and bit index (spell_id%8) within spells_known_bitmap.",
+      "verdict": "rename",
+      "proposed": "spell_id",
+      "reason": "Live Ghidra name is the generic placeholder param_2; src already uses spell_id. Rename to spell_id to align Ghidra with src and reflect actual use (spell identifier). Applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effect is the in-place bit set on the character's spells_known_bitmap."
+  },
+  "reads_globals": [
+    "data_fd2_battle_spell_bit_mask_lookup_table",
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "comment_original_issue": "None. The existing src comment block (lines 71-92) is already precise, ASCII, and correct: it states the bitmap operation spells_known_bitmap[spell_id/8] |= 1 << (spell_id % 8), the spell_id range 0x00..0x23, the single caller (fd2_process_xp_and_level_up_for_char on level-up grant), the local-copy bit-mask-table mechanism, the signed div/mod nuance, and the compiler-injected __CHK(0x20) prologue plus shared epilogue. Matches the decompilation and caller context.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "9f691042cd1f58acb49fd851dba0e310e2ebbb09",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Caller confirmed as sole caller fd2_process_xp_and_level_up_for_char @ 0x1e292 (xref from 0x1e39a UNCONDITIONAL_CALL): on each level-up, if growth[10] != 0xFF it looks up the spell-learning entry and for each (req_level, spell_id) pair whose req_level == current level it calls fd2_grant_spell_to_char(char_idx, spell_id). Globals/struct field verified: data_fd2_battle_runtime_char_array_ptr and data_fd2_battle_spell_bit_mask_lookup_table exist in src; spells_known_bitmap[5] @ +0x1A confirmed in src/include/types.h. Ghidra plate (Traditional Chinese) is consistent with the refined understanding (same bitmap logic, same single caller, same table @ 0x52024); left untouched. Logic unchanged; only param-name renames recorded for Stage 2."
+}

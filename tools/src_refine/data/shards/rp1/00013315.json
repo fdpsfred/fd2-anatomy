@@ -1,0 +1,55 @@
+{
+  "address": "0x00013315",
+  "name_current": "fd2_walk_step_right",
+  "name_final": "fd2_walk_step_right",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the fd2_<domain>_<descriptor> convention: domain = walk-step field animation, descriptor = step_right. Accurately reflects the animated 6-frame walk step RIGHT (east, +1 x, facing=3) for runtime_char[char_idx]. No Ghidra address residue in the name. It is the directional mirror of fd2_walk_step_left and a sibling of fd2_walk_step_down/up, all consistently named.",
+  "kind": "function",
+  "home": "ROOT/src/anim/aniwalk.c",
+  "purpose": "Animate a single 6-frame field walk step to the RIGHT (east, +1 tile x) for runtime character char_idx, scrolling the battle/field viewport horizontally when the character is near the right edge and the window is not already at the map's right boundary.",
+  "logic_summary": "Sets facing byte (pChar[3]) = 3 (east) and saves current x (pChar[0]). Decides scroll vs no-scroll: if the character's on-screen column (saved_x - view_window_origin_x) <= 0xA, OR the window is already at the right edge (map_width_tiles - view_window_max_x == view_window_origin_x), then no scroll (scroll_delta_x=0, scroll_window_flag=0) and the on-screen cursor column is incremented; otherwise scroll right (scroll_delta_x=4 sub-pixels/frame, scroll_window_flag=1). Then runs a 6-frame slide loop: each frame ticks tutorial-progress SFX, advances palette-cycle and chapter-palette animations, writes the walk-anim phase (pChar[4]=frame), accumulates the sub-pixel scroll offsets, composites the battle tile map (width 0xD when static, 0xE when scrolling) and the character overlay into the large game-state buffer, blits the composited region to VGA (0xA0504), and waits one BIOS timer tick. After the loop it finalizes: pChar[0]++ (advance tile x), view_window_origin_x += scroll_window_flag, cursor_world_x++, clears the walk-anim phase and the sub-pixel scroll accumulators, then calls fd2_check_tile_event_post_action(cursor_world_x, cursor_world_y, 0) to fire any tile event at the new position.",
+  "signature": "void __cdecl fd2_walk_step_right(int char_idx)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32 (src) / int (Ghidra)",
+      "semantics": "Index of the moving character in data_fd2_battle_runtime_char_array (entry stride RUNTIME_CHAR_SIZE = 0x50). Used only as a non-negative multiplier to locate pChar and is forwarded to fd2_tick_tutorial_progress_with_sfx each frame.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately describes a runtime-character index; no address residue, not the generic param_1 placeholder. Matches the naming of the sibling walk-step functions."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: advances the character one tile east, mutates viewport origin / cursor globals, drives 6 frames of animation, and triggers the destination tile event."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_view_window_max_x",
+    "data_fd2_battle_map_width_tiles",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_world_y"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_walk_anim_x_scroll_offset",
+    "data_fd2_battle_compose_walk_step_y_sub_pixel_offset"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (aniwalk.c lines 276-281) is already concise and accurate (6-frame walk step RIGHT, +1 x, facing=3, viewport scroll). Decompilation and disassembly match the source exactly; this function is the directional mirror of fd2_walk_step_left. Plate vs src wording note: the Ghidra plate expresses the scroll condition as 'char_screen_x < 0xB' while the asm (CMP EAX,0xa / JLE) and src use '<= 0xA'; these are integer-equivalent, so the plate does not contradict the src and was left unchanged. Source declares the index as uint32 vs Ghidra int; benign (index is non-negative, used only as an array multiplier). No logic changes made; name/param rename judgments recorded only (none needed)."
+}

@@ -1,0 +1,50 @@
+{
+  "address": "0x0001c142",
+  "name_current": "fd2_equip_item_in_slot",
+  "name_final": "fd2_equip_item_in_slot",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; domain=inventory/equip, descriptor=equip_item_in_slot. Name accurately reflects the behavior: mark the given inventory slot as equipped, auto-unequipping any same-category item first. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/ui_menu/status.c",
+  "purpose": "Mark inventory slot slot_idx of runtime_char[char_idx] as equipped, first auto-unequipping any already-equipped same-category item (enforcing the one-weapon + one-spellbook mutual-exclusion rule).",
+  "logic_summary": "rc = data_fd2_battle_runtime_char_array_ptr. item_id = fd2_get_inventory_slot_item_id(char_idx, slot_idx). Loop scan_iter 0..7 over the 8 inventory slots: if a slot is equipped (flag byte inventory_slots[scan_iter*2] & 0x40) AND it holds a same-category item (both item_id and the slot's item id < 0x80, or both >= 0x80), clear that slot's flag (unequip). After the scan, set inventory_slots[slot_idx*2] = 0x40 to mark the chosen slot equipped. Category split point is item_id 0x80 (0x00..0x7F physical weapons/armor/items, 0x80..0xD6 magical spellbooks).",
+  "signature": "void __cdecl fd2_equip_item_in_slot(uint32 char_idx, uint32 slot_idx)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr selecting the character whose inventory is modified.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the runtime_char array index; no address residue."
+    },
+    {
+      "name": "slot_idx",
+      "type": "uint32",
+      "semantics": "Inventory slot index (0..7) to equip; passed to fd2_get_inventory_slot_item_id and used as the final inventory_slots[slot_idx*2] = 0x40 target.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the inventory slot index being equipped; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; mutates the inventory slot flag bytes in place."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "0b36e34bd9c3818153a06d76f04e1193debfbec4",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompiled logic matches src byte-for-behavior (CONCAT31 sign artifacts in the decompiler are just the byte<0x80 / >=0x80 category compares). Both callers confirmed via get_function_callers and get_xrefs_to: fd2_equip_unequip_inventory_menu @ 0x1bffe and fd2_run_buy_item_menu @ 0x2f0b0 -- exactly the two callers the src comment lists. The src comment is already precise/ASCII/accurate (purpose, one-weapon+one-spellbook rule, 0x80 split with assets/items.md ref, algorithm, callers, epilogue note) -> comment_verdict=keep. Ghidra plate (Chinese, more detailed) is semantically consistent with the refined understanding (same algorithm, same 0x80 split, same mutual-exclusion rule) -> plate left untouched (ghidra_plate_action=none, no save_program needed). No src Edit performed, so status.c stays unmodified."
+}

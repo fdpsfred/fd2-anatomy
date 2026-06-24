@@ -1,0 +1,75 @@
+{
+  "address": "0002f0b0",
+  "name_current": "fd2_run_buy_item_menu",
+  "name_final": "fd2_run_buy_item_menu",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> form (domain=run/ui shop flow, descriptor=buy_item_menu). Accurately names the BUY branch top-level loop of the chapter-intro shop menu (sole caller fd2_run_chapter_intro_menu_main dispatches cursor==0 here for the buy option). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/ui_menu/shop.c",
+  "purpose": "Top-level loop for the BUY branch of the chapter-intro shop menu: open the item-grid panel, run the cursor loop, and on commit walk the full buy flow (eligibility filter -> 'buy for whom?' confirm -> affordability -> recipient roster select -> inventory-full check -> add item -> optional auto-equip -> transaction + money-drop animation).",
+  "logic_summary": "Up front, snapshots four per-shop-tier short[6] dialog text-id tables into locals (no_equip/buy_for/auto_equip/no_money) via memcpy; the inventory-full table is read in place from its global. Then loops forever: restore cursor/scroll from saved globals, open the shop panel, run fd2_shop_menu_input_loop; save cursor/scroll; close panel. Esc (sel==-1) returns. Otherwise read item_id = item_array[saved_cursor], set last_action_sprite_id = item_id+0xB5 (FDTXT item-name base), fetch item_entry via fd2_get_item_effect_entry, store price = *(u16*)(item_entry+0x13). Scan menu party building eligible_chars[]: for gear (item_entry[0] < 0x20) only chars where fd2_check_job_can_equip_item==1 qualify; consumables (>=0x20) make every party member eligible. If gear and no one can equip, show no_equip dialog and continue. Set visible_item_count=candidate_count and candidate_array_ptr=eligible_chars, show 'buy for whom?' yes/no (choice via fd2_text_dialog_typewriter_loop, answer read from cursor_idx; cancel or cursor==1 'no' continues). Signed gold-vs-price test (JGE): if too poor, show no_money and continue. Recipient select: gear uses fd2_party_roster_class_select_loop (stat preview), consumable sets visible_item_count to full party then fd2_party_roster_single_select_loop; restore saved visible_item_count; if not committed (sel!=1) continue. recipient = eligible_chars[cursor_idx]; if inventory full (8 usable slots) show inventory_full and continue. Else fd2_add_item_to_inventory(recipient,item_id); for gear, prompt auto-equip and on 'yes' (choice!=-1 && cursor_idx==0) equip the just-added slot (slot_count-1) and recalc combat stats. Finally play transaction feedback + animate the visible gold decrement by price.",
+  "signature": "void __cdecl fd2_run_buy_item_menu(uint32 shop_item_count, uint8 *shop_item_id_array)",
+  "params": [
+    {
+      "name": "shop_item_count",
+      "type": "uint32",
+      "semantics": "Number of items offered in this shop visit. Caller passes fd2_load_chapter_party_roster()&0xff (a misnamed helper that actually returns the active shop tier's item-id count). Forwarded to fd2_open_shop_dialog_panel and fd2_shop_menu_input_loop as the grid item count.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (count of shop items), no address residue."
+    },
+    {
+      "name": "shop_item_id_array",
+      "type": "uint8 *",
+      "semantics": "Byte array of shop item ids (0x00..0xD6), indexed by the saved cursor to pick the chosen item; caller passes the 12-byte stack buffer filled by fd2_load_chapter_party_roster. Forwarded to the panel open / input-loop calls.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate (item-id array), no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; the menu loop runs until Esc on the item grid, which returns to the caller (fd2_run_chapter_intro_menu_main)."
+  },
+  "reads_globals": [
+    "data_fd2_ui_menu_saved_cursor_idx",
+    "data_fd2_ui_menu_saved_scroll_offset",
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_ui_menu_scroll_offset",
+    "data_fd2_ui_menu_visible_item_count",
+    "data_fd2_chapter_intro_menu_cursor_state",
+    "data_fd2_chapter_intro_menu_speaker_portrait_id_table",
+    "data_fd2_all_game_text_ptr",
+    "data_fd2_shared_menu_party_member_count",
+    "data_fd2_shared_party_total_gold",
+    "data_fd2_dialog_last_action_value_param",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_dialog_shop_buy_for_dialog_text_id_table",
+    "data_fd2_dialog_shop_no_money_dialog_text_id_table",
+    "data_fd2_dialog_shop_no_equip_dialog_text_id_table",
+    "data_fd2_dialog_shop_auto_equip_dialog_text_id_table",
+    "data_fd2_dialog_shop_inventory_full_dialog_text_id_table"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_ui_menu_scroll_offset",
+    "data_fd2_ui_menu_saved_cursor_idx",
+    "data_fd2_ui_menu_saved_scroll_offset",
+    "data_fd2_ui_menu_visible_item_count",
+    "data_fd2_ui_menu_candidate_array_ptr",
+    "data_fd2_dialog_last_action_sprite_id_param",
+    "data_fd2_dialog_last_action_value_param"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "3481ab87439c438cbfae42c1a2ead117b4a67496",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (lines 216-261) is already concise, accurate, ASCII-only, and matches the decompilation + verified caller semantics (item-category gear/consumable split, +0x13 price field, signed gold test, __CHK(0x90) prologue note, EAX-bug notes); kept verbatim. Ghidra plate is detailed and fully consistent with the refined understanding (no contradiction/staleness), so left untouched (no save needed). Caller fd2_run_chapter_intro_menu_main @ 0x2E341 and the helper fd2_load_chapter_party_roster @ 0x2D392 confirm both params: count = shop item count, array = shop item-id list (the helper name is a known misnomer, rename pending in its own shard, not this one). Name and both params are convention-compliant with no address residue -> all keep. No logic/equivalence concerns found."
+}

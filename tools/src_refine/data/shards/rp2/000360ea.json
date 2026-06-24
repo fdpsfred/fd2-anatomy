@@ -1,0 +1,40 @@
+{
+  "address": "000360ea",
+  "name_current": "fd2_chapter_event_handler_57__unref_sentinel",
+  "name_final": "fd2_chapter_event_handler_57__unref_sentinel",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. The _57 suffix is the per-event dispatch index (table @ 0x51B91, entry @ 0x51CED = 0x51B91 + 0x57*4), a meaningful domain ID to preserve, NOT a Ghidra address residual (function addr is 0x360EA, neither it nor any data addr equals 0x57). __unref_sentinel correctly states it is an unreferenced no-op placeholder. Identical pattern to sibling handlers 55/56/58/59.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Unreferenced no-op sentinel occupying per-event dispatch slot 0x57; does nothing (stack-probe then return).",
+  "logic_summary": "7-byte stub at 0x360EA-0x360F0: PUSH 4; JMP 0x360DD. The JMP lands in the Class-3 shared tail (CALL __CHK; RET at 0x360DD) hosted by fd2_chapter_event_handler_55 @ 0x360D8, borrowing its CALL __CHK + RET instead of emitting its own. Net effect is the Watcom __CHK stack-probe prologue (frame size 4) followed by an immediate return -- no state mutation, no display, no dialog, does not even write a consumed-flag byte. The dispatch arg is not read. Functionally-exact source is an empty body (identical to handler_55). The tail-merge is a binary size optimisation with no source-level semantics.",
+  "signature": "void __cdecl fd2_chapter_event_handler_57__unref_sentinel(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Per-event dispatch-table ABI argument (1-arg cdecl; would be event-type value or stepping char id depending on hook flavor). This handler does not read it -- body is `(void)event_arg;`.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches the uniform event_arg naming used by every sibling handler in this dispatch family; generic but correct for an unread dispatch argument, and carries no address residual."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Returns unconditionally after the borrowed __CHK stack probe."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Confirmed via Ghidra: xrefs_to(0x360EA) = single DATA ref from 0x51CED (the dispatch-table slot); read_memory(0x51CED,4)=ea 60 03 00 = 0x000360EA, so the only reference is the table entry itself (0 direct callers, unref). disassemble(0x360D8) = PUSH 4; CALL 0x36CD7(__CHK); RET, confirming handler_55 hosts the shared tail at 0x360DD. Body 0x360EA-0x360F0 = PUSH 4; JMP 0x360DD. Both name and src comment already accurate and precise -> keep/keep; Ghidra plate consistent (not contradictory/stale/blank) -> no plate change. No src edit performed."
+}

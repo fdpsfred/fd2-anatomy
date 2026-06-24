@@ -1,0 +1,68 @@
+{
+  "address": "000212b9",
+  "name_current": "fd2_execute_offensive_targeted_spell_variant_b",
+  "name_final": "fd2_execute_offensive_targeted_spell_variant_b",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (battle/spell). No Ghidra address residue (no hex suffix equal to its own address 0x212B9 or any data address). The '_variant_b' suffix is the established convention in this file for a byte-identical second physical placement (dead clone) of fd2_execute_offensive_targeted_spell @ 0x21227, distinct from the true semantic sibling fd2_execute_offensive_full_screen_flash_spell. Name correctly mirrors the live worker. Keep.",
+  "kind": "function",
+  "home": "src/spell/spelleff.c",
+  "purpose": "Dead-code/orphan clone of the blink-overlay offensive targeted-spell worker fd2_execute_offensive_targeted_spell @ 0x21227; byte-identical body, no callers, not in the spell dispatch table.",
+  "logic_summary": "Resets data_fd2_battle_spell_aoe_count_and_fx_queue_idx to 0, plays the per-target impact animation then the overlay-blink animation, deducts the caster's MP for spell_id, then loops over the target-id byte array applying fd2_calc_magic_damage(target_id, spell_id): damage 0 draws the miss indicator, otherwise the damage number with glyph 0x5E ('^'). Closes via the Pattern-A shared epilogue @ 0x21190 (fd2_composite_battle_frame(0) + fd2_animate_spell_projectile_paths()); no explicit RET (JGE-tail-jump). Body is byte-identical to 0x21227 (all 6 basic-block hashes match) and is never invoked (0 callers, 0 xrefs, absent from the 24-entry dispatch table @ 0x51D01).",
+  "signature": "void __cdecl fd2_execute_offensive_targeted_spell_variant_b(int caster, int spell_id, int n_targets, int p_targets)",
+  "params": [
+    {
+      "name": "caster",
+      "type": "int",
+      "semantics": "Casting unit id; forwarded to the impact/blink animations and fd2_deduct_caster_mp.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches the live worker's emitted param name; no address residue."
+    },
+    {
+      "name": "spell_id",
+      "type": "int",
+      "semantics": "Spell id; keys the impact + overlay-blink animations, the MP deduction, and the per-target magic damage calc.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate name for the spell id operand; no address residue."
+    },
+    {
+      "name": "n_targets",
+      "type": "int",
+      "semantics": "Number of targets; loop bound over the target-id byte array, also passed as the 3rd arg to the two animation calls.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive count name; no address residue."
+    },
+    {
+      "name": "p_targets",
+      "type": "int",
+      "semantics": "Pointer to the target-id byte array (each entry a unit id); read as ((uint8 *)p_targets)[iter] inside the loop and forwarded to the animation calls.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive pointer name (p_ prefix); matches the live worker; no address residue. Type kept as int per emitted source (address contract); type changes are out of scope."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Function has no explicit RET; control exits via JGE-tail-jump into the shared epilogue @ 0x21190 which RETs."
+  },
+  "reads_globals": [
+    "data_fd2_battle_spell_aoe_count_and_fx_queue_idx"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_spell_aoe_count_and_fx_queue_idx"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "f29ed0b96872f01136d0d0f4e0eaa9b41559b6e7",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Independently re-verified dead-code status: get_function_callers and get_xrefs_to both return none; decoded the 24-entry dispatch table @ 0x51D01 (LE 4-byte ptrs) and 0x212B9 is absent (entry 0 = 0x21206 routes to the live worker 0x21227). Basic-block hashes of 0x21227 and 0x212B9 are identical (all 6). src comment block (lines 586-611) is already accurate and refined (comment kept). Ghidra plate updated only to drop the stale 'C++ template instantiation' speculation and the dated 're-audit 2026-05' process-log line, aligning origin wording with the src conclusion (C codebase, Watcom-emitted duplicate TU / dead source kept by linker); the technical body summary and EAX-forwarding note were preserved. No logic change made (refine-only)."
+}

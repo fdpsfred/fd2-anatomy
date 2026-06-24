@@ -67,8 +67,6 @@ const double data_fd2_battle_spell_dp_boost_factor_015 = 0.15;
  *   fb ff ff ff  fb ff ff ff  00 00 00 00
  * = { 5, 0, -5, -5, -5, 0 }
  * ---------------------------------------------------------------- */
-/* Non-const: read-only in-game (no writers), but mutated by test fixtures; the
- * Watcom extern in globals.h must agree (const/non-const mismatch is E1129). */
 const int32 data_fd2_battle_tile_attr_mv_modifier_table[6] = {
     5, 0, -5, -5, -5, 0
 };
@@ -99,8 +97,10 @@ const int32 data_fd2_battle_tile_attr_mv_modifier_table[6] = {
  *   00 00 00 00  00 00 00 00  0a 00 00 00
  *   0a 00 00 00  fb ff ff ff  00 00 00 00
  * = { 0, 0, 10, 10, -5, 0 }
+ *
+ * const: read-only data, zero game-side write xrefs (same as the MV
+ * sibling above).
  * ---------------------------------------------------------------- */
-/* Non-const for the same reason as the MV sibling above. */
 const int32 data_fd2_battle_tile_attr_def_modifier_table[6] = {
     0, 0, 10, 10, -5, 0
 };
@@ -130,7 +130,6 @@ const int32 data_fd2_battle_tile_attr_def_modifier_table[6] = {
  *
  * Raw bytes @ 0x51A87 (LE): 0d 00 00 00  = 13.
  * ---------------------------------------------------------------- */
-/* Non-const: read-only in-game, but tests set the window extent as a fixture. */
 const uint32 data_fd2_battle_view_window_max_x = 13;
 
 /* ----------------------------------------------------------------
@@ -160,7 +159,6 @@ const uint32 data_fd2_battle_view_window_max_x = 13;
  *
  * Raw bytes @ 0x51A8B (LE): 08 00 00 00  = 8.
  * ---------------------------------------------------------------- */
-/* Non-const for the same reason as the X sibling above. */
 const uint32 data_fd2_battle_view_window_max_y = 8;
 
 /* ----------------------------------------------------------------
@@ -170,13 +168,20 @@ const uint32 data_fd2_battle_view_window_max_y = 8;
  * Chapter-event handler dispatch table. Each slot is the entry address of
  * one fd2_chapter_event_handler_NN__* function (NN = the slot's 2-digit hex
  * index; all 90 names carry their own index, so the table is self-checking).
- * Indexed by an 8-bit event id taken from a 3-byte tile/drop/turn event
- * record, and the selected handler is tail-called as a single-argument cdecl
- * function: the dispatch site loads the index, PUSHes one arg (the active
- * char_idx), CALLs through the table, and cleans the arg with ADD ESP,4.
- * Hence the element type is void (*)(uint32).
+ * Indexed by an 8-bit event id and the selected handler is tail-called as a
+ * single-argument cdecl function: the dispatch site loads the index, PUSHes one
+ * arg (the active char_idx), CALLs through the table, and cleans the arg with
+ * ADD ESP,4. Hence the element type is void (*)(uint32).
  *
- * Three readers, all using the identical (*table[idx])(char_idx) form:
+ * The symbol is named for its primary battle-system role: the enemy-AI/turn
+ * loops (fd2_enemy_turn_phase_team0/1, fd2_run_full_turn_cycle, the player
+ * action menus) latch an index into the sibling scalar
+ * data_fd2_battle_ai_post_action_consequence_idx @ 0x51A8F, then on the next
+ * loop iteration -- if it is != 0xFF -- dispatch table[idx](char_idx) as the
+ * post-action consequence (counter / death / status proc after a battle move),
+ * resetting the latch to 0xFF. The same table is reused directly (no latch) by
+ * the three FDFIELD/drop event paths that load the table base with a literal
+ * [idx*4 + 0x51B91], the form Ghidra reports as the only three xrefs:
  *   fd2_handle_tile_event_interaction   @ 0x19511  (field-map event tile,
  *                                                   3-byte entry type "other")
  *   fd2_fire_chapter_turn_events_for_phase @ 0x1A85A (turn-gated chapter
@@ -364,8 +369,12 @@ void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *) = {
  * data_fd2_battle_job_magic_resist_table @ 0x51F96  (112 bytes, uint32[28])
  *
  * Per-job magic-damage scale factor (read-only). Indexed by job_id, which is
- * 1-based, so the accessor uses (job_id - 1). Magic damage applied to a
- * defender is (s32)(spell_base_power * resist_value) / 10.
+ * 1-based, so the accessor uses (job_id - 1). The value is the fraction of
+ * spell power the defender's job takes, in tenths: magic damage applied to a
+ * defender is (s32)(spell_base_power * resist_value) / 10. A value of 10 means
+ * full damage (no resistance); lower values resist more, so the in-game magic
+ * resistance is (10 - resist_value) * 10 percent (e.g. job 0x05 法師 -> 7 ->
+ * 30% resist; job 0x0D 大法師 -> 5 -> 50% resist; job 0x1A -> 4 -> 60% resist).
  *
  * Sole consumer fd2_calc_magic_damage @ 0x1C75E:
  *     MOV ECX,0x1C ; MOV EDI,ESP ; MOV ESI,0x51F96 ; REP MOVSD
@@ -373,14 +382,14 @@ void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *) = {
  *     IMUL EDX,[ESP + ESI*4 - 4]   ; ESI = bJob_id
  *         -> stride 4, element = uint32, index = bJob_id - 1
  *
- * Extent is 28 dwords, not 27: the REP MOVSD count is 28 and the data region
- * runs [0x51F96, 0x52006) (112 bytes); the next table (consumed by
- * fd2_animate_spell_overlay_blink) begins at 0x52006. Entries 0..26 map to the
- * 27 jobs (job_id 1..27 -> index 0..26); entry 27 is the trailing dword the
- * copy also pulls in. Values are small positive scale factors (4..10).
- * No writers.
+ * Extent is 28 dwords: the REP MOVSD count is 28 and the data region runs
+ * [0x51F96, 0x52006) (112 bytes); the next table (consumed by
+ * fd2_animate_spell_overlay_blink) begins at 0x52006. Entries 0..25 map to the
+ * 26 defined non-dragon jobs (job_id 0x01..0x1A -> index 0..25); job 0x00 (the
+ * dragon) has no entry and is never looked up. Indices 26..27 are trailing
+ * dwords the bulk copy also pulls in (not addressed by any defined job_id).
+ * Values are small positive scale factors (4..10). No writers.
  * ---------------------------------------------------------------- */
-/* Non-const: read-only in-game, but seeded by test fixtures. */
 const uint32 data_fd2_battle_job_magic_resist_table[28] = {
     /* job 0x01 */ 10, /* job 0x02 */ 10, /* job 0x03 */ 10, /* job 0x04 */ 10,
     /* job 0x05 */  7, /* job 0x06 */  7, /* job 0x07 */ 10, /* job 0x08 */ 10,
@@ -388,7 +397,7 @@ const uint32 data_fd2_battle_job_magic_resist_table[28] = {
     /* job 0x0d */  5, /* job 0x0e */  5, /* job 0x0f */  8, /* job 0x10 */ 10,
     /* job 0x11 */  6, /* job 0x12 */  8, /* job 0x13 */ 10, /* job 0x14 */  9,
     /* job 0x15 */  5, /* job 0x16 */  5, /* job 0x17 */ 10, /* job 0x18 */  8,
-    /* job 0x19 */  8, /* job 0x1a */  4, /* job 0x1b */ 10, /* idx 27   */  7
+    /* job 0x19 */  8, /* job 0x1a */  4, /* idx 26   */ 10, /* idx 27   */  7
 };
 
 /* ----------------------------------------------------------------
@@ -449,8 +458,9 @@ const uint8 data_fd2_battle_miss_indicator_sprite_ids[4] = {
  *            bJob_id - 1. The value seeds total_crit_pct for the crit roll.
  *
  * Extent is 27 bytes: entries 0..25 map to jobs 0x01..0x1A (the 26 defined
- * jobs); byte 26 is a trailing 0 pad. The table sits immediately after the
- * "TAI.DAT" string (ends at 0x5239B) and before zero padding at 0x523B2.
+ * jobs); byte 26 (@ 0x523B5) is a trailing 0 pad. The table sits immediately
+ * after the "TAI.DAT" string (NUL-terminated @ 0x5239A) and is followed by
+ * 3 bytes of alignment padding @ 0x523B6 before the next table @ 0x523B9.
  * No writers.
  * ---------------------------------------------------------------- */
 /* Non-const: read-only in-game, but seeded by test fixtures. */
@@ -537,8 +547,11 @@ int (*data_fd2_battle_spell_cast_cinematic_phase_handler_table[10])(
  * Memory image @ 0x523E1: 00 00 01 00 01 00 00  (slots 2 and 4 are the
  * visible-pass group). Sits immediately before the 7-entry u32 y-offset table
  * at 0x523E8.
+ *
+ * const: read-only in-game (zero game-side write xrefs; the consumer only
+ * bulk-copies it out). The anisumm1 test fixtures that wrote this table are
+ * SKIP-gated pending a Phase 3 rewrite that drives the real const data.
  * ---------------------------------------------------------------- */
-/* Non-const: read-only in-game, but mutated by anisumm1 test fixtures. */
 const uint8 data_fd2_battle_summon_spell_8slot_visibility_table[7] = {
     /* slot 0 */ 0x00, /* slot 1 */ 0x00, /* slot 2 */ 0x01, /* slot 3 */ 0x00,
     /* slot 4 */ 0x01, /* slot 5 */ 0x00, /* slot 6 */ 0x00
@@ -568,8 +581,10 @@ const uint8 data_fd2_battle_summon_spell_8slot_visibility_table[7] = {
  *   = {   40,   70,  120,   80,   50,  100,   70 }
  * Sits immediately between the 7-byte visibility mask at 0x523E1 and the
  * 7-entry i32 row-multiplier table at 0x52404.
+ *
+ * const: read-only in-game (zero game-side write xrefs; the consumer only
+ * bulk-copies it out, then mutates only its stack-local copy).
  * ---------------------------------------------------------------- */
-/* Non-const for the same reason as the visibility sibling above. */
 const uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {
     /* slot 0 */ 0x28, /* slot 1 */ 0x46, /* slot 2 */ 0x78, /* slot 3 */ 0x50,
     /* slot 4 */ 0x32, /* slot 5 */ 0x64, /* slot 6 */ 0x46
@@ -603,8 +618,11 @@ const uint32 data_fd2_battle_summon_spell_8slot_y_offset_table[7] = {
  *   00 00 00 00  f6 ff ff ff  ec ff ff ff  00 00 00 00
  *   f1 ff ff ff  fb ff ff ff  00 00 00 00
  *   = { 0, -10, -20, 0, -15, -5, 0 }
+ *
+ * const: read-only in-game (zero game-side write xrefs; the consumer only
+ * bulk-copies it out, then IMULs only its stack-local copy), same as the
+ * visibility and y-offset siblings above.
  * ---------------------------------------------------------------- */
-/* Non-const for the same reason as the visibility sibling above. */
 const int32 data_fd2_battle_summon_spell_8slot_row_multiplier_table[7] = {
     /* slot 0 */ 0, /* slot 1 */ -10, /* slot 2 */ -20, /* slot 3 */ 0,
     /* slot 4 */ -15, /* slot 5 */ -5, /* slot 6 */ 0

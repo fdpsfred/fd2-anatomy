@@ -1,0 +1,41 @@
+{
+  "address": "00011bfa",
+  "name_current": "fd2_cursor_move_right",
+  "name_final": "fd2_cursor_move_right",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor> (domain=cursor, descriptor=move_right). Accurately reflects behavior: right-arrow (scancode 0x4D) battle cursor handler that advances the cursor one tile to the right (or scrolls the viewport right). No Ghidra address residue; no domain ID to preserve. Matches its mirror siblings fd2_cursor_move_left/up/down.",
+  "kind": "function",
+  "home": "ROOT/src/ui_menu/cursor.c",
+  "purpose": "Right-arrow (scancode 0x4D) battle cursor handler: advance the battle cursor one tile right, scrolling the viewport when the cursor is near the right viewport edge.",
+  "logic_summary": "x_limit = map_width_tiles - 1. If cursor_world_x != x_limit (not at map right edge): if cursor_screen_x < 0xB (cursor in left 11 columns of the 13-tile-wide viewport) OR view_window_origin_x == map_width_tiles - 0xD (window already at max horizontal scroll) -> inner-step: cursor_world_x++ and cursor_screen_x++, and if anim_phase == 0 return early (main loop will redraw). Else -> scroll: cursor_world_x++ and view_window_origin_x++ (cursor stays put on screen, world+window advance right). All non-early-return paths (including the no-op right-edge case) fall through to fd2_composite_battle_frame(0) to redraw. Horizontal mirror of fd2_cursor_move_down.",
+  "signature": "void __cdecl fd2_cursor_move_right(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: mutates battle cursor/viewport globals and conditionally repaints the battle frame."
+  },
+  "reads_globals": [
+    "data_fd2_battle_map_width_tiles",
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_anim_phase"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_view_window_origin_x"
+  ],
+  "comment_original_issue": "Header was a bare stub (just the @-address banner with no description), inconsistent with its mirror siblings fd2_cursor_move_up/down/left which each carry a full behavior description.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompile was fully clear (cyclomatic 5, 23 insns); no disassembly needed. Plate comment already contains a detailed, correct body pseudo-code description consistent with the refined src prose, so plate left unchanged. Callers (fd2_game_main_loop, fd2_pan_cursor_to_tile_animated, fd2_wait_for_action_target_input) confirm battle-input cursor-move context. __CHK(8) is the Watcom stack-probe/check prologue, not game logic. Viewport is 13 tiles wide (0xD); inner-step threshold screen_x < 0xB = left 11 columns. Signed-ness of cursor_screen_x is documented at its global definition in this same file; not relevant to this function's naming/comment."
+}

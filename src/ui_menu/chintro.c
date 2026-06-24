@@ -78,13 +78,14 @@ int fd2_chapter_intro_menu_input_loop(void)
  * Setup: pick the FDOTHER BG-image idx by state (3->0x1D, 5->0x3F, else 0x0C),
  * load + fade it in, paint the speaker portrait, render the money panel
  * (live at 0xA76C5 and into the slide-snapshot shadow buffer), then show the
- * greeting dialog (idx 0x1F5 for chapter 1, else 0x1B8).
+ * greeting dialog (idx 0x1F5 when chapter_transition_state == 1, else 0x1B8).
  *
  * Main loop: restore the saved cursor, play the open animation, run the 4-way
  * input loop, save the cursor, re-read the chapter roster into a local 12-byte
  * buffer, play the close animation; on commit dispatch by cursor (0=buy,
- * 1=sell, 2=equip, else=give) and re-show the greeting (idx 0x1F7 for chapter
- * 1, else 0x1B8). Loops while the input returned commit (1); cancel (-1) exits.
+ * 1=sell, 2=equip, else=give) and re-show the greeting (idx 0x1F7 when
+ * chapter_transition_state == 1, else 0x1B8). Loops while the input returned
+ * commit (1); cancel (-1) exits.
  *
  * Exit: blit the BG image, fade to black, then an 11-frame pose-out animation
  * (iVar5 = 10..0) that nearest-neighbour-scales pose_bitmap via
@@ -557,7 +558,7 @@ uint32 fd2_run_chapter_intro_menu_typeC(uint32 pose_bitmap)
  * signed (JGE/JLE/JL), so the unsigned cursor/count/scroll globals are cast to
  * int. Buffer cleanup is performed by the caller via
  * fd2_close_intro_dialog_with_slide_out @ 0x2D31B (this fn opens; the companion
- * closes — same 3-buffer state shared).
+ * closes -- same 3-buffer state shared).
  * ---------------------------------------------------------------- */
 int fd2_party_roster_single_select_loop(void)
 {
@@ -791,10 +792,14 @@ uint32 data_fd2_ui_menu_cursor_idx;
  *   (uint32 holding a heap pointer, 4 bytes, zero-init)
  *
  *   Pointer to the chapter-intro / menu sprite atlas buffer loaded on
- *   demand from FDOTHER.DAT entry 0x0D. The CONTINUE / chapter-intro /
+ *   demand from FDOTHER.DAT. The CONTINUE / chapter-intro /
  *   chapter-transition flows assign it the malloc'd buffer returned by
- *   fd2_load_dat_resource(FDOTHER, ..., 0x0D), then later free() it and
- *   store 0 back (e.g. fd2_main_menu_continue_dispatcher @ 0x25F5D /
+ *   fd2_load_dat_resource(FDOTHER, ..., entry), then later free() it and
+ *   store 0 back. The atlas entry index depends on the screen: the CONTINUE
+ *   dispatcher and chapter-transition menu use 0x0D; the chapter-intro menus
+ *   reuse this same pointer with their own entries (main: 0x0C/0x1D/0x3F by
+ *   cursor state, typeB: 0x0D, typeC: 0x0E). Write/free sites
+ *   (e.g. fd2_main_menu_continue_dispatcher @ 0x25F5D /
  *   0x260CF, fd2_chapter_transition_menu @ 0x2CCAF,
  *   fd2_run_chapter_intro_menu_main @ 0x2E3A7 / 0x2E694,
  *   fd2_run_chapter_intro_menu_typeB @ 0x2FCC1 / 0x2FF92,

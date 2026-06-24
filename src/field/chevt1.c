@@ -450,11 +450,14 @@ void fd2_chapter_event_handler_08__ch13_first_time(uint32 stepping_char_id)
  *   — Chapter 3 turn-event slot 0 (triggered at turn 3 / phase 2),
  *     dispatched as idx 0x09 of the per-event handler table at 0x51B91.
  *
- * char-conditional beat: gated on 沃斯 (char_id 6) still being alive
- * (flags bit0 clear). If alive, portrait set 2 reloads, the camera pans
- * from world (3, 0) to (3, 0x11) with an ~800ms / ~200ms hold between
- * the two pans, and dialog page 4 is shown. If 沃斯 is already dead the
- * whole beat is skipped.
+ * char-conditional beat: gated on the ch3 ally swordsman 鐵諾
+ * (runtime char #6, the NPC the party protects this battle) still being
+ * alive (flags bit0 clear). If alive, portrait set 2 reloads, the camera
+ * pans from world (3, 0) to (3, 0x11) with an ~800ms / ~200ms hold
+ * between the two pans, and dialog page 4 is shown. If 鐵諾 is already
+ * dead the whole beat is skipped. (Surviving runtime char #6 is later
+ * recruited as the permanent party slot char #2 by fd2_chapter_03_end,
+ * which gates on the same fd2_check_char_is_dead(6) test.)
  *
  * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
  * (1-arg uniform cdecl); the body never reads the arg. EBX is not
@@ -769,10 +772,10 @@ void fd2_chapter_event_handler_12__ch15_dialog_with_state(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_13__unref_char_cond @ 0x34716
- *   — Dispatch idx 0x13 of the per-event handler table at 0x51B91.
+ *   -- Dispatch idx 0x13 of the per-event handler table at 0x51B91.
  *
  * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content / non-chapter dispatcher). It is
+ * (unreferenced -- possibly cut content / non-chapter dispatcher). It is
  * a char-conditional beat that arms an AI flag across a wide character
  * band, shows a dialog page unconditionally, then re-scans the same band
  * and shows a second dialog page only if any of those characters is still
@@ -793,7 +796,7 @@ void fd2_chapter_event_handler_12__ch15_dialog_with_state(uint32 event_arg)
  * and omitted here.
  *
  * The alive scan walks all 30 chars (0x07..0x24) even after the first
- * alive one is found — there is no early break in the original; the loop
+ * alive one is found -- there is no early break in the original; the loop
  * just keeps re-setting the flag. Reproduced faithfully here for Layer-2
  * equivalence.
  * ---------------------------------------------------------------- */
@@ -1041,19 +1044,19 @@ void fd2_show_chapter_intro_text_dialog_mode_3(void)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_19__ch7_first_time @ 0x34924
- *   — Chapter 7 turn-event slot 0 (triggered at turn 10 / phase 0),
+ *   -- Chapter 7 turn-event slot 0 (triggered at turn 10 / phase 0),
  *     dispatched as idx 0x19 of the per-event handler table at 0x51B91.
  *
  * A first-time-gated SECOND-STAGE beat: unlike the first-time handlers
  * whose gate fires while their slot is still 0, this one runs only AFTER
  * a prior event (tile-event slot 0x10) has been consumed (its byte set to
- * 1) — i.e. it is the second half of a two-stage trigger. Once it fires it
+ * 1) -- i.e. it is the second half of a two-stage trigger. Once it fires it
  * consumes its OWN slot (byte [0x11] set to 1), so it runs at most once.
  *
- * When the gate passes its single beat is: portrait set 2 reloads —
+ * When the gate passes its single beat is: portrait set 2 reloads --
  * bracketed by setting data_fd2_chapter_init_phase_flag to 1 before the
  * reload and back to 0 after, so the reload is treated as an "init phase"
- * load — the camera pans to world (0x10, 10), cutscene event 0x1E plays,
+ * load -- the camera pans to world (0x10, 10), cutscene event 0x1E plays,
  * dialog page 2 is shown, and finally tile-event slot 0x11 is consumed.
  *
  * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
@@ -1086,7 +1089,7 @@ void fd2_chapter_event_handler_19__ch7_first_time(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_1a__ch7_char_cond @ 0x3499B
- *   — Chapter 7 tile-step event slot 0 (tile-step event_type 0x00),
+ *   -- Chapter 7 tile-step event slot 0 (tile-step event_type 0x00),
  *     dispatched as idx 0x1A of the per-event handler table at 0x51B91.
  *
  * char-conditional, tile-step variant. Unlike the turn-event handlers in
@@ -1167,7 +1170,7 @@ void fd2_chapter_event_handler_1b__ch8_cinematic(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_1c__ch8_ai_ctrl @ 0x34A0E
- *   — Chapter 8 turn-event slot 6 (triggered at turn 15 / phase 0),
+ *   -- Chapter 8 turn-event slot 6 (triggered at turn 15 / phase 0),
  *     dispatched as idx 0x1C of the per-event handler table at 0x51B91.
  *     Also tail-called from
  *     fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34A3C.
@@ -1244,10 +1247,11 @@ void fd2_chapter_event_handler_1d__unref_dialog_with_state(uint32 event_arg)
  *     turn_counter+1 and that of entry +6 to turn_counter+2 (entries
  *     begin at byte offset +3 with a 3-byte stride inside the table
  *     pointed to by data_fd2_tile_event_data_table_ptr).
- *   - Spawn / configure runtime-char slot 0x0B as an enemy: clear its
- *     flags byte (revive if dead), set team=1, portrait_id=6, char_id=6,
- *     combat_aux_block[0x0A]=0xFF, combat_aux_block[0x0D]=0x80 (AI byte
- *     with the locked bit 7 set), and hp_current=1.
+ *   - Spawn / configure runtime-char slot 0x0B on the NPC/ally side
+ *     (team=1; 0=enemy 1=npc 2=player) as 萊汀 (char_id 6, portrait_id 6):
+ *     clear its flags byte (revive if dead), set combat_aux_block[0x0A]=0xFF,
+ *     combat_aux_block[0x0D]=0x80 (AI byte with the locked bit 7 set), and
+ *     hp_current=1 (spawn at 1 HP).
  *   - Show dialog page 2, reload portrait set 1, show dialog page 3.
  *   - Reset pending XP (data_fd2_battle_pending_xp_credit = 0).
  *   - Consume tile-event slot 0x10 with value 2 (distinct from the "1"
@@ -1349,12 +1353,12 @@ void fd2_chapter_event_handler_1f__ch9_reinforcement(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_20__ch10_dialog @ 0x34BE2
- *   — Chapter 10 turn-event slot 0 (triggered at turn 5 / phase 1).
+ *   -- Chapter 10 turn-event slot 0 (triggered at turn 5 / phase 1).
  *
  * ch10 reinforcement-arrival beat: when the player's 5th turn ends the
  * reinforcements (援軍) appear, and this dialog-only handler shows the
  * accompanying line. Its single beat reloads portrait set 1 and shows
- * dialog page 1 — a straight-line, no-branch sequence with no camera
+ * dialog page 1 -- a straight-line, no-branch sequence with no camera
  * pan, no cutscene trigger, no state writes, no RNG, no numeric
  * computation, and no CALL-return value used.
  *
@@ -1511,13 +1515,13 @@ void fd2_chapter_event_handler_21__ch10_dialog_with_state(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_22__unref_dialog @ 0x34C6C
- *   — Dispatch idx 0x22 of the per-event handler table at 0x51B91.
+ *   -- Dispatch idx 0x22 of the per-event handler table at 0x51B91.
  *
  * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content / non-chapter dispatcher). Its
+ * (unreferenced -- possibly cut content / non-chapter dispatcher). Its
  * single beat is the minimal dialog-only call: a straight-line, no-branch
  * sequence with no portrait reload, no camera pan, no state writes, no
- * RNG, no numeric computation, and no CALL-return value used — it just
+ * RNG, no numeric computation, and no CALL-return value used -- it just
  * shows dialog page 3 and returns. Its effect is identical to
  * fd2_chapter_event_handler_18__unref_dialog @ 0x348FC.
  *
@@ -1608,18 +1612,18 @@ void fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_25__unref_major_cinematic @ 0x34CCC
- *   — Dispatch idx 0x25 of the per-event handler table at 0x51B91.
+ *   -- Dispatch idx 0x25 of the per-event handler table at 0x51B91.
  *
  * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content / non-chapter dispatcher),
+ * (unreferenced -- possibly cut content / non-chapter dispatcher),
  * categorised as a major endgame cinematic. A straight-line beat with no
  * branch, no RNG, no numeric computation, and no CALL-return value used:
  * dialog page 1 is shown, then a two-stage cutscene cinematic plays.
  *
  *   Stage A: the camera pans to world (0xF, 0x22), portrait set 3 reloads
- *     — bracketed by setting data_fd2_chapter_init_phase_flag to 1 before
+ *     -- bracketed by setting data_fd2_chapter_init_phase_flag to 1 before
  *     the reload and back to 0 after, so it is treated as an "init phase"
- *     load — cutscene event 0x2B plays, and every character's facing is
+ *     load -- cutscene event 0x2B plays, and every character's facing is
  *     reset.
  *   Stage B: the camera pans to world (0, 0x1A), portrait set 4 reloads
  *     (same init-phase bracket), cutscene event 0x2C plays, and every
@@ -1634,7 +1638,7 @@ void fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg)
  *
  * In the original binary the closing battle_anim_phase = 1 store is
  * reached by a tail-JMP (0x34D63 -> 0x35C18) into the shared __CHK
- * epilogue tail at 0x35C18 (MOV [0x51A83],1; RET) — the same shared tail
+ * epilogue tail at 0x35C18 (MOV [0x51A83],1; RET) -- the same shared tail
  * fd2_chapter_event_handler_17 @ 0x34844 jumps into. Reproduced here as
  * the inline store for Layer-2 equivalence.
  *
@@ -1669,14 +1673,14 @@ void fd2_chapter_event_handler_25__unref_major_cinematic(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_0a__ch14_first_time @ 0x34E3B
- *   — Dispatch idx 0x0A of the per-event handler table at 0x51B91.
+ *   -- Dispatch idx 0x0A of the per-event handler table at 0x51B91.
  *
  * Triggered in chapter 14 as tile-step event_type 0x00 (ch14 tile-step
  * slot 0). First-time-gated: the body runs only while
  * tile_event_consumed_flags[0x10] is still 0, and consuming the flag
  * (set to 1) at the end makes every later call a no-op. Its single beat
- * disarms the AI flag on 56 chars — the low nibble of combat_aux_block[0xD]
- * becomes 0 for chars 0x10..0x47 (the largest range in this group) — and
+ * disarms the AI flag on 56 chars -- the low nibble of combat_aux_block[0xD]
+ * becomes 0 for chars 0x10..0x47 (the largest range in this group) -- and
  * then shows dialog page 1.
  *
  * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
@@ -1959,7 +1963,7 @@ void fd2_chapter_event_handler_2a__ch18_dialog(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_2b__ch18_ai_ctrl @ 0x35091
- *   — Chapter 18 turn-event slot 0 (triggered at turn 3 / phase 0),
+ *   -- Chapter 18 turn-event slot 0 (triggered at turn 3 / phase 0),
  *     dispatched as idx 0x2B of the per-event handler table at 0x51B91.
  *
  * ch18 turn-3 AI-control beat: set the per-event AI/dialog control flag
@@ -1979,8 +1983,8 @@ void fd2_chapter_event_handler_2a__ch18_dialog(uint32 event_arg)
  * hosted by fd2_chapter_event_handler_12__ch15_dialog_with_state @ 0x34F02
  * (the tail "PUSH 0x10 start; CALL fd2_set_combat_aux_block_byte_d_low4_
  * for_char_range; ADD ESP,0xC; RET" fixes the start arg at 0x10). That
- * borrowed tail is an in-binary code-folding artifact; its effect — the
- * single-char AI-flag write — is reproduced here as the inline call for
+ * borrowed tail is an in-binary code-folding artifact; its effect -- the
+ * single-char AI-flag write -- is reproduced here as the inline call for
  * Layer-2 equivalence.
  *
  * Walkthrough SOT: assets/chapters/chapter_18.md
@@ -1994,7 +1998,7 @@ void fd2_chapter_event_handler_2b__ch18_ai_ctrl(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_2c__ch19_ai_ctrl @ 0x350A4
- *   — Chapter 19 turn-event handler, dispatched as idx 0x2C of the
+ *   -- Chapter 19 turn-event handler, dispatched as idx 0x2C of the
  *     per-event handler table at 0x51B91.
  *
  * ch19 AI-control beat: set the per-event AI/dialog control flag
@@ -2015,7 +2019,7 @@ void fd2_chapter_event_handler_2b__ch18_ai_ctrl(uint32 event_arg)
  * @ 0x34F02. The borrowed tail is just "CALL fd2_set_combat_aux_block_byte_
  * d_low4_for_char_range; ADD ESP,0xC; RET" (tighter than the 0x2B variant,
  * which lets the tail supply the start arg). That borrowed tail is an
- * in-binary code-folding artifact; its effect — the AI-flag range write —
+ * in-binary code-folding artifact; its effect -- the AI-flag range write --
  * is reproduced here as the inline call for Layer-2 equivalence.
  *
  * Walkthrough SOT: assets/chapters/chapter_19.md
@@ -2029,7 +2033,7 @@ void fd2_chapter_event_handler_2c__ch19_ai_ctrl(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_2d__ch19_ai_ctrl @ 0x350B9
- *   — Chapter 19 turn-event handler, dispatched as idx 0x2D of the
+ *   -- Chapter 19 turn-event handler, dispatched as idx 0x2D of the
  *     per-event handler table at 0x51B91.
  *
  * ch19 AI-control beat: set the per-event AI/dialog control flag
@@ -2049,8 +2053,8 @@ void fd2_chapter_event_handler_2c__ch19_ai_ctrl(uint32 event_arg)
  * hosted by fd2_chapter_event_handler_12__ch15_dialog_with_state @ 0x34F02
  * (the tail "PUSH 0x10 start; CALL fd2_set_combat_aux_block_byte_d_low4_
  * for_char_range; ADD ESP,0xC; RET" fixes the start arg at 0x10). That
- * borrowed tail is an in-binary code-folding artifact; its effect — the
- * AI-flag range write — is reproduced here as the inline call for Layer-2
+ * borrowed tail is an in-binary code-folding artifact; its effect -- the
+ * AI-flag range write -- is reproduced here as the inline call for Layer-2
  * equivalence.
  *
  * Walkthrough SOT: assets/chapters/chapter_19.md
@@ -2064,7 +2068,7 @@ void fd2_chapter_event_handler_2d__ch19_ai_ctrl(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_2e__ch19_reinforcement @ 0x350CC
- *   — Chapter 19 turn-event slot 1 (triggered at turn 6 / phase 1),
+ *   -- Chapter 19 turn-event slot 1 (triggered at turn 6 / phase 1),
  *     dispatched as idx 0x2E of the per-event handler table at 0x51B91.
  *
  * ch19 turn-6 reinforcement beat: a straight-line, no-branch sequence
@@ -2072,7 +2076,7 @@ void fd2_chapter_event_handler_2d__ch19_ai_ctrl(uint32 event_arg)
  *   - reload portrait set 1 via fd2_load_chapter_portraits_and_dump_tmp(1);
  *   - show dialog page 1;
  *   - recruit char_id 0x1B as reinforcement via
- *     fd2_init_runtime_char_from_base_growth(0x1B) — appends one template
+ *     fd2_init_runtime_char_from_base_growth(0x1B) -- appends one template
  *     slot (team=2, char_id at +7/+8) to the menu-party roster and
  *     increments the member count.
  *

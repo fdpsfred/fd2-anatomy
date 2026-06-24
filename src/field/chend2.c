@@ -147,11 +147,12 @@ void fd2_chapter_20_end(void)
 /* ----------------------------------------------------------------
  * Chapter-21 end-scene character tables (FD2.LE data @ 0x52228 /
  * 0x52241 / 0x5225A). Private read-only tables referenced only by
- * fd2_chapter_21_end. Each has a 25-byte extent (7 chars x 4-byte
- * stride minus the trailing 1 byte); the Watcom prologue copies them
- * onto stack scratch (6 dwords + 1 byte each) before passing pointers
- * into fd2_setup_chars_and_camera_for_intro, which reads the bytes
- * indexed by char slot.
+ * fd2_chapter_21_end. Each is a 25-byte array; the Watcom prologue
+ * copies them onto stack scratch as six dwords plus a trailing byte
+ * (25 bytes) before passing pointers into
+ * fd2_setup_chars_and_camera_for_intro, which reads the bytes indexed
+ * by char slot. pos_x @ 0x52228 is arg1, pos_y @ 0x52241 is arg2,
+ * facing @ 0x5225A is arg3.
  * ---------------------------------------------------------------- */
 const uint8 data_fd2_chapter_ch21_end_scene_char_pos_x_table[25] = {
     0x15, 0x14, 0x16, 0x16, 0x13, 0x13, 0x13, 0x13,
@@ -336,11 +337,12 @@ void fd2_chapter_22_end(void)
 /* ----------------------------------------------------------------
  * Chapter-23 end-scene character tables (FD2.LE data @ 0x522A3 /
  * 0x522B4 / 0x522C5). Private read-only tables referenced only by
- * fd2_chapter_23_end; the Watcom prologue copies each as four dwords plus a
- * trailing byte (17-byte extent) onto stack scratch before
- * fd2_setup_chars_and_camera_for_intro indexes them by char slot. Five chars
- * are placed (slots 0, 0x10, 0x11). The facing table is uniform 0x00 except
- * the trailing byte (0x02).
+ * fd2_chapter_23_end. Each is a 17-byte array; the Watcom prologue copies
+ * them onto stack scratch as four dwords plus a trailing byte (17-byte
+ * extent) before passing pointers into fd2_setup_chars_and_camera_for_intro,
+ * which reads the bytes indexed by char slot. pos_x @ 0x522A3 is arg1, pos_y
+ * @ 0x522B4 is arg2, facing @ 0x522C5 is arg3. The facing table is uniform
+ * 0x00 except the trailing byte (0x02).
  * ---------------------------------------------------------------- */
 const uint8 data_fd2_chapter_ch23_end_scene_char_pos_x_table[17] = {
     0x14, 0x14, 0x12, 0x13, 0x14, 0x15, 0x16, 0x12,
@@ -588,7 +590,7 @@ const uint8 data_fd2_chapter_ch26_end_scene_char_facing_table[16] = {
 };
 
 /* ----------------------------------------------------------------
- * fd2_chapter_26_end @ 0x24E80  — Chapter 26「未知的迴廊」end handler
+ * fd2_chapter_26_end @ 0x24E80  -- Chapter 26「未知的迴廊」end handler
  * (0 direct callers, dispatched via data_fd2_chapter_end_handler_table[26]).
  *
  * Copies the three 16-byte end-scene tables onto the stack, then force-
@@ -601,7 +603,7 @@ const uint8 data_fd2_chapter_ch26_end_scene_char_facing_table[16] = {
  * 0..4): the first dialog uses page (flag + 5) and the third uses page
  * (flag + 8); pages 7, 10 and 11 are fixed. Finishes by saving the runtime
  * char templates and advancing current_chapter_id by one. No char is added in
- * the handler — 機器人渥德 joins via an FDFIELD event; this handler only
+ * the handler -- 機器人渥德 joins via an FDFIELD event; this handler only
  * positions it.
  *
  * Walkthrough SOT: assets/chapters/chapter_26.md
@@ -664,11 +666,15 @@ void fd2_chapter_26_end(void)
  * 0x52316 / 0x52326). Private read-only data referenced only by
  * fd2_chapter_27_end; the Watcom prologue copies each 16-byte table onto
  * stack scratch as four dwords (the placement of slots 0..15) before
- * fd2_setup_chars_and_camera_for_intro indexes them by char slot. The
- * trailing byte @ 0x52326 (value 0x01) is copied as a one-byte scratch
- * (var_10) whose address is later handed to
- * fd2_animate_status_effect_overlay_flicker on the bad-ending path; the
- * routine ignores the pointee, so the byte is vestigial.
+ * fd2_setup_chars_and_camera_for_intro indexes them by char slot.
+ *
+ * The trailing byte @ 0x52326 (value 0x01) is a one-element char-index
+ * array for the bad-ending status-flicker: fd2_chapter_27_end copies it to a
+ * one-byte stack scratch and passes its address (with count 1) to
+ * fd2_animate_status_effect_overlay_flicker, which dereferences element 0 and
+ * uses it as a runtime_char slot index (byte * 0x50 + runtime_char_array
+ * base). Value 0x01 selects slot 1 = 悠妮, so her on-field status sprite
+ * flickers right before she is warped off the field. Not vestigial.
  * ---------------------------------------------------------------- */
 const uint8 data_fd2_chapter_ch27_end_scene_char_pos_x_table[16] = {
     0x0F, 0x0F, 0x0C, 0x0D, 0x11, 0x12, 0x0D, 0x0E,
@@ -686,8 +692,9 @@ const uint8 data_fd2_chapter_ch27_end_scene_vestigial_byte = 0x01;
  * This is the FD2 GOOD/BAD ending fork.
  *
  * Copies the two 16-byte end-scene tables onto the stack, snapshots the
- * vestigial byte, resets every active runtime_char's flags byte (slots
- * 0..15), then places the cast / re-aims the camera via
+ * bad-path status-flicker char index (the trailing 0x52326 byte = slot 1,
+ * 悠妮) to a stack scratch, resets every active runtime_char's flags byte
+ * (slots 0..15), then places the cast / re-aims the camera via
  * fd2_setup_chars_and_camera_for_intro and runs the opening dialog (page 8)
  * and cutscene event 0x52. The ending then forks on whether any party char
  * holds 天空之鑰 (item 100):
@@ -705,8 +712,9 @@ const uint8 data_fd2_chapter_ch27_end_scene_vestigial_byte = 0x01;
  *     into chapter 28.
  *
  *   BAD PATH (key NOT held): dialog pages 13/14/15 interleaved with cutscene
- *     events 0x54/0x52, a status-effect overlay flicker, then 悠妮
- *     (runtime_char[1]) is warped off the field
+ *     events 0x54/0x52, a status-effect overlay flicker on 悠妮
+ *     (runtime_char[1], selected by the 0x52326 char-index byte), then 悠妮
+ *     is warped off the field
  *     (fd2_animate_warp_teleport_char from her current tile), final dialog
  *     page 16, all chars restored to full HP/MP, and the game-over cinematic
  *     (fd2_play_game_ending_cinematic). It then hard-locks in an infinite
@@ -801,15 +809,15 @@ void fd2_chapter_27_end(void)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_28_end @ 0x25464  — Chapter 28「探索者」end handler
+ * fd2_chapter_28_end @ 0x25464  -- Chapter 28「探索者」end handler
  * (0 direct callers, dispatched via data_fd2_chapter_end_handler_table[28]).
  * The simplest end handler (40 bytes).
  *
  * Pushes the eight standard fd2_display_dialog_scene args (page 7) then
  * tail-jumps (JMP 0x231DF) into fd2_chapter_04_end's shared epilogue tail,
- * which pushes data_fd2_current_chapter_text, runs the dialog scene, saves the runtime
- * char templates, and advances current_chapter_id by one. No char added, no
- * cutscene — pure dialog (page 7) + save + chapter advance.
+ * which pushes data_fd2_current_chapter_text, runs the dialog scene, saves the
+ * runtime char templates, and advances current_chapter_id by one. No char
+ * added, no cutscene -- pure dialog (page 7) + save + chapter advance.
  *
  * Walkthrough SOT: assets/chapters/chapter_28.md
  * ---------------------------------------------------------------- */

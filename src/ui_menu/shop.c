@@ -10,7 +10,8 @@
  * fd2_run_buy_item_menu @ 0x2F0B0 (1 caller: fd2_run_chapter_intro_menu_main)
  * fd2_run_sell_item_menu @ 0x2F642 (1 caller: fd2_run_chapter_intro_menu_main)
  * fd2_run_equip_member_menu @ 0x2F883 (1 caller: fd2_run_chapter_intro_menu_main)
- * fd2_run_give_item_menu @ 0x2F8EA (1 caller: fd2_run_chapter_intro_menu_main)
+ * fd2_run_give_item_menu @ 0x2F8EA (2 callers: fd2_run_chapter_intro_menu_main,
+ *   fd2_run_chapter_intro_menu_typeC)
  */
 
 #include "types.h"
@@ -160,9 +161,9 @@ LAB_e01e:
  *
  * Setup:
  *   1. Allocate three 64000-byte render workspaces:
- *        slide_anim_accumulator (0x53C5B) — per-frame slide scratch
- *        slide_bg_snapshot      (0x53C5F) — VGA backup (restored by close fn)
- *        slide_composed_target  (0x53C63) — full panel composite
+ *        slide_anim_accumulator (0x53C5B) -- per-frame slide scratch
+ *        slide_bg_snapshot      (0x53C5F) -- VGA backup (restored by close fn)
+ *        slide_composed_target  (0x53C63) -- full panel composite
  *   2. memmove 0xA0000 -> snapshot (capture the live framebuffer), then
  *      memmove snapshot -> composed_target (composite starts as the screen).
  *   3. Paint the shop-title sprite into composed_target at mode-13h offset
@@ -643,8 +644,9 @@ void fd2_run_equip_member_menu(void)
 }
 
 /* ----------------------------------------------------------------
- * fd2_run_give_item_menu @ 0x2F8EA  (1 caller: fd2_run_chapter_intro_menu_main,
- *   option idx 3 = 贈)
+ * fd2_run_give_item_menu @ 0x2F8EA  (2 callers: fd2_run_chapter_intro_menu_main
+ *   option "贈" = the default/else dispatch branch i.e. cursor idx 3, and
+ *   fd2_run_chapter_intro_menu_typeC option "贈" = cursor idx 1)
  *
  * GIVE / TRADE an item between two party members. Each iteration runs a six-step
  * flow with TWO roster selects (source then target):

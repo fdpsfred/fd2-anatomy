@@ -73,9 +73,11 @@ uint32 fd2_load_dat_resource(uint32 fname, uint32 old_buf, uint32 index)
 }
 
 /* ----------------------------------------------------------------
- * fd2_load_chapter_background_layers @ 0x10652  (1 caller)
+ * fd2_load_chapter_background_layers @ 0x10652  (3 callers)
  *
  * Chapter-specific background layer load from FDOTHER.DAT.
+ * Callers: fd2_load_chapter_battle_data, fd2_load_save_and_init_engine,
+ * fd2_chapter_23_end.
  *
  * Frees + nulls both static_bg_buffer and animated_bg_buffer, then
  * selects one of three load shapes by current chapter id:
@@ -569,15 +571,15 @@ void fd2_load_chapter_portrait(uint32 portrait_kind)
  *      (memset 0xA0000 = 0, 64000 bytes), then load FDOTHER.DAT
  *      entry palette_idx into data_fd2_vga_palette_data_ptr.
  *      (palette_idx == -1 keeps the current palette.)
- *   2. fd2_set_vga_palette_range(0, 0xff, 0) — apply the palette at
+ *   2. fd2_set_vga_palette_range(0, 0xff, 0) -- apply the palette at
  *      FULL brightness (3rd arg = darken-amount, 0 = no darkening).
  *   3. fd2_play_ani_file_animation_sequence(anim_idx, per_frame_delay, 0)
- *      — render the cinematic (its ANI frames carry their own fade-in).
+ *      -- render the cinematic (its ANI frames carry their own fade-in).
  *   4. Fall through into fd2_play_palette_fade_to_black @ 0x1f882,
  *      which ramps darken 0..0x3F (fade-OUT to black) and RETs. The
  *      fall-through's RET also returns from this function, so this is
- *      emitted as a direct tail-call to that function (emit pipeline
- *      §模式 B — shared fade-loop body; fade_to_black is a real,
+ *      emitted as a direct tail-call to that function (fall-through tail
+ *      pattern, shared fade-loop body; fade_to_black is a real,
  *      separately-emitted function with 22 callers).
  *
  * Params: anim_idx, per_frame_delay = passed through to
@@ -630,26 +632,32 @@ void fd2_restore_portrait_cache_from_tmp(void)
 
 /* ----------------------------------------------------------------
  * fd2_load_chapter_party_roster @ 0x2d392  (1 caller)
+ * (name is a misnomer: this loads the chapter-intro SHOP inventory
+ *  item-id list, not a party roster -- rename pending.)
  *
- * Extract the chapter intro shop/equip menu's "available rows" byte array
- * from the cached chapter-intro metadata entry
+ * Extract the active shop tier's item-id list for the chapter-intro shop
+ * menu from the cached chapter-intro metadata entry
  * (data_fd2_chapter_intro_active_metadata_entry_ptr @ 0x54137) into the
- * caller's out_buf, stopping at the first 0xFF terminator or a
- * state-specific cap. Returns the number of bytes written.
+ * caller's out_buf, stopping at the first 0xFF empty-slot sentinel or a
+ * tier-specific cap. Returns the number of item ids written.
  *
  * Sole caller: fd2_run_chapter_intro_menu_main @ 0x2E341, which passes a
- * 12-byte stack buffer and uses the count for the shop sub-menus.
+ * 12-byte stack buffer, stores the count in menu_visible_item_count, and
+ * forwards the buffer to fd2_run_buy_item_menu as the shop item-id array.
  *
- * Layout selection by data_fd2_chapter_intro_menu_cursor_state @ 0x5412B:
+ * Shop tier (and thus which metadata sub-array to read) is selected by
+ * data_fd2_chapter_intro_menu_cursor_state @ 0x5412B; the offsets index
+ * the three shop arrays inside the chapter_intro_metadata_entry struct
+ * (see fd2_get_chapter_intro_metadata_entry: +3 bWeapons[12], +0xF
+ * bItems[8], +0x17 bMystery[8]):
  *   state == 1: cap = 0xC, source offset within metadata = 0x03 (weapons)
  *   state == 3: cap = 8,   source offset = 0x0F                  (items)
  *   else:       cap = 8,   source offset = 0x17                  (mystery)
  *
- * The metadata entry is the FDFIELD-style chapter intro record fetched by
- * fd2_get_chapter_intro_metadata_entry; bytes are item IDs with 0xFF as the
- * empty-slot sentinel. The store index (out_count) and the loop counter
- * (iter) are tracked separately to mirror the disassembly, but since 0xFF
- * only breaks (never skips), out_count == iter at every step.
+ * Bytes are item IDs with 0xFF as the empty-slot sentinel. The store index
+ * (out_count) and the loop counter (iter) are tracked separately to mirror
+ * the disassembly, but since 0xFF only breaks (never skips), out_count ==
+ * iter at every step.
  * ---------------------------------------------------------------- */
 int fd2_load_chapter_party_roster(uint8 *out_buf)
 {
@@ -686,15 +694,20 @@ int fd2_load_chapter_party_roster(uint8 *out_buf)
 /* ----------------------------------------------------------------
  * data_fd2_chapter_portrait_load_buffer @ 0x53A59 (zero-init BSS)
  *
- * Pointer to the per-chapter FDFIELD char-placement record loaded by
- * fd2_load_dat_resource(FDFIELD.DAT[chapter_id*3 + 2]). Holds the 6-byte
- * stride array indexed by char field index (byte +2 = desired_x,
- * byte +4 = desired_y) consumed by fd2_init_runtime_char_for_battle and
- * fd2_load_chapter_battle_data. Lifecycle is transient: NULL at startup,
- * reassigned from the loader, then free()'d and reset to 0 after the
- * portraits are consumed. Stored/loaded as a full 32-bit dword everywhere
- * (callers cast to uint8* for the +idx*6 byte arithmetic); cleared to 0 by
- * the CRT BSS-zero loop at startup. (sublabel @ .object2, 4 bytes.)
+ * Pointer to the per-chapter FDFIELD char-placement table loaded by
+ * fd2_load_dat_resource(FDFIELD.DAT[chapter_id*3 + 2]). Holds a 6-byte
+ * stride array indexed by char field index; each record is three u16
+ * fields: +0 = sprite/portrait reference, +2 = desired_x, +4 = desired_y.
+ * Only the +2/+4 spawn coordinates are read (as bytes), by
+ * fd2_init_runtime_char_for_battle and fd2_load_chapter_battle_data.
+ * The "portrait" in the symbol name is a misnomer carried over from the
+ * +0 field -- the table's actual job is supplying spawn coordinates, not
+ * portrait pixels (those live in data_fd2_portrait_sprite_cache @ 0x53A61).
+ * Lifecycle is transient: NULL at startup, reassigned from the loader,
+ * then free()'d and reset to 0 once the chapter's units are placed.
+ * Stored/loaded as a full 32-bit dword everywhere (callers cast to uint8*
+ * for the +idx*6 byte arithmetic); cleared to 0 by the CRT BSS-zero loop
+ * at startup. (sublabel @ .object2, 4 bytes.)
  * ---------------------------------------------------------------- */
 uint32 data_fd2_chapter_portrait_load_buffer;
 

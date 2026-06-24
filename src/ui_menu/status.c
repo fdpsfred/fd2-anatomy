@@ -15,7 +15,14 @@
  * Compute stats as if candidate item_id were equipped, replacing
  * the currently equipped item of the same category (weapon/armor).
  * Bonuses from the OPPOSITE category's equipped items are preserved.
- * Output: 4 int32 at stats_out_ptr: [AP, DP, DX, Stat4].
+ * Output: 4 int32 at stats_out_ptr: [AP, DP, hit, evade].
+ *
+ * Category split: item_entry[0] (the category byte) <= 0x14 is a
+ * weapon, > 0x14 is armor. Base stats come from the runtime char:
+ * AP/DP from combat_aux_block+0x10/+0x12, and BOTH hit and evade
+ * from the single ai_target_and_dx_block+1 (dx_total) base; they
+ * differ only by which item bonus is added (item_entry +1=AP,
+ * +3=hit, +5=DP, +7=evade). Pure compute, no side effects.
  * ---------------------------------------------------------------- */
 void fd2_compute_equipped_stats_with_item_preview(uint32 char_idx,
                                                    uint32 item_id,
@@ -182,8 +189,10 @@ int fd2_add_item_to_inventory(uint32 char_idx, uint32 item_id)
  *
  * Backs up VRAM (0xA0000) into workspace_b, copies that into workspace_c,
  * then renders the static status layout + inventory grid (item_id -1 = no
- * highlight) into workspace_c. Drives a 12-frame slide-in (frame 0xB down
- * to 0); a chime SFX fires at frame 0xB (open) and frame 5 (mid). Finally
+ * highlight) into workspace_c. Drives a 12-frame slide-in by calling the
+ * shared fd2_play_status_screen_outro_step with the frame index running
+ * backwards (0xB down to 0), i.e. the slide-out step reversed produces the
+ * entrance; a chime SFX fires at frame 0xB (open) and frame 5 (mid). Finally
  * drains the keyboard buffer.
  *
  * Counterpart: fd2_close_status_screen_with_slide_out.

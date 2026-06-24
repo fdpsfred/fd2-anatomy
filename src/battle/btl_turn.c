@@ -11,9 +11,24 @@
 /* ----------------------------------------------------------------
  * fd2_tick_status_effects_and_show_messages @ 0x1A866
  *
- * End-of-turn status effect ticker. Two passes:
- *   Pass 1: poison damage (10% max HP) with dialog + death check
- *   Pass 2: timer-status countdown (slots 0..5) with removal dialog
+ * End-of-turn status effect ticker for one team. Called from
+ * fd2_run_full_turn_cycle at three points: team==1 (end of player
+ * turn), team==0 (enemy turn intro), team==2 (new player turn).
+ * Only alive chars whose bTeam == team are processed.
+ *
+ * Pass 1 -- poison: if status byte at +0x25 is non-zero, deal
+ *   damage = HP_max/10, clamp HP to >=0, stash damage in the dialog
+ *   value placeholder (text 0x1E7 "poisoned for N HP"), pan/show/wait.
+ * Between passes: fd2_play_death_animation_and_mark_dead() handles
+ *   anyone the poison just killed, then the per-chapter post-action
+ *   hook for the current chapter runs.
+ * Pass 2 -- timer countdown: status bytes at +0x22..+0x27 (6 slots,
+ *   poison's own slot +0x25 included). Each non-zero slot decrements;
+ *   on reaching 0 show removal dialog (text 0x1E1+slot) and
+ *   fd2_recalculate_combat_stats() to drop the expired modifier.
+ *
+ * Note: HP_max/10 is an unsigned widen of a uint16, so the division
+ * is non-negative -- equivalent to the original signed IDIV.
  * ---------------------------------------------------------------- */
 void fd2_tick_status_effects_and_show_messages(uint32 team)
 {
@@ -115,10 +130,15 @@ int fd2_find_char_at_cursor_pos(void)
 /* ----------------------------------------------------------------
  * fd2_find_char_by_id_or_template @ 0x12C60
  *
- * Locate alive battle char with char_id == target_char_id.
- * Fallback: if no battle match, scan menu party roster for
- * template ptr (for dialog portrait rendering).
- * Side-effect: sets data_fd2_dialog_current_speaker_char_ptr.
+ * Locate alive battle char whose char_id (runtime_char +8) ==
+ * target_char_id; return its slot index, else -1.
+ * Fallback: only when NO battle slot matched the id at all, scan
+ * the menu party roster (stride 0x50) for a template ptr (used for
+ * dialog portrait rendering). A dead battle match still caches its
+ * runtime_char* and suppresses the fallback (returns -1).
+ * Side-effect: always sets data_fd2_dialog_current_speaker_char_ptr
+ * (NULL on no match, runtime_char* on battle id-hit, or roster
+ * template* on the fallback path).
  * ---------------------------------------------------------------- */
 int fd2_find_char_by_id_or_template(uint32 target_char_id)
 {
@@ -157,7 +177,10 @@ int fd2_find_char_by_id_or_template(uint32 target_char_id)
 /* ----------------------------------------------------------------
  * fd2_mark_char_acted_this_turn @ 0x13512
  *
- * Set runtime_char[char_idx].flags bit 0x80 (acted-this-turn).
+ * Set runtime_char[char_idx].flags bit 0x80 (CHARFLAG_ACTED), marking
+ * the char as having taken its action this turn. The bit is consumed by
+ * the sprite painter (renders the char dimmed) and by the turn/AI
+ * dispatcher loops (skip an already-acted char).
  * ---------------------------------------------------------------- */
 void fd2_mark_char_acted_this_turn(uint32 char_idx)
 {
@@ -204,8 +227,21 @@ void fd2_check_all_player_acted_or_asleep(void)
 /* ----------------------------------------------------------------
  * fd2_check_tile_event_post_action @ 0x13A44
  *
- * After a walk-step lands on (world_x, world_y), check if the
- * tile fires a scripted post-action consequence.
+ * After a character lands on tile (world_x, world_y) via a walk-step
+ * or an action, check whether the tile fires a scripted post-action
+ * consequence (e.g. a chapter reinforcement event).
+ *
+ * Reads the tile attribute (8 bytes). Skips animated event-tiles
+ * (tile_buf[4] & 0x60) and tiles with no terrain class. Otherwise
+ * indexes tile_event_data_table by (terrain_class - 1) and reads the
+ * record's consequence index (+0x33) and event_type (+0x34). When the
+ * index is valid (!= 0xFF) and event_type matches the expected one, it
+ * latches ai_post_action_consequence_idx, which the next AI phase loop
+ * iteration dispatches as a consequence handler.
+ *
+ * expected_event_type discriminates the trigger source:
+ *   0 = walked into the tile (passed by every walk_step_*)
+ *   1 = took an action at the tile (player/enemy action handlers).
  * ---------------------------------------------------------------- */
 void fd2_check_tile_event_post_action(uint32 world_x, uint32 world_y,
                                        uint32 expected_event_type)
@@ -252,8 +288,16 @@ void fd2_mark_char_as_dead(uint32 char_idx)
 /* ----------------------------------------------------------------
  * fd2_set_combat_aux_block_byte_d_low4_for_char_range @ 0x3419C
  *
- * Write low 4 bits of new_val into combat_aux_block[0xD] for
- * chars in range [start_idx, end_idx] inclusive.
+ * For every runtime char i in the inclusive range [start_idx, end_idx],
+ * write the low nibble of new_val into combat_aux_block[0xD] (= absolute
+ * runtime_char offset 0x34, the per-char AI class / AI-dialog control
+ * flag) while preserving its high 4 bits:
+ *   combat_aux_block[0xD] = (combat_aux_block[0xD] & 0xF0) | (new_val & 0xF).
+ *
+ * The body does NOT mask new_val before the OR, so a caller passing a
+ * value > 0xF would set high nibble bits too; every caller passes 0..0xF.
+ * Used exclusively by chapter event handlers to arm/disarm the AI mode
+ * (typically 0/3/7) of an NPC or enemy group for a story beat.
  * ---------------------------------------------------------------- */
 void fd2_set_combat_aux_block_byte_d_low4_for_char_range(
     uint32 start_idx, uint32 end_idx, uint32 new_val)
@@ -297,8 +341,19 @@ void fd2_check_battle_end_condition(void)
 /* ----------------------------------------------------------------
  * fd2_check_battle_end_default_handler @ 0x205B4
  *
- * Default post_action_handler entry. Falls through to
- * fd2_check_battle_end_condition.
+ * Default entry of the per-chapter post-action handler table
+ * (data_fd2_chapter_post_action_handler_table @ 0x51B19). The 11
+ * chapters with no bespoke win/lose rule (ch 1,3,4,5,6,7,8,9,11,14,24)
+ * point their slot here; the other slots use chapter-specific handlers.
+ *
+ * Just runs the standard win/lose check via fd2_check_battle_end_condition.
+ * event_arg is the shared dispatch argument (always 0 from the turn-cycle
+ * callers); this default handler ignores it.
+ *
+ * In the original binary this is a distinct symbol that falls through
+ * into fd2_check_battle_end_condition @ 0x205BE -- the only machine-code
+ * difference is one extra Watcom __CHK(4) stack-frame probe, hence the
+ * separate entry point modeled here as a thin wrapper.
  * ---------------------------------------------------------------- */
 void fd2_check_battle_end_default_handler(uint32 event_arg)
 {
@@ -777,8 +832,10 @@ int fd2_count_active_chars_for_team_filter(uint32 team)
  * Callers: fd2_process_xp_and_level_up_for_char (x5 stat slots),
  * fd2_execute_class_promotion_with_dialog (x5 promotion bonuses).
  *
+ * growth_pair is a 2-byte char_growth_entry stat field: byte[0] = min
+ * gain, byte[1] = max gain + 1. So the rolled gain spans [min, max]:
  *   min_gain   = growth_pair[0]
- *   range      = growth_pair[1] - growth_pair[0]   (growth_pair = min,max)
+ *   range      = growth_pair[1] - growth_pair[0]   (= max+1 - min)
  *   rand_extra = (range != 0) ? fd2_advance_rng_state() % range : 0
  *   gain (data_fd2_dialog_last_action_value_param) = min_gain + rand_extra
  *
@@ -984,8 +1041,10 @@ uint32 data_fd2_dialog_last_action_value_param = 0;
  * fd2_find_char_by_id_or_template: cleared to NULL at entry, then set to
  * either a runtime_char* (alive/dead battle slot whose bChar_id matched)
  * or a menu-roster template* (battle miss, found in the menu party).
- * Read by fd2_display_dialog_scene (opcodes -0x13/-0x14 ally portrait):
- * dereferenced as runtime_char* to read ->bPortrait_id and ->bPos_x/y.
+ * Read by fd2_display_dialog_scene in the -0x11/-0x12 sprite-load opcodes
+ * (only when the opcode's char_id != 0x27), right after it calls
+ * fd2_find_char_by_id_or_template: dereferenced as runtime_char* to read
+ * ->bPortrait_id (+7) and ->bPos_x/y (+0/+1) for the speaker portrait.
  * Always cleared before first use each call, so the binary stores it
  * zero-init (NULL). Home owner: btl_turn.c (alongside the writer).
  * ---------------------------------------------------------------- */

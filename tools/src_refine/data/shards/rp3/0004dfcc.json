@@ -1,0 +1,38 @@
+{
+  "address": "0004dfcc",
+  "name_current": "fd2_update_palette_cycle_anim",
+  "name_final": "fd2_update_palette_cycle_anim",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; descriptor 'update_palette_cycle_anim' accurately reflects the function's job: throttled per-frame advance/update of the VGA palette-cycling animation for environment effects (water/lava/fire) on DAC indices 0xE0..0xEF. No Ghidra address residue (no hex suffix). The numeric constants in the body (0x10 frame count, 0xE0 base palette index, *3 stride) are semantic, not address residue.",
+  "kind": "function",
+  "home": "src/gfx/palette.c",
+  "purpose": "Throttled per-frame advancer for the VGA palette-cycling animation that recolors DAC entries 0xE0..0xEF to animate water/lava/fire environment effects while the game is otherwise idle.",
+  "logic_summary": "Reads the current BIOS midnight tick. If fewer than 2 ticks (~110ms) have elapsed since the last update (last_tick stored in data_fd2_animation_palette_cycle_last_tick), returns immediately (throttle). Otherwise: increment frame index (data_fd2_animation_palette_cycle_frame_idx), wrapping 16->0; compute offset = frame_idx*3 into the flat RGB byte stream data_fd2_animation_palette_cycle_rgb_table (sliding-window layout, 93 bytes); then loop 16 colors writing palette index 0xE0..0xEF via OUT 0x3C8 (index) + three OUT 0x3C9 (R,G,B 6-bit components), reading 48 sequential bytes from the table. Finally stores the current BIOS tick back into last_tick. The decompiler's returned in_EAX is a fastcall/register artifact, not a real return value (the C declaration is correctly void).",
+  "signature": "void fd2_update_palette_cycle_anim(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. The Ghidra decompilation shows 'undefined4 __cdecl ... return in_EAX' but this is a signature/fastcall artifact (EAX flows through unchanged); the home-file C declaration is void and that is correct."
+  },
+  "reads_globals": [
+    "data_fd2_animation_palette_cycle_last_tick",
+    "data_fd2_animation_palette_cycle_frame_idx",
+    "data_fd2_animation_palette_cycle_rgb_table"
+  ],
+  "writes_globals": [
+    "data_fd2_animation_palette_cycle_frame_idx",
+    "data_fd2_animation_palette_cycle_last_tick"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (palette.c lines 171-178) is already concise and accurate: env effects water/lava/fire, cycles 0xE0..0xEF, 93-byte sliding-window table (16 frames x 3-byte stride, each frame reads 48 sequential bytes), throttled to ~2 BIOS ticks (~110ms). Matches decompilation exactly, so comment_verdict=keep (no Edit to palette.c). Ghidra plate is detailed and consistent with this understanding (its mention of older raw decompiler names like BYTE_ARRAY_00060000 / palette_cycle_anim_step_a is descriptive of the raw view and does not contradict the conclusions), so ghidra_plate_action=none. Verified global symbol names match across Ghidra decompile, palette.c, globals.h (lines 356-358) and anitab.c (rgb_table @ 0x60003, 93 bytes). 14 callers, all idle/wait/walk-step loops (e.g. fd2_wait_for_input_with_idle, fd2_walk_step_*), consistent with keeping env palette animating during input waits. No logic issues found; throttle condition '(tick-last) < 2 -> return' is equivalent to plate's 'tick-last > 1 -> update'."
+}

@@ -1,0 +1,44 @@
+{
+  "address": "0x00020aaf",
+  "name_current": "fd2_chapter_23_post_action",
+  "name_final": "fd2_chapter_23_post_action",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention: domain 'chapter_23' (chapter ID 23 is a meaningful game ID in the valid 1-30 range, not address residue -- the function address 0x20aaf shares no digits with '23'), descriptor 'post_action'. Name accurately reflects the role: the chapter-23 turn-cycle post-action handler dispatched via the per-chapter handler table.",
+  "kind": "function",
+  "home": "ROOT/src/field/chpost.c",
+  "purpose": "Chapter 23 turn-cycle post-action handler: evaluates the chapter's custom win/lose conditions and writes the chapter event/battle-end status code.",
+  "logic_summary": "Does NOT call the default fd2_check_battle_end_condition; implements the full decision itself with two sequential independent writes to data_fd2_chapter_event_or_battle_end_code (0x53ECC). Step 1 (LOSE): if any of the four protected chars runtime_char[0],[1],[0x10],[0x11] is dead (short-circuiting OR), set the code to 1. Step 2 (WIN): if the boss runtime_char[0x12] is dead, set the code to 2 unconditionally, so a boss kill overrides a LOSE (fall-through win-overrides-loss). Deadness is queried via fd2_check_char_is_dead per slot; no inline flag reads. Validated against the strategy guide: win condition = destroy mecha captain (slot 0x12); lose conditions = Sol/Sylphia/Caris/Rodman die (the four slots 0/1/0x10/0x11).",
+  "signature": "void __cdecl fd2_chapter_23_post_action(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch argument from the handler-table call site (conceptually an active char_idx/event arg). Unused by the body -- only consumed by the Watcom __CHK stack-probe prologue artifact; body has (void)event_arg.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, no address residue, and correctly conveys it is an ignored dispatch/event argument (the comment already documents it as the __CHK-prologue artifact)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is writing data_fd2_chapter_event_or_battle_end_code (0 unchanged / 1 LOSE / 2 WIN)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (indirectly, via fd2_check_char_is_dead which reads runtime_char[idx].flags bit0 for slots 0,1,0x10,0x11,0x12)"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_event_or_battle_end_code"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "8385b67bc8890785412879850fb01eacf3c39f5e",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompile matches src body exactly. Strategy guide (fd2-knowledge chapter 23) confirms semantics: win = destroy mecha captain (boss slot 0x12 -> code 2); lose = Sol/Sylphia/Caris/Rodman die (the four protected slots 0/1/0x10/0x11 -> code 1). Handler-table entry verified: bytes at 0x51b71 = af 0a 02 00 = 0x00020aaf, table index [22] (chtab.c). protos.h:267 and chpost.c:478 signatures agree. No src edit made (comment already accurate and refined); plate is consistent with src (not contradictory/outdated/empty) so left untouched. Only the shard file is staged for commit."
+}

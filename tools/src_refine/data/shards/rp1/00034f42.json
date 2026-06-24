@@ -1,0 +1,42 @@
+{
+  "address": "00034f42",
+  "name_current": "fd2_chapter_event_handler_26__ch15_dialog",
+  "name_final": "fd2_chapter_event_handler_26__ch15_dialog",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> name. '26' is the dispatch-table index (idx 0x26 in the per-event handler table at 0x51B91), a meaningful domain ID, not an address residue (function lives at 0x34f42). 'ch15' = chapter 15 domain ID; the handler is ch15 turn-event slot 2 (turn 7 / phase 0). 'dialog' matches the category (dialog only). Name accurately reflects purpose and internal logic; verified vs disassembly and the sibling handler naming pattern in chevt1.c.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 15 turn-7 dialog-only beat: reload portrait set 1 then show chapter-text dialog page 10 (0xA). Dispatched as idx 0x26 of the per-event handler table at 0x51B91.",
+  "logic_summary": "Straight-line, no-branch. Calls fd2_load_chapter_portraits_and_dump_tmp(1) to reload portrait set 1, then fd2_display_dialog_scene(data_fd2_current_chapter_text, page=0xA, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) to render dialog page 10 with the standard dialog geometry. No camera pan, no cutscene, no RNG, no numeric computation, no state writes beyond the portrait reload, and the dialog's uint32 return is discarded. In the original binary it prepares its own 8 PUSHes (page=0xA + fixed geometry) then JMPs 0x34F6F -> 0x34C0F into the shared tail (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET) of fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7; the src reproduces this as the inline call for Layer-2 equivalence. __CHK(0x28) stack-probe prologue is compiler-injected and omitted in src.",
+  "signature": "void __cdecl fd2_chapter_event_handler_26__ch15_dialog(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91. Never read by the body (turn-event slot, not a tile-step recipient id). Cast to (void) in src.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches the established event_arg convention used by every turn-event sibling handler in chevt1.c; no address residue; correctly describes the unread dispatch arg."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (void handler)."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly (0x34f42-0x34f6f) confirms plate exactly: PUSH 0x28/CALL __CHK; portraits(1); 8 PUSHes ending page=0xA at 0x34f6d; JMP 0x34C0F shared tail. fd2_display_dialog_scene prototype (protos.h:665) is uint32 for every param; the decompiler's '(uint *)0x4c' for glyph_p6 is a decompiler-only pointer artifact, src correctly passes value 0x4C. Single xref to 0x34f42 is the DATA entry in the dispatch table (0x51C29). Name, param, src comment, and Ghidra plate all already correct -- keep across the board; no src/plate edits."
+}

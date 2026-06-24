@@ -1,0 +1,63 @@
+{
+  "address": "000126f7",
+  "name_current": "fd2_blit_24x24_at_window_relative_pos",
+  "name_final": "fd2_blit_24x24_at_window_relative_pos",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> form, no Ghidra address residue. '24x24' is the sprite dimension (semantic), 'window_relative' accurately captures that the destination address is computed relative to the battle-view window origin after a window-visibility clip. Inputs are world/absolute tile coords; the function clips them to the window and translates to a window-relative dst offset. Name faithfully reflects purpose and internal logic; keep.",
+  "kind": "function",
+  "home": "src/gfx/blittile.c",
+  "purpose": "Paint a 24x24 cursor/UI sprite at world tile coords into the battle render workspace, but only when the tile is visible inside the battle view window; out-of-window calls are silent no-ops.",
+  "logic_summary": "Compiler __CHK(0x18) stack-probe prologue, then a window-visibility test: origin_x <= world_x < origin_x+max_x AND origin_y <= world_y < origin_y+max_y. If inside, resolve the sprite source from the runtime-battle-state cursor atlas via its +6 offset table (sprite_src = atlas_base + *(int*)(atlas_base + 6 + sprite_idx*4)); compute the destination inside data_fd2_large_game_state_buffer at +0x8088 with row stride 0x2AC0 (24 rows * 0x1C8 pitch) and column stride 0x18 (24 bytes/tile); tail-call fd2_tile_blit_24x24_passthrough(sprite_src, dst, 0x1C8). Out-of-window -> no-op return.",
+  "signature": "void __cdecl fd2_blit_24x24_at_window_relative_pos(uint32 world_x, uint32 world_y, uint32 sprite_idx)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "world X tile coordinate; caller (fd2_paint_cursor_overlay_pattern) passes cursor_world_x +- k. Compared signed against window origin/extent; on hit, (world_x - origin_x) scales the destination column by 0x18.",
+      "verdict": "rename",
+      "proposed": "world_x",
+      "reason": "Live Ghidra name is the placeholder param_1; src already declares it world_x. Rename Ghidra param to match the descriptive src name (apply in Stage 2)."
+    },
+    {
+      "name": "param_2",
+      "type": "uint32",
+      "semantics": "world Y tile coordinate; caller passes cursor_world_y +- k. Compared signed against window origin/extent; on hit, (world_y - origin_y) scales the destination row by 0x2AC0.",
+      "verdict": "rename",
+      "proposed": "world_y",
+      "reason": "Live Ghidra name is the placeholder param_2; src already declares it world_y. Rename Ghidra param to match the descriptive src name (apply in Stage 2)."
+    },
+    {
+      "name": "param_3",
+      "type": "uint32",
+      "semantics": "sprite index (0..0x12) into the runtime-battle-state cursor/UI atlas offset table at +6; indexes a 4-byte absolute sprite-data offset (6 + sprite_idx*4).",
+      "verdict": "rename",
+      "proposed": "sprite_idx",
+      "reason": "Live Ghidra name is the placeholder param_3; src already declares it sprite_idx. Rename Ghidra param to match the descriptive src name (apply in Stage 2)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is the in-place blit into the battle render workspace (or nothing when out of window)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_view_window_max_x",
+    "data_fd2_battle_view_window_max_y",
+    "data_fd2_runtime_battle_state_ptr",
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Sole caller fd2_paint_cursor_overlay_pattern @ 0x122dc (38 call sites) confirms param semantics: world coords +-k offsets and sprite indices 0..0x12 for cursor box + concentric manhattan range-indicator rings (phases 1-5). Sprite indices like 0xE/0xF/0x10/0x11/0x12 and offset constants (0x18, 0x2AC0, 0x1C8, 0x8088, +6) are semantic graphics constants, not address residue. src comment already accurate, precise, ASCII -> kept unchanged. Ghidra plate consistent with src understanding -> not touched. Params renamed only in shard (proposed); declarations untouched per Stage-2 rule. Pre-existing modified shards for other functions left untouched; commit pathspec scoped to this function's two files."
+}

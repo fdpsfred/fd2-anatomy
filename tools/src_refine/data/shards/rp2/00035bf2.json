@@ -1,0 +1,40 @@
+{
+  "address": "00035bf2",
+  "name_current": "fd2_chapter_event_handler_48__unref_ai_ctrl",
+  "name_final": "fd2_chapter_event_handler_48__unref_portrait_cinematic_pair",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_chapter_event_handler_48__unref_portrait_cinematic_pair",
+  "name_reason": "The '48' is the dispatch-table slot idx 0x48 (entry @ 0x51CB1 in table @ 0x51B91) = a domain ID, keep. '__unref' is factual (0 direct callers; only the dispatch-table data xref). The '_ai_ctrl' descriptor is inaccurate: the body has zero AI-flag changes -- it shows a 2-portrait white-flash cinematic pair then flips battle_anim_phase. Both the existing plate and src comment explicitly flag '_ai_ctrl'/'ai_setup' as a loose dispatch-neighborhood label, not the real behavior. Sibling unref handlers use '_unref_<behavior>' (handler_47 '_dyn_turn_event', handler_49 '_sentinel'), so a behavior-accurate descriptor is the consistent fix. No Ghidra address residue removed; only the misleading category descriptor is corrected.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter-event dispatch handler for idx 0x48 (unreferenced slot): plays a 2-portrait white-flash cinematic pair then sets the battle animation phase to 1; no dialog, no AI changes.",
+  "logic_summary": "__CHK(0x10) stack-frame guard, then two fd2_cinematic_chapter_portrait_dump_with_white_flash calls -- portrait at tile col=4,row=0x23 with chapter id 2, then col=0xE,row=0x23 with chapter id 3 -- then data_fd2_battle_anim_phase = 1. The incoming event_arg is never read. In the binary the function body ends at the second CALL (0x35C10) and falls through (no JMP) into fd2_set_battle_anim_phase_to_1 @ 0x35C15, borrowing its ADD ESP,0xC (second call's arg cleanup) + MOV [data_fd2_battle_anim_phase],1 + RET tail; the C source is the functionally-exact unmerged form (two full calls + the store).",
+  "signature": "void __cdecl fd2_chapter_event_handler_48__unref_ai_ctrl(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Per-event dispatch argument from the handler table @ 0x51B91 (uniform 1-arg cdecl handler contract). Not read by this handler.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately describes the dispatch-table calling contract (the event argument passed to every slot handler) and carries no address residue. Unused in this body, but the signature must match the shared table prototype; renaming would not improve clarity."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": ["data_fd2_battle_anim_phase"],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "2ec39c330643373ff6292be8c6254287965181c9",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified: xref-to @ 0x51CB1 holds bytes f25b0300 = LE 0x00035BF2 (function-pointer table entry; 0x51CB1 = 0x51B91 + 0x48*4 confirms dispatch idx 0x48). Callee 0x35822 = fd2_cinematic_chapter_portrait_dump_with_white_flash (3-arg cdecl, confirmed). Tail-merge target 0x35C15 = fd2_set_battle_anim_phase_to_1 confirmed (ADD ESP,0xC; MOV [0x51A83],1; RET); xref-from 0x35C18 confirms 0x51A83 = data_fd2_battle_anim_phase [WRITE]. event_arg confirmed unused. Source comment already accurate/precise and is a strict superset of the plate (captures the tail-merge detail) -> comment_verdict keep. Plate is semantically consistent with the refined understanding (no contradiction) -> ghidra_plate_action none. Name rename recorded only (applied in Stage 2); src declaration/signature untouched this stage."
+}

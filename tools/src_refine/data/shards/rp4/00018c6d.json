@@ -1,0 +1,60 @@
+{
+  "address": "00018c6d",
+  "name_current": "fd2_render_mini_char_status_panel",
+  "name_final": "fd2_render_mini_char_status_panel",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; 'render_mini_char_status_panel' accurately reflects the function's role (paints the small in-battle info overlay panel for one runtime char) and the 'mini' descriptor correctly distinguishes it from fd2_render_full_char_stat_panel. No Ghidra address residue, no domain-ID component.",
+  "kind": "function",
+  "home": "ROOT/src/gfx/rndstat.c",
+  "purpose": "Render the small in-battle 'info' overlay panel (background sprite + HP/MP proportional bars + HP/MP current numbers + 2-digit sleep/status indicator + character name label) for runtime_char[char_idx] into a stride-pitch destination surface.",
+  "logic_summary": "rc = &data_fd2_battle_runtime_char_array_ptr[char_idx]. Reads HP cur/max and MP cur/max once up front, sign-extending each int16 word to int32 (matches the binary's MOVSX). Blits the background sprite (sheet + *(int*)(sheet+0x5E)) at buf via fd2_dialog_sprite_blit_normal. Paints the HP bar (sprite base 0x17) at stride*0x16+buf+0x15 and the MP bar (sprite base 0x1A) at stride*0x1F+buf+0x15 via fd2_render_hp_or_mp_bar_proportional. Draws the sleep/status indicator status_flags_block[0] as a 2-digit red (0x1F) number at buf+0x84+stride*4. Draws HP current (stride*0x15+buf+0x7E) and MP current (stride*0x1E+buf+0x7E) as 3-digit numbers via fd2_render_number_red_when_full (red glow when current==max). Finally renders the char name label (page = char_id+1 into all_game_text) at buf+5+stride*4 via fd2_display_dialog_scene with glyph params (0xCD,0x4C,0,0,0). No conditional control flow (single basic block); void return.",
+  "signature": "void __cdecl fd2_render_mini_char_status_panel(uint32 buf, uint32 stride, uint32 char_idx)",
+  "params": [
+    {
+      "name": "buf",
+      "type": "uint32",
+      "semantics": "Destination pixel-buffer base linear address into which the panel is composited. Caller fd2_flash_char_hit_sprite passes workspace_buf + screen_off; caller fd2_wait_input_with_status_panel_repaint passes large_game_state_buffer + 0x8088 + panel_off. All layout offsets are added to this base.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, concise name for the destination surface base; not param_N, not address-tainted; consistent with sibling renderers in this file."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Row pitch (bytes per scanline) of the destination surface, used to multiply row indices in every layout offset. Callers pass 0x140 (mode-13h, fd2_flash_char_hit_sprite) and 0x1C8 (composite battle buffer, fd2_wait_input_with_status_panel_repaint).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly names the surface pitch; the body uses it purely as a row stride. Matches the stride naming used by sibling renderers (vs the older Ghidra plate's 'pitch')."
+    },
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr selecting which runtime character's HP/MP/sleep/name are displayed. Forwarded from both callers as the unit id (char_unit_id).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Precisely describes its use as the runtime_char array index; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; the function composites pixels into the caller-supplied buf in place."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_ui_anim_sprite_sheet_ptr",
+    "data_fd2_all_game_text_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (rndstat.c lines 681-710) was already precise and matches the decompilation exactly (layout offsets, MOVSX sign-extension note, callers, __CHK/JMP-epilogue note); kept as-is. Ghidra plate was outdated relative to the current decomp (used old Hungarian field names pStatus_flags_block[0]/bChar_id and param names dst_buf/pitch); updated it to align param names (buf/stride/char_idx), field names (status_flags_block[0]/char_id), and global names with the src conclusion. No logic touched. No rename needed; name and all three params are already compliant."
+}

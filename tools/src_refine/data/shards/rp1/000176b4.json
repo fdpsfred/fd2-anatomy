@@ -1,0 +1,54 @@
+{
+  "address": "000176b4",
+  "name_current": "fd2_close_settings_dialog_with_slide",
+  "name_final": "fd2_close_settings_dialog_with_slide",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=settings dialog UI, descriptor=close...with_slide). Accurately reflects behavior: closes the 2-panel settings dialog via a 4-frame inward-converge slide animation, counterpart to fd2_open_settings_dialog_with_slide. No address residue in the name.",
+  "kind": "function",
+  "home": "ROOT/src/ui_menu/menucfg.c",
+  "purpose": "Close the 2-panel settings dialog at the cursor position with a 4-frame inward-converge slide animation, then restore the backed-up dialog area and clear the keyboard buffer.",
+  "logic_summary": "Plays the close-chime SFX (fd2_play_sfx_with_handle on the fdother bank, idx 8). Remembers the character under the cursor (fd2_find_char_at_cursor_pos) for restamping. Computes panel_anchor inside the large work buffer from the on-screen cursor cell (base 0x8088 + cursor_x*0x18 + cursor_y*0x2AC0). Initializes 4 corner offsets at their outer extents [-0x23A0, +0x378, +0x3A8, +0x2AC0]. Loops 4 frames: each frame moves TL/BR offsets by +0x8E8/-0x8E8 and TR/BL by +6/-6 (inward, opposite sense to open), restores the dialog area from backup, blits the 4 corner sprites at panel_anchor+offset (sprite chosen by atlas index menu_options[c]*3 + menu_state[c]*2 -> dword offset table at the dialog-state handle), restamps the saved char if any (!= -1), then flushes the dialog region to screen via fd2_blit_rectangle. After the loop, restores the dialog area once more and clears the keyboard buffer. void cdecl with __CHK(0x44) stack-probe prologue.",
+  "signature": "void __cdecl fd2_close_settings_dialog_with_slide(int32 *menu_options, int32 *menu_state)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "int32 * (Ghidra: uint)",
+      "semantics": "menu_options: 4-slot int array; menu_options[c] is the primary atlas selector for corner c (sprite atlas index = menu_options[c]*3 + menu_state[c]*2). Filled by callers from the per-menu slot template.",
+      "verdict": "rename",
+      "proposed": "menu_options",
+      "reason": "Live Ghidra name param_1 is a generic placeholder with no semantic meaning. src already uses menu_options; usage at call sites (e.g. fd2_game_options_menu_loop) populates it from data_fd2_ui_game_options_menu_slots_template and it indexes the sprite atlas. Rename to be applied in Stage 2 (touches protos.h/call sites)."
+    },
+    {
+      "name": "param_2",
+      "type": "int32 * (Ghidra: uint)",
+      "semantics": "menu_state: 4-slot int array; menu_state[c] is the secondary atlas selector for corner c (sprite atlas index = menu_options[c]*3 + menu_state[c]*2). Filled by callers from the per-menu state template.",
+      "verdict": "rename",
+      "proposed": "menu_state",
+      "reason": "Live Ghidra name param_2 is a generic placeholder. src already uses menu_state; populated by callers from data_fd2_ui_game_options_menu_state_template and used as the secondary sprite-atlas index term. Rename to be applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_audio_fdother_sfx_bank_buf_ptr",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_cursor_screen_y",
+    "data_fd2_menu_dialog_state_handle"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "d664f0d017d28d079699bb7ed8886aae5c61a75d",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (lines 177-201) is already precise, accurate, and ASCII-clean: it covers purpose, frame-by-frame logic, the per-corner sprite-atlas formula, the 5 callers, and the void __cdecl __CHK(0x44) convention. Caller count (5) and names match Ghidra get_function_callers exactly. Ghidra plate is detailed and fully consistent with the refined understanding, so no plate update needed. No comment edit and no plate update were made, so source file is unchanged for this symbol."
+}

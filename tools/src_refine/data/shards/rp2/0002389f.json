@@ -1,0 +1,36 @@
+{
+  "address": "0002389f",
+  "name_current": "fd2_chapter_13_end",
+  "name_final": "fd2_chapter_13_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> game-function name. '13' is a meaningful chapter ID (chapters 01-30 are domain IDs that must be preserved), not Ghidra address residue. Name accurately reflects the function: the chapter 13 battle-end handler. No address suffix.",
+  "kind": "function",
+  "home": "src/field/chend1.c",
+  "purpose": "Chapter 13 (哈斯米爾之戰) battle-end handler: show end dialog page 9, persist the party, recruit char #3 (哈瓦特), then advance to the next chapter.",
+  "logic_summary": "Calls fd2_display_dialog_scene(_current_chapter_text, page 9, ...) to show the chapter-end dialog; fd2_save_runtime_char_to_template() to persist the party's runtime-char state back to the template store; fd2_init_runtime_char_from_base_growth(3) to recruit/initialize char #3 (哈瓦特) from base+growth tables; then increments data_fd2_chapter_current_chapter_id by 1 (advance to next chapter). Single basic block, cyclomatic complexity 1. The CRT stack-probe prologue __CHK(0x28) seen in the decompile is not game logic and is correctly omitted from the Layer-2 source. In the binary the function tail-jumps (PUSH 3; JMP 0x237C8) into the shared snippet at 0x237C8 (CALL fd2_init_runtime_char_from_base_growth; ADD ESP,4; JMP 0x231F2 -> INC current_chapter_id; RET), reusing the tail of fd2_chapter_11_end; it is emitted as a self-contained function (Layer-2 functional equivalence -- jump-into-middle sharing not preserved in source).",
+  "signature": "void __cdecl fd2_chapter_13_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: shows dialog, persists party, recruits char #3, advances current chapter id."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified char #3 = 哈瓦特 (戰士 -> 聖戰士/魔戰士) via fd2-knowledge characters_growth/ranks; line shows '哈瓦特 戰士 3' matching fd2_init_runtime_char_from_base_growth(3). Verified the walkthrough's '哈瓦諾' is a typo for 哈瓦特 (chapter 13 walkthrough 結束加入: 戰士哈瓦諾), matching the comment's note. Dispatch confirmed: 0 direct callers; sole xref is DATA from 0x51e19 = chapter-end handler table base 0x51DE9 + chapter-13 0-based id 12 * 4 = 0x51E19. Source comment (lines 580-603) and Ghidra plate are already precise, mutually consistent, and reflect the final conclusion (body, Layer-2 self-contained emission decision, typo note, linked init/post-action handlers, walkthrough SOT); no edits needed. Source file chend1.c not modified."
+}

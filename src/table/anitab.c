@@ -102,8 +102,8 @@ const uint8 data_fd2_animation_spell_palette_flash_table[108] = {
  *
  * Read-only (single READ xref, no writers); compiler rodata table.
  *
- * NOTE: Ghidra mislabelled this as int[4] (len 16); the byte-stride caller
- * usage and the 30-byte copy extent prove uint8[30].
+ * Type is uint8[30], not a 4-byte-element array: the byte-stride MOVZX
+ * caller access and the 30-byte REP MOVSD+MOVSW copy extent are decisive.
  */
 const uint8 data_fd2_animation_status_overlay_flicker_color_template[30] = {
     0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,
@@ -139,7 +139,8 @@ const uint8 data_fd2_animation_status_overlay_flicker_color_template[30] = {
  * The next table (data_fd2_animation_spell_frame_count_table) begins exactly
  * at +33 (0x51F54), confirming the 33-byte boundary.
  *
- * Read-only (single READ xref, no writers); compiler rodata table.
+ * Read-only (single READ xref + the base-address DATA xref, no writers);
+ * compiler rodata table.
  */
 const uint8 data_fd2_animation_spell_sprite_offset_table[33] = {
     0x31,0x31,0x31,0x31,0x40,0x40,0x40,0x40,0x4c,0x57,0x31,
@@ -297,7 +298,7 @@ const int32 data_fd2_animation_earthquake_screen_shake_params_table[9] = {
 };
 
 /* ----------------------------------------------------------------
- * data_fd2_animation_spell_projectile_y_offset_table @ 0x0202C  (25 bytes, uint8[25])
+ * data_fd2_animation_spell_projectile_y_offset_table @ 0x5202C  (25 bytes, uint8[25])
  *
  * AoE spell projectile / spark vertical-rise offset sequence, used by
  * fd2_animate_spell_projectile_paths (@ 0x1DF58) for the 22-frame multi-target

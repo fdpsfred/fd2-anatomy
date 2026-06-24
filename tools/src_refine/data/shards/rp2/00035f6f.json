@@ -1,0 +1,47 @@
+{
+  "address": "0x00035f6f",
+  "name_current": "fd2_chapter_event_handler_51__unref_dyn_turn_event",
+  "name_final": "fd2_chapter_event_handler_51__unref_dyn_turn_event",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>. 'chapter_event_handler_51' = dispatch idx 0x51 in the per-event handler table @ 0x51B91; verified by sole xref From 0x00051cd5 [DATA] where (0x51CD5 - 0x51B91)/4 = 0x51, so '_51' is a genuine domain dispatch-slot ID (not an address residue; the function lives at 0x35F6F). '__unref' is accurate (0 direct callers; only reachable via the dispatch table, and no chapter FDFIELD turn-event/tile-step hook references this slot). 'dyn_turn_event' matches the body (advances stage counter + re-arms a turn-event hook) and is the same descriptor used by sibling handlers 3e/41/4f. No address residue.",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Self-looping turn-event pump (dispatch idx 0x51): advance the tile-event stage counter and queue another turn-event fire one player turn ahead.",
+  "logic_summary": "Two stores after the Watcom __CHK stack-probe prologue: (1) INC the 8-bit stage counter at tile_event_consumed_flags[0x10] (INC byte ptr [EAX+0x10]); (2) read battle_turn_counter as a single byte, INC it in 8-bit (MOV DL,[turn_counter] / INC DL), and store the truncated result into tile_event_data_table[+3] (hook entry 0's turn byte), arming the next fire one player turn ahead. No consume-flag gate (unlike gated schedulers handler_3e/41), so each call advances the stage and re-arms the same hook slot. event_arg is unread.",
+  "signature": "void fd2_chapter_event_handler_51__unref_dyn_turn_event(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch-table event argument from the per-event handler table calling convention; not read by this handler (cast to void).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches the shared 1-arg cdecl dispatch signature used by all sibling chapter_event_handler functions; descriptive, no address residue. Arg is unused but the name correctly reflects the dispatch-table contract."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; pure state-machine mutator."
+  },
+  "reads_globals": [
+    "data_fd2_field_map_tile_event_consumed_flags_ptr (0x53AD5; base of consumed-flags array, indexed at +0x10)",
+    "data_fd2_battle_turn_counter (0x53BEF; read as one byte)",
+    "data_fd2_tile_event_data_table_ptr (0x53A55; base of turn-event hook table, written at +3)"
+  ],
+  "writes_globals": [
+    "*(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) (stage counter, 8-bit INC)",
+    "*(data_fd2_tile_event_data_table_ptr + 3) (hook entry 0 turn byte = turn_counter + 1, 8-bit)"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "0d231ac943c7018157ec0b166abecefa674339c7",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (chevt2.c lines 1420-1451) is already precise and matches decomp + Ghidra plate exactly (stage-counter advance + 8-bit turn-counter+1 reschedule, no consume gate, __CHK noted as no source semantics); left unedited (comment_verdict=keep). Ghidra plate consistent with refined understanding; not modified. Decomp leading-underscore on _data_fd2_tile_event_data_table_ptr is Ghidra's overlapping-symbol display artifact (see WARNING header), not a naming defect; globals.h declares the canonical name without underscore. All 3 global addresses (0x53AD5/0x53BEF/0x53A55) and the dispatch index 0x51 verified against disassembly and the sole DATA xref."
+}

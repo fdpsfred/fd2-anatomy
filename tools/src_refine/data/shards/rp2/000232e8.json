@@ -1,0 +1,40 @@
+{
+  "address": "000232e8",
+  "name_current": "fd2_chapter_07_end",
+  "name_final": "fd2_chapter_07_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Matches convention fd2_<domain>_<descriptor>: domain=chapter, descriptor=07_end. The 07 is a chapter domain ID (chapters 01-30 are meaningful IDs that must be preserved, not address residue); _end correctly marks it as the chapter-7 end handler (paired init fd2_chapter_07_init @ 0x33169). No Ghidra address residue in the name. Dispatched via the chapter-end handler pointer table (DATA xref from 0x51E01), 0 direct callers, consistent with sibling chapter_NN_end handlers in chend1.c.",
+  "kind": "function",
+  "home": "src/field/chend1.c",
+  "purpose": "Chapter 7 (往王城的途中) end handler: persists the party, then conditionally stages the post-battle recruit scene for 武者凱麗 (char #12) before advancing to the next chapter.",
+  "logic_summary": "Unconditionally copies three 9-byte scene tables (recruit-scene X/Y/facing @ 0x520E4/0x520ED/0x520F6, 9 chars 0..8) into three on-stack placement blocks, then saves the party (fd2_save_runtime_char_to_template). Dual-conditional recruit: if tile_event_consumed_flags[0x11]==1 (player crossed 凱麗's appearance line during battle) AND the in-battle NPC 凱麗 (runtime char #0x2B) is still alive (fd2_check_char_is_dead(0x2B)==0): stages the scene via fd2_setup_chars_and_camera_for_intro(&X,&Y,&facing, 0, 8, 0x2B, 0xC, 7, 2, 6, 2) (place chars 0..8, extra char 0x2B at (0xC,7) facing 2, camera origin (6,2)), shows recruit dialog page 4, recruits char #0xC (武者凱麗) via fd2_init_runtime_char_from_base_growth. Else: shows no-recruit dialog page 5 only (no scene, no recruit). Finally INC current_chapter_id. The scene tables are read into the stack blocks before the branch (matching the binary) but consumed only on the recruit path. The leading __CHK(0x5C,...) is the Watcom stack-probe for the 0x5C-byte frame; its in_stack_* pseudo-args are ABI artifacts, not real parameters. Confirmed by walkthrough: 武者凱麗未死時加入; tile-crossing event (己方從中央通道通過凱麗會出現的水平位置) arms the recruit.",
+  "signature": "void __cdecl fd2_chapter_07_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side-effects are the recruit-scene staging, dialog display, party save, and current_chapter_id increment."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch07_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch07_end_scene_char_pos_y_table",
+    "data_fd2_chapter_ch07_end_scene_char_facing_table",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr",
+    "data_fd2_current_chapter_text",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": "Comment content was already accurate and precise (correctly described the unconditional 3x9-byte table copy, the dual-conditional recruit on tile_event_consumed_flags[0x11]==1 AND char 0x2B alive, dialog pages 4/5, recruit char 0xC = 武者凱麗, and the read-before-branch / consume-on-recruit-path nuance). Only defect: a non-ASCII em-dash on the 'page 5 only -- no scene' line, which violates the code-comment ASCII-only rule.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Char IDs are domain values preserved as-is: chapter 07, recruit char #0xC (武者凱麗), in-battle NPC char #0x2B (凱麗), dialog pages 4/5. Scene-table memory read confirms 9-byte tables (X=[12,11,13,10,14,10,14,9,15], Y=[4,4,4,5,5,6,6,7,7], facing=[0,0,0,3,1,3,1,3,1]), matching the for(i<9) copy. All referenced globals declared in src/include/globals.h with matching names; scene tables are const uint8[9] (read-only). Ghidra plate is semantically consistent with the refined source (same logic, IDs, paired init/post-action/walkthrough refs) so left untouched; ASCII-only rule applies to src/.c not Ghidra plate text. Only the fd2_chapter_07_end comment block (em-dash on line 272) was edited via Edit; no other symbol touched."
+}

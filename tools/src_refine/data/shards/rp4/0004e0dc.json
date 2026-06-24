@@ -1,0 +1,67 @@
+{
+  "address": "0004e0dc",
+  "name_current": "fd2_flood_fill_movement_range_recursive",
+  "name_final": "fd2_flood_fill_movement_range_recursive",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>: recursive 4-neighbour flood fill that paints movement-range markers. No address residue. The 'recursive' suffix is meaningful (function self-recurses; distinguishes it from the orchestrator fd2_init_movement_range_floodfill). Name accurately reflects verified behaviour.",
+  "kind": "function",
+  "home": "src/util/pathfnd.c",
+  "purpose": "Recursive 4-neighbour flood fill that paints the movement-range residual-cost markers ('where can this unit move?') across the battle tile map; reached only via the orchestrator fd2_init_movement_range_floodfill and self-recursion.",
+  "logic_summary": "For each of the four directions in the binary's fixed order right/left/down/up: bounds-check the neighbour (right/down use unsigned (coord+1)<extent; left/up require coord!=0), then call fd2_flood_fill_neighbor_step(cost, neighbour_btm, &new_cost) which conditionally writes the neighbour's marker and returns non-zero (binary carry-clear) iff the tile improved, leaving the reduced residual in new_cost; on a non-zero return, recurse into that neighbour with new_cost. The current x/y/cost/btm_ptr persist unchanged across all four directions and across each recursive call so every direction starts from the same residual. Termination: when cost-tile_cost underflows or no longer improves the existing marker. In FD2.LE this used the Watcom register-passing convention (DL=x, DH=y, CL=cost, EBX=marker ptr, EBP=map_width*4 stride, ESI=cost-table base) with a hand-rolled 7-byte {x,y,cost,btm_ptr} recursion frame walked via EDI at the pathfind step-stack workspace; the emit replaces that with native C recursion + parameters and recomputes the row stride (map_width*4) from the map_width global. Layer-2 equivalent: identical marker writes, visit order, and termination.",
+  "signature": "void fd2_flood_fill_movement_range_recursive(uint8 x, uint8 y, uint8 cost, uint8 *btm_ptr)",
+  "params": [
+    {
+      "name": "x",
+      "type": "uint8",
+      "semantics": "Current tile X coordinate (column). Binary register DL. Used for the right-direction bound (x+1)<map_width, the left-direction guard x!=0, and passed (incremented/decremented) into the horizontal recursive calls.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches usage, no address residue."
+    },
+    {
+      "name": "y",
+      "type": "uint8",
+      "semantics": "Current tile Y coordinate (row). Binary register DH. Used for the down-direction bound (y+1)<map_height, the up-direction guard y!=0, and passed (incremented/decremented) into the vertical recursive calls.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches usage, no address residue."
+    },
+    {
+      "name": "cost",
+      "type": "uint8",
+      "semantics": "Residual movement budget remaining at this tile (higher = closer to origin). Binary register CL. Passed unchanged to fd2_flood_fill_neighbor_step for each direction; the helper returns the reduced residual that is then handed to the recursive call.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of the residual movement budget, matches usage, no address residue."
+    },
+    {
+      "name": "btm_ptr",
+      "type": "uint8 *",
+      "semantics": "Pointer to this tile's marker byte in the battle tile map (4 bytes/tile). Binary register EBX. The neighbour step reads the attribute word at [btm_ptr-3..-2] and the flags byte at [btm_ptr-1] and writes the marker at [btm_ptr]; horizontal neighbours are btm_ptr +/- 4, vertical neighbours are btm_ptr +/- (map_width*4) stride.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "btm = battle tile map; clearly defined in the source comment, matches usage, no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. All effect is side-effect: marker bytes in the battle tile map are written (via fd2_flood_fill_neighbor_step) for every tile reachable within the cost budget."
+  },
+  "reads_globals": [
+    "data_fd2_battle_pathfind_map_width",
+    "data_fd2_battle_pathfind_map_height"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "595a5fd49c09028687b67a97574b9232dd0be2b0",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly (0x4E0DC-0x4E16D, 46 instrs) verified against the source emit: 7-byte EDI frame push/pop, direction order right/left/down/up, bounds tests (INC DL/CMP map_width/JNC; OR DL,DL/JZ; INC DH/CMP map_height/JNC; OR DH,DH/JZ), pointer steps (ADD/SUB EBX,4 horizontal; ADD/SUB EBX,EBP vertical), CALL 0x4E16E neighbour step + JC-skip + CALL 0x4E0DC self-recurse all match. Source comment (lines 38-74) and Ghidra plate are both accurate and consistent with verified behaviour; neither edited. Globals: reads map_width (stride + right bound) and map_height (down bound); no direct global writes (marker writes go through the EBX pointer inside the neighbour-step helper). Pre-existing modified shards for other addresses (000320fc/000353cc/0003616e/0005414b) were left untouched; only this shard staged."
+}

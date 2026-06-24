@@ -1,0 +1,53 @@
+{
+  "address": "0x00013e9c",
+  "name_current": "fd2_ai_advance_to_nearest_team_target",
+  "name_final": "fd2_ai_advance_to_nearest_team_target",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> with domain=ai. Descriptor accurately states behavior: find the nearest runtime char matching the team selector and walk char_idx toward it (advance). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/battle/btl_aitg.c",
+  "purpose": "Battle AI movement helper: find the nearest alive char matching the team selector and walk the acting char toward it; returns whether a move happened.",
+  "logic_summary": "Reads self position from runtime_char[char_idx] (bPos_x/bPos_y). best_dist=0xFFFF, best_x=-1. Scans scan=0..party_member_count-1: with asymmetric team filter (team==0 picks chars with bTeam!=0; team!=0 picks chars with bTeam==0), computes Manhattan distance abs(self_x-pos_x)+abs(self_y-pos_y); tracks the minimum and records that char's (x,y) into best_x/best_y. If no candidate found (best_x stays -1) return 0. If the nearest target is already on self's tile (best_x==self_x && best_y==self_y) return 0 (no move). Otherwise: battle_anim_phase=0, pan cursor to char, call fd2_ai_walk_to_target_tile(best_x,best_y,char_idx,team); set moved=1 iff the walk returned non-zero; battle_anim_phase=1; return moved.",
+  "signature": "int __cdecl fd2_ai_advance_to_nearest_team_target(uint32 char_idx, uint32 team)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Runtime index of the acting AI character. Used to read self position from runtime_char[char_idx], pan the cursor to it, and as the walk source.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate, conventional name for a runtime_char index; no address residue."
+    },
+    {
+      "name": "team",
+      "type": "uint32",
+      "semantics": "Asymmetric team selector used as the candidate filter (team==0 -> pick bTeam!=0; team!=0 -> pick bTeam==0). Caller (fd2_enemy_turn_action_dispatcher) passes its ctx_flag; the value is also forwarded as the ctx arg to fd2_ai_walk_to_target_tile.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches body usage (purely a team filter) and is consistent with sibling AI helpers (team_selector / team_filter); not address residue."
+    }
+  ],
+  "returns": {
+    "type": "int (bool)",
+    "semantics": "1 if a move was performed (target found, not already on self tile, and fd2_ai_walk_to_target_tile returned non-zero); 0 otherwise (no candidate, already at target tile, or walk failed)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_party_member_count"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Decompile shows a confusing 'moved = (moved_flag = best_x/best_y) != 0' artifact, but disassembly confirms the actual returned 'moved' (stored at [ESP], init 0) is set to 1 only via TEST EAX/JZ on fd2_ai_walk_to_target_tile's return value (00013fb4-00013fb8). The src already models this correctly as 'if (walk_result != 0) moved = 1;'. No logic change made (refine touches name-judgement + comments only). Src comment block (btl_aitg.c lines 629-634) was already concise and accurate -> kept. Ghidra plate is detailed, consistent with src, and not contradictory -> left untouched."
+}

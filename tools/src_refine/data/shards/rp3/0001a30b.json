@@ -1,0 +1,47 @@
+{
+  "address": "0001a30b",
+  "name_current": "fd2_run_full_turn_cycle",
+  "name_final": "fd2_run_full_turn_cycle",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor> (battle/turn domain). Descriptor 'run_full_turn_cycle' accurately names the behavior: it runs the complete end-of-player-turn -> NPC turn -> enemy turn -> new-player-turn cycle as one orchestration. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/battle/btl_turn.c",
+  "purpose": "Orchestrate the full battle turn transition after the player phase ends: auto-heal the player party, fire end-of-player-turn chapter events, run the NPC (team 1) and enemy (team 0) AI turns with banner intros and BGM swaps, then set up the new player turn (turn counter bump, TURN N reveal animation, cursor re-arm).",
+  "logic_summary": "Phase A: two passes over the player party (qualifier team==2, (flags&0x81)==0, status_flags_block[4](poison)==0, status_sleep_flag==0, hp_current!=hp_max). Pass 1 paints a heal indicator (mode 2, color 0xFD) and sets any_to_heal; after blit it plays a heal chime if any qualified. Pass 2 raises hp_current by hp_max/5 clamped to hp_max, repaints (mode 0), and marks the char acted; then blit + composite. Phase B fires chapter turn-events for phase 1 and ticks status effects(1). Phases C/D/E/F each first gate on data_fd2_chapter_event_or_battle_end_code==0 (else return). C: load speed overlay, run NPC turn (team1), free overlay. D: enemy intro -- fade out current BGM if player/enemy track differ, slide banner 0x52 in/out, clear acted flags, composite, fire phase-0 events + status tick(0). E: set enemy BGM, run enemy turn (team0). F: bump turn counter, optional fade, slide banner 0x50 in/out, anim_phase=0, clear acted flags, composite, set player BGM, run 9-step TURN N reveal into the 0xA0000 VGA aperture (rendering the turn number once step>6, extra 500ms dwell on step 8) and a 4-step zoom reveal (step iterates 2,3,4 then jumps to 9) into large_game_state_buffer+0x8088, composite + 200ms, active_char_idx=0, fire phase-2 events + status tick(2), anim_phase=1, pan cursor to char 0, clear keyboard buffer. The inter-phase early returns correspond to the binary's tail-jump to the shared epilogue 0x10B46.",
+  "signature": "void __cdecl fd2_run_full_turn_cycle(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Returns (or tail-jumps to the shared epilogue at 0x10B46) when a chapter event/battle-end interrupts the cycle between phases."
+  },
+  "reads_globals": [
+    "data_fd2_battle_party_member_count",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_audio_fdother_sfx_bank_buf_ptr",
+    "data_fd2_chapter_event_or_battle_end_code",
+    "data_fd2_audio_per_chapter_player_turn_bgm_track",
+    "data_fd2_audio_per_chapter_enemy_turn_bgm_track",
+    "data_fd2_chapter_current_chapter_id",
+    "data_fd2_battle_turn_counter",
+    "data_fd2_ui_anim_sprite_sheet_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_turn_counter",
+    "data_fd2_battle_anim_phase",
+    "data_fd2_battle_current_active_char_idx"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "d8a7ebba4987191d399247bc3a6e4a9e2f54d998",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (lines 383-414) is already accurate, concise, and complete: it documents all six phases, the heal qualifier, the gate/early-exit semantics, and a NOTE about a Ghidra EAX-tracking bug. I verified that NOTE against the disassembly: in both reveal loops fd2_alloc_and_blit_indexed_sprite_chunk's return is captured (MOV EBX,EAX at 0x1a65d and 0x1a6d0) and passed as fd2_cleanup_dialog_sprite_buffer's first arg (PUSH EBX at 0x1a624 / 0x1a748), so the save-buffer encoding in src is correct, not the decompiler's sprite-index/dest rendering. The 4-step loop's step sequence (2,3,4 then jumps to 9) matches the asm (MOV ESI,2; CMP ESI,5; MOV ESI,9 at 0x1a69e/0x1a757/0x1a760). All runtime_char field names in src (flags/team/status_flags_block[4]/status_sleep_flag/hp_current/hp_max) match src/include/types.h offsets 5/6/0x21+4/0x26/0x40/0x42 and the Ghidra decomp field set. The inter-phase 'return;' statements are semantically equivalent to the binary's JNZ 0x10B46 (shared epilogue). No logic concerns: this is a pure orchestrator and the body matches the decompilation exactly. Name kept, comment kept, plate left untouched (consistent and not stale). reads/writes_globals: runtime_char_array appears in both because pass 2 read-modify-writes hp_current and flags (acted bit). 2 callers: fd2_check_all_player_acted_or_asleep, fd2_field_command_menu_loop (3 call sites)."
+}

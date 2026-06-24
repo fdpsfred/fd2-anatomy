@@ -77,7 +77,12 @@ void fd2_dpmi_free_dos_memory(uint32 linear_unused, uint32 segment_unused,
  * fd2_dpmi_lock_region @ 0x36284
  *
  * DPMI fn 0x600: lock linear memory region (prevent page-out).
- * page_start and page_end are page numbers (addr >> 12).
+ * The two args are the start and end LINEAR byte addresses of the region
+ * (auto-swapped so order does not matter); the locked size in bytes is
+ * (max - min) + 1. Packed into the DPMI regs as BX:CX = base linear addr,
+ * SI:DI = size in bytes. Callers (AIL setup, fd2_dpmi_lock_size) pass raw
+ * linear addresses, not page numbers. Returns 1 on success (CF clear), 0 on
+ * failure.
  * ---------------------------------------------------------------- */
 int fd2_dpmi_lock_region(uint32 page_start, uint32 page_end)
 {
@@ -139,6 +144,8 @@ int fd2_dpmi_lock_size(uint32 base, uint32 size)
  *
  * Unlock a region starting at `base` of `size` bytes.
  * Wrapper: calls fd2_dpmi_unlock_region(base, base + size).
+ * Tail-wrapper: the callee's int result (1 on success / 0 on failure)
+ * is returned straight through. Sibling of fd2_dpmi_lock_size.
  * ---------------------------------------------------------------- */
 int fd2_dpmi_unlock_size(uint32 base, uint32 size)
 {

@@ -1,0 +1,43 @@
+{
+  "address": "0x00024e80",
+  "name_current": "fd2_chapter_26_end",
+  "name_final": "fd2_chapter_26_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the fd2_<domain>_<descriptor> convention (domain=chapter, descriptor=26_end). The trailing 26 is the chapter ID (chapters 01-30 are meaningful game-domain IDs), not an address residue: the function lives at 0x24E80 and '26' matches no part of that address. Confirmed as the chapter-26 end handler by the dispatch-table xref (data_fd2_chapter_end_handler_table[26] @ 0x51E4D holds little-endian 80 4E 02 00 = 0x24E80, immediately after the chapter-27 entry cc 50 02 00 = 0x250CC) and by the body advancing data_fd2_chapter_current_chapter_id.",
+  "kind": "function",
+  "home": "ROOT/src/field/chend2.c",
+  "purpose": "Chapter 26 end handler: positions the post-battle cast (including the special robot NPC 機器人渥德), re-aims the camera, and plays the five post-battle dialog/cutscene pages with two pages selected dynamically by which treasure box the party opened, then saves runtime chars and advances the chapter id.",
+  "logic_summary": "1) Prologue copies three 16-byte chapter-26 end-scene tables (pos_x/pos_y/facing @ 0x522D6/0x522E6/0x522F6) into stack scratch (4 dwords each). 2) Loop slots 0x10..party_member_count: any runtime_char with portrait_id 0x1F (機器人渥德) is force-positioned to tile (0x10, 6). 3) fd2_setup_chars_and_camera_for_intro(pos_x,pos_y,facing,0,0xF,0,0,0,0,9,5) places the cast and re-aims the camera. 4) Five fd2_display_dialog_scene calls interleaved with fd2_cutscene_event_trigger(0x4D..0x50), each resetting data_fd2_battle_anim_phase=0 between scenes; the 1st dialog page = tile_event_consumed_flags[0xC]+5 and the 3rd = tile_event_consumed_flags[0xC]+8 (flag value 0..4 = which of 5 treasure boxes was opened), while pages 7, 10, 11 are fixed. 5) fd2_save_runtime_char_to_template(); data_fd2_chapter_current_chapter_id += 1. No char recruited here -- 機器人渥德 joins via an FDFIELD event; this handler only positions it.",
+  "signature": "void __cdecl fd2_chapter_26_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: writes runtime_char positions, advances the global chapter id, drives dialog/cutscene playback."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch26_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch26_end_scene_char_pos_y_table",
+    "data_fd2_chapter_ch26_end_scene_char_facing_table",
+    "data_fd2_battle_party_member_count",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_current_chapter_text",
+    "data_fd2_field_map_tile_event_consumed_flags_ptr",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": "Source comment content was accurate and concise but contained two U+2014 EM DASH characters (lines 591 and 604) which violate the src ASCII-only rule (em-dash must be '--'). Chinese proper nouns (chapter title in corner brackets, 機器人渥德, 寶箱) are permitted and were left intact.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "862ef66bd87d9490ebaf9dfaacc62a1a03d1270c",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source already matched the decompilation exactly (struct fields pos_x/pos_y/portrait_id and all referenced globals verified against src/include/types.h and src/include/globals.h). Name and params need no change; only the two em-dash ASCII fixes were applied. Ghidra plate is detailed and consistent with the refined understanding (its internal em-dash/arrow are KB-side punctuation, not subject to the src ASCII rule), so the plate was left untouched. Clobber guard confirmed exactly the two intended comment lines were modified; no other function affected. The corner brackets 「」 around the chapter title are the file-wide convention used by all 11 sibling end handlers to delimit the Chinese proper-noun title and were preserved for consistency."
+}

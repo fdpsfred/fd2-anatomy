@@ -1,0 +1,60 @@
+{
+  "address": "00012e38",
+  "name_current": "fd2_read_tile_attribute_at_pos",
+  "name_final": "fd2_read_tile_attribute_at_pos",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name follows the fd2_<verb>_<descriptor> game-function convention, accurately reflects the logic (reads a battle-map tile's metadata + per-sprite attribute record at a given grid position into a caller buffer), and carries no Ghidra address residue. 'tile_attribute' matches the global it reads (data_fd2_tile_attribute_flags_buffer_ptr) and the *_at_pos suffix matches the (world_x, world_y) lookup. Consistent with battle.c siblings (fd2_read_tile_attribute_at_pos is itself cited as the form exemplar in the fd2_recompute_runtime_char_total_stats shard).",
+  "kind": "function",
+  "home": "src/battle/battle.c",
+  "purpose": "Read battle-map tile metadata (sprite index + terrain class) and the tile's 4-byte per-sprite attribute-flag record at grid position (world_x, world_y), unpacking all of it into an 8-byte caller-supplied output buffer. The wide-xref accessor every battle subsystem uses to query a tile's properties (terrain AP/DP modifier, movement cost, event-tile detection, cursor-overlay attribute check).",
+  "logic_summary": "__CHK(0xC) frame check at entry. Computes tile_meta_addr = data_fd2_battle_tile_map_ptr + (world_y*data_fd2_battle_map_width_tiles + world_x)*4 (4-byte tile meta cells, row-major). Reads sprite_idx = *(u16)(tile_meta_addr+4) & 0x3FF (10-bit tile-sheet index) and terrain_byte = *(u8)(tile_meta_addr+6). Writes out_buf[+0 u16]=sprite_idx, out_buf[+2 u16]=terrain_byte&0x1F (5-bit terrain class). Then attr_ptr = data_fd2_tile_attribute_flags_buffer_ptr + (int16)sprite_idx*4 and copies the 4 attribute bytes to out_buf[+4..+7]. Single basic block, no early returns, cyclomatic complexity 1.",
+  "signature": "void __cdecl fd2_read_tile_attribute_at_pos(uint32 world_x, uint32 world_y, uint32 out_buf)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "world_x -- tile column (grid X) of the cell to query. Used as the low term of the row-major index (world_y*width + world_x)*4 into the tile-meta map. Callers pass a character's grid X from the runtime char array (e.g. pAttacker[0]) or an explicit map column. In Ghidra still the generic placeholder param_1; src already names it world_x.",
+      "verdict": "rename",
+      "proposed": "world_x",
+      "reason": "Ghidra name param_1 is a generic placeholder that does not reflect usage (it is the tile column / grid X). Source already uses the accurate name world_x; align Ghidra to it in Stage 2. Not applied here (param rename deferred to Stage 2)."
+    },
+    {
+      "name": "param_2",
+      "type": "uint32",
+      "semantics": "world_y -- tile row (grid Y) of the cell to query. Multiplied by data_fd2_battle_map_width_tiles to form the row offset of the row-major tile-meta index. Callers pass a character's grid Y (e.g. pAttacker[1]) or an explicit map row. In Ghidra still the generic placeholder param_2; src already names it world_y.",
+      "verdict": "rename",
+      "proposed": "world_y",
+      "reason": "Ghidra name param_2 is a generic placeholder that does not reflect usage (it is the tile row / grid Y). Source already uses the accurate name world_y; align Ghidra to it in Stage 2. Not applied here (param rename deferred to Stage 2)."
+    },
+    {
+      "name": "param_3",
+      "type": "uint32",
+      "semantics": "out_buf -- address of the caller-supplied 8-byte output buffer the unpacked tile data is written to (+0 u16 sprite_idx, +2 u16 terrain_class, +4..+7 the 4-byte attribute record). Callers pass a local stack buffer (e.g. tile_attr_buf) and then read fields back; e.g. combat code reads byte +5 (attr record byte +1) as a terrain-effect class id indexing the AP/DP terrain-modifier tables. In Ghidra still the generic placeholder param_3; src already names it out_buf.",
+      "verdict": "rename",
+      "proposed": "out_buf",
+      "reason": "Ghidra name param_3 is a generic placeholder that does not reflect usage (it is the output buffer pointer). Source already uses the accurate name out_buf; align Ghidra to it in Stage 2. Not applied here (param rename deferred to Stage 2)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: writes 8 bytes into the caller buffer at out_buf -- +0 u16 sprite_idx (10-bit), +2 u16 terrain_class (5-bit), +4..+7 the 4-byte per-sprite attribute-flag record."
+  },
+  "reads_globals": [
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_battle_map_width_tiles",
+    "data_fd2_tile_attribute_flags_buffer_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against: Ghidra decompile (matches src logic exactly, incl. the (int16)sprite_idx*4 signed cast for attr_ptr), 18 callers / 22 call sites via get_function_callers + get_xrefs_to, and two representative callers (fd2_ai_score_physical_attack @ 0x14237 and fd2_execute_attack_damage_calculation) which pass a runtime char's pAttacker[0]/pAttacker[1] as world_x/world_y and read out_buf byte +5 (attr-record byte +1) as a tile_id indexing data_fd2_battle_tile_attr_mv_modifier_table / data_fd2_battle_tile_attr_def_modifier_table for terrain AP/DP percentage bonuses -- confirming the +4..+7 record is a per-sprite tile-attribute record whose 2nd byte is a terrain-effect class id. The 53Axx-range globals are runtime BSS pointers (no offsets.json/static-table entry; expected). Src comment block (lines 505-515) is correct and concise (8-byte layout + field semantics) -> kept; no Edit to battle.c. Ghidra plate is more detailed but fully consistent with the refined understanding -> left unchanged. No logic touched. NOTE (cosmetic, deferred to Stage 2): protos.h:63 declares params as (x, y, buf_ptr) while battle.c:516 defines (world_x, world_y, out_buf); the def names are the good ones -- proto can be aligned alongside the Ghidra param rename in Stage 2."
+}

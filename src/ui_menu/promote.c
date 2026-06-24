@@ -198,10 +198,12 @@ int fd2_promote_members_select_loop(uint32 candidate_count, uint8 *candidate_idx
  * ESC(0x01) -> return -1.
  *
  * Sole caller: fd2_run_class_promotion_menu_main @ 0x31385. Unlike the
- * revive picker, this one takes a THIRD param (price_aux_list_ptr; the
- * caller passes target_classes[]) and renders via the 5-arg
- * fd2_render_promote_candidates_grid (which shows the post-promotion
- * target job per candidate).
+ * revive picker, this one takes a THIRD param: the per-candidate
+ * post-promotion target-class list (caller passes target_classes[]).
+ * It renders via the 5-arg fd2_render_promote_candidates_grid, which
+ * feeds each target class to fd2_get_class_promotion_data_entry to show
+ * the post-promotion target job (the "current job -> target job" arrow)
+ * per candidate.
  *
  * int __cdecl with the __CHK(0x28) stack-probe prologue (compiler-
  * injected, not part of the source). ESI is the result accumulator
@@ -413,16 +415,20 @@ void fd2_execute_class_promotion_with_dialog(uint32 char_idx)
  *   - reads runtime_char[char_idx] (stride 0x50): portrait_id at +0x07,
  *     level at +0x21 (status_flags_block[0]).
  *   - skip unless level >= 0x14 (20) AND portrait_id < 0x12 (basic
- *     classes 0..0x11 only) AND portrait_id != 7 (索爾/Sol main lord,
- *     reserved for a special path).
+ *     classes 0..0x11 only) AND portrait_id != 7 (蘭斯洛特/Lancelot, a
+ *     fixed class with no promotion path -- handled elsewhere).
  *   - else record: out_chars[count] = char_idx;
- *     out_targets[count] = portrait_id + 0x20 (default tier-1 upgrade).
+ *     out_targets[count] = portrait_id + 0x20 (default tier-1 upgrade,
+ *     e.g. base class 9 悠妮/Yuni -> 0x29 大法師/Archmage).
  *   - if fd2_find_inventory_slot_with_item(char_idx, key_item) != -1
- *     (has the required class-change key item, where key_item =
+ *     (unit holds the matching class-change item, where key_item =
  *     data_fd2_ui_per_basic_portrait_class_change_key_item_id_table
- *     [portrait_id]): out_targets[count] = portrait_id + 0x32 (alt path).
- *   - special: if portrait_id == 9 (主角/Lord candidate) AND the unit
- *     holds item 0x5A (Sword): out_targets[count] = 0x34 (Lord direct).
+ *     [portrait_id]): out_targets[count] = portrait_id + 0x32 (alt
+ *     advanced-tier branch, e.g. portrait 9 + item 0x58 聖者之戒
+ *     -> 0x3B 聖者/Saint).
+ *   - special: if portrait_id == 9 (悠妮/Yuni) AND the unit holds item
+ *     0x5A (精靈契印, Yuni's summoner class-change item):
+ *     out_targets[count] = 0x34 (悠妮（召喚師）/Yuni Summoner branch).
  *   - count++.
  *
  * Sole caller: fd2_run_class_promotion_menu_main @ 0x31385.

@@ -1,0 +1,53 @@
+{
+  "address": "0x0001ca89",
+  "name_current": "fd2_deduct_caster_mp",
+  "name_final": "fd2_deduct_caster_mp",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> form (battle MP primitive) and accurately describes behavior: deducts the caster's MP by the spell's MP cost. No address residue in the name.",
+  "kind": "function",
+  "home": "src/battle/battle.c",
+  "purpose": "Subtract a spell's MP cost from the caster's current MP on a successful cast.",
+  "logic_summary": "Looks up the 7-byte spell_effect_table row via fd2_get_spell_effect_entry(spell_id); reads MP cost from row offset +5 (byte); subtracts it from data_fd2_battle_runtime_char_array_ptr[caster_idx].mp_current (struct +0x44, u16). No clamp -- callers gate on MP affordability beforehand. Leading PUSH 0xc; CALL __CHK is the Watcom stack probe (12-byte local frame), not a bounds check.",
+  "signature": "void fd2_deduct_caster_mp(uint32 caster_idx, uint32 spell_id)",
+  "params": [
+    {
+      "name": "caster_idx",
+      "type": "uint32",
+      "semantics": "Index into data_fd2_battle_runtime_char_array_ptr (stride 0x50) selecting the casting unit whose mp_current is decremented.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and matches body usage (array index); no address residue."
+    },
+    {
+      "name": "spell_id",
+      "type": "uint32",
+      "semantics": "Spell id passed to fd2_get_spell_effect_entry to fetch the spell_effect_table row whose +5 byte is the MP cost.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and matches body usage (spell-table lookup key); no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; side effect is the in-place decrement of mp_current."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_spell_effect_table (via fd2_get_spell_effect_entry)"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr[caster_idx].mp_current"
+  ],
+  "comment_original_issue": "src comment was only a header line (name + caller count) with no behavior description; augmented to a concise correct description. Ghidra plate carried a stale/incorrect struct map: it claimed a '+9 = MP_recover (TBD verify)' field on what KB confirms is a 7-byte spell_effect row, and used outdated field names (base_power/chance_pct); plate rewritten to the verified 7-byte layout (DA/HT/DS/RN/MP/WH).",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified via disassembly: caster_idx*0x50 stride, base ptr [0x53a45]=data_fd2_battle_runtime_char_array_ptr, MOVZX word [EAX+0x44]=mp_current, MOVZX byte [EDX+5]=MP cost, SUB then store -- matches types.h (mp_current @ +0x44) and KB spell_entry (+5 = MP cost). fd2_get_spell_effect_entry @ 0x4E516 returns &data_fd2_battle_spell_effect_table[spell_id]."
+}

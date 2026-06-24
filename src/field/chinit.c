@@ -511,12 +511,12 @@ void fd2_chapter_07_init(void)
  * (pages 0/1) bracketing two cutscenes (event ids 0x1F / 0x20), each
  * cutscene preceded by a camera pan, before handing the chapter off
  * to the player. There is NO char init, NO portrait load, and NO
- * global-state writes at all — chapter 8 carries the party over from
+ * global-state writes at all -- chapter 8 carries the party over from
  * chapter 7.
  *
  * Unlike the other chapter inits, this handler never resets
  * data_fd2_battle_anim_phase (there is no MOV [0x51A83],0 anywhere on
- * its code path, not even between the two dialog pages) — it is a pure
+ * its code path, not even between the two dialog pages) -- it is a pure
  * sequence of void side-effect calls.
  *
  * void __cdecl, no real params, void return. The leading __CHK(0x28)
@@ -535,7 +535,7 @@ void fd2_chapter_07_init(void)
  *
  * Linked handlers:
  *   End:         fd2_chapter_08_end @ 0x234BB
- *   Post-action: (default — fd2_check_battle_end_default_handler
+ *   Post-action: (default -- fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
  * Walkthrough SOT: assets/chapters/chapter_08.md
@@ -662,11 +662,11 @@ void fd2_chapter_10_init(void)
  * orchestrator that plays three dialog pages (pages 0/1/2), loads
  * portrait set 1 after page 0, and chains two cutscenes (event ids
  * 0x26 / 0x27) between the pages, before handing the chapter off to
- * the player. There is NO char init — chapter 11 carries the party
+ * the player. There is NO char init -- chapter 11 carries the party
  * over from chapter 10.
  *
  * data_fd2_battle_anim_phase is reset to 0 after page 0 only; pages 1
- * and 2 have no reset — page 2 is the tail before the final
+ * and 2 have no reset -- page 2 is the tail before the final
  * clear-facing + camera-to-char pan.
  *
  * void __cdecl, no real params, void return. The leading __CHK(0x28)
@@ -682,7 +682,7 @@ void fd2_chapter_10_init(void)
  *
  * Linked handlers:
  *   End:         fd2_chapter_11_end @ 0x23790
- *   Post-action: (default — fd2_check_battle_end_default_handler
+ *   Post-action: (default -- fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
  * Walkthrough SOT: assets/chapters/chapter_11.md
@@ -767,12 +767,12 @@ void fd2_chapter_12_init(void)
 /* ----------------------------------------------------------------
  * fd2_chapter_13_init @ 0x3346B  (dispatched, 0 direct callers)
  *
- * Chapter 13「哈斯米爾之戰」init handler — the smallest chapter init
+ * Chapter 13「哈斯米爾之戰」init handler -- the smallest chapter init
  * in the game (17 bytes). It only re-inits battle state, plays a
  * single dialog page (page 0), and pans the camera to char 0. There
  * is NO cutscene, NO portrait load, NO char init, NO camera-pan-and-
  * window prelude, NO data_fd2_battle_anim_phase reset, and NO
- * clear-facing — chapter 13 carries the party over from chapter 12.
+ * clear-facing -- chapter 13 carries the party over from chapter 12.
  *
  * void __cdecl, no real params, void return. The leading __CHK(0x28)
  * stack-probe is the Watcom-injected frame-size check and is not part
@@ -789,13 +789,15 @@ void fd2_chapter_12_init(void)
  * reconstruction.
  *
  * Shared alt-entry:
- *   0x33470 (the fd2_init_battle_state_for_chapter CALL onward) is
- *   itself tail-JMPed into by fd2_chapter_16_init and
- *   fd2_chapter_19_20_21_init_shared.
+ *   0x33470 (the CALL __CHK site, i.e. fd2_chapter_13_init + 5; the
+ *   __CHK + init-battle-state + tail-JMP run from here) is itself
+ *   tail-JMPed into by fd2_chapter_16_init and
+ *   fd2_chapter_19_20_21_init_shared, each of which pushes its own
+ *   frame-size arg before entering.
  *
  * Linked handlers:
  *   End:         fd2_chapter_13_end @ 0x2389F
- *   Post-action: fd2_chapter_13_post_action @ 0x20765 — non-default:
+ *   Post-action: fd2_chapter_13_post_action @ 0x20765 -- non-default:
  *     (1) chars[0xF..0x1A] (12 NPCs) all dead = lose + dialog page 10;
  *     (2) save_metadata > 5 AND char[0x3B] dead = lose + dialog page 2.
  *
@@ -923,14 +925,14 @@ void fd2_chapter_15_init(void)
  * fd2_chapter_16_init @ 0x335A0  (dispatched, 0 direct callers)
  *
  * Chapter 16「冰原之戰」init handler. In the binary this is a PURE
- * THUNK — physically just two instructions, PUSH 0x28 then JMP 0x33470
- * — that tail-jumps into the shared body owned by fd2_chapter_13_init.
+ * THUNK -- physically just two instructions, PUSH 0x28 then JMP 0x33470
+ * -- that tail-jumps into the shared body owned by fd2_chapter_13_init.
  * 0x33470 is fd2_chapter_13_init + 5 (its CALL __CHK site), so chapter
  * 16 shares the entire chapter-13 tail and runs the IDENTICAL body:
  * re-init battle state, play a single dialog page (page 0), pan the
  * camera to char 0. There is NO cutscene, NO portrait load, NO char
  * init, NO camera-pan-and-window prelude, NO data_fd2_battle_anim_phase
- * reset, and NO clear-facing — chapter 16 carries the party over from
+ * reset, and NO clear-facing -- chapter 16 carries the party over from
  * the previous chapter. It is a member of the minimal/smallest init
  * family (cf. chapter 13 @0x3346B / chapter 06 @0x3314B).
  *
@@ -942,18 +944,18 @@ void fd2_chapter_15_init(void)
  * In the binary the whole body after the frame check is reached by the
  * tail-JMP 0x335A5 -> 0x33470 (= fd2_chapter_13_init + 5): CALL
  * fd2_init_battle_state_for_chapter, then JMP 0x3344D into the same
- * shared page-0 dialog chain used by chapters 06/10/13/14 — 0x3344D
+ * shared page-0 dialog chain used by chapters 06/10/13/14 -- 0x3344D
  * (page-0 dialog-arg push, owned by fd2_chapter_12_init) -> 0x33206
  * (the fd2_display_dialog_scene call, in fd2_chapter_07_init) -> 0x33140
  * (the fd2_pan_cursor_to_char(0) + RET tail, owned by fd2_chapter_05_init,
  * entered directly without a clear-facing). The straight-line form here
- * is the functionally-equivalent (Layer 2) reconstruction — identical to
+ * is the functionally-equivalent (Layer 2) reconstruction -- identical to
  * the fd2_chapter_13_init body, as documented at its 0x33470 alt-entry.
  *
  * Linked handlers:
  *   End:         fd2_chapter_16_end @ 0x23A0A
  *   Post-action: fd2_chapter_16_post_action @ 0x2084A
- *                (extra lose if char[0x41] dead — 蜜蒂 NPC)
+ *                (extra lose if char[0x41] dead -- 蜜蒂 NPC)
  *
  * (蜜蒂 conditional recruit logic lives in fd2_chapter_16_end: HP_max >= 320
  * + save_metadata < 19 + chars[0x42..0x49] dead <= 4; char id 0x12 added.)
@@ -977,11 +979,11 @@ void fd2_chapter_16_init(void)
  * (char id 0x12) is NOT currently in the party, plays a single dialog
  * page (page 0), and pans the camera to char 0. There is NO cutscene,
  * NO char init, NO camera-pan-and-window prelude, NO
- * data_fd2_battle_anim_phase reset, and NO clear-facing — chapter 17
+ * data_fd2_battle_anim_phase reset, and NO clear-facing -- chapter 17
  * carries the party over from the previous chapter.
  *
  * The portrait load is gated by fd2_check_party_has_char_id(0x12): the
- * disassembly is TEST EAX,EAX; JNZ (skip the load) — so the load runs
+ * disassembly is TEST EAX,EAX; JNZ (skip the load) -- so the load runs
  * only on the return == 0 (蜜蒂 absent) branch. The TEST EAX,EAX
  * consumes the genuine return value of the CALL (not a Ghidra
  * EAX-tracking artifact).
@@ -1003,7 +1005,7 @@ void fd2_chapter_16_init(void)
  *
  * Linked handlers:
  *   End:         fd2_chapter_17_end @ 0x23B5F
- *   Post-action: fd2_chapter_17_post_action @ 0x20872 — gated lose:
+ *   Post-action: fd2_chapter_17_post_action @ 0x20872 -- gated lose:
  *     蜜蒂(char 0x12) not joined AND char[0x34] dead -> page 2 + lose.
  *
  * Walkthrough SOT: assets/chapters/chapter_17.md
@@ -1146,12 +1148,12 @@ void fd2_chapter_19_20_21_init_shared(void)
  * orchestrator: it re-inits battle state, pans the camera-and-window
  * once (target 0x10, 0x1C), plays a single cutscene (event id 0x43),
  * clears all facings, plays exactly one dialog page (page 0), and pans
- * the camera to char 0. There is NO portrait load and NO char init —
+ * the camera to char 0. There is NO portrait load and NO char init --
  * chapter 22 carries the party over from the previous chapter.
  *
  * Unlike chapter 06, this handler never resets
  * data_fd2_battle_anim_phase (there is no MOV [0x51A83],0 anywhere on
- * its code path) — page 0 is the sole, tail dialog page. Note the
+ * its code path) -- page 0 is the sole, tail dialog page. Note the
  * clear-facing happens BEFORE the dialog page here (between cutscene
  * 0x43 and the dialog), not after it.
  *
@@ -1173,8 +1175,9 @@ void fd2_chapter_19_20_21_init_shared(void)
  *
  * Linked handlers:
  *   End:         fd2_chapter_22_end @ 0x244B6
- *   Post-action: fd2_chapter_22_post_action @ 0x20A87 (shared with
- *                ch27/28) — extra lose if char[1] dead (希爾法).
+ *   Post-action: fd2_chapter_22_27_28_post_action_shared @ 0x20A87
+ *                (shared with ch27/28) -- extra lose if runtime_char[1]
+ *                dead (the slot-1 ally is 希爾法 in chapter 22).
  *
  * Walkthrough SOT: assets/chapters/chapter_22.md
  * ---------------------------------------------------------------- */
@@ -1304,7 +1307,7 @@ void fd2_chapter_23_init(void)
  * four map corners holding 400ms at each, plays a second dialog page
  * (page 1), and pans the camera to char 0. There is NO cutscene, NO
  * char init, NO data_fd2_battle_anim_phase reset, and NO clear-facing
- * — chapter 24 carries the party over from the previous chapter.
+ * -- chapter 24 carries the party over from the previous chapter.
  *
  * The four corner pans are fd2_pan_cursor_and_window(ox, oy) to
  * (0, 4) -> (0, 0x16) -> (0x1A, 0x18) -> (0x1A, 2), each immediately
@@ -1314,14 +1317,14 @@ void fd2_chapter_23_init(void)
  * stack-probe is the Watcom-injected frame-size check and is not part
  * of the source body. It is a pure straight-line orchestrator: NO
  * numeric computation, NO RNG, NO data-dependent branch, and NO
- * CALL-result consumption (no Ghidra EAX-tracking-bug exposure) — the
+ * CALL-result consumption (no Ghidra EAX-tracking-bug exposure) -- the
  * dialog-scene CALL returns are discarded.
  *
  * In the binary this handler physically contains only its entry block
  * (init battle state, page-0 dialog, portrait load, and the 4-corner
  * scan); after the final hold it tail-JMPs (0x33965 -> 0x331EA) into
- * the alt-entry owned by fd2_chapter_07_init — the page-1 dialog-arg
- * push (PUSH text; PUSH 1; CALL fd2_display_dialog_scene) — which in
+ * the alt-entry owned by fd2_chapter_07_init -- the page-1 dialog-arg
+ * push (PUSH text; PUSH 1; CALL fd2_display_dialog_scene) -- which in
  * turn JMPs (0x33214 -> 0x33140) into the shared epilogue owned by
  * fd2_chapter_05_init (fd2_pan_cursor_to_char(0); RET, entered directly
  * without a clear-facing). The straight-line form here is the
@@ -1329,7 +1332,7 @@ void fd2_chapter_23_init(void)
  *
  * Linked handlers:
  *   End:         fd2_chapter_24_end @ 0x24C1E
- *   Post-action: (default — fd2_check_battle_end_default_handler
+ *   Post-action: (default -- fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
  * Walkthrough SOT: assets/chapters/chapter_24.md
@@ -1356,7 +1359,7 @@ void fd2_chapter_24_init(void)
 /* ----------------------------------------------------------------
  * fd2_chapter_25_init @ 0x3396A  (dispatched, 0 direct callers)
  *
- * Chapter 25「火焰的審判」init handler — the only chapter init that
+ * Chapter 25「火焰的審判」init handler -- the only chapter init that
  * stages an earthquake set-piece. It re-inits battle state, loads the
  * earthquake SFX wave from FDOTHER.DAT (entry 0x58) into the shared
  * status-effect SFX handle, plays dialog page 1, wipes the large game-
@@ -1365,14 +1368,14 @@ void fd2_chapter_24_init(void)
  * by 600ms holds, followed by a final 3x-magnitude (0x3C frames) shake
  * with no trailing hold. After the quake it plays dialog page 2, pans
  * the camera to char 0, and frees the status-effect SFX. There is NO
- * char init and NO portrait load — chapter 25 carries the party over
+ * char init and NO portrait load -- chapter 25 carries the party over
  * from the previous chapter.
  *
  * The earthquake SFX handle is stored to / replayed from the shared
  * data_fd2_audio_status_effect_sfx_handle_ptr global; it is cleared to
  * 0 before the load. The memset zeroes the 0x25680-byte
  * data_fd2_large_game_state_buffer. The fd2_load_dat_resource return
- * (the loaded wave handle) is the sole CALL-result consumed — stored to
+ * (the loaded wave handle) is the sole CALL-result consumed -- stored to
  * the handle global, matching the disassembly (MOV [0x53B13],EAX); the
  * dialog-scene CALL returns are discarded (no Ghidra EAX-tracking-bug
  * exposure on those).
@@ -1387,7 +1390,7 @@ void fd2_chapter_24_init(void)
  * Linked handlers:
  *   End:         fd2_chapter_25_end @ 0x24DF2
  *   Post-action: fd2_chapter_25_post_action @ 0x20B14
- *                (extra lose if char[0x10] dead — 聖寇拉斯)
+ *                (extra lose if char[0x10] dead -- 聖寇拉斯)
  *
  * Walkthrough SOT: assets/chapters/chapter_25.md
  * ---------------------------------------------------------------- */
@@ -1432,14 +1435,14 @@ void fd2_chapter_25_init(void)
  * orchestrator: it re-inits battle state, pans the camera-and-window
  * once (target 9, 0x27), plays a single cutscene (event id 0x4C),
  * plays exactly one dialog page (page 0), clears all facings, and pans
- * the camera to char 0. There is NO portrait load and NO char init —
+ * the camera to char 0. There is NO portrait load and NO char init --
  * chapter 26 carries the party over from the previous chapter.
  *
  * There is NO data_fd2_battle_anim_phase reset anywhere on this
  * handler's code path (no MOV [0x51A83],0): page 0 is the sole, tail
  * dialog page. It is a pure straight-line orchestrator: NO numeric
  * computation, NO RNG, NO data-dependent branch, and NO CALL-result
- * consumption (no Ghidra EAX-tracking-bug exposure) — the dialog-scene
+ * consumption (no Ghidra EAX-tracking-bug exposure) -- the dialog-scene
  * CALL return is discarded.
  *
  * void __cdecl, no real params, void return. The leading __CHK(0x28)
@@ -1458,7 +1461,7 @@ void fd2_chapter_25_init(void)
  * Linked handlers:
  *   End:         fd2_chapter_26_end @ 0x24E80
  *   Post-action: fd2_chapter_26_post_action @ 0x20B3C
- *                (extra lose if char[1] OR char[2] dead — 悠妮/亞奇梅吉)
+ *                (extra lose if char[1] OR char[2] dead -- 悠妮/亞奇梅吉)
  *
  * (9 階段密集 reinforcement turn 2/4/6/8/10/12/15/16/17 = FDFIELD event
  * 觸發, 非此 init handler.)
@@ -1479,20 +1482,20 @@ void fd2_chapter_26_init(void)
 /* ----------------------------------------------------------------
  * fd2_chapter_27_init @ 0x33AF1  (dispatched, 0 direct callers)
  *
- * Chapter 27「命運的交會點」init handler — the GOOD/BAD ENDING fork
+ * Chapter 27「命運的交會點」init handler -- the GOOD/BAD ENDING fork
  * chapter. A cinematic prologue built around three screen-wide spell
  * visual effects: it re-inits battle state, pans the camera-and-window
  * once (target 9, 0x31), plays a cutscene (event id 0x4C) and dialog
- * page 0, then — ONLY if any party member is carrying item 100
- * (天空之鑰 / Sky Key) — plays a bonus dialog page 3. It then plays
+ * page 0, then -- ONLY if any party member is carrying item 100
+ * (天空之鑰 / Sky Key) -- plays a bonus dialog page 3. It then plays
  * dialog page 4, re-pans the camera, and runs three spell-effect beats
  * each followed by a full VGA palette reset (add 0) and a dialog page,
  * before clearing all facings and panning the camera to char 0. There
- * is NO portrait load and NO char init — chapter 27 carries the party
+ * is NO portrait load and NO char init -- chapter 27 carries the party
  * over from the previous chapter.
  *
  * The Sky-Key gate is fd2_any_char_has_item(100): the disassembly is
- * CALL; CMP EAX,-1; JZ (skip page 3) — so the bonus page plays only on
+ * CALL; CMP EAX,-1; JZ (skip page 3) -- so the bonus page plays only on
  * the return != -1 (Sky Key present) branch. The CMP EAX,-1 consumes
  * the genuine return value of the CALL (not a Ghidra EAX-tracking
  * artifact); it is the sole CALL-result consumed in this handler (the
@@ -1524,7 +1527,7 @@ void fd2_chapter_26_init(void)
  *   End:         fd2_chapter_27_end @ 0x250CC (BAD: game-over hard-lock
  *                if the party has no 天空之鑰).
  *   Post-action: fd2_chapter_22_27_28_post_action_shared @ 0x20A87
- *                (shared with ch22/28) — extra lose if char[1] dead
+ *                (shared with ch22/28) -- extra lose if char[1] dead
  *                (悠妮).
  *
  * Walkthrough SOT: assets/chapters/chapter_27.md
@@ -1792,12 +1795,28 @@ void fd2_chapter_30_init(void)
 
 /* data_fd2_battle_anim_phase @ 0x51A83  (.object2, dword)
  *
- * Battle/cutscene animation-phase flag. A single 32-bit scalar that
- * many engine paths (chapter init/end handlers, AI turn logic, menu
- * and dialog loops, spell effects) toggle between 0 and 1 to gate
- * cursor-overlay animation. Cursor/paint readers test it via
- * "CMP dword ptr [0x51A83], 0" and the dedicated setter does
- * "MOV dword ptr [0x51A83], 1"; all accesses are full dword, unsigned
- * (only compared == 0 / assigned 0 or 1). The static image value is 1.
+ * Battle/field cursor-overlay mode selector. A single 32-bit scalar
+ * (unsigned, full-dword accesses) that selects which cursor highlight /
+ * range-indicator pattern fd2_paint_cursor_overlay_pattern draws, and
+ * gates cursor-redraw + animation pulses. Observed values 0..6 across
+ * all reference sites (writers assign 0/1/6 directly, others store a
+ * computed value; readers compare against 0,1,2,3,4,5,6):
+ *   0 = idle, no overlay -- cursor steppers skip the immediate composite
+ *       redraw (the main loop's next tick repaints); paint_cursor draws
+ *       nothing. Set during cutscenes / dialog / phase transitions.
+ *   1 = plain cursor box (sprite 0); normal active-turn cursor.
+ *   2 = alternate single cursor sprite (sprite 1).
+ *   3 = manhattan-range-1 ring overlay (5 sprites).
+ *   4 = manhattan-range-2 area overlay (13 sprites).
+ *   5 = manhattan-range-3 area overlay (21 sprites).
+ *   6 = clear cursor flag from tile map; also a no-pulse sentinel in
+ *       fd2_pan_cursor_to_tile_animated (skips the per-step wait).
+ * In fd2_wait_for_action_target_input the value is read as a range hint:
+ * (phase > 1 ? phase - 1 : phase) feeds the manhattan scan radius, so the
+ * range-ring phases 3/4/5 map to scan radius 2/3/4. Widely written by
+ * chapter init/end handlers, AI turn logic, menu/dialog loops, and spell
+ * effects (canonical 0-then-1 envelope around fd2_run_full_turn_cycle);
+ * fd2_set_battle_anim_phase_to_1 is the dedicated "= 1" setter. The
+ * static image value is 1.
  */
 uint32 data_fd2_battle_anim_phase = 1;

@@ -18,10 +18,16 @@
  * Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
  * handler does not read the arg.
  *
- * Effect: ch21 every-2-turns reinforcement scan — load portrait set indexed
- * by turn_counter/2 (data_fd2_battle_turn_counter, signed /2, rotates per
- * call), 4-corner camera sweep with 8-tick pauses, finally show dialog
- * page 3 only when the counter equals 2 (the 5th call).
+ * Effect: ch21 every-2-turns reinforcement scan (matches the guide: a devil
+ * appears at each of the four map corners at the end of the player's 2nd/4th/
+ * 6th/8th turns) — load portrait set indexed by turn_counter/2
+ * (data_fd2_battle_turn_counter, signed /2, rotates per call), 4-corner camera
+ * sweep with 8-tick pauses, finally show dialog page 3 only on the turn-2 call
+ * (when the counter equals 2, the first of the four firings).
+ *
+ * The global at 0x53BEF is the battle turn counter (written by the turn loop /
+ * battle-state init, read by the turn-event dispatcher), not a save-metadata
+ * field; SAR/SUB/SAR lowers the signed /2.
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_2f__ch21_turn_gated(uint32 event_arg)
 {
@@ -55,7 +61,7 @@ void fd2_chapter_event_handler_2f__ch21_turn_gated(uint32 event_arg)
  * this handler does not read the arg.
  *
  * Effect: arm AI control flag 3 (combat_aux_block[0xD] low nibble) for two
- * NPC char ranges — 0x23..0x2A and 0x43..0x4A (8 + 8 = 16 chars).
+ * NPC char ranges -- 0x23..0x2A and 0x43..0x4A (8 + 8 = 16 chars).
  *
  * In the binary the second call shares a borrowed tail: after pushing its
  * 3 args the handler does JMP 0x34F39, falling through into the
@@ -120,7 +126,9 @@ void fd2_chapter_event_handler_31__ch22_turn_gated(uint32 event_arg)
  *
  * Effect: ch22 turn-5 reinforcement — load portrait set 2, a single-corner pan
  * to window origin (0x10, 0x2A), an 8-tick hold, spawn reinforcement char id
- * 0x14 from base+growth, then unconditionally show dialog page 2.
+ * 0x14 from base+growth, then unconditionally show dialog page 2. Char 0x14 is
+ * the joining ally 莎拉 (Sara) -- the chapter-22 guide notes she appears from
+ * the south at the start of turn 5 to help and joins the party.
  *
  * In the binary the dialog call shares a borrowed tail: after the spawn the
  * handler does JMP 0x347F1, falling into the
@@ -153,8 +161,9 @@ void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)
  * forwards the arg as the drop recipient.
  *
  * Effect: drop one battle item from an inline 3-byte drop entry
- * (type=0 ITEM, value=0x65 -> item id 101), then unconditionally show dialog
- * page 3.
+ * (byte type + ushort value; here type=0 ITEM, value=0x0065 -> item id 101 =
+ * Teleport Staff), forwarding stepping_char_id as the recipient to
+ * fd2_process_battle_drop_entries, then unconditionally show dialog page 3.
  *
  * In the binary the dialog call shares a borrowed tail: after pushing its 8
  * args (page=3) the handler does JMP 0x34FB7, falling into the
@@ -252,6 +261,12 @@ void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
  * window to the target tile, swaps the portrait set (chapter_id truncated to its
  * low byte), then plays a brief pure-white screen flash (palette +0xFF then +0)
  * to mask the portrait change.
+ *
+ * Despite the name, the third arg is NOT a chapter number: it is forwarded (low
+ * byte only) to fd2_load_chapter_portraits_and_dump_tmp as its target_race_id --
+ * a portrait-group / race selector that picks which characters in the current
+ * chapter's portrait set get (re)loaded. Callers pass small group indices
+ * (portrait-pair ids 0/1, 2/3, ... or group ids 1..5), never chapter ids 1..30.
  *
  * Sequence (functionally-exact):
  *   fd2_pan_cursor_and_window(target_tile_x, target_tile_y)
@@ -360,7 +375,8 @@ void fd2_chapter_event_handler_36__ch24_cinematic(uint32 event_arg)
  * [ESP+0x10]).
  *
  * Effect: ch25 lord-only tile trigger. Copy the inline 3-byte battle-drop entry
- * (type=0 ITEM, value=0x0B -> item id 11) into a local. When the lord (char 0)
+ * (type=0 ITEM, value=0x0B -> item id 11 = 炎龍劍, the strongest blade) into a
+ * local. When the lord (char 0)
  * steps and the tile event has not yet been consumed (consumed_flags[0] == 0):
  * show dialog page 0, play the full combat cinematic against target char 0x11,
  * run the death animation, and only if char 0x11 was actually killed mark the
@@ -476,9 +492,13 @@ void fd2_chapter_event_handler_39__ch26_cinematic(uint32 event_arg)
  * Dispatch-table signature is 1-arg cdecl (the stepping char id under the
  * tile-step ABI); this handler uses it as the pickup recipient.
  *
- * Effect: tile-pickup — copy the inline 5-byte item-id lookup table (from
+ * Effect: tile-pickup -- copy the inline 5-byte item-id lookup table (from
  * 0x5274E: { 0x1D, 0x2B, 0x33, 0x3D, 0x47 }, indexed by tile terrain class)
  * into a local, clear the keyboard buffer, load the stepping char's portrait.
+ * The 5 ids are the five class-best ultimate weapons -- 0x1D 戰神戟 (knight),
+ * 0x2B 魔神斧 (warrior), 0x33 風神弓 (archer), 0x3D 光之杖 (priest),
+ * 0x47 魔龍爪 (samurai) -- so terrain class picks which line's ultimate weapon
+ * the tile hands out.
  * If the char's inventory is full (8 usable slots) show the "inventory full"
  * dialog page 0x1E0 and slide the status screen back out. Otherwise read the
  * cursor tile's attribute, take its terrain-class byte as the table index,
@@ -959,7 +979,7 @@ void fd2_chapter_event_handler_45__ch28_dyn_turn_event(uint32 stepping_char_id)
  * dialog with state. Dispatch-table signature is 1-arg cdecl
  * (void fn(uint event_arg)); this handler does not read the arg.
  *
- * Effect: ch28 turn-FF marker scene — disarm AI control flag 0 (combat_aux
+ * Effect: ch28 turn-FF marker scene -- disarm AI control flag 0 (combat_aux
  * block[0xD] low nibble = 0) for the NPC range 0x29..0x2D (5 chars), show dialog
  * page 5, play a three-portrait white-flash cutscene chain (chapter ids 3, 4, 5
  * at tiles (8,7) / (4,7) / (0,7)), then show dialog page 6.
@@ -1281,7 +1301,7 @@ void fd2_chapter_event_handler_4c__ch29_major_cinematic(uint32 event_arg)
  * only). Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
  * handler does not read the arg.
  *
- * Effect: set tile_event_consumed_flags[0x13] = 1 (no other side effects) — primes
+ * Effect: set tile_event_consumed_flags[0x13] = 1 (no other side effects) -- primes
  * handler_47, whose first invocation merely advances flags[0x13] 0 -> 1 before its
  * mass-kill path; pre-setting the flag non-zero makes handler_47's very next
  * invocation take that 2nd-call mass-kill branch.
@@ -1309,7 +1329,7 @@ void fd2_chapter_event_handler_4d__unref_sentinel(uint32 event_arg)
  * only). Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
  * handler does not read the arg.
  *
- * Effect: set tile_event_consumed_flags[0x14] = 1 (no other side effects) — marks
+ * Effect: set tile_event_consumed_flags[0x14] = 1 (no other side effects) -- marks
  * the slot adjacent to handler_4d's 0x13.
  *
  * In the binary the body is a self-contained 10-byte stub (no borrowed tail, and
@@ -1531,7 +1551,7 @@ void fd2_chapter_event_handler_53__unref_dialog_with_state(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_chapter_event_handler_54__ch27_ai_ctrl @ 0x360C0
- *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CDD)
+ *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CE1)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x54. Triggered
  * in chapter 27. Category: AI setup. Dispatch-table signature is 1-arg cdecl

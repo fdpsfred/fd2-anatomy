@@ -1,0 +1,48 @@
+{
+  "address": "0001b8e7",
+  "name_current": "fd2_remove_inventory_slot_at",
+  "name_final": "fd2_remove_inventory_slot_at",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor> (domain=inventory, descriptor=remove_slot_at). Accurately describes the behavior: removes the item at a given inventory slot index and shifts the following slots down to close the gap. No Ghidra address residue; the '_at' suffix is meaningful (operates at a caller-supplied slot index).",
+  "kind": "function",
+  "home": "src/ui_menu/status.c",
+  "purpose": "Remove the item occupying inventory slot `slot` of runtime_char[char_idx] and close the gap by shifting every following slot down by one, leaving slot 7 stamped vacant.",
+  "logic_summary": "rc = data_fd2_battle_runtime_char_array_ptr. memmove(rc[char_idx].inventory_slots + slot*2, rc[char_idx].inventory_slots + slot*2 + 2, (7 - slot) * 2) copies slots[slot+1..7] over slots[slot..6]. Then rc[char_idx].inventory_slots[14] = 0x80 stamps slot 7's flag byte vacant, so the freed slot is always slot 7 regardless of which slot was removed. slot==7 copies 0 bytes and only re-stamps slot 7. Each slot is 2 bytes (inventory_slots[i*2]=flag, [i*2+1]=item_id); flag bit 0x80=vacant, 0x40=equipped. Disasm confirmed: char_idx*0x50 (sizeof runtime_char=80), inventory_slots field at struct offset +0xA, memmove dst=base+slot*2+0xA, src=base+slot*2+0xC, MOV byte [EBX+0x18],0x80 == inventory_slots[14] (0x18-0xA=14). __CHK(0x14) is the compiler-injected stack-probe prologue.",
+  "signature": "void __cdecl fd2_remove_inventory_slot_at(uint32 char_idx, uint32 slot)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "runtime_char array index of the character whose inventory is edited (0..party_member_count-1). Used to compute &rc[char_idx] (char_idx*0x50 + array base).",
+      "verdict": "rename",
+      "proposed": "char_idx",
+      "reason": "Live Ghidra param is generic param_1; should match the home-source name char_idx, which describes its role as the runtime_char index. (Rename applied in Stage 2.)"
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Inventory slot index (0..7) to remove. Drives both the memmove size ((7-slot)*2) and the shift origin (src=slot+1, dst=slot).",
+      "verdict": "rename",
+      "proposed": "slot",
+      "reason": "Live Ghidra param is generic param_2; should match the home-source name slot, which describes the 0..7 inventory slot index being removed. (Rename applied in Stage 2.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; mutates runtime_char[char_idx].inventory_slots in place."
+  },
+  "reads_globals": ["data_fd2_battle_runtime_char_array_ptr"],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "e2d114abff28c4fec0fd857234810cf80445657a",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (status.c lines 511-531) is already precise, ASCII-clean, and faithful to the binary (slot layout, memmove shift, slot-7-always-vacant, slot==7 edge case, callers, __CHK(0x14) prologue): kept unchanged. Ghidra plate is Chinese but semantically consistent (same memmove, 0x80 vacant marker, callers) and not contradictory, so left unchanged. Caller xrefs: 13 call sites across 10 distinct functions (fd2_item_command_menu_dispatch calls it 4x: DROP, GIVE-no-swap, GIVE-swap recipient+self); source header says '10 callers', plate says '13 callsites' -- both correct from their angle, no conflict. No src edit and no plate change, so no save_program needed."
+}

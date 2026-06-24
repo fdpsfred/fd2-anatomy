@@ -1,0 +1,42 @@
+{
+  "address": "00035261",
+  "name_current": "fd2_chapter_event_handler_32__ch22_reinforcement",
+  "name_final": "fd2_chapter_event_handler_32__ch22_reinforcement",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> game-function name. The '32' is the dispatch-table index (slot 0x32: table entry @0x51C59 = base 0x51B91 + 0x32*4), a meaningful domain ID, NOT an address residue. The descriptor 'ch22_reinforcement' accurately captures the verified behaviour: chapter 22, turn 5, spawn of the joining ally char 0x14 (莎拉/Sara). Confirmed by the ch22 walkthrough ('第五回合開始時，莎拉出現...加入：龍騎士莎拉').",
+  "kind": "function",
+  "home": "src/field/chevt2.c",
+  "purpose": "Chapter-22 turn-5 reinforcement event handler: spawns the joining ally char 0x14 (Sara) with a portrait swap, camera pan, hold, and a joining dialog page.",
+  "logic_summary": "Dispatched via the per-event handler table @0x51B91 at slot 0x32. Straight-line, no branches: __CHK(0x28) stack frame, then fd2_load_chapter_portraits_and_dump_tmp(2) (portrait set 2), fd2_pan_cursor_and_window(0x10,0x2A) (pan window to the spawn corner), fd2_wait_n_bios_ticks(8) (hold), fd2_init_runtime_char_from_base_growth(0x14) (instantiate the joining char from its base+growth tables), then fd2_display_dialog_scene(current_chapter_text, page=2, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) (joining dialogue). In the binary the dialog call is reached via JMP 0x347F1 -- a Class-3 shared-tail borrow of the page=2 dialog body in fd2_chapter_event_handler_15 @0x347D9; the src emits the functionally-exact self-contained dialog call.",
+  "signature": "void __cdecl fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Dispatch-table ABI parameter (1-arg cdecl, void fn(uint event_arg)). This handler does not read it; the body is (void)event_arg and the only stack-frame use is the __CHK check. Kept as a parameter to match the uniform turn-event handler signature in the dispatch table.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches the established turn-event handler-table convention used by every sibling handler in chevt2.c; the arg is unused here (no address residue, no misleading name)."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; the handler performs UI/state side effects only."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment block (lines 119-150) was already accurate and well-refined (dispatch idx, ch22 turn-5/slot, sequence, tail-merge from handler_15). It did not record the verified game-lore identity of char 0x14.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly @0x35261 confirms: PUSH 0x28/CALL __CHK; PUSH 2/CALL load_portraits(0x10b4e); PUSH 0x2a,0x10/CALL pan(0x135dd); PUSH 8/CALL wait_ticks(0x17aa9); PUSH 0x14/CALL init_runtime_char(0x112a5); JMP 0x347f1 (inside fd2_chapter_event_handler_15 @0x347d9, the page=2 dialog tail). Callee signatures confirm load_portraits/init_runtime_char are 1-arg. The src self-contained dialog call vs binary tail-JMP is the documented Class-3 shared-tail equivalence (not a logic issue). char 0x14 = joining ally Sara per ch22 walkthrough. Ghidra plate left unchanged (consistent with refined understanding, not contradictory/outdated)."
+}

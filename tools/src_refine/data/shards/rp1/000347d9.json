@@ -1,0 +1,42 @@
+{
+  "address": "000347d9",
+  "name_current": "fd2_chapter_event_handler_15__ch6_char_cond",
+  "name_final": "fd2_chapter_event_handler_15__ch6_char_cond",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>. '15' is the dispatch-table index (idx 0x15) of the per-event handler table at 0x51B91 -- a meaningful domain ID, confirmed by the DATA xref at 0x51be5 (= 0x51b91 + 0x54 = 0x15*4) whose little-endian dword d9470300 equals this function's address 0x000347d9. 'ch6' = chapter 6 (valid chapter ID 1-30) and 'char_cond' = char-conditional category (gates on a character alive-check); both accurate to the body. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 6 turn-event slot 1 (dispatch idx 0x15, fired at turn 10 / phase 2): if char_id 8 (the ch6 elite-warrior boss NPC, named 索倫 in dialogue) is still alive, show dialog page 2; otherwise do nothing.",
+  "logic_summary": "Compiler-injected __CHK(0x28) stack-probe prologue, then bVar = fd2_check_char_is_dead(8); if it returns 0 (char 8 alive) call fd2_display_dialog_scene(data_fd2_current_chapter_text, page=2, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) and clean up ESP by 0x24; RET. Single branch (the alive gate); no RNG, no numeric computation, return value of the dialog call discarded. EBX is not touched (RET has no POP EBX). In the original binary the page-2 dialog call is the head of a class-3 shared tail at 0x347F1 that fd2_chapter_event_handler_32__ch22_reinforcement JMPs into (unconditional jump from 0x35295) for its own page-2 dialog; reproduced inline here for Layer-2 equivalence.",
+  "signature": "void __cdecl fd2_chapter_event_handler_15__ch6_char_cond(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91. The body never reads it ((void)event_arg).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive of the dispatch-table calling convention; not a param_1 placeholder and carries no address residue. Matches the convention used across all sibling handlers in chevt1.c."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value (dispatch handler; the disassembly ends in a bare RET and the discarded fd2_display_dialog_scene return is not propagated)."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "acf56e1a",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified against disassembly: PUSH 0x28/CALL __CHK; PUSH 8/CALL fd2_check_char_is_dead(0x3453e)/ADD ESP,4/TEST EAX,EAX/JNZ 0x34818; 9 PUSHes (1,0x13,0x4a,0x4c,0xcd,0x140,0xa0000,page=2, then PUSH dword [0x53a79]=data_fd2_current_chapter_text)/CALL fd2_display_dialog_scene(0x15f84)/ADD ESP,0x24; RET. The decompiler's 'fixup to 00003a79' note is a Ghidra artifact -- the real operand at 0x3480a is PUSH dword ptr [0x53a79] (READ of data_fd2_current_chapter_text), confirmed via get_xrefs_from. fd2_check_char_is_dead signature byte __cdecl(uint). Source comment in chevt1.c (lines 856-889) already precise/accurate/ASCII (Chinese only for the proper name 索倫) and matches asm exactly -> comment kept, chevt1.c untouched. Ghidra plate consistent with this understanding -> plate untouched. char_id 8 is the ch6 elite-warrior boss (精英戰士 in the walkthrough; 索倫 per dialogue/existing KB); failure condition of ch6 is 索爾 (lord) death, a different character -- the alive-gate here is the boss, consistent with sibling handler 0x16 which gates on the same char_id 8 at turn 15. Commit staged ONLY src/field/chevt1.c-scope (untouched) + this shard; 4 unrelated pre-existing modified shards in the worktree were left unstaged (targeted git add)."
+}

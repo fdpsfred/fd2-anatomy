@@ -1,0 +1,38 @@
+{
+  "address": "000175a9",
+  "name_current": "fd2_backup_dialog_area_to_buffer",
+  "name_final": "fd2_backup_dialog_area_to_buffer",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention: domain=dialog, descriptor accurately describes the action (back up the dialog area into a heap buffer). No Ghidra address residue in the name; no domain ID involved. Name correctly reflects the save-under snapshot behavior.",
+  "kind": "function",
+  "home": "src/dialog/dialog.c",
+  "purpose": "Save-under snapshot: copies the 0x48x0x48 (72x72) pixel region of the working framebuffer around the cursor into a freshly-allocated heap buffer so it can be restored after an overlaid settings/status dialog is closed.",
+  "logic_summary": "If data_fd2_dialog_area_backup_buffer is non-NULL, free it. malloc 0x1440 (=0x48*0x48=5184) bytes and store the pointer in data_fd2_dialog_area_backup_buffer. Compute source anchor = data_fd2_large_game_state_buffer_ptr + 0x8088 + (cursor_screen_x-1)*0x18 + (cursor_screen_y-1)*0x2AC0 (top-left corner one tile up/left of the cursor, giving a 1-tile margin). Loop row=0..0x47: memmove 0x48 bytes from src into backup_buffer+row*0x48, advancing src by the working-buffer row stride 0x1C8 each iteration. The decompiler-visible __CHK(0x18) is the Watcom compiler-generated stack-overflow probe, not game logic.",
+  "signature": "void __cdecl fd2_backup_dialog_area_to_buffer(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect: (re)allocates and fills data_fd2_dialog_area_backup_buffer with the snapshot."
+  },
+  "reads_globals": [
+    "data_fd2_dialog_area_backup_buffer",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_cursor_screen_y"
+  ],
+  "writes_globals": [
+    "data_fd2_dialog_area_backup_buffer"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "424d6c57489c9aeb1498a26030c2dc967a205e92",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (dialog.c lines 678-695) is already concise and accurate: it correctly states the 0x48x0x48 snapshot, the save-under purpose, free/malloc(0x1440)/copy sequence, the -1-tile source anchor with 0x18/0x2AC0 strides, the 0x1C8 working-buffer row stride, and the caller/inverse relationship (fd2_open_settings_dialog_with_slide / fd2_restore_dialog_area_from_buffer). No edit needed. Ghidra plate is a consistent superset (adds body pseudocode), no contradiction -> plate left untouched. Only caller is fd2_open_settings_dialog_with_slide @ 0x1741c (single UNCONDITIONAL_CALL xref from 0x174e7), which calls it once before the 4-frame slide animation; inverse fd2_restore_dialog_area_from_buffer @ 0x17643 uses the same anchor/stride formula, confirming the geometry."
+}

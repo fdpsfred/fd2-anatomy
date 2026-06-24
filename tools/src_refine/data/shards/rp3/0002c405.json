@@ -1,0 +1,42 @@
+{
+  "address": "0002c405",
+  "name_current": "fd2_play_final_chapter_30_ending",
+  "name_final": "fd2_play_final_chapter_30_ending",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. The '30' is the chapter number (chapters 01-30 are valid domain IDs), confirmed by the body calling fd2_load_chapter_battle_data(0x1E) where 0x1E==30; it is NOT address residue (the function's own address is 0x2C405). The descriptor accurately reflects behavior: plays the chapter-30 final per-character portrait + epilogue monologue sequence in the endgame.",
+  "kind": "function",
+  "home": "src/anim/aniend.c",
+  "purpose": "Chapter-30 endgame sequence: opening text + palette breathing sweep, then for each menu-party member (reverse order) plays an intro zoom, figani pose animation, and an RNG-driven mouth-jittered portrait/epilogue monologue, fading to black between characters.",
+  "logic_summary": "__CHK(0x5C). Loads chapter-30 battle data (idx 0x1E); sets dialog portrait blit offset to 0xC88. Allocates 0x36B00 workspace, renders chapter-30 opening text (page 0x2C), runs a 500-frame palette breathing sweep (brightness 0x28 fades to 0 over frames <200, fades back up after frame 300), frees workspace. Reallocates a 0x1F400 workspace + two 64000-byte buffers (bg_buf, scratch); loads TAI.DAT[3] backdrop sprite and FDOTHER.DAT[0x38] RLE base image into bg_buf; starts ending BGM track 4. Reverse-iterates the menu party (count-1 down to 0) with a 0/1 display-slot swap (char_idx 0->slot 1, char_idx 1->slot 0) so the two leads trade order; per member: portrait_id = runtime_char[swap_idx].portrait_id, figani_idx = portrait_id*3; loads FIGANI.DAT pose_data (figani_idx+1) and sprite_sheet (figani_idx); plays the intro zoom then a 20-tick pose hold; walks the pose-step table (count=pose_data[2], step_offset read as int32 at pose_data+s*4+8, per-step delay=pose_data[step_offset+6]); snapshots bg_buf->scratch, loads DATO.DAT[portrait_id] portrait, frames the dialog panel; the last member (char_idx 0) gets a 0x1B8-tick monologue, others 0xDC. Per tick: render frame; RNG-driven mouth jitter (counter reload = (advance_rng()&0x1F)+0x28, frame_offset 0xC when counter<2 else 0); blit portrait via *(int*)(portrait_buf+frame_offset); step figani; assemble 5 dialog fragments (header page 10, char name all_game_text[char_id+1], separator page 0xB, job name all_game_text[job_id+0x96], and epilogue page = char_id+0xC for t<0xDC else 0x2D closer); flip to screen; a key press sets char_idx=1 to break out and clears the buffer. Fade to black between members. Frees bg_buf/scratch/pose_data/bg_sprite/workspace (final free is a tail jump into the free-wrapper epilogue).",
+  "signature": "void __cdecl fd2_play_final_chapter_30_ending(void)",
+  "params": [],
+  "returns": { "type": "void", "semantics": "No return value." },
+  "reads_globals": [
+    "data_fd2_shared_menu_party_member_count",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_current_chapter_text",
+    "data_fd2_all_game_text_ptr",
+    "data_fd2_dialog_active_portrait_blit_offset",
+    "data_fd2_portrait_sprite_buffer",
+    "data_fd2_string_resource_filename_tai_dat",
+    "data_fd2_string_resource_filename_fdother_dat",
+    "data_fd2_string_resource_filename_figani_dat_52388",
+    "data_fd2_string_resource_filename_dato_dat_51a70"
+  ],
+  "writes_globals": [
+    "data_fd2_dialog_active_portrait_blit_offset",
+    "data_fd2_portrait_sprite_buffer"
+  ],
+  "comment_original_issue": "Comment content was accurate and precise, but contained 6 non-ASCII em-dash characters (U+2014) in the EAX-bug note and Resources list, violating the src/tests ASCII-only rule. Converted each to '--'. No semantic change.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "ffa4ea5",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "EAX-tracking-bug correctly reproduced in src: machine code at 0x2C99C does CALL fd2_advance_rng_state; AND AL,0x1F; ADD AL,0x28 (jitter from RNG return, not the DATO buffer); decompiler mis-renders it as (byte)DATO_load_result&0x1F. Source line 863 reads pose step_offset as int32 at pose_data+s*4+8 and line 870 delay as pose_data[step_offset+6], both confirmed against asm 0x2C6FD-0x2C76F. Ghidra plate uses the decompiler's undefined4* rendering (pose_data[s+2] / [step_offset+6]) which is byte-equivalent to the src's byte-pointer rendering -- no contradiction, plate left untouched. The two filename string globals carry address-residue suffixes (_52388, _51a70) but those are data symbols out of scope for this function refine. Param list empty (void). Sole caller fd2_play_game_ending_cinematic @ 0x2BCE5 (call site 0x2C18F)."
+}

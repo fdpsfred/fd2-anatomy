@@ -1,0 +1,55 @@
+{
+  "address": "00021eb1",
+  "name_current": "fd2_play_variant_b_slide_pre_effect",
+  "name_final": "fd2_play_variant_b_slide_pre_effect",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention and accurately describes the function: it plays the variant-B spell pre-cast 'slide' circle-band animation. 'variant_b' is a meaningful family tag (heal-style spells routed via fd2_dispatch_variant_b_cast, distinct from the offensive-A family). No address residue in the name.",
+  "kind": "function",
+  "home": "src/spell/spellcin.c",
+  "purpose": "Plays the 16-frame radial circle-band 'slide' pre-cast animation centered on the cursor tile, shared by the 4 variant-B (heal-style) spell dispatch thunks (spell ids 0xD/0xE/0xF/0x10) before fd2_dispatch_variant_b_cast applies the healing.",
+  "logic_summary": "Computes cursor pixel center (cursor_screen_x*0x18+0xC, cursor_screen_y*0x18+0x10). malloc(0x25680) snapshot buffer and composites the current battle tile map into it at +0x8088 (stride 0x1C8, tile 0xD x 8 at the battle view-window origin). Phase 1 slide-DOWN (frame_iter 9..1, 9 frames): each frame restores the tile backdrop via memmove(large_game_state_buffer, snapshot, 0x25680), draws the filled circle band at the cursor pixel pos with the current radius (offset0, grown by step each frame), blits the composed buffer to mode-13h framebuffer 0xA0504, then offset0+=step and a 5-tick delay. 200ms pause. Phase 2 slide-UP (frame_iter 3..9, 7 frames): identical per-frame work but the radius is HELD CONSTANT at (offset0 - step) for all 7 frames -- the asm subtracts step from the radius accumulator (ESI) exactly once at 0x21FA0 and never modifies it inside the loop, so after Phase 1 advanced offset0 by 9*step the value (offset0 - step) = initial + 8*step is reused unchanged; the loop variable iterates forward through the same tile-anim table to step the sprite frame. Each sprite frame is *(int*)(tile_anim_table_base + 6 + frame_iter*4) added back to the table base. Cleanup: free(snapshot), fd2_composite_battle_frame(0), 200ms pause; the normal path tail-jumps into the shared inline epilogue fragment fd2_noop_stub_b43 (no explicit RET in the binary).",
+  "signature": "void __cdecl fd2_play_variant_b_slide_pre_effect(uint param_1, uint param_2)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Initial circle-band radius (offset0). Starting radius handed to fd2_render_filled_circle_band_anim; grown by step each Phase-1 frame, then reused (minus step) as the fixed Phase-2 radius. Per-spell value supplied by caller: 0xD=1, 0xE=2, 0xF=8, 0x10=6.",
+      "verdict": "rename",
+      "proposed": "offset0",
+      "reason": "Live Ghidra name is the generic placeholder param_1, which does not convey the value's meaning. It is the initial circle-band radius; src/ already names it offset0. Rename deferred to Stage 2."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Per-frame radius increment (step) for the Phase-1 slide-DOWN; also the amount subtracted once between phases. Per-spell value: 0xD=2, 0xE=4, 0xF=4, 0x10=6.",
+      "verdict": "rename",
+      "proposed": "step",
+      "reason": "Live Ghidra name is the generic placeholder param_2; does not convey meaning. It is the per-frame radius step; src/ already names it step. Rename deferred to Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Normal path tail-calls (JMP) the shared inline epilogue fragment fd2_noop_stub_b43 instead of emitting its own RET."
+  },
+  "reads_globals": [
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_cursor_screen_y",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_tile_anim_table_base",
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "src/ comment block (lines 475-517) is comprehensive, precise and ASCII-clean; it correctly documents the subtle Phase-2 constant-radius behavior (SUB-once-and-reuse) and the per-spell (offset0, step) tuning. No issue.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified all 4 callers' (offset0, step) tuning by decompile: 0xD=(1,2), 0xE=(2,4), 0xF=(8,4), 0x10=(6,6) -- matches docs exactly. Disassembly confirms Phase-1 grows ESI by step 9x (ADD ESI @0x21F80), one SUB ESI @0x21FA0 between phases, and Phase-2 never modifies ESI inside the loop, so radius=(offset0-step) is held constant for all 7 frames; both the src 'held fixed at offset0-step' framing and the decompiler's 'param_1 - param_2' expression compute the same value -- no equivalence concern. Spell ids 0xD/0x10 confirmed as recovery spells (治療術/神恩術) via fd2-knowledge, validating the variant-B heal-style framing; spell ids 0xD-0x10 are legitimate domain IDs (not address residue). No src/ edit made (comment already correct). Plate was updated only to: tighten the Phase-2 line (was 'decreasing reuse', which could mislead a reader into thinking the radius decreases each frame; clarified it is held constant), pre-apply the param names offset0/step in the signature line, replace em-dashes with ASCII '--', and replace stale __delay_thunk_375b2 references with the live name fd2_delay_ms. Staged set = shard file only (no src change)."
+}

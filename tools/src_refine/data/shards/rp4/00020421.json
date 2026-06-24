@@ -1,0 +1,58 @@
+{
+  "address": "00020421",
+  "name_current": "fd2_play_ani_file_animation_sequence",
+  "name_final": "fd2_play_ani_file_animation_sequence",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=play/graphics, descriptor accurately states it plays an ANI.DAT file animation sequence). No Ghidra address residue. Matches body: reads ANI.DAT, decodes multi-frame animation onto mode-13h framebuffer 0xA0000 via the shared ANI decoder.",
+  "kind": "function",
+  "home": "src/anim/anispell.c",
+  "purpose": "Play a multi-frame ANI.DAT animation onto the VGA mode-13h framebuffer (0xA0000) through the shared ANI delta-RLE decoder, with a per-frame delay and optional skip-on-keypress.",
+  "logic_summary": "__CHK(0x38); clear kbd. If anim_idx==1 (intro animation) load FDOTHER.DAT[0x4E] as a chime SFX into sfx_buf. malloc 0x300 scratch (decoder delta tables) + malloc 64000 backbuf; fd2_ani_decoder_set_target_buffer(64000, 0xA0000, scratch). fopen ANI.DAT; fseek to anim_idx*4+6 (TOC entry); fread 8B index; fseek to *(u32)index (stream offset); fread 0xAD-byte stream header; frame_count = header[0xA5] (int16). Loop frame_iter in [0,frame_count): fread 8B frame header (frame_data_size=hdr[0] raw byte count, frame_decoded_size=hdr[2] decoded chunk count); fread frame_data_size raw bytes into backbuf; fd2_ani_decoder_decode_frame_bytes(frame_decoded_size, backbuf) applies the delta against current 0xA0000; if anim_idx==1 && frame_iter==0 fire chime; fd2_delay_ms(per_frame_delay); if skip_on_key_flag && keyboard buffer nonempty -> break; else clear kbd. After loop free scratch+backbuf; if sfx_buf!=0 stop chime (fd2_play_sfx_with_handle(sfx_buf,-1,1)) + free; fclose. Original tail JMPs into shared __CHK epilogue at 0x19518; emitted as a plain return.",
+  "signature": "void __cdecl fd2_play_ani_file_animation_sequence(uint32 anim_idx, uint32 per_frame_delay, uint32 skip_on_key_flag)",
+  "params": [
+    {
+      "name": "anim_idx",
+      "type": "uint32",
+      "semantics": "Animation index into ANI.DAT; its TOC entry sits at file offset anim_idx*4 + 6. anim_idx==1 is the intro animation (gets the FDOTHER.DAT[0x4E] chime SFX). Call sites pass 0/1/2/3 plus a pass-through from fd2_load_and_fade_in_cinematic_image.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, no address residue; matches both body usage (fseek anim_idx*4+6, anim_idx==1 intro branch) and all 4 callers."
+    },
+    {
+      "name": "per_frame_delay",
+      "type": "uint32",
+      "semantics": "Per-frame wait passed straight to fd2_delay_ms each frame (BIOS ticks, ~55ms each). Callers pass 0xF / 0x5A / 100.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the value; no address residue; matches fd2_delay_ms(per_frame_delay) in the loop."
+    },
+    {
+      "name": "skip_on_key_flag",
+      "type": "uint32",
+      "semantics": "If non-zero the loop polls the keyboard buffer (fd2_check_keyboard_buffer_nonempty) after each frame and breaks early on any keystroke. Callers pass 0 (slideshow/cinematic image) or 1 (ending mid-ANI / clear-panel zoom).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear boolean-flag name reflecting the early-break behavior; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. (Original control flow JMPs into the shared __CHK epilogue at 0x19518 for stack teardown/RET; semantically a plain return.)"
+  },
+  "reads_globals": [
+    "data_fd2_string_resource_filename_fdother_dat (\"FDOTHER.DAT\" filename string, used only when anim_idx==1)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Name and all 3 parameter names are already correct (verified against live Ghidra signature and all 4 call sites: fd2_load_and_fade_in_cinematic_image 0x1F81E, fd2_play_chapter_intro_sprite_slideshow 0x24336, fd2_play_ending_and_record_clear 0x1F894 [calls (3,0x5A,1) and (1,0xF,1)], fd2_play_game_ending_cinematic 0x2BCE5 [calls (2,100,0)]). Source comment block (anispell.c lines 20-45) is accurate, concise, ASCII, and consistent with both the decompilation and the Ghidra plate; left unchanged. Ghidra plate is more detailed but not contradictory; left unchanged. No source edits made -- shard is the only changed file."
+}

@@ -1,0 +1,42 @@
+{
+  "address": "000350a4",
+  "name_current": "fd2_chapter_event_handler_2c__ch19_ai_ctrl",
+  "name_final": "fd2_chapter_event_handler_2c__ch19_ai_ctrl",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the game-function naming convention fd2_<domain>_<descriptor>. 'chapter_event_handler' is the role (dispatched from the per-event handler table at 0x51B91). The '_2c' suffix is the dispatch-table index 0x2C, a meaningful domain ID -- NOT an address residue (it does not equal the function address 0x350a4 nor any data address; verified xref-to is the table slot at 0x51c41 which holds 0x350a4). '__ch19_ai_ctrl' accurately states chapter 19 + AI-control category (sets the per-event AI/dialog control flag to 3 for a char range). Consistent with sibling handlers 2b__ch18_ai_ctrl / 2d__ch19_ai_ctrl.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 19 turn-event handler (dispatch idx 0x2C): arms the per-event AI/dialog control flag (low nibble of combat_aux_block[0xD]) to 3 across runtime-char slots 0x1D..0x3B (31 chars), switching that NPC band's AI/dialog mode.",
+  "logic_summary": "Single straight-line call: fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x1D, 0x3B, 3). No branches, no RNG, no numeric computation, no CALL-return value used. In the original binary the handler pre-pushes all three args (start 0x1D, end 0x3B, flag 3) and JMPs (0x350B4 -> 0x34F39) into a class-3 shared tail hosted by fd2_chapter_event_handler_12 @ 0x34F02 ('CALL ...; ADD ESP,0xC; RET'); the C source reproduces the effect as a direct inline call for Layer-2 equivalence. Compiler-injected __CHK(0x10) stack probe.",
+  "signature": "void __cdecl fd2_chapter_event_handler_2c__ch19_ai_ctrl(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument per the handler table at 0x51B91; the body never reads it ((void)event_arg).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and address-free; matches the table's uniform 1-arg cdecl convention and the unread-argument behavior."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (indirect, via fd2_set_combat_aux_block_byte_d_low4_for_char_range: writes low nibble of combat_aux_block[0xD] for chars 0x1D..0x3B)"
+  ],
+  "comment_original_issue": "Source comment content was already accurate and precise (matches decompilation, callee semantics, dispatch-table xref, and the binary tail-call structure). Only defect: it used non-ASCII em-dashes (U+2014) which violate the code-text ASCII-only rule (sibling block 2b already uses '--').",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Dispatch confirmed: data table slot at 0x51c41 holds bytes a4 50 03 00 = 0x350a4 (idx 0x2C). Disassembly confirms tail-call: PUSH 0x10/__CHK -> PUSH 3, PUSH 0x3B, PUSH 0x1D -> JMP 0x34F39. Callee fd2_set_combat_aux_block_byte_d_low4_for_char_range @ 0x3419c verified: writes (existing & 0xF0) | (byte)param_3 into combat_aux_block[0xD] for inclusive [start,end]. Range count 0x3B-0x1D+1 = 31 chars matches comment. Ghidra plate already consistent with src conclusion -> left unchanged. No callers (dispatch-table-only); 0 logic issues. Name + param kept; no Stage-2 rename needed."
+}

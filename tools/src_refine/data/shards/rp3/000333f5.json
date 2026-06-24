@@ -1,0 +1,35 @@
+{
+  "address": "000333f5",
+  "name_current": "fd2_chapter_12_init",
+  "name_final": "fd2_chapter_12_init",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>; '12' is the chapter ID (chapters 01-30 are meaningful domain IDs), not an address residue (the function is at 0x333f5, unrelated to 12). Dispatch table at 0x51d9d confirms this is the chapter-12 slot (preceded by ch11 @0x33367, followed by ch13 @0x3346b). Name accurately reflects: chapter-12 init handler.",
+  "kind": "function",
+  "home": "src/field/chinit.c",
+  "purpose": "Chapter 12 (北山道) init/prologue handler: re-inits battle state, loads portrait set 1, plays two cutscenes (events 0x28/0x29) each preceded by a camera pan, clears all facings, then plays a single dialog page (page 0) and pans the camera to char 0. Cutscene-first ordering (unlike the dialog-first chapter-02..11 inits); carries the party over from chapter 11 (no char init).",
+  "logic_summary": "Flat prologue orchestrator (cyclomatic 1, no branches in source body). Sequence: fd2_init_battle_state_for_chapter(); fd2_pan_cursor_and_window(4,4); set data_fd2_chapter_init_phase_flag=1; fd2_load_chapter_portraits_and_dump_tmp(1); clear flag=0; fd2_cutscene_event_trigger(0x28); fd2_pan_cursor_and_window(0xb,0x28); fd2_cutscene_event_trigger(0x29); fd2_clear_all_chars_facing(); fd2_display_dialog_scene(data_fd2_current_chapter_text,0,0xa0000,0x140,0xcd,0x4c,0x4a,0x13,1); fd2_pan_cursor_to_char(0). Note the clear-facing precedes the (single) dialog page here. In the binary the page-0 dialog call + final pan are emitted as a tail-JMP from this handler's own dialog-arg push (0x3344D) into shared epilogue 0x33206; the C is the functionally-equivalent (Layer 2) straight-line form. The leading __CHK(0x28) in the decompile is the Watcom-injected stack-size probe, not part of the source body.",
+  "signature": "void __cdecl fd2_chapter_12_init(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; dispatched handler invoked via the chapter dispatch table at 0x51d9d."
+  },
+  "reads_globals": [
+    "data_fd2_current_chapter_text (0x53A79) — passed to fd2_display_dialog_scene as the chapter text buffer for the page-0 dialog."
+  ],
+  "writes_globals": [
+    "data_fd2_chapter_init_phase_flag (0x53AFA) — set to 1 around the portrait load (set 1) at 0x33410, cleared to 0 at 0x33421; read by fd2_init_runtime_char_for_battle as a phase guard."
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "ae026adae081c1383d297d104e1da88b3a7f3456",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly fully corroborates the source comment: MOV byte[0x53afa],1/0 = phase flag writes; shared alt-entries 0x33440 (cutscene-0x29 CALL onward) and 0x3344D (page-0 dialog-arg push onward); tail JMP 0x33206 = shared epilogue. data_fd2_current_chapter_text @0x53A79, data_fd2_chapter_init_phase_flag @0x53AFA confirmed in globals.h. Source comment block (chinit.c lines 708-750) and Ghidra plate are semantically consistent (plate abbreviates the alt-entry chapter list as '06/10/13 + 3 more'; source enumerates 06/10/13/14/17 — no contradiction). Comment is ASCII except allowed Chinese proper nouns (北山道 chapter name, 米亞斯多德 character name). No logic/equivalence concerns. Body is void; params=[]. Name kept: chapter ID 12 is a meaningful domain ID."
+}

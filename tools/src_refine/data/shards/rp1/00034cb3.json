@@ -1,0 +1,44 @@
+{
+  "address": "00034cb3",
+  "name_current": "fd2_chapter_event_handler_24__ch12_ai_ctrl",
+  "name_final": "fd2_chapter_event_handler_24__ch12_ai_ctrl",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows convention fd2_<domain>_<descriptor>. Numeric suffixes are meaningful domain IDs, not Ghidra address residue: '24' = per-event dispatch-table index 0x24 (the slot this handler occupies in the table at 0x51B91, confirmed by the xref from table entry 0x51C21 holding 0x34CB3); '12' = chapter 12. 'ai_ctrl' accurately describes the body (sets an AI-class byte). No hex suffix equals the function/data address. Keep.",
+  "kind": "function",
+  "home": "src/field/chevt1.c",
+  "purpose": "Chapter 12 turn-event handler (dispatch idx 0x24): at the end of the player's turn 5 it flips the dragon-man (runtime char 0x0E, the joining unit 龍劍士米亞斯多德) from fleeing to hostile AI by writing AI-class byte 0x83.",
+  "logic_summary": "Compiler-injected __CHK(4) stack-probe prologue (4-byte frame), then a single straight-line store: data_fd2_battle_runtime_char_array_ptr[0xE].combat_aux_block[0xD] = 0x83. Disasm confirms base offset 0x460 (= 0xE * 0x50, struct stride) plus field offset 0x34 (= 0x27 combat_aux_block base + 0xD ai_class). 0x83 = bit7 set (locked) + low bits 0/1 (= value 3) selecting AI mode 3. No branch, no RNG, no arithmetic, no callee return value used, no other side effects. Walkthrough chapter_12.md corroborates: '第五回合己方結束時，龍人開始回頭攻擊敵軍'.",
+  "signature": "void __cdecl fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg)",
+  "params": [
+    {
+      "name": "event_arg",
+      "type": "uint32",
+      "semantics": "Uniform 1-arg cdecl dispatch argument passed by the per-event handler table at 0x51B91; never read by this body (cast to void).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name correctly describes the (unread) dispatch argument; no address residue, consistent with sibling handlers in this file."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_battle_runtime_char_array_ptr (pointer dereferenced to locate char 0x0E for the write)"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_runtime_char_array_ptr[0xE].combat_aux_block[0xD] (= ai_class byte at runtime-char struct offset 0x34), set to 0x83"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (chevt1.c lines 1588-1604) already accurate, precise, ASCII-clean and non-narrative; left untouched. Ghidra plate states the same verified facts (idx 0x24, ch12 turn 5 phase 1, char 0x0E ai byte = 0x83, AI mode 3) so it was left untouched. types.h documents combat_aux_block[0xD] as ai_class, matching the comment. Only my own shard is staged; other pre-existing modified shards in the worktree are left out of this commit."
+}

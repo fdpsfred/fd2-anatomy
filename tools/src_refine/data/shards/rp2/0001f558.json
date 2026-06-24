@@ -1,0 +1,81 @@
+{
+  "address": "0001f558",
+  "name_current": "fd2_blit_scaled_tile_map_view",
+  "name_final": "fd2_blit_scaled_tile_map_view",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the established fd2_blit_* tile/sprite blit family convention (siblings: fd2_blit_24x24_at_window_relative_pos, fd2_blit_animated_tile_at_pos, fd2_blit_scaled_chapter_pose). Descriptor 'scaled_tile_map_view' accurately reflects body: a software rasterizer that scale-renders the battle tile map into the working view surface. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/gfx/blittile.c",
+  "purpose": "Software nearest-neighbour rasterizer that scale-renders the 24x24-tile battle map into the 320x192 working surface (data_fd2_large_game_state_buffer_ptr + 0x504) at an arbitrary zoom, centred on a fixed-point source position.",
+  "logic_summary": "12.12 fixed-point coords (0xC00 fixed = 1 tile = 24 source pixels). Derives the top-left source from centre - scale*half-extent (x: 0x9C=156=312/2, y: 0x60=96=192/2), splits each axis into whole-tile index (/0xC00, floored toward -inf via negative-remainder fixups) and sub-tile offset (%0xC00). memset-clears the surface, then for each of 192 output rows and 312 output columns: when the current tile (tile_y, tile_x_step) is inside [0,map_height)x[0,map_width), copies one source byte selected by (sub_tile/0x80) within the 24x24 tile sprite (row stride 0x18) from tile_data_table[(tile_y*0x40+tile_x_step)*4]. The fixed-point source coord advances by 'scale' per pixel/row; on crossing a 0xC00 tile boundary the tile index increments and the per-cell sprite pointer is refreshed. Out-of-map cells stay memset-cleared background.",
+  "signature": "void fd2_blit_scaled_tile_map_view(uint32 src_cx_fp, uint32 src_cy_fp, uint32 scale, uint32 tile_data_table)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Source-center X in 12.12 fixed-point (screen centre maps here). Body: src_x_fp = param_1 + scale*-0x9C. Callers pass the interpolated camera X (fd2_open_tactical_overview_zoom) / window-derived X+shake (fd2_cast_earthquake_spell_with_screen_shake).",
+      "verdict": "rename",
+      "proposed": "src_cx_fp",
+      "reason": "Live Ghidra name is the generic 'param_1' placeholder; src already uses src_cx_fp. Rename applied in Stage 2 (touches no proto for cdecl param names but is recorded for consistency)."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Source-center Y in 12.12 fixed-point. Body: src_y_start = param_2 + scale*-0x60. Caller passes interpolated camera Y / window-derived Y + shake.",
+      "verdict": "rename",
+      "proposed": "src_cy_fp",
+      "reason": "Generic 'param_2' placeholder; src already uses src_cy_fp."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Per-output-pixel source step in fixed-point units (0x80 = 1 source pixel = 1:1; smaller magnifies). Added to src_x_step each column and src_y_fp each row. Callers compute it as scroll_origin*frame/7 + 0x80 (zoom) or from the earthquake shake-params table.",
+      "verdict": "rename",
+      "proposed": "scale",
+      "reason": "Generic 'param_3' placeholder; src already uses scale."
+    },
+    {
+      "name": "src_cx_fp",
+      "type": "int",
+      "semantics": "Base address of the caller-allocated per-cell sprite-pointer table (0x40-stride rows; entry (tile_y*0x40 + tile_x)*4 is a 4-byte absolute sprite-data pointer). Body: tile_data_base = *(int*)((tile_y*0x40 + tile_x)*4 + this) + subtile_y_byte. Both callers malloc(0x4000) and fill it from data_fd2_battle_scene_snapshot.",
+      "verdict": "rename",
+      "proposed": "tile_data_table",
+      "reason": "Live Ghidra name 'src_cx_fp' is WRONG for the 4th parameter: it is the tile-data table base pointer, not a source-center coord (the real src_cx is param_1). Misleading and collides conceptually with the first param. src already uses the correct name tile_data_table."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; renders in-place into data_fd2_large_game_state_buffer_ptr."
+  },
+  "reads_globals": [
+    "data_fd2_large_game_state_buffer_ptr (0x53A49) — output surface base; render target is +0x504",
+    "data_fd2_battle_map_width_tiles (0x53AC1) — column in-bounds check",
+    "data_fd2_battle_map_height_tiles (0x53AC5) — row in-bounds check"
+  ],
+  "writes_globals": [
+    "data_fd2_large_game_state_buffer_ptr buffer contents (memset to 0 then per-pixel writes via out_row_ptr); the pointer itself is not modified"
+  ],
+  "comment_original_issue": "Comment stated 'scale 0x800 ~= 1:1', which is incorrect. 0xC00 fixed = 1 tile = 24 source pixels, so 1 source pixel = 0xC00/24 = 0x80 fixed units; 1:1 (one output pixel per source pixel) is scale=0x80, not 0x800 (which would be a 16x shrink). The sibling rasterizer fd2_blit_scaled_chapter_pose documents the analogous 0x80 = 1 source pixel. Both callers pass scale in the ~0xDB..0x400 range (never 0x800), confirming 0x80 is the 1:1 anchor.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "updated",
+  "issues": [
+    {
+      "category": "build/declaration",
+      "severity": "low",
+      "title": "Duplicate prototype declarations in protos.h",
+      "description": "fd2_blit_scaled_tile_map_view is declared twice in src/include/protos.h (line 706 with params src_cx/src_cy and line 720 with src_cx_fp/src_cy_fp). The sibling fd2_blit_24x24_tile_to_battle_grid_position is likewise declared twice (lines 703 and 722). The declarations are compatible (only param spelling differs) so they compile, but the redundancy should be de-duplicated. Out of this symbol's comment-refine scope; not fixed here.",
+      "evidence": "Grep of protos.h: line 706 'void fd2_blit_scaled_tile_map_view(uint32 src_cx, uint32 src_cy, uint32 scale, uint32 tile_data_table);' and line 720 'void fd2_blit_scaled_tile_map_view(uint32 src_cx_fp, uint32 src_cy_fp, uint32 scale, uint32 tile_data_table);'."
+    }
+  ],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Both callers (fd2_open_tactical_overview_zoom @ 0x2000a, fd2_cast_earthquake_spell_with_screen_shake @ 0x21548) confirm the (src_cx_fp, src_cy_fp, scale, tile_data_table) arg order and semantics. Disassembly @ 0x1f558 matches the decompilation exactly (signed div-by-0x80 sign-bias idiom for the sub-tile->byte index; in-bounds guard means coord is >=0 so the result equals (uint)>>7). src comment fixed: 0x800->0x80 as the 1:1 reference. Ghidra plate had the same error and was updated to match. Name keep; all 4 params recorded as rename (param_1/2/3 are placeholders; 4th 'src_cx_fp' is an actively wrong name for the tile_data_table pointer) for Stage 2.",
+  "datatype": "",
+  "element_semantics": "",
+  "is_const": null
+}

@@ -1,0 +1,52 @@
+{
+  "address": "0001a813",
+  "name_current": "fd2_fire_chapter_turn_events_for_phase",
+  "name_final": "fd2_fire_chapter_turn_events_for_phase",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Already conformant: fd2_ prefix, battle/chapter_event domain, 'fire_chapter_turn_events_for_phase' descriptor. No address residue. Accurately reflects purpose: dispatch (fire) the chapter turn-event scripts that match the current battle turn counter and the requested phase. Caller fd2_run_full_turn_cycle invokes it with phase 1 (end-of-player-turn), 0 (enemy-turn start), 2 (start-of-new-player-turn), matching the 'for_phase' descriptor.",
+  "kind": "function",
+  "home": "src/battle/btl_turn.c",
+  "purpose": "Fire the chapter turn-event scripts whose trigger turn equals the current battle turn counter and whose phase equals the phase argument, by calling the corresponding chapter-event handler from the shared post-action consequence table.",
+  "logic_summary": "Fixed 16-iteration loop (i = 0 .. 0xF). Each iteration computes entry = data_fd2_tile_event_data_table_ptr (table base @ 0x53A55) + i*3, then reads three bytes at the per-entry offsets +3/+4/+5: entry[3]=trigger turn, entry[4]=event_id (handler-table index), entry[5]=phase. When entry[3] == data_fd2_battle_turn_counter (@0x53BEF) AND entry[5] == phase, it calls data_fd2_battle_ai_post_action_consequence_table[entry[4]](0) -- the chapter-event handler dispatched with argument 0. The 16 turn-event entries live at table-base offset +3 with a 3-byte stride (the first 3 bytes of the table are not part of this scan). The handler table @0x51B91 is the same one indexed by the tile 'event' cells in fd2_handle_tile_event_interaction and the type-2 EVENT drops in fd2_process_battle_drop_entries. The decompiler shows a leading __CHK(0x10) compiler stack-probe thunk and a tail-call JMP into a shared Watcom POP/RET epilogue; neither is game logic. Returns void.",
+  "signature": "void __cdecl fd2_fire_chapter_turn_events_for_phase(uint32 phase)",
+  "params": [
+    {
+      "name": "phase",
+      "type": "uint32",
+      "semantics": "Turn-cycle sub-phase selector compared against each entry's phase byte (entry+5). 0 = enemy-turn start, 1 = end-of-player-turn, 2 = start-of-new-player-turn. Passed by fd2_run_full_turn_cycle as 1 (Phase B), 0 (Phase D), and 2 (Phase F) respectively.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name 'phase' accurately matches usage (compared to the entry's phase field, values 0/1/2). No address residue, not a param_N placeholder. Conformant."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect is invoking matched chapter-event handlers (table[event_id](0)), which mutate battle/chapter state."
+  },
+  "reads_globals": [
+    "data_fd2_tile_event_data_table_ptr",
+    "data_fd2_battle_turn_counter",
+    "data_fd2_battle_ai_post_action_consequence_table"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [
+    {
+      "category": "data_sizing",
+      "severity": "low",
+      "title": "Ghidra plate calls the handler table at 0x51B91 '256 slots' but src globals.h declares it as [90]",
+      "description": "The chapter-event / post-action handler function-pointer table at 0x51B91 is indexed here by entry[4], a byte (potential range 0..255). The Ghidra plate for this function describes that table as a 256-slot 32-bit pointer array, whereas src/include/globals.h declares 'void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32)'. This is a cross-cutting table-extent question (shared by fd2_handle_tile_event_interaction and fd2_process_battle_drop_entries), not a defect in this function's control flow, and the src comment makes no size claim, so nothing is changed at this stage. Flagged so the table's true allocated extent can be confirmed (data layout at 0x51B91) when the shared table is refined; if 90 is correct, this function's plate '256' wording is over-stated.",
+      "evidence": "globals.h:515 'extern void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32); /* 0x51B91 */'. get_xrefs_to(0x51B91) returns 3 code indexers: fd2_handle_tile_event_interaction@0x19511, fd2_fire_chapter_turn_events_for_phase@0x1a85a, fd2_process_battle_drop_entries@0x1ac1a. Ghidra plate text: 'fix_off32_00051b91 = 章節事件 handler table (256 槽位 32-bit function pointer 陣列 @ 0x51B91)'."
+    }
+  ],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source definition (lines 613-625) matches the Ghidra decompile exactly: fixed 16-iteration loop, entry = base + i*3, same field offsets entry[3]/entry[4]/entry[5] (turn/event_id/phase), same match condition (entry[3]==turn_counter && entry[5]==phase), same dispatch table[entry[4]](0). Global types/addresses confirmed via globals.h: data_fd2_tile_event_data_table_ptr@0x53A55, data_fd2_battle_turn_counter@0x53BEF, data_fd2_battle_ai_post_action_consequence_table@0x51B91 (matching the decomp 'fixup to -> 00003a55 / 00003bef / 00001b91' annotations). Single caller fd2_run_full_turn_cycle (3 call sites @0x1a4c7/0x1a554/0x1a78d) confirmed via get_function_callers + get_xrefs_to, passing phase 1/0/2 -- consistent with the documented phase semantics. Data table @0x53A55 reads all-zero (BSS / per-chapter runtime-populated table), as expected for a tile/chapter event table. Source comment (lines 591-612) is already accurate, conclusion-style, ASCII, with no phase/date narration -> comment_verdict keep; btl_turn.c not edited. Ghidra plate is more detailed (entry pseudocode, phase examples, shared-table note, tail-call note) but consistent with the src understanding on this function's behavior, so left unchanged (ghidra_plate_action none); the only plate over-statement (table '256 slots' vs declared [90]) is logged as a low-severity data_sizing issue rather than acted on, since it is a shared-table extent question outside this function's logic and the src makes no size claim. name_verdict keep; one param 'phase' keep."
+}

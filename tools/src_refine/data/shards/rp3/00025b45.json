@@ -1,0 +1,61 @@
+{
+  "address": "00025b45",
+  "name_current": "fd2_play_sfx_sample_from_bank",
+  "name_final": "fd2_play_sfx_sample_from_bank",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (audio/SFX domain). Descriptor accurately states the behaviour: play a one-shot SFX sample resolved from a sample-bank directory. No Ghidra address residue in the name. It is the sample-slot-1 sibling of fd2_play_sfx_with_handle (slot 0); the existing name distinguishes it adequately without needing a slot suffix.",
+  "kind": "function",
+  "home": "src/audio/audio.c",
+  "purpose": "One-shot AIL/Miles SFX player that plays a sample (resolved from a sample-bank directory) on SFX sample slot 1.",
+  "logic_summary": "Returns silently unless all three gates hold: sfx driver available (0x53EF1)!=0, sfx enabled (0x51E62)!=0, scripted-cinematic/terrain flag (0x540FF)==0. Always AIL_stop_sample(handle_1) first; if sfx_id==0xFFFFFFFF returns (stop-only). Otherwise resolves entry = bank_ptr + sfx_id*4; reads sample_offset = *(entry+6) and sample_end = *(entry+10); then AIL_init_sample, AIL_set_sample_address(handle_1, bank_ptr+sample_offset, sample_end-sample_offset), AIL_set_sample_loop_count(handle_1, loop_count), AIL_start_sample(handle_1). Same control flow as fd2_play_sfx_with_handle but driving slot 1 instead of slot 0, so an SFX here can play without cutting one on the other channel.",
+  "signature": "void fd2_play_sfx_sample_from_bank(uint32 bank_ptr, uint32 sfx_id, uint32 loop_count)",
+  "params": [
+    {
+      "name": "bank_ptr",
+      "type": "uint32",
+      "semantics": "Base pointer/address of the sample bank. Used both as the directory base (entry = bank_ptr + sfx_id*4) and as the addend for the resolved sample data address (bank_ptr + sample_offset).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the sample-bank base pointer; matches body usage; no address residue."
+    },
+    {
+      "name": "sfx_id",
+      "type": "uint32",
+      "semantics": "Sample index into the bank directory (4-byte stride). The value 0xFFFFFFFF is a sentinel meaning stop-only (return after the leading AIL_stop_sample).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear domain-appropriate name for the sample index; matches usage and the -1 stop sentinel; no address residue."
+    },
+    {
+      "name": "loop_count",
+      "type": "uint32",
+      "semantics": "Loop-count argument forwarded verbatim to AIL_set_sample_loop_count for the started sample.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately describes the value passed to AIL_set_sample_loop_count; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effect is starting (or stopping) playback on AIL SFX sample slot 1; silent no-op when any gate fails or on the stop-only sfx_id==-1 path."
+  },
+  "reads_globals": [
+    "data_fd2_audio_sfx_driver_available_flag",
+    "data_fd2_audio_sfx_enabled_flag",
+    "data_fd2_battle_scripted_cinematic_mode_or_terrain_idx",
+    "data_fd2_audio_sfx_sample_handle_1"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "279f26347645f886e60e913c840947110266eb9c",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment block (audio.c lines 186-214) is accurate, precise and ASCII-clean: it documents the slot-1 role and the contrast vs fd2_play_sfx_with_handle (slot 0), the three gates with addresses, the -1 stop-only path, the entry+6/entry+10 directory layout, and the compiler-injected __CHK(0x1c)/PUSH-POP EBX. Ghidra plate is semantically consistent (no contradiction), so no plate edit. Global names used in src are byte-identical to the decompile output (in sync). Ghidra decompile shows a redundant sample_offset/sample_offset2 pair reading entry+6 (signed vs unsigned for the subtraction) -- that is a Ghidra artifact, not a real defect; src correctly uses one sample_offset. No logic concern. Name rename not applied here per workflow (Stage 2 handles renames); verdict is keep regardless."
+}

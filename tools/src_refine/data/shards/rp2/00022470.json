@@ -1,0 +1,61 @@
+{
+  "address": "00022470",
+  "name_current": "fd2_animate_warp_portal_open_at",
+  "name_final": "fd2_animate_warp_portal_open_at",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Matches fd2_<domain>_<descriptor> convention (domain=animate, descriptor=warp_portal_open_at), consistent with sibling warp functions fd2_animate_warp_teleport_char / fd2_animate_warp_out_collapse / fd2_animate_warp_in_expand. No Ghidra address residue: the '_at' suffix is the English word 'at' (animates at a tile), not a hex address. Name accurately reflects the 11-frame warp-portal OPEN animation drawn at a battle tile.",
+  "kind": "function",
+  "home": "src/spell/spellcin.c",
+  "purpose": "Draws the 11-frame warp-portal OPEN animation at a given battle tile (first half of the character-warp visual: the portal materialises at the source/destination tile).",
+  "logic_summary": "Loops frame_iter = 0..0xA (11 frames). Each frame: (1) fetch the frame's sprite address from the portrait sheet's 11-entry sprite sub-table at +0x1B8 (entry index = frame_iter + 0x72, read as *(int*)(portrait_sheet + 6 + (frame_iter+0x72)*4) + portrait_sheet); (2) memmove the caller's 0x25680-byte snapshot back into the large game-state buffer to restore the backdrop; (3) compute the tile's working-surface address = large_game_state_buffer + (tile_y - origin_y)*0x2AC0 + (tile_x - origin_x)*0x18 + 0x8250; (4) blit the portal sprite there via fd2_blit_sprite_with_decoded_pixels(target, sprite, 0x1C8); (5) repaint characters on top via fd2_composite_all_chars_overlay(); (6) push the viewport to the mode-13h framebuffer via fd2_blit_rectangle(0xA0504, 0x140, large_game_state_buffer+0x8088, 0x1C8, 0x138, 0xC0); (7) fd2_wait_n_bios_ticks(1). Cyclomatic complexity 2 (single loop). The __CHK(0x2c) stack-probe is compiler-injected, not source.",
+  "signature": "void fd2_animate_warp_portal_open_at(uint32 tile_x, uint32 tile_y, uint32 backup_buffer)",
+  "params": [
+    {
+      "name": "tile_x",
+      "type": "uint32",
+      "semantics": "Destination/target battle tile X column. Subtracted from data_fd2_battle_view_window_origin_x and scaled by 0x18 (column width) for the working-surface blit address. Caller fd2_animate_warp_teleport_char passes dst_tile_x.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Source name 'tile_x' is accurate and address-free. (Live Ghidra still shows generic param_1; the correct name already lives in the home source file. Any Ghidra-side rename is deferred to Stage 2.)"
+    },
+    {
+      "name": "tile_y",
+      "type": "uint32",
+      "semantics": "Destination/target battle tile Y row. Subtracted from data_fd2_battle_view_window_origin_y and scaled by 0x2AC0 (row pitch) for the working-surface blit address. Caller passes dst_tile_y.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Source name 'tile_y' is accurate and address-free. (Live Ghidra still shows generic param_2; correct name already in source. Ghidra-side rename deferred to Stage 2.)"
+    },
+    {
+      "name": "backup_buffer",
+      "type": "uint32",
+      "semantics": "Pointer (as uint32) to the caller's 0x25680-byte backdrop snapshot. memmove'd into data_fd2_large_game_state_buffer_ptr at the start of every frame to restore the scene before the portal sprite is drawn. Caller passes its malloc'd 'snapshot' buffer.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Source name 'backup_buffer' accurately describes the snapshot-restore source and carries no address residue. (Live Ghidra still shows generic param_3; correct name already in source. Ghidra-side rename deferred to Stage 2.)"
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; purely side-effecting (animates the portal frames to the framebuffer)."
+  },
+  "reads_globals": [
+    "data_fd2_resource_portrait_sheet_ptr",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "b87f0996af60059d6deeae4189daea64f2abe53f",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (spellcin.c lines 716-744) is already precise and matches the decompile (tile->working-surface math, 11-entry sprite sub-table, per-frame restore/blit/composite/push/wait). Ghidra plate is consistent with the refined understanding, so no plate edit made. Single caller fd2_animate_warp_teleport_char @ 0x22253 passes (dst_tile_x, dst_tile_y, snapshot). Globals confirmed via decompile body. No logic touched."
+}

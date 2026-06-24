@@ -1,0 +1,56 @@
+{
+  "address": "000203bd",
+  "name_current": "fd2_set_full_vga_palette_to_color",
+  "name_final": "fd2_set_full_vga_palette_to_color",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=vga palette, descriptor=set_full..to_color). Accurately describes behavior: programs all 256 DAC entries (idx 0..0xFF) to a single (R,G,B) color. No Ghidra address residue in the name; no domain ID to preserve.",
+  "kind": "function",
+  "home": "src/gfx/palette.c",
+  "purpose": "Overwrite the entire 256-entry VGA DAC palette with one solid (R,G,B) color (used as a full-screen color flash).",
+  "logic_summary": "for idx in 0..0xFF: outp(0x3C8, idx) to set the DAC write-index, then three outp(0x3C9, ...) writing R, then G, then B to the DAC data port. Each component is a 6-bit VGA channel (0..0x3F). No return value. The leading __CHK(0x1c) is the compiler-generated stack-probe prologue (PUSH 0x1c; CALL 0x36cd7), not game logic. Does NOT save/restore data_fd2_vga_palette_data_ptr; the caller must re-apply the real palette afterward.",
+  "signature": "void __cdecl fd2_set_full_vga_palette_to_color(uint32 r, uint32 g, uint32 b)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Red DAC component (6-bit, 0..0x3F) written to every palette entry; ESI in body, pushed first to port 0x3C9.",
+      "verdict": "rename",
+      "proposed": "r",
+      "reason": "Live Ghidra name is the generic placeholder param_1; should be r to match its role (red channel). The src definition already uses r."
+    },
+    {
+      "name": "param_2",
+      "type": "uint",
+      "semantics": "Green DAC component (6-bit, 0..0x3F) written to every palette entry; EBP in body, pushed second to port 0x3C9.",
+      "verdict": "rename",
+      "proposed": "g",
+      "reason": "Live Ghidra name is the generic placeholder param_2; should be g (green channel). The src definition already uses g."
+    },
+    {
+      "name": "param_3",
+      "type": "uint",
+      "semantics": "Blue DAC component (6-bit, 0..0x3F) written to every palette entry; EDI in body, pushed third to port 0x3C9.",
+      "verdict": "rename",
+      "proposed": "b",
+      "reason": "Live Ghidra name is the generic placeholder param_3; should be b (blue channel). The src definition already uses b."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (palette.c lines 109-116) is already concise and correct (set all 256 entries to one color; poison-weapon green flash by sole caller fd2_execute_attack_damage_calculation). No edit needed. Ghidra plate is detailed and consistent with the decompile, so left untouched. Only the live Ghidra param names (param_1/2/3) need renaming to r/g/b in Stage 2; the src .c definition already uses r/g/b. No logic issues."
+}

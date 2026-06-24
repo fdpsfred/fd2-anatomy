@@ -1,0 +1,42 @@
+{
+  "address": "0004e52d",
+  "name_current": "fd2_get_attack_anim_pattern_for_weapon",
+  "name_final": "fd2_get_attack_anim_pattern_for_weapon",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (battle/animation domain). Accurately describes behaviour: dereferences the per-weapon attack-animation pattern pointer table and returns the script pointer for the given weapon. The '_for_weapon' suffix is descriptive English, not a Ghidra address residue; no hex address embedded.",
+  "kind": "function",
+  "home": "src/table/table.c",
+  "purpose": "Per-weapon attack-animation pattern dereferencer: returns the animation-script pointer stored at the weapon-type-indexed slot of the attack-anim pattern pointer table.",
+  "logic_summary": "Leaf, no side effects. weapon_type (EBP+8) is loaded into EBX, shifted left by 2 (byte offset = weapon_type*4), then EAX = *(dword*)(EBX + 0x61955), i.e. it indexes data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[weapon_type] (21-entry pointer table @ 0x61955) and returns the stored pointer. That pointer aims into data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b @ 0x619A9, a {step_count, (sprite_id, sfx_id)*step_count} byte script consumed by the sole caller fd2_animate_attack_hit_sequence.",
+  "signature": "undefined4 __cdecl fd2_get_attack_anim_pattern_for_weapon(int weapon_type)",
+  "params": [
+    {
+      "name": "weapon_type",
+      "type": "int",
+      "semantics": "Weapon attack-pattern id (range 0..20 = 21 table entries). In the caller this is *pWeapon, the first byte of the weapon's item-effect entry (the per-weapon attack-pattern selector). Used directly as the pointer-table index (offset = weapon_type*4).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name matches actual use as the weapon-type / attack-pattern index. No address residue, not a generic param_N placeholder."
+    }
+  ],
+  "returns": {
+    "type": "uint8 * (raw dword pointer; declared undefined4 in Ghidra)",
+    "semantics": "Pointer stored in table slot weapon_type -- a pointer into the attack-anim script pool (data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b). The pool record format is { step_count, (sprite_id, sfx_id) * step_count }; caller reads p[0] as step count and p[step*2+1]/p[step*2+2] per step."
+  },
+  "reads_globals": [
+    "data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "src comment (table.c lines 116-125) and Ghidra plate both already accurate and concise (describe the dereference, the 0..20 index range, the 0x61955 table address and the matching assembly EBX=weapon_type<<2; EAX=[EBX+0x61955]); no edits needed. Verified the table symbol is declared const uint8 *...[21] in globals.h with definition in btltab3.c (84 bytes = 21*4); the '_21' suffix on the table symbol is the element count (a meaningful array dimension), not address residue -- but that symbol is out of scope here and was only inspected for context. Caller fd2_animate_attack_hit_sequence @ 0x1E98C confirms the returned pointer is walked as a {step_count,(sprite_id,sfx_id)*N} animation script. No logic concerns."
+}

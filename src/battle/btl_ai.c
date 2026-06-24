@@ -12,9 +12,26 @@
 /* ----------------------------------------------------------------
  * fd2_npc_turn_phase_team1 @ 0x1D80B
  *
- * AI turn loop for team 1 (NPC allies). Iterates chars, runs
- * enemy_turn_action_dispatcher, then post-action consequences
- * and chapter handlers.
+ * AI turn loop for team 1 (NPC allies that act on their own, e.g.
+ * kingdom soldiers in joint missions). Called as "Phase C" of the
+ * full turn cycle, between the player turn and the enemy turn.
+ *
+ * Iterates runtime chars [0 .. party_member_count). Skips a char
+ * unless: bTeam(+6)==1, (bFlags(+5) & 0x81)==0 (not dead 0x01 /
+ * not acted-this-turn 0x80), and sleep flag(+0x26)==0. Eligible
+ * chars run through fd2_enemy_turn_action_dispatcher(i, 1).
+ *
+ * After each char (whether it acted or not):
+ *   - if a post-action consequence index was set (!=0xFF), invoke
+ *     the consequence handler from the table (counter-attack /
+ *     death / status proc);
+ *   - always run the per-chapter post-action handler for the
+ *     current chapter (scripted-event probe);
+ *   - break the loop if the chapter event / battle-end code became
+ *     non-zero.
+ *
+ * anim_phase is forced to 0 before the loop and again each
+ * iteration, and the keyboard buffer is flushed each iteration.
  * ---------------------------------------------------------------- */
 void fd2_npc_turn_phase_team1(void)
 {
@@ -46,8 +63,25 @@ void fd2_npc_turn_phase_team1(void)
 /* ----------------------------------------------------------------
  * fd2_enemy_turn_phase_team0 @ 0x1D8BA
  *
- * Two-pass enemy AI: pass 1 lets smart casters (spell/item score
- * >= 6) act first, pass 2 runs everyone else.
+ * Enemy-phase entry point per turn. Two-pass AI over runtime chars
+ * [0 .. party_member_count). Eligibility filter (both passes): team
+ * 0 (TEAM_ENEMY) and (bFlags(+5) & 0x81)==0 (not dead 0x01 / not
+ * acted-this-turn 0x80) and sleep flag(+0x26)==0.
+ *
+ * Pass 1 -- smart casters first: score offensive spell + item; only
+ * if best spell score >= 6 OR best item score >= 6 dispatch the
+ * action now. Low-score chars skip and fall through to pass 2.
+ * Pass 2 -- everyone else: dispatch unconditionally; chars that
+ * already acted in pass 1 are blocked by the 0x80 (acted) bit.
+ *
+ * Shared per-char postlude (both passes): reset consequence index to
+ * 0xFF before acting, then -- if it was set (!=0xFF) -- invoke the
+ * consequence handler (counter/death/status proc), always run the
+ * per-chapter post-action handler, and return early if the chapter
+ * event / battle-end code became non-zero. anim_phase forced to 0
+ * and keyboard buffer flushed each iteration (pass 1 only forces
+ * anim_phase). Mirrors fd2_npc_turn_phase_team1 (team 1) but adds
+ * the caster-priority first pass.
  * ---------------------------------------------------------------- */
 void fd2_enemy_turn_phase_team0(void)
 {
@@ -102,8 +136,21 @@ void fd2_enemy_turn_phase_team0(void)
 /* ----------------------------------------------------------------
  * fd2_execute_ai_physical_attack @ 0x1548E
  *
- * Execute AI physical attack with animation + retaliation.
- * Always returns 1.
+ * Execute the physical attack chosen by the enemy AI, with full
+ * sprite animation. Called when the physical option wins the 3-way
+ * contest in fd2_attack_action_dispatch, or from the AI dispatcher
+ * (ai_class 11) physical fallback. ctx_flag is the caster's team/side
+ * context, forwarded to fd2_ai_walk_to_target_tile.
+ *
+ * Reads the ai_best_physical_* selection globals (target x/y/idx) set
+ * by fd2_ai_score_physical_attack. Walks caster to the target tile,
+ * faces it, then branches on game_speed_flag:
+ *   speed == 0 -> fd2_play_full_combat_cinematic (pre-rendered).
+ *   speed != 0 -> fast path: paint HP bars, play the hit with HP
+ *                 drain, and -- if the hit landed and the defender
+ *                 can counter -- play one retaliation hit back.
+ * Then resolves deaths, processes drops (target =
+ * ai_best_physical_target_idx) and XP/level-up. Always returns 1.
  * ---------------------------------------------------------------- */
 int fd2_execute_ai_physical_attack(uint32 caster_idx,
                                     uint32 ctx_flag)
@@ -182,8 +229,22 @@ int fd2_execute_ai_physical_attack(uint32 caster_idx,
 /* ----------------------------------------------------------------
  * fd2_execute_ai_offensive_spell @ 0x15311
  *
- * Execute AI offensive spell. Gate: score < 6 → return 0.
- * Dispatch via spell handler table or basic cast sequence.
+ * Execute the offensive spell chosen by the enemy AI. Reads the
+ * ai_best_spell_* selection globals (id, target x/y, score) set by
+ * fd2_ai_score_offensive_spell. Returns 0 (no-op) if the gate
+ * ai_best_spell_score < 6, else 1 after casting.
+ *
+ * ctx_flag selects how the spell's AOE field pSpell[6] is read when
+ * gathering targets: ctx_flag == 0 -> pass (pSpell[6] == 0) as the
+ * AOE flag; otherwise pass pSpell[6] directly.
+ *
+ * Cast path split: spell id < 10 (basic offensive spells) with
+ * game_speed_flag == 0 -> fd2_play_spell_cast_sequence; otherwise
+ * dispatch through data_fd2_battle_spell_handler_table[id] (special
+ * spells, or any spell when fast-speed is on), bracketed by the
+ * status-effect SFX setup/teardown hooks. Then resolves deaths,
+ * processes drops (target = ai_best_physical_target_idx) and clears
+ * pending_xp_credit / anim_phase.
  * ---------------------------------------------------------------- */
 int fd2_execute_ai_offensive_spell(uint32 caster_idx,
                                     uint32 ctx_flag)
@@ -250,8 +311,23 @@ int fd2_execute_ai_offensive_spell(uint32 caster_idx,
 /* ----------------------------------------------------------------
  * fd2_execute_ai_item_use @ 0x15055
  *
- * Execute AI item use. Reads ai_best_item_* globals, applies
- * item effect with animation. Returns 0.
+ * Execute the item-use action chosen by the enemy AI (called from
+ * fd2_attack_action_dispatch when the item score wins). Reads the
+ * ai_best_item_* selection globals (slot, target x/y), resolves the
+ * item id and its effect entry, then runs the use animation and
+ * applies the effect.
+ *
+ * ctx_flag selects how the item's small-AOE field (pItem[0x11]) is
+ * interpreted when gathering targets: ctx_flag == 0 -> AI usage,
+ * pass (small_aoe == 0) as the AOE flag; otherwise pass small_aoe
+ * directly.
+ *
+ * Branch on pItem[0x10] (range class): < 0x10 = short-range
+ * (fd2_compute_aoe_targets + tile-flash animation); >= 0x10 =
+ * long-range projectile (fd2_scan_chars_along_line + caster figani
+ * intro, palette fade, projectile-tile interpolation/clamp and an
+ * 8-frame burst). Effect is applied via fd2_apply_use_effect_dispatch.
+ * Caller discards the result (Ghidra: returns int 0).
  * ---------------------------------------------------------------- */
 void fd2_execute_ai_item_use(uint32 caster_idx, uint32 ctx_flag)
 {
@@ -374,8 +450,15 @@ void fd2_execute_ai_item_use(uint32 caster_idx, uint32 ctx_flag)
 /* ----------------------------------------------------------------
  * fd2_attack_action_dispatch @ 0x14EF0
  *
- * Score phys/spell/item, pick best, execute winner. Returns 1 if
- * action executed, 0 if all scores < 6.
+ * Enemy-AI offensive action selector. Scores the 3 candidate
+ * categories (physical / offensive spell / item) via the
+ * fd2_ai_score_* trio, then executes the highest-scoring one.
+ * Strict-max wins; ties are resolved by tie_break (caster
+ * pCombat_aux_block[0xD] & 0x40 forces physical) and, for a
+ * phys==spell tie with a low spell id, by comparing the spell's
+ * base damage against caster wAP - target wDP.
+ * Returns 1 if an action was dispatched, 0 if all scores < 6.
+ * ctx_flag is passed through unchanged to every score/execute call.
  * ---------------------------------------------------------------- */
 int fd2_attack_action_dispatch(uint32 caster_idx, uint32 ctx_flag)
 {

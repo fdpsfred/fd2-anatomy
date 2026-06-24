@@ -1,0 +1,33 @@
+{
+  "address": "00025089",
+  "name_current": "fd2_restore_all_chars_full_hp_mp",
+  "name_final": "fd2_restore_all_chars_full_hp_mp",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> name. 'restore_all_chars_full_hp_mp' accurately captures the dominant semantic: walk the whole roster and set current HP/MP to max for every slot. The function also clears the +0x05 status-flags byte (full revive), but restoring full HP/MP is the canonical meaning and folding the flag-clear into the name would be unwieldy; the comment documents the flag clear. No Ghidra address residue. Callee __CHK is correctly named.",
+  "kind": "function",
+  "home": "src/battle/btl_init.c",
+  "purpose": "Cinematic full-restore: walk the menu/template character roster and reset every slot to a fully-healed state (clear status flags, current HP := max HP, current MP := max MP). Used at chapter-end revive/epilogue points.",
+  "logic_summary": "__CHK(8) stack-probe prologue (compiler-injected). roster = data_fd2_shared_menu_party_roster_buffer_ptr (= [0x53BF7], stride RUNTIME_CHAR_SIZE=0x50). For byte counter char_iter in 0..count-1 where count = data_fd2_shared_menu_party_member_count (= [0x53BFB]): slot[+0x05] flags := 0; slot[+0x40] hp_current := slot[+0x42] hp_max; slot[+0x44] mp_current := slot[+0x46] mp_max. Loop counter is a byte (BL), implicitly capping at 0xFF entries; safe given menu_party_member_count is a small party-roster value. Disassembly (MOV byte [EAX+0x5],0 / [EAX+0x42]->[EAX+0x40] / [EAX+0x46]->[EAX+0x44]) matches types.h runtime_char offsets exactly (flags +0x05, hp_current +0x40, hp_max +0x42, mp_current +0x44, mp_max +0x46).",
+  "signature": "void fd2_restore_all_chars_full_hp_mp(void)",
+  "params": [],
+  "returns": { "type": "void", "semantics": "none" },
+  "reads_globals": [
+    "data_fd2_shared_menu_party_roster_buffer_ptr",
+    "data_fd2_shared_menu_party_member_count"
+  ],
+  "writes_globals": [
+    "data_fd2_shared_menu_party_roster_buffer_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (btl_init.c lines 313-335) is already precise, accurate, ASCII-only, and matches verified logic and caller context. Verified callers: fd2_chapter_27_end (GOOD path = has item 100 天空之鑰: increments chapter then full-restore before continuing to ch28; BAD path: full-restore then game-ending cinematic + hard-lock), and fd2_chapter_30_end (the two adjacent xrefs at 0x25850/0x2585B = 'double restore' before epilogue). runtime_char offsets cross-checked against src/include/types.h (authoritative, derived from this binary) -- note the strategy-guide memory_hack.htm cheat-sheet lists HP at +0x48/MP at +0x4C, which is cross-version drift for a different build; the in-binary offsets (+0x40/+0x42/+0x44/+0x46) from the disassembly are authoritative and the source uses them correctly. writes_globals lists the roster buffer because the function mutates the memory pointed to by data_fd2_shared_menu_party_roster_buffer_ptr (the pointer scalar itself is only read). Ghidra plate is consistent with the refined understanding, so left untouched. No source edit needed; shard-only commit."
+}

@@ -1,0 +1,83 @@
+{
+  "address": "0x0004e96f",
+  "name_current": "fd2_save_screen_block_to_buffer",
+  "name_final": "fd2_save_screen_block_to_buffer",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=save/screen-block, descriptor=to_buffer). Accurately describes the function: snapshots a live screen region into a backup buffer (writes an 8-byte header then copies pixels). No Ghidra address residue. It is the exact inverse companion of fd2_restore_screen_block_from_buffer, and the name pairing is consistent.",
+  "kind": "function",
+  "home": "ROOT/src/gfx/blitspr.c",
+  "purpose": "Outer setter for a 'save under' screen-block snapshot: writes an 8-byte header (width, height, src_offset) into a backup buffer and hands off to fd2_save_block_loop to pack the live region's pixels contiguously, for later restore by fd2_restore_screen_block_from_buffer.",
+  "logic_summary": "Stores (uint16)width into data_fd2_graphics_rle_blit_cur_width (0x627B4) and into out_buf[+0]; stores (uint16)height into data_fd2_graphics_rle_blit_remaining_rows (0x627B6) and into out_buf[+2]; stores src_offset (the EAX value, NOT src_base) into out_buf[+4]; computes src = src_base + src_offset and dst = out_buf + 8; calls fd2_save_block_loop(src, dst, stride). In the binary header writes are STOSW/STOSW/STOSD so EDI ends at out_buf+8; ESI=src_base is advanced by ADD ESI,EAX(=src_offset); EBP=stride from [EBP+0x1c]. PUSHAD/POPAD wrap the body; plain RET (cdecl, callers ADD ESP,0x18); EAX untouched so the decompiler 'return in_EAX' is a pass-through artifact and the function is effectively void (all 3 callers discard).",
+  "signature": "void fd2_save_screen_block_to_buffer(uint32 out_buf, uint32 width, uint32 height, uint32 src_base, uint32 src_offset, uint32 stride)",
+  "params": [
+    {
+      "name": "out_buf",
+      "type": "uint32",
+      "semantics": "Backup buffer base; receives the 8-byte header (width word 0, height word 2, src_offset dword 4) then the width*height saved pixel bytes at +8.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate; no address residue. Matches its use as the STOSW/STOSW/STOSD destination cursor."
+    },
+    {
+      "name": "width",
+      "type": "uint32",
+      "semantics": "Columns copied per row; stored as a word in the header (+0) and in the width global data_fd2_graphics_rle_blit_cur_width.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate column-count semantics; no residue."
+    },
+    {
+      "name": "height",
+      "type": "uint32",
+      "semantics": "Row count; stored as a word in the header (+2) and in the height global data_fd2_graphics_rle_blit_remaining_rows (read by the inner loop as the row counter).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate row-count semantics; no residue."
+    },
+    {
+      "name": "src_base",
+      "type": "uint32",
+      "semantics": "Source base linear address of the live screen region; src = src_base + src_offset gives the region top-left (ESI in the binary).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Correctly distinguishes the base from the offset; matches ESI register role and caller usage (dst surface base passed here)."
+    },
+    {
+      "name": "src_offset",
+      "type": "uint32",
+      "semantics": "Offset added to src_base to reach the region's top-left; also stored in the header at +4 so the restore companion can re-derive its dst top-left (mirrors restore's dst_offset).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Critical to name this an offset (not a pointer); it is the EAX value that STOSD writes to header+4 and that ADD ESI,EAX applies to src_base. Name is precise; no residue."
+    },
+    {
+      "name": "stride",
+      "type": "uint32",
+      "semantics": "Bytes to advance the source per row inside fd2_save_block_loop (EBP in the binary, from [EBP+0x1c]).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate per-row advance semantics; no residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No meaningful return. The decompiler shows 'return in_EAX' but PUSHAD/POPAD leave EAX at its entry value; all three callers discard it."
+  },
+  "reads_globals": [],
+  "writes_globals": [
+    "data_fd2_graphics_rle_blit_cur_width",
+    "data_fd2_graphics_rle_blit_remaining_rows"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Src comment (blitspr.c lines 1757-1816) was already precise and accurate (correct 6-param cdecl signature, correct src_offset-at-+4 semantics, correct void-return rationale) -> comment kept, src NOT edited. Disassembly verified: STOSD writes EAX=src_offset (param 5) to header+4, then ADD ESI,EAX gives src=src_base+src_offset; matches src exactly. Ghidra plate was updated because it described only 3 stack params with 'remaining via registers' (a decompiler artifact) and labelled header+4 as 'src_ptr (original screen address)' rather than the offset it actually is; plate now aligns with src's accurate 6-param cdecl framing. No logic changed. Since src was not edited, no blitspr.c diff exists for the clobber check; only the shard is staged."
+}

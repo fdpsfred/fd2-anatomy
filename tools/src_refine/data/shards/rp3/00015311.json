@@ -1,0 +1,60 @@
+{
+  "address": "00015311",
+  "name_current": "fd2_execute_ai_offensive_spell",
+  "name_final": "fd2_execute_ai_offensive_spell",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor> (domain = AI/battle, descriptor = execute_ai_offensive_spell). No Ghidra address residue. Name accurately reflects purpose: dispatched execution of the AI-selected offensive spell.",
+  "kind": "function",
+  "home": "src/battle/btl_ai.c",
+  "purpose": "Execute the offensive spell the enemy AI selected (reads the ai_best_spell_* globals), gated by ai_best_spell_score >= 6.",
+  "logic_summary": "Fetches the spell effect entry for data_fd2_battle_ai_best_spell_id. Derives aoe_flag from pSpell[6] (ctx_flag==0 -> (pSpell[6]==0)?1:0, else pSpell[6] directly). Gate: if ai_best_spell_score < 6 return 0. Otherwise: pan cursor to caster; compute AOE targets at (ai_best_spell_target_x,y) with shape pSpell[4] into target_buf -> n_targets; obfuscate tile map + 200ms delay; set anim_phase = pSpell[4]+2; animate tile cast effect; anim_phase=0; composite frame. Cast split: if spell id < 10 AND game_speed_flag==0 -> fd2_play_spell_cast_sequence (basic cast); else load_status_effect_sfx + indirect call data_fd2_battle_spell_handler_table[id]() + play_and_free_status_effect_sfx. Then collect dead-char drops -> n_drops; composite frame; play death anim and mark dead; process drop entries (target = ai_best_physical_target_idx); composite frame; pending_xp_credit=0; anim_phase=0; return 1.",
+  "signature": "int __cdecl fd2_execute_ai_offensive_spell(uint32 caster_idx, uint32 ctx_flag)",
+  "params": [
+    {
+      "name": "caster_idx",
+      "type": "uint32",
+      "semantics": "Runtime-character index of the casting unit (enemy AI actor). Passed to fd2_pan_cursor_to_char and fd2_play_spell_cast_sequence. Callers thread their own caster_idx in.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, no address residue; matches sibling executors (fd2_execute_ai_item_use) and caller param names."
+    },
+    {
+      "name": "ctx_flag",
+      "type": "uint32",
+      "semantics": "AI-context/team flag threaded from the dispatchers (fd2_attack_action_dispatch passes its ctx_flag; fd2_enemy_turn_action_dispatcher case 11 passes 'team'). Selects how the spell AOE field pSpell[6] is interpreted: ctx_flag==0 -> AI usage passes (pSpell[6]==0) as aoe flag; else passes pSpell[6] directly.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Matches the name already used in callers (ctx_flag) and the sibling fd2_execute_ai_item_use; no address residue. Accurately names its role as the context selector for AOE-field interpretation."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "1 if the spell was cast; 0 if the score gate (ai_best_spell_score < 6) failed and nothing was done. Both AI dispatchers discard the value (they re-check the score themselves)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_ai_best_spell_id",
+    "data_fd2_battle_ai_best_spell_score",
+    "data_fd2_battle_ai_best_spell_target_x",
+    "data_fd2_battle_ai_best_spell_target_y",
+    "data_fd2_battle_ai_best_physical_target_idx",
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_ui_game_speed_flag",
+    "data_fd2_battle_spell_handler_table"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_battle_pending_xp_credit"
+  ],
+  "comment_original_issue": "Source comment was accurate but thin: it stated only the score<6 gate and 'dispatch via handler table or basic cast sequence', omitting the load-bearing details that explain the two params (ctx_flag's AOE-field interpretation) and the precise cast-split condition (id<10 AND game_speed_flag==0).",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "bc7c7994",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Two callers: fd2_attack_action_dispatch (C23 score path / spell wins) and fd2_enemy_turn_action_dispatcher case 11 (smart-caster path), both thread caster_idx + ctx_flag(team). Ghidra plate comment is already a detailed superset consistent with the refined understanding, so it was left untouched (ghidra_plate_action=none). Spell-id < 10 = basic offensive spells (火炎..咒殺, ids 00h-09h per fd2-knowledge); ids >= 10 (碎岩/地震/裂地 + summon/special) go through the handler table. Global names verified byte-identical between Ghidra decompile and src."
+}

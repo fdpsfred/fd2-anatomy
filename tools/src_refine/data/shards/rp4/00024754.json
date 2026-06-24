@@ -1,0 +1,49 @@
+{
+  "address": "00024754",
+  "name_current": "fd2_chapter_23_end",
+  "name_final": "fd2_chapter_23_end",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention. '23' is the chapter ID (valid domain ID, chapters 01-30), not address residue. The only xref is the chapter-end-handler dispatch table @ 0x51e41 (which stores 0x00024754 at the chapter-23 slot, followed by 0x00024c1e = fd2_chapter_24_end), confirming this is chapter 23's end handler. Name accurately reflects purpose and body.",
+  "kind": "function",
+  "home": "src/field/chend2.c",
+  "purpose": "Chapter 23「向天空之旅」end handler: runs the post-battle conditional-join/cutscene story branches, advances the chapter id, then performs the mid-end transition that reloads the second battlefield's resources.",
+  "logic_summary": "Phase 1: copies the three 17-byte ch23 end-scene position/facing tables onto stack scratch and places the cast (slots 0, 0x10, 0x11) / re-aims camera via fd2_setup_chars_and_camera_for_intro. Three story branches: (a) 天空之鑰 item 100 NOT held -> dialog page 9 + cutscene 0x47; else page 8 + recruit 卡里斯 char 0x16. (b) 蜜蒂 char_id 0x12 present in template roster -> page 10, cutscene 0x48, mark char 0x11 dead, page 11. (c) 蜜蒂 absent and turn_counter < 15 -> page 13 + recruit 羅德曼 char 0x13; else page 12, cutscene 0x48, mark char 0x11 dead. Then save runtime char templates and current_chapter_id += 1. Phase 2: dialog pages 14/15/16 interleaved with fd2_play_rising_pre_cast_effect, two screen shakes (0x1E), and 400ms holds; a palette fade-in loop (v=0..0x3E step 2); reloads battlefield resources (FDFIELD.DAT[0x45] tile map, FDSHAP.DAT[0x2E] scene snapshot, FDSHAP.DAT[0x2F] tile-attribute flags), obfuscates the tile map, reloads chapter background layers, two cursor/window pans around cutscene event 0x49 (fired three times), and final dialog page 17.",
+  "signature": "void __cdecl fd2_chapter_23_end(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Dispatched (not directly called) via the chapter-end-handler table; the dispatcher does not consume a result."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_ch23_end_scene_char_pos_x_table",
+    "data_fd2_chapter_ch23_end_scene_char_pos_y_table",
+    "data_fd2_chapter_ch23_end_scene_char_facing_table",
+    "data_fd2_current_chapter_text",
+    "data_fd2_battle_turn_counter",
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_battle_scene_snapshot",
+    "data_fd2_tile_attribute_flags_buffer_ptr",
+    "data_fd2_string_resource_filename_fdfield_dat_51a59",
+    "data_fd2_string_resource_filename_fdshap_dat_51a65",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_anim_phase",
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_battle_scene_snapshot",
+    "data_fd2_tile_attribute_flags_buffer_ptr",
+    "data_fd2_chapter_current_chapter_id"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment (chend2.c lines 361-388) is already accurate and refined; verified line-by-line against decompilation (item 100 branch, 蜜蒂 0x12 presence branch, turn_counter<15 -> char 0x13, Phase-2 resource reloads FDFIELD[0x45]/FDSHAP[0x2E]/FDSHAP[0x2F], cutscene 0x49 x3, final page 17). Ghidra plate is more verbose (adds linked-handler info: init @ 0x336A0, post-action @ 0x20AAF) but is consistent with the refined understanding, so left untouched per the keep-detailed-plate rule. Out-of-scope observation (NOT acted on -- belongs to other symbols' refine passes): the two FDFIELD/FDSHAP filename string globals carry address-suffix residue (data_fd2_string_resource_filename_fdfield_dat_51a59 -> _51a59, ..._fdshap_dat_51a65 -> _51a65) and may warrant renaming when those symbols are processed."
+}

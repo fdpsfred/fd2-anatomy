@@ -1,0 +1,52 @@
+{
+  "address": "00018890",
+  "name_current": "fd2_player_action_menu_loop",
+  "name_final": "fd2_player_action_menu_loop",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=player/battle UI, descriptor=action_menu_loop). Accurately describes the function: the player-side per-turn action UI that loops over target selection, pathfinding, walk animation, and the inline action submenu. No Ghidra address residue in the name; no trailing hex equal to its own/any data address.",
+  "kind": "function",
+  "home": "src/ui_menu/menu.c",
+  "purpose": "Player-side per-turn action UI for the selected character: shows the movement-range highlight, lets the player pick a destination tile and an action (Attack/Spell/Item/Stand), animates the walk, and commits or cancels the action.",
+  "logic_summary": "Copies the 16-byte (4-int) player_action_menu_state_template into a local menu_state; clears result_code (0x53C53)=0 and consequence_idx (0x51A8F)=0xFF. Computes the movement-cost class from char job_id (+0x20), overridden to 0x13 (flying) when fd2_check_char_status_immunity!=0, or to 0x10 (special) when portrait_id (+0x07)==0x1C; fetches the move-cost table. Allocates a path buffer of size range_remaining (combat_aux_block[0x14], +0x3B). Paints the ally threat overlay, flood-fills reachable tiles, blocks ally-occupied tiles, saves the origin cursor pos (saved_x/saved_y), repaints the side panel, then waits for a target. On cancel (-1): pan back to origin, free, return 1. Otherwise pathfinds to the destination; toggles anim_phase around panning back to origin. If the path has 0 steps (or 0xFF unreachable): loop the inline action submenu (have_moved=0) until non-zero; on commit run check_tile_event_post_action + free + return 1; on full cancel with result_code==0 return 0. If the path has steps: animate the walk, clear all facings, and for portrait_id not in {0x12,0x13,0x22} enable the \"moved\" submenu mode (menu_state[1]=1), then loop the inline action submenu (have_moved=1); on commit return the action code; on full cancel with result_code==0 revert position to the origin, pan, and return result_code(0). Common tail: mark_char_acted_this_turn, check_tile_event_post_action, return result_code.",
+  "signature": "int __cdecl fd2_player_action_menu_loop(uint32 char_idx)",
+  "params": [
+    {
+      "name": "char_idx",
+      "type": "uint32",
+      "semantics": "Index of the acting character in data_fd2_battle_runtime_char_array_ptr (used as runtime_char_array_ptr + char_idx). Passed by fd2_game_main_loop as the selected unit 'sel'.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the runtime-char-array index; no address residue, not the generic param_1."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Action result code. 0 = cancelled / re-prompt (caller fd2_game_main_loop loops while ret==0); non-zero = action committed, advance turn. The committed value is either 1 (target-cancel or no-move-needed path that committed) or the action code returned by the inline submenu / data_fd2_battle_player_action_result_code."
+  },
+  "reads_globals": [
+    "data_fd2_ui_player_action_menu_state_template",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_cursor_world_x",
+    "data_fd2_battle_cursor_world_y",
+    "data_fd2_battle_tile_map_ptr",
+    "data_fd2_tile_attribute_flags_buffer_ptr",
+    "data_fd2_battle_player_action_result_code"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_player_action_result_code",
+    "data_fd2_battle_ai_post_action_consequence_idx",
+    "data_fd2_battle_anim_phase"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (lines 305-334 of src/ui_menu/menu.c) is already precise and accurate (matches decomp: setup, movement-class overrides, flood-fill, pathfind, walk animation, portrait_id submenu gating, return semantics, and the +0x07/+0x3B/+0x20 offset notes); it also correctly clarifies that saved_x/saved_y are the origin captured before target input (an improvement over the Ghidra local names target_x/target_y), so kept as-is. Ghidra plate is more verbose but fully consistent with this understanding (no contradiction/staleness/blank), so left untouched. menu_state[1]=1 in src equals the Ghidra decomp's menu_state[4..7]={1,0,0,0}: menu_state is byte[16] in Ghidra vs int32[4] in src; bytes 4..7 are the second int32 = little-endian value 1 (equivalent, not a logic change). No Edit was made to menu.c (comment=keep, plate=none); only this shard is created/committed. Pre-existing unrelated modified shard 00052113.json from a prior run was left unstaged (commit staged only menu.c -- unchanged -- and this shard)."
+}

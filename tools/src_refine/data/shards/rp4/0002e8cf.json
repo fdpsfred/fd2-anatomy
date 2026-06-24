@@ -1,0 +1,70 @@
+{
+  "address": "0002e8cf",
+  "name_current": "fd2_party_roster_class_select_loop",
+  "name_final": "fd2_party_roster_class_select_loop",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (domain=party roster select, descriptor=class_select_loop) and accurately describes the behavior: a class/equip-eligibility-filtered party-roster select loop with per-row stat preview. No Ghidra address residue. Consistent with sibling fd2_party_roster_single_select_loop @ 0x2E6B8. The 'class' qualifier is justified: the candidate list is built by the sole caller via fd2_check_job_can_equip_item (job/class-based equip eligibility), and the renderer fd2_render_party_roster_with_item_stat_preview shows the per-candidate stat preview that distinguishes this loop from the plain single-select loop.",
+  "kind": "function",
+  "home": "src/ui_menu/chintro.c",
+  "purpose": "Class/equip-filtered party-roster select loop with a per-row stat preview: opens a single-column panel listing only the chars who can equip a given shop item, each row previewing the stats they would have if they equipped it, and returns whether the user committed (1) or cancelled (-1).",
+  "logic_summary": "Allocates the 3 shared 64000-byte slide workspace buffers (accumulator/bg-snapshot/composed-target), snapshots the live VGA framebuffer (0xA0000) into the bg-snapshot buffer and clones it into the composed-target buffer, resets data_fd2_ui_menu_scroll_offset and data_fd2_ui_menu_cursor_idx to 0, blits the panel header sprite (atlas entry at atlas[+0x46]) into composed-target+0x8C05, renders the initial roster via fd2_render_party_roster_with_item_stat_preview, then plays a 6-frame slide-down (frame 5..0, panel y = frame*0xD + 0x70). Input loop: each iteration polls fd2_wait_input_with_chapter_dialog_blink(2) (mode 2 = stat-preview roster) and dispatches a single-column 1-step nav: 0x50 (Down) -> if cursor != candidate_count-1: chime, cursor++, if (signed) cursor-scroll_offset > 2: scroll_offset++ + scroll-up anim, re-render live to 0xA0000; 0x48 (Up) -> if cursor != 0: chime, cursor--, if (signed) cursor < scroll_offset: scroll_offset-- + scroll-down anim, re-render; 0x1C/0x39 (Enter/Space) -> result=1; 0x01 (Esc) -> result=-1. Loops while result==0; returns result. The cursor chime is SFX id 0 from the FDOTHER bank.",
+  "signature": "int fd2_party_roster_class_select_loop(uint32 candidate_count, uint32 candidate_array_ptr, uint32 item_id)",
+  "params": [
+    {
+      "name": "candidate_count",
+      "type": "uint32",
+      "semantics": "Number of equip-capable chars in the candidate list (the row count the renderer paints and the cursor upper bound). Caller fd2_run_buy_item_menu passes the count it accumulated while scanning the menu party for chars that pass fd2_check_job_can_equip_item.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects the candidate row count; ASCII; no address residue."
+    },
+    {
+      "name": "candidate_array_ptr",
+      "type": "uint32",
+      "semantics": "Pointer to the candidate char-id byte array (the caller's eligible_chars[]); forwarded positionally to the renderer each draw so it can resolve each row to a runtime character. Caller passes (uint)eligible_chars.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects a pointer to the candidate array; ASCII; no address residue."
+    },
+    {
+      "name": "item_id",
+      "type": "uint32",
+      "semantics": "The shop item id being considered for purchase; the renderer's preview path resolves it to an item-effect entry to compute the would-be stats. Caller passes item_array[saved_cursor], i.e. the byte item id at the chosen shop slot.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects the item id; 'id' is a real semantic (FD2 item id 00h-D6h), not address residue; ASCII."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "1 = user committed (Enter 0x1C / Space 0x39); -1 = user cancelled (Esc 0x01)."
+  },
+  "reads_globals": [
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_ui_menu_scroll_offset",
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr",
+    "data_fd2_audio_fdother_sfx_bank_buf_ptr",
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr",
+    "data_fd2_ui_slide_composed_target_buf_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_ui_menu_scroll_offset",
+    "data_fd2_ui_slide_anim_accumulator_buf_ptr",
+    "data_fd2_ui_slide_bg_snapshot_buf_ptr",
+    "data_fd2_ui_slide_composed_target_buf_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "11b9b0de5b0a5b385eed67a68a5634de8ef86824",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (chintro.c lines 650-702) is already precise, accurate, ASCII, and consistent with the decompilation; left unchanged (comment_verdict=keep). The 3-arg signature, parameter names, and arg semantics were confirmed against the sole caller fd2_run_buy_item_menu @ 0x2F0B0 call site at 0x2F327: fd2_party_roster_class_select_loop(candidate_count, (uint)eligible_chars, item_array[saved_cursor]). The constants 2 (down-scroll threshold), 3-visible window, step-of-1 scroll, atlas[+0x46] header-sprite offset, 0x8C05 panel-blit offset, and 0x70/0xD slide geometry are UI-layout dimensions, not FD2 domain IDs. Mode 2 to fd2_wait_input_with_chapter_dialog_blink selects the stat-preview roster input mode. Ghidra plate is consistent with the refined understanding (uses em-dash/arrow glyphs, allowed in plate text), so left untouched (ghidra_plate_action=none). No logic concerns: the src is functionally equivalent to the decompilation (signed bound casts match the JL/JGE in the disassembly; the do/while-true + early-return shape in the decomp is the same loop as the src do/while(result==0))."
+}

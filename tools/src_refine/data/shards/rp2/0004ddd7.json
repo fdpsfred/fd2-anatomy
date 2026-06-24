@@ -1,0 +1,64 @@
+{
+  "address": "0004ddd7",
+  "name_current": "fd2_tile_blit_24x24_solid_color",
+  "name_final": "fd2_tile_blit_24x24_solid_color",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: domain = tile/blit graphics, descriptor = 24x24 (sprite dimension, a meaningful constant) + solid_color (the recolour behaviour: every painted pixel forced to one colour). Accurately reflects purpose and internal logic; no Ghidra address residue.",
+  "kind": "function",
+  "home": "src/gfx/blittile.c",
+  "purpose": "Hand-written RLE blit of a 24x24 sprite into a destination buffer, forcing every painted pixel to a single solid silhouette colour regardless of the RLE source byte values (ghost/silhouette overlay used for the pre-attack flash and the status-effect highlight).",
+  "logic_summary": "Decodes the same 4-mode 24x24 RLE stream as the sibling tile_blit_24x24_* family, one command byte at a time; top two bits select the mode and (low 6 bits + 1) is the run length. RUN (bits 00): skip one ignored source byte, write the fill colour len times contiguously. STRIDE-2 RUN (bits 01): skip one ignored source byte, write colour len times at every other dst byte (dst += 2/pixel). LITERAL (bits 10): consume len ignored source bytes, write colour once each. TRANSPARENT SKIP (bits 11): advance dst by len, write nothing, consume no source. Per-row x counter starts at 0x18; at row end dst advances by (color_or_stride - 0x18); 24 rows total. The fill colour is the low byte of color_or_stride; the row stride is the same value. Leaf, no CALLs, no __CHK probe.",
+  "signature": "void __cdecl fd2_tile_blit_24x24_solid_color(byte *rle_stream, byte *dst_buf, uint color_or_stride, uint param_4)",
+  "params": [
+    {
+      "name": "rle_stream",
+      "type": "byte *",
+      "semantics": "Source RLE-encoded 24x24 sprite stream; command bytes are read to advance the pointer, but in every non-skip mode the trailing source byte value(s) are discarded (the solid colour is written instead).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurately names the RLE source stream; no address residue."
+    },
+    {
+      "name": "dst_buf",
+      "type": "byte *",
+      "semantics": "Destination base linear address; pixels are written here and the pointer is advanced per command and per row (row advance = color_or_stride - 0x18).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Accurate destination-base name; no address residue."
+    },
+    {
+      "name": "color_or_stride",
+      "type": "uint",
+      "semantics": "Packed value used two ways at entry: row advance = (value - 0x18) (= stride - 24), and fill colour = (uint8)value (low byte). Callers pass a row stride whose low byte is reused as the fill colour: stride 0x1C8 -> colour 0xC8 on most paths, stride 0x140 -> colour 0x40 on the attack-hit path.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name precisely captures the dual stride/colour role; no address residue."
+    },
+    {
+      "name": "param_4",
+      "type": "uint",
+      "semantics": "Unused 4th argument. Present only so the cdecl frame matches the callers, which compute a per-status-kind intended colour (e.g. 0xFD from the heal/turn paths, 0xC0/0x92 from the status-flicker template) and push it here; this blitter never reads it, so the intended colour has no effect (latent in the original game).",
+      "verdict": "rename",
+      "proposed": "unused_color",
+      "reason": "param_4 is a generic placeholder that does not reflect purpose; Ghidra flags needs_rename=true. The value pushed is an intended-but-ignored fill colour, so unused_color names both its origin and the fact it is discarded. Rename to be applied in Stage 2."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; writes directly into dst_buf."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": "The home-file comment claimed 'For the typical stride 0x140 the colour is fixed at 0x40 (palette index 64, the white-silhouette band).' This was misleading: no caller passes 0x140 on the dominant paths -- both callers pass stride 0x1C8 (colour 0xC8) on the heal/turn/status-flicker paths, while only the attack-hit-sequence path (via fd2_paint_char_sprite_at_world_with_mode @ 0x1DA16, call site 0x1EA47) passes 0x140 (colour 0x40). It also stated an unverified palette-index meaning ('white-silhouette band') and described param_4 only briefly. The fill colour is simply the low byte of whatever stride the caller passes.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "7df09ddbf670c02703836f6595ebe2d25ff99041",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Logic equivalence (src vs Ghidra decomp) re-confirmed for all 4 RLE modes incl. the STRIDE-2 x_remain -= 2*count detail and the 24-row / (stride-0x18) advance; no logic issue filed. Verified caller arg flow via decompile of fd2_animate_status_effect_overlay_flicker (call site 0x1C357: stride 0x1C8, param_4 = tmp_copy[status_kind]), fd2_run_full_turn_cycle and fd2_ai_pass_turn_with_heal (both pass dst_stride 0x1C8 + intended colour 0xFD through fd2_paint_char_sprite_at_world_with_mode), and fd2_animate_attack_hit_sequence (disasm 0x1EA47: dst_stride 0x140 + intended colour 0xFD). Ghidra plate already correctly describes the dual stride/colour use and the ignored param_4 (caller 2 = 'a variable stride param'), so it is consistent with the refined src conclusion and left unchanged."
+}

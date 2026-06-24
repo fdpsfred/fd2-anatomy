@@ -1,0 +1,74 @@
+{
+  "address": "0001cd17",
+  "name_current": "fd2_animate_spell_overlay_blink",
+  "name_final": "fd2_animate_spell_overlay_blink",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention (animate / spell_overlay_blink) with no address residue. Accurately describes the routine: a 10-frame spell-hit mark fade-out (blink) overlay animation over the targeted chars. Live Ghidra name and src name match.",
+  "kind": "function",
+  "home": "src/anim/anicombt.c",
+  "purpose": "Play a 10-frame 'spell-hit mark fade-out' overlay animation, drawing a tinted 24x24 mark over each targeted char inside the battle view window and stepping the tint alpha 7..0 so the mark fades out.",
+  "logic_summary": "Copies the per-spell tint-mask byte table (data_fd2_animation_spell_overlay_blink_mask_table, 7 dwords + 1 word = 30 bytes) into a 32-byte stack scratch. malloc(0x25680) + memmove snapshot of data_fd2_large_game_state_buffer_ptr. 10-frame loop: restore the clean back-buffer from the snapshot; for each of target_count entries, fetch runtime_char via data_fd2_battle_runtime_char_array_ptr + idx*0x50, view-window cull on (pos_x,pos_y) against data_fd2_battle_view_window_origin_x/y +/- max_x/y; compute sprite frame_off = sprite_state[0]*0xC and sprite index using data_fd2_graphics_chapter_ambient_palette_anim_idx (==3 -> +2, else += palette idx); blit via fd2_tile_blit_24x24_with_tint_offset into the back-buffer at (pos_y-origin_y)*0x2AC0 + (pos_x-origin_x)*0x18 + 0x75D8, tint colour-base = mask_tbl[spell_id], alpha step = 7-(frame%8). After targets, fd2_blit_rectangle composite to mode13h primary and fd2_wait_n_bios_ticks(1). Finale: blit the clean snapshot frame once more, then free(snapshot). (Original tail-jumps into fd2_animate_status_effect_overlay_flicker's shared free()/ADD ESP,4 epilogue; src reproduces it as a plain free().)",
+  "signature": "void __cdecl fd2_animate_spell_overlay_blink(uint32 param_1, uint32 spell_id, uint32 target_count, uint32 char_idx_array)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "Caster runtime-char index. Forwarded only to the __CHK stack check; the blink body never uses it (src has (void)param_1). All three callers pass the caster index here.",
+      "verdict": "rename",
+      "proposed": "caster_idx",
+      "reason": "param_1 is a generic placeholder; callers (fd2_apply_use_effect_dispatch, fd2_execute_offensive_targeted_spell[_variant_b]) all pass the caster char index (named caster/caster_unit_id/caster_idx). Descriptive name caster_idx reflects caller intent. NOTE: the three sibling animators in this file (fd2_animate_status_effect_overlay_flicker, fd2_animate_spell_impact_per_target, fd2_animate_spell_full_screen_flash) deliberately keep param_1-with-doc because the body never uses it; Stage 2 should apply caster_idx consistently across all four siblings (or keep all four as param_1) to preserve the local convention rather than diverging on this one function."
+    },
+    {
+      "name": "spell_id",
+      "type": "uint32",
+      "semantics": "Spell id; index into the per-spell tint-mask byte table copied to mask_tbl (mask_tbl[spell_id] becomes the blit tint colour-base anchor).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, domain-correct (spell id), no address residue."
+    },
+    {
+      "name": "target_count",
+      "type": "uint32",
+      "semantics": "Number of entries in char_idx_array (number of targeted chars to overlay).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate; matches loop bound for (tgt_iter < target_count)."
+    },
+    {
+      "name": "char_idx_array",
+      "type": "uint32",
+      "semantics": "Pointer (carried in a uint32) to a byte array of runtime-char indices, length target_count; each byte indexes data_fd2_battle_runtime_char_array_ptr (stride 0x50).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate (byte array of char indices). Type kept as uint32 to preserve the original pointer-as-integer signature; not a naming defect."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value; effect is on-screen animation plus the back-buffer / mode13h primary."
+  },
+  "reads_globals": [
+    "data_fd2_animation_spell_overlay_blink_mask_table",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_view_window_max_x",
+    "data_fd2_battle_view_window_max_y",
+    "data_fd2_graphics_chapter_ambient_palette_anim_idx",
+    "data_fd2_portrait_sprite_cache"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment block was already accurate and precise; only the param_1 documentation line was slightly terse ('unused by the body') relative to the sibling pattern that also notes the caller meaning.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "2bbd48d",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "All three callers pass (caster, spell_id, n_targets, target_id_array) consistently. param_1 is consumed only by __CHK (Watcom stack-check ABI), so the blink body never references it; src already has (void)param_1. Ghidra plate is detailed and consistent with src (same logic, callers, mask table @ 0x52006, shared free()/ADD ESP,4 epilogue) -> plate left unchanged. writes_globals empty: the memmove targets the buffer pointed to by data_fd2_large_game_state_buffer_ptr but does not reassign any global scalar/pointer. No equivalence/logic concerns found."
+}

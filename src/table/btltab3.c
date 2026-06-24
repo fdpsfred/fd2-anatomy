@@ -96,9 +96,9 @@ uint8 data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6];
  * flat byte buffer rather than a struct array:
  *
  *   - Path-search engine fd2_pathfind_recursive_with_direction (0x4E27C):
- *     8-byte frames. EDI is seeded with LEA EDI,[0x60079] in
- *     fd2_pathfind_check_destination_save_path (0x4E252) before the first
- *     recursive call. Each push writes "MOV word ptr [EDI],DX" (tile x,y at +0),
+ *     8-byte frames. EDI is seeded with LEA EDI,[0x60079] by the top-level
+ *     entry fd2_pathfind_to_destination (0x4E252) before its first recursive
+ *     call. Each push writes "MOV word ptr [EDI],DX" (tile x,y at +0),
  *     "MOV word ptr [EDI+0x2],CX" (CH at +3 = direction code 0..3),
  *     "MOV dword ptr [EDI+0x4],EBX" (tile-map address at +4), then "ADD EDI,0x8".
  *     The retry path rewrites the previous frame's +3 direction via
@@ -485,8 +485,9 @@ const uint8 data_fd2_battle_movement_cost_table[580] = {
  * Per-job equippable item-type table: 29 rows x 7 bytes (uint8). Row r holds
  * up to 6 allowed item-type IDs for job r (slot value 0xFF = unused), plus a
  * trailing constant 0x01 row marker at offset 6 (not consumed by the
- * accessor). Item-type IDs match the item-category byte at offset 0 of each
- * item_effect entry (e.g. 01=sword, 04=bow, 06=staff, 15=rod, 16=book...).
+ * accessor). Item-type IDs are matched against the item_effect "type" field
+ * (struct offset +1, the item-category byte that fd2_get_item_effect_entry
+ * returns a pointer to) -- e.g. 01=sword, 04=bow, 06=staff, 15=rod, 16=book...
  *
  * Element type and 7-byte stride are proven by the accessor
  * fd2_get_job_allowed_items_table_entry @ 0x4E53E, which returns
@@ -605,7 +606,7 @@ const uint8 *data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21[21] = {
  * Read-only spell stat/effect table (struct spell_effect, 7-byte stride). One
  * entry per spell id 0..0x23 (36 spells). Accessed exclusively through the
  * accessor fd2_get_spell_effect_entry (0x4E516), whose body is
- * "EAX = spell_id * 7; return 0x619FD + EAX" (= &table[spell_id]). The 10
+ * "EAX = spell_id * 7; return 0x619FD + EAX" (= &table[spell_id]). The 11
  * caller functions (combat / AI / cast / MP / draw paths) read fields off the
  * returned pointer at their struct byte offsets:
  *   +0 damage  read as *(short *) (signed 16-bit) -- fd2_calc_magic_damage
@@ -661,13 +662,17 @@ const spell_effect data_fd2_battle_spell_effect_table[36] = {
 /* ----------------------------------------------------------------
  * data_fd2_battle_enemy_data_table @ 0x61AF9  (680 bytes = 68 x 10)
  *
- * Read-only enemy stat table; 68 entries of struct enemy_data (10 bytes:
- * race_id, class_id, hp(uint16), mp, ap, dp, dx, mv, exp_reward).
- * Indexed by (enemy_class_id - 0x44) via fd2_get_enemy_data_entry @ 0x4E4FF
- * (base + idx*0xA). Callers read +2 as 16-bit hp (MOVZX word) and +4..+9 as
- * bytes; on battle spawn enemy HP/MP/AP/DP/DX = field * level, and +9
- * (exp_reward) grants XP on kill. Readers: fd2_init_runtime_char_for_battle,
- * fd2_execute_attack_damage_calculation, fd2_apply_damage_and_award_xp.
+ * Read-only enemy stat table; 68 entries of struct enemy_data (10 bytes,
+ * fully mapped: race_id+0, class_id+1, hp(uint16)+2, mp+4, ap+5, dp+6, dx+7,
+ * mv+8, exp_reward+9). Indexed by (enemy portrait id - 0x44) via accessor
+ * fd2_get_enemy_data_entry @ 0x4E4FF (base + idx*0xA). Callers read +2 as
+ * 16-bit hp (MOVZX word) and +4..+9 as bytes; on battle spawn enemy
+ * HP/MP/AP/DP/DX = field * level, and +9 (exp_reward) is multiplied by the
+ * victim level to grant XP on kill. Readers (via the accessor):
+ * fd2_init_runtime_char_for_battle (0x10C50),
+ * fd2_execute_attack_damage_calculation (0x1ECC7),
+ * fd2_calculate_combat_hit_outcome (0x29F72),
+ * fd2_apply_damage_and_award_xp (0x1C81F). No writers (const).
  * Bytes are byte-exact from FD2.LE .object3 @ 0x61AF9.
  */
 const enemy_data data_fd2_battle_enemy_data_table[68] = {

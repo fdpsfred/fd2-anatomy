@@ -8,10 +8,18 @@
 #include "protos.h"
 
 /* ----------------------------------------------------------------
- * fd2_pathfind_count_unique_directions @ 0x4E3CF
+ * fd2_pathfind_count_unique_directions @ 0x4E3CF (1 caller: the cost-tie
+ * branches of fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330)
  *
- * Count direction-change transitions in the pathfind stack.
- * Returns transition_count * 4 as tiebreak weight.
+ * Count direction-change transitions along the current pathfind step stack and
+ * return transition_count * 4 as a tiebreak weight. Walks the step stack
+ * (data_fd2_battle_pathfind_step_stack) for data_fd2_battle_pathfind_current_depth
+ * frames, 8 bytes per frame, reading each frame's direction byte at [+3]; every
+ * time that byte differs from the previous frame's it counts one transition (the
+ * 0xFF prev-dir sentinel makes the first frame always count). No params (state via
+ * the pathfind globals); returns the count shifted left 2 (== count * 4) so paths
+ * with more turns get a higher weight, biasing the search toward more natural
+ * zigzag paths over straight-line diagonal shortcuts.
  * ---------------------------------------------------------------- */
 uint8 fd2_pathfind_count_unique_directions(void)
 {
@@ -741,10 +749,17 @@ uint8 fd2_pathfind_to_destination(uint32 ct, uint32 sx, uint32 sy, uint32 ms,
  * ---------------------------------------------------------------- */
 
 /*
- * tile-attribute -> movement-cost primary lookup table pointer @ 0x60060.
- * Holds a caller-supplied table base (passed as pCost_table). Readers
- * dereference it as (uint8 *): cost_idx = table[(attr & 0x3FF) * 4 + 1].
- * Zero at load; set at runtime by both pathfind orchestrators.
+ * tile-attribute -> movement-cost PRIMARY lookup table pointer @ 0x60060.
+ * Holds the caller-supplied primary-table base (the orchestrators' `af`
+ * argument, stored 32-bit: MOV [0x60060],EAX at 0x4E081 / 0x4E207). The two
+ * leaf neighbor-step routines (fd2_flood_fill_neighbor_step,
+ * fd2_pathfind_neighbor_step_with_tiebreak) read it back as a (uint8 *) base
+ * and index it at [(attr & 0x3FF) * 4 + 1] to fetch a secondary-table index
+ * byte (binary: AND AH,3; SHL AX,2; ADD EAX,[0x60060]; INC EAX; MOV CH,[EAX]).
+ * That index then selects the tile's movement cost from the SEPARATE secondary
+ * cost table whose base lives in data_fd2_battle_pathfind_caller_context.
+ * Written (never read) by the game -> non-const runtime state. Zero at load
+ * (BSS); set at runtime by both pathfind orchestrators before any reader runs.
  */
 uint32 data_fd2_battle_pathfind_tile_cost_table_ptr;
 
@@ -782,16 +797,22 @@ uint8 data_fd2_battle_pathfind_map_width;
 uint8 data_fd2_battle_pathfind_map_height;
 
 /*
- * caller-supplied secondary cost-table base / caller context @ 0x6006A.
- * Both orchestrators write the full 32-bit value at entry as the FIRST store
- * of the pathfind setup (MOV ESI,[EBP+8]; MOV dword ptr [0x6006A],ESI at
- * 0x4E047 and 0x4E1AD). In the original binary the recursion leaves inherit
- * that value through the live ESI register, so Ghidra records only the two
- * writes and no direct memory reads; the leaf helpers
- * fd2_flood_fill_neighbor_step / fd2_pathfind_neighbor_step_with_tiebreak read
- * it back here as the secondary cost-table base:
- * tile_cost = *(uint8 *)(ctx + cost_idx). Stored 32-bit (used as an address);
- * zero at load, set at runtime by both pathfind orchestrators.
+ * per-job movement-cost table pointer (secondary cost table) @ 0x6006A.
+ * Holds the orchestrators' FIRST argument: the 20-byte per-tile-type movement
+ * cost row for the acting unit's job class, i.e. the return value of
+ * fd2_get_movement_cost_table_for_job(class) =
+ * data_fd2_battle_movement_cost_table + class * 0x14. (Not a "caller context":
+ * it is purely a table base pointer.) Both orchestrators write the full 32-bit
+ * value at entry as the FIRST store of the pathfind setup (MOV ESI,[EBP+8];
+ * MOV dword ptr [0x6006A],ESI at 0x4E047 and 0x4E1AD). In the original binary
+ * the recursion leaves inherit that value through the live ESI register, so
+ * Ghidra records only the two writes and no direct memory reads; the leaf
+ * helpers fd2_flood_fill_neighbor_step / fd2_pathfind_neighbor_step_with_tiebreak
+ * read it back here as the secondary cost-table base, indexing it with the
+ * tile-type index fetched from the primary attribute table
+ * (data_fd2_battle_pathfind_tile_cost_table_ptr):
+ * tile_cost = *(uint8 *)(this_ptr + cost_idx). Stored 32-bit (used as an
+ * address); zero at load, set at runtime by both pathfind orchestrators.
  */
 uint32 data_fd2_battle_pathfind_caller_context;
 
@@ -846,8 +867,8 @@ uint8 data_fd2_battle_pathfind_floodfill_max_steps;
  * low byte (MOV EAX,[EBP+0x1C]; MOV [0x60071],AL at 0x4E1D6); the plain
  * flood-fill orchestrator never sets it. Read 8-bit by
  * fd2_pathfind_check_destination_save_path as the destination column compared
- * against the current search position (in_DL == data_fd2_battle_pathfind_dst_x
- * at 0x4E409) to decide arrival. Scalar, not an array (0x60072 is the separate
+ * against the current search position (in_DL == data_fd2_battle_pathfind_dst_x;
+ * CMP DL,[0x60071] at 0x4E401) to decide arrival. Scalar, not an array (0x60072 is the separate
  * dst_y field). Zero at load; set at runtime by the path-aware orchestrator.
  */
 uint8 data_fd2_battle_pathfind_dst_x;

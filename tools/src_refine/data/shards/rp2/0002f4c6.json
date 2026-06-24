@@ -1,0 +1,34 @@
+{
+  "address": "0002f4c6",
+  "name_current": "fd2_animate_shop_transaction_feedback",
+  "name_final": "fd2_animate_shop_transaction_feedback",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (domain=animate, descriptor=shop_transaction_feedback). No Ghidra address residue. Accurately describes purpose: plays the success animation after a gold transaction in the buy/sell/revive shop-style menus.",
+  "kind": "function",
+  "home": "src/anim/aniui.c",
+  "purpose": "Plays the per-chapter-type success-feedback animation (sprite cycle, and for state 4 also a cyan additive palette flash) after a successful gold transaction in a shop-style menu (buy / sell / revive).",
+  "logic_summary": "Dispatches on the per-chapter byte data_fd2_chapter_intro_menu_cursor_state @ 0x5412B. state 1: 5-frame sprite cycle (atlas frames 0x17..0x1B at framebuffer 0xA38E9, 2 BIOS ticks/frame). state 3: 1-tick pre-roll, single splash (frame 0x17 at 0xA3154), hold 8 ticks. state 4: paint mouth-closed portrait (frame 3), wait 2 ticks, 9-frame cycle (0x17..0x1F at 0xA2893, 2 ticks/frame), then cyan additive palette flash (ramp brightness UP 0..0x3E by step 2 with a 4ms delay each step, wait 10 ticks, ramp DOWN 0x3E..0 mirror), then wait 5 ticks. state 5: 7-frame cycle (0x17..0x1D at 0xA2383, 2 ticks/frame). state 2/other: no animation. States 1/3/4 restore via fd2_paint_portrait_to_dialog_area(0); states 5 and 2/other skip the restore. Every path ends with fd2_clear_keyboard_buffer(). Blits go through fd2_blit_indexed_sprite_at_xy(dst, 0x140, atlas_buf_ptr, frame_idx) to fixed mode13h aperture addresses; the flash drives the VGA DAC via fd2_set_vga_palette_range_with_add.",
+  "signature": "void __cdecl fd2_animate_shop_transaction_feedback(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_chapter_intro_menu_cursor_state @ 0x5412B (per-chapter dispatch byte selecting the animation style)",
+    "data_fd2_ui_menu_screen_sprite_atlas_buf_ptr @ 0x54147 (sprite atlas source for the per-state animation frames)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment overstated callers: prose claimed the transaction set is '(buy / sell / give)' and that the function is 'Used by all four shop flows (buy / sell / equip / give) and the class-promotion path'. Actual xrefs are exactly 3 unconditional calls: fd2_run_buy_item_menu, fd2_run_sell_item_menu, fd2_run_revive_menu_main. There is no equip/give caller and no class-promotion caller. The explicit Callers list at the bottom of the comment was already correct.",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Plate comment (Ghidra) was already accurate and consistent with the refined source understanding (correctly lists the 3 callers), so no plate update was made. Only the src/anim/aniui.c prose was corrected to match the 3 actual callers. Callee parameter semantics confirmed against src/include/protos.h (fd2_blit_indexed_sprite_at_xy(dst,pitch,sheet,sprite_idx); fd2_set_vga_palette_range_with_add(start,end,brightness_add); fd2_wait_n_bios_ticks(n_ticks); fd2_paint_portrait_to_dialog_area(frame)). No logic/type/control-flow changes made."
+}

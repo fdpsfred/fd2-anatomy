@@ -1,0 +1,43 @@
+{
+  "address": "00016559",
+  "name_current": "fd2_paint_portrait_to_dialog_area",
+  "name_final": "fd2_paint_portrait_to_dialog_area",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention; accurately describes the behavior (paint a portrait sprite frame into the dialog portrait slot). No Ghidra address residue. Confirmed by decompilation and caller context (fd2_portrait_blink_animation_step drives it with mouth-cycle frame indices).",
+  "kind": "function",
+  "home": "src/gfx/rndstat.c",
+  "purpose": "Blit one portrait sprite frame into the active dialog portrait slot, choosing a normal or horizontally-mirrored blit depending on which portrait slot (left vs right-side ally) is active.",
+  "logic_summary": "Computes sprite_addr = data_fd2_portrait_sprite_buffer + offset_table[frame], where the offset table is the array of int32 offsets at the head of the active DATO.DAT portrait buffer (indexed by frame). If data_fd2_dialog_active_portrait_blit_offset != 0x9017, calls fd2_dialog_sprite_blit_normal(0xA0000 + offset, sprite_addr, 0x140) (normal blit into the left/standard slot). Otherwise (0x9017 = right-side ally slot) calls fd2_dialog_sprite_blit_mirrored(0xA9017, sprite_addr, 0x140) for a horizontally-flipped blit. 0x140 (320) is the VGA mode-13h destination pitch.",
+  "signature": "void fd2_paint_portrait_to_dialog_area(uint32 frame)",
+  "params": [
+    {
+      "name": "frame",
+      "type": "uint32",
+      "semantics": "Index into the per-frame sprite-offset table at the head of data_fd2_portrait_sprite_buffer (the active DATO.DAT portrait entry); selects which mouth-cycle sprite frame to draw. Caller fd2_portrait_blink_animation_step passes the 0/1/2/1 mouth-open/close cycle values.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects its role as the sprite frame index; ASCII; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_portrait_sprite_buffer",
+    "data_fd2_dialog_active_portrait_blit_offset"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "78b04420ab8c539749511975074ee712f4ff43f0",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (rndstat.c lines 13-31) is already precise, accurate, ASCII, and consistent with the decompilation; left unchanged. Ghidra plate is consistent with the refined understanding (uses em-dash/arrow glyphs which are allowed in plate text), so left untouched. Globals confirmed in src/include/globals.h: data_fd2_dialog_active_portrait_blit_offset @ 0x53C67 (uint32), data_fd2_portrait_sprite_buffer @ 0x53A85 (uint8*). Blit callee prototypes (protos.h 670-671) take (dst, sprite_hdr, stride). The '12 ints' offset-table size mentioned in the plate is a layout dimension, not an FD2 domain ID. No logic concerns: src is functionally equivalent to the decompilation."
+}
