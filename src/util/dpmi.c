@@ -84,14 +84,14 @@ void fd2_dpmi_free_dos_memory(uint32 linear_unused, uint32 segment_unused,
  * linear addresses, not page numbers. Returns 1 on success (CF clear), 0 on
  * failure.
  * ---------------------------------------------------------------- */
-int fd2_dpmi_lock_region(uint32 page_start, uint32 page_end)
+int fd2_dpmi_lock_region(uint32 region_start, uint32 region_end)
 {
     union REGS in_r, out_r;
     uint32 base;
     uint32 size;
 
-    base = (page_start < page_end) ? page_start : page_end;
-    size = ((page_start >= page_end) ? page_start : page_end)
+    base = (region_start < region_end) ? region_start : region_end;
+    size = ((region_start >= region_end) ? region_start : region_end)
          - base + 1;
     memset(&in_r, 0, sizeof(in_r));
     in_r.x.eax = 0x600;
