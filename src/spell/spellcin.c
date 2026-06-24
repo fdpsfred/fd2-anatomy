@@ -4,7 +4,7 @@
  * Functions:
  *   fd2_cast_earthquake_spell_with_screen_shake @ 0x21548 (1 caller)
  *   fd2_play_rising_pre_cast_effect @ 0x2189a (6 callers)
- *   fd2_dispatch_variant_b_cast @ 0x21b18 (1 caller)
+ *   fd2_execute_variant_b_heal_cast @ 0x21b18 (1 caller)
  *   fd2_scatter_sprite_around_origin_with_random_offset @ 0x21db2 (1 caller)
  *   fd2_execute_aoe_spell_with_caster_portrait_radial_scatter @ 0x21bd0 (0 callers)
  *   fd2_play_variant_b_slide_pre_effect @ 0x21eb1 (4 callers)
@@ -225,7 +225,7 @@ void fd2_play_rising_pre_cast_effect(int caster_unit_id, int initial_height,
 }
 
 /* ----------------------------------------------------------------
- * fd2_dispatch_variant_b_cast @ 0x21b18  (1 caller)
+ * fd2_execute_variant_b_heal_cast @ 0x21b18  (1 caller)
  *
  * Variant-B spell executor (heal-style worker). Reached from spell ids
  * 0xD / 0xE / 0xF / 0x10 via fd2_cast_spell_0d_variant_b @ 0x21AD9's
@@ -254,7 +254,7 @@ void fd2_play_rising_pre_cast_effect(int caster_unit_id, int initial_height,
  * finale code and the parent's register restore); emitted here as a plain
  * call to that helper followed by the compiler-generated return.
  * ---------------------------------------------------------------- */
-void fd2_dispatch_variant_b_cast(int caster, int spell_id, int n_targets,
+void fd2_execute_variant_b_heal_cast(int caster, int spell_id, int n_targets,
                                  int p_targets)
 {
     int target_idx;
@@ -478,7 +478,7 @@ void fd2_execute_aoe_spell_with_caster_portrait_radial_scatter(
  * 16-frame radial circle-band "slide" pre-cast animation centered on the
  * cursor tile. Shared by the 4 variant-B spell thunks (spell 0xD/0xE/0xF/0x10)
  * which each pass a per-spell (offset0, step) tuning before
- * fd2_dispatch_variant_b_cast applies the healing:
+ * fd2_execute_variant_b_heal_cast applies the healing:
  *   0xD (1,2)   0xE (2,4)   0xF (8,4)   0x10 (6,6)
  *
  * Setup: malloc a 0x25680 working buffer and snapshot the battle tile map into

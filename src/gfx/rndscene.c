@@ -978,7 +978,7 @@ void fd2_render_phase_banner_frame(uint32 x_offset, uint32 banner_sprite_id)
  * fd2_cast_group_hp_heal_spell, fd2_execute_offensive_targeted_spell,
  * fd2_execute_offensive_targeted_spell_variant_b,
  * fd2_execute_offensive_full_screen_flash_spell and
- * fd2_dispatch_variant_b_cast.
+ * fd2_execute_variant_b_heal_cast.
  *
  * Layer-2 equivalent: emit only the body as a plain no-arg helper. Each
  * parent calls it at its tail; the compiler regenerates that parent's

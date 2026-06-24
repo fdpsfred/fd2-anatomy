@@ -9,7 +9,7 @@
  *   id 0-3,8:     fd2_execute_offensive_targeted_spell (blink overlay)
  *   id 4-7:       fd2_execute_offensive_full_screen_flash_spell
  *   id 0xA-0xC:   fd2_cast_earthquake_spell_with_screen_shake
- *   id 0xD-0x10:  fd2_dispatch_variant_b_cast (heal/buff variant)
+ *   id 0xD-0x10:  fd2_execute_variant_b_heal_cast (heal/buff variant)
  *   id 0x11-0x13: stat boost wrappers (AP/DP/speed)
  *   id 0x14-0x15: fd2_apply_status_effect_with_anim
  *   id 0x16,0x1A-0x1B: fd2_cast_status_spell_via_d1b
@@ -119,7 +119,7 @@ void fd2_cast_spell_0c_with_prefx(
 
 /* === Variant-B heal/buff family (id 0xD-0x10) ===
  * All four play status-effect SFX (id 0xB) + a slide pre-cast effect, then
- * dispatch via fd2_dispatch_variant_b_cast (heal-style worker that applies
+ * dispatch via fd2_execute_variant_b_heal_cast (heal-style worker that applies
  * fd2_apply_heal_spell_to_target, not damage calc). They differ only by their
  * slide pre-effect params and spell_id literal. */
 
@@ -131,7 +131,7 @@ void fd2_cast_spell_0d_variant_b(
     fd2_play_sfx_with_handle(
         data_fd2_audio_status_effect_sfx_handle_ptr, 0xb, 1);
     fd2_play_variant_b_slide_pre_effect(1, 2);
-    fd2_dispatch_variant_b_cast(caster, 0xd, n_tgt, (int)tgt_arr);
+    fd2_execute_variant_b_heal_cast(caster, 0xd, n_tgt, (int)tgt_arr);
 }
 
 /* spell_id 0xE: status SFX (id 0xB) + slide pre-effect (2, 4) (stronger than
@@ -142,7 +142,7 @@ void fd2_cast_spell_0e_variant_b(
     fd2_play_sfx_with_handle(
         data_fd2_audio_status_effect_sfx_handle_ptr, 0xb, 1);
     fd2_play_variant_b_slide_pre_effect(2, 4);
-    fd2_dispatch_variant_b_cast(caster, 0xe, n_tgt, (int)tgt_arr);
+    fd2_execute_variant_b_heal_cast(caster, 0xe, n_tgt, (int)tgt_arr);
 }
 
 /* spell_id 0xF: status SFX (id 0xB) + slide pre-effect (8, 4), then the
@@ -153,7 +153,7 @@ void fd2_cast_spell_0f_variant_b(
     fd2_play_sfx_with_handle(
         data_fd2_audio_status_effect_sfx_handle_ptr, 0xb, 1);
     fd2_play_variant_b_slide_pre_effect(8, 4);
-    fd2_dispatch_variant_b_cast(caster, 0xf, n_tgt, (int)tgt_arr);
+    fd2_execute_variant_b_heal_cast(caster, 0xf, n_tgt, (int)tgt_arr);
 }
 
 /* spell_id 0x10: status SFX (id 0xB) + slide pre-effect (6, 6), then the
@@ -167,7 +167,7 @@ void fd2_cast_spell_10_variant_b(
     fd2_play_sfx_with_handle(
         data_fd2_audio_status_effect_sfx_handle_ptr, 0xb, 1);
     fd2_play_variant_b_slide_pre_effect(6, 6);
-    fd2_dispatch_variant_b_cast(caster, 0x10, n_tgt, (int)tgt_arr);
+    fd2_execute_variant_b_heal_cast(caster, 0x10, n_tgt, (int)tgt_arr);
 }
 
 /* === Stat boost wrappers (id 0x11-0x13) === */
