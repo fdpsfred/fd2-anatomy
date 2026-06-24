@@ -1,0 +1,34 @@
+{
+  "address": "0x00061646",
+  "name_current": "data_fd2_battle_movement_cost_table",
+  "name_final": "data_fd2_battle_movement_cost_table",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Name already follows the convention data_fd2_<domain>_<descriptor> (domain=battle core table) and accurately reflects both purpose (per-job movement-cost table) and data type (table). No Ghidra address residue in the name. Accessor fd2_get_movement_cost_table_for_job @ 0x4E555 confirms the role.",
+  "kind": "global",
+  "home": "src/table/btltab3.c",
+  "purpose": "Read-only per-job movement-cost table: for each job, the per-tile-attribute-class step cost used by battle floodfill/pathfind to compute reachable tiles.",
+  "logic_summary": "29 rows x 20 bytes (uint8), row r = cost vector for job r indexed by tile-attribute class 0..19. Accessor @0x4E555 returns &table[job_id*0x14] (job_id 0..0x1A = 27 logical jobs, rows 0..26; rows 27..28 are reserved physical slots). Consumer fd2_flood_fill_neighbor_step @0x4E16E reads a single byte (SUB CL, byte ptr [ESI+EAX*1]) and subtracts it from the residual movement budget; if cost > remaining MP (JC) the tile is unreachable. Values observed: 1 = normal step, 2..3 = costlier terrain, 20 (0x14) = effectively impassable (drains budget).",
+  "datatype": "const uint8[580]  (29 rows x 20 cols, row stride 0x14)",
+  "element_semantics": "Each byte = movement cost to enter a tile of attribute-class c (column 0..19) for job r (row). 1 normal, 2..3 costlier terrain, 20 impassable.",
+  "is_const": true,
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [
+    {
+      "category": "ghidra_layout",
+      "severity": "low",
+      "title": "Live movement_cost_table buried inside a stale 'orphan/dead' byte[856] data unit in Ghidra",
+      "description": "In Ghidra the symbol data_fd2_battle_movement_cost_table @0x61646 is only a label inside a single defined Data unit byte[856] spanning 0x615FD..0x61954 whose primary symbol is data_orphan_615fd_856b_leading_prefix_final_unreachable_unknown. The PRE_COMMENT on that unit (at 0x615FD) classifies the whole 0x615FD..0x61954 range as a dead/orphan/unknown leading prefix of a once-1024-byte weapon-animation blob. That classification is wrong for the 0x61646 sub-region (and for the adjacent 0x6188A job_allowed_items_table): both are LIVE, read by real accessors. The 856-byte unit actually covers orphan-prefix (0x615FD..0x61645, 73B) + movement_cost_table (0x61646..0x61889, 580B) + job_allowed_items_table (0x6188A..0x61954, 203B) = 856B exactly. Because the symbol has no code unit of its own at 0x61646, it has no own PLATE/PRE; the only nearby descriptive comment lives on a different symbol (0x615FD), so it is out of scope for this single-symbol refine and not editable here without restructuring the array (a multi-symbol layout change). The C source already represents these correctly as separate typed const arrays, so emit/codegen is unaffected; only the Ghidra annotation is misleading.",
+      "evidence": "getCodeUnitContaining(0x61646) -> CU 0x615FD..0x61954, DT byte[856], PLATE=null, PRE='final_unreachable_unknown ... data_orphan_615fd_unknown_blob_1024b ... emit_action: skip_unreachable_data'. Symbols: 0x61646 primary=data_fd2_battle_movement_cost_table; 0x6188A primary=data_fd2_battle_job_allowed_items_table. Accessor disasm @0x4E555: MUL 0x14; LEA EDX,[0x61646]; ADD EAX,EDX (single DATA xref to 0x61646 from 0x4E562). Consumer disasm @0x4E188: SUB CL, byte ptr [ESI+EAX*1] (byte read, stride 1). 0x615FD + 0x358(856) = 0x61955."
+    }
+  ],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "No src edit made: btltab3.c comment block for this symbol (lines 425-449) is already a precise, polished final-conclusion that matches all binary evidence (29x20 uint8, accessor 0x4E555 stride 0x14, consumer 0x4E16E byte/stride-1, 8 readers, read-only const, physical 29 rows ending at 0x6188A). globals.h:585 extern decl and table.c:134 accessor are consistent. Stage-2 rename: none required."
+}
