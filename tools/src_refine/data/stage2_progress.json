@@ -40,7 +40,7 @@
     {"n": 27, "address": "00015f84", "did": "param", "note": "glyph_p5/p6/p7 -> glyph_fill/outline/bg_color (confirmed by in-code comment); dialog.c def/body x2/comment + protos + full positional Ghidra sync (9 params, collision-resolved, get_function_by_address verified)."},
     {"_batch": "phase_a_src_edits_round1", "did": "param-src-only", "items": [28,52,55,56,57,60,61,64,68], "note": "9 param-mismatch items: src def/body/protos/comments edited to proposed names (flip->dst_origin, ci->char_idx x2, ci/buf->char_idx/out_buf, param_1->caster_idx x4, pattern_id->spell_id, ci->char_idx). build_fd2.py + eqcheck.py = PASS (param renames binary-inert)."},
     {"_batch": "phase_b_round1", "did": "ghidra-param-sync", "items": [28,52,55,56,57,60,61,64,68], "note": "Synced the 9 round1 src-edits' Ghidra params to src via two-pass run_script_inline (OK=11/0/0 incl 19,27 no-op). reconcile: done 115->124."},
-    {"n": 74, "address": "0001f73f", "did": "param-src-only (Ghidra pending PHASE B)", "note": "src_x_off -> src_buf (source buffer base, not x offset; misnomer noted in plate). anicine.c def/body/comment + protos. Ghidra sync pending PHASE B."},
+    {"n": 74, "address": "0001f73f", "did": "param", "note": "src_x_off -> src_buf (source buffer base, not x offset; misnomer noted in plate). anicine.c def/body/comment + protos done. Ghidra 4-param positional sync (param_1/2/3/image_idx -> image1_idx/palette_idx/src_buf/row_idx), get_function_by_address verified."},
     {"n": 82, "address": "000214ad", "did": "param-src-only (Ghidra pending PHASE B)", "note": "spell_arg -> n_targets (forwarded as impact animator n_targets). spelleff.c def/body. Ghidra sync pending PHASE B. Remaining param-src-edits after this: 18 (src_check MISMATCH)."}
   ]
 }
