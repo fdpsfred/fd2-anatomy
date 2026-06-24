@@ -86,6 +86,17 @@ void fd2_cursor_move_down(void)
 
 /* ----------------------------------------------------------------
  * fd2_cursor_move_right @ 0x11BFA  (3 callers)
+ *
+ * Right-arrow (scancode 0x4D) battle cursor handler; horizontal mirror
+ * of fd2_cursor_move_down. Moves the cursor one tile right unless already
+ * at the map right edge (world_x == map_width_tiles - 1, no-op). When the
+ * cursor sits in the left part of the viewport (screen_x < 0xB) or the view
+ * is already scrolled to its rightmost position (window_origin_x ==
+ * map_width_tiles - 0xD, the 13-tile-wide viewport's max scroll), it steps
+ * the cursor right one screen column; otherwise it scrolls the view right
+ * instead of moving the cursor on screen. Composites a fresh frame except
+ * in the plain inner-step case while no battle animation is running
+ * (anim_phase == 0), where the main loop redraws on its next tick.
  * ---------------------------------------------------------------- */
 void fd2_cursor_move_right(void)
 {
