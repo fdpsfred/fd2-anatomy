@@ -784,7 +784,7 @@ int fd2_ai_advance_to_nearest_team_target(uint32 char_idx,
  * fd2_resolve_terrain_for_aoe_targets @ 0x2B5E1  (2 callers)
  *
  * Resolve the terrain-attribute byte that should back an AoE spell's
- * cinematic, given n_chars target chars in target_byte_array (each
+ * cinematic, given n_chars target chars in target_idx_array (each
  * byte is a runtime_char index). Both callers use the returned byte
  * as the BG.DAT / TAI.DAT backdrop resource index for the targets'
  * side of the spell-cast animation.
@@ -798,7 +798,7 @@ int fd2_ai_advance_to_nearest_team_target(uint32 char_idx,
  * chapter override.
  * ---------------------------------------------------------------- */
 char fd2_resolve_terrain_for_aoe_targets(int n_chars,
-                                         uint8 *target_byte_array)
+                                         uint8 *target_idx_array)
 {
     uint8 fallback;
     uint8 *pChar;
@@ -810,12 +810,12 @@ char fd2_resolve_terrain_for_aoe_targets(int n_chars,
                    data_fd2_chapter_current_chapter_id];
     for (i = n_chars - 1; i >= 0; i--) {
         pChar = (uint8 *)data_fd2_battle_runtime_char_array_ptr
-              + (uint32)target_byte_array[i] * RUNTIME_CHAR_SIZE;
+              + (uint32)target_idx_array[i] * RUNTIME_CHAR_SIZE;
         fd2_read_tile_attribute_at_pos((uint32)pChar[0],
                                        (uint32)pChar[1],
                                        (uint32)tile_attr_buf);
         immune = fd2_check_char_status_immunity(
-                     (uint32)target_byte_array[i]);
+                     (uint32)target_idx_array[i]);
         if (immune == 0 || fallback == 0) {
             fallback = tile_attr_buf[6];
         }

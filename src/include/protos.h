@@ -63,7 +63,7 @@ int fd2_execute_attack_damage_calculation(int attacker_idx, int defender_idx);
 void fd2_read_tile_attribute_at_pos(uint32 x, uint32 y, uint32 buf_ptr);
 void fd2_face_char_toward_target(uint32 actor_idx, uint32 target_idx);
 int fd2_check_char_status_immunity(uint32 char_idx);
-char fd2_resolve_terrain_for_aoe_targets(int n_chars, uint8 *target_byte_array);
+char fd2_resolve_terrain_for_aoe_targets(int n_chars, uint8 *target_idx_array);
 int fd2_find_char_at_cursor_pos(void);
 int fd2_find_char_by_id_or_template(uint32 char_id);
 int fd2_game_main_loop(void);
