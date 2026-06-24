@@ -118,27 +118,25 @@ void fd2_play_ani_file_animation_sequence(uint32 anim_idx,
  * Params (__cdecl):
  *   char_unit_id    runtime-char index of the unit (forwarded to the
  *                   hit-flash overlay)
- *   char_sprite_idx FIGANI/sprite-sheet stream pointer for the unit pose,
- *                   blitted (frame 0) into the workspace. NOTE: misnomer --
- *                   this is a sheet pointer, not an index (it is passed as
+ *   char_figani     FIGANI/sprite-sheet stream pointer for the unit pose,
+ *                   blitted (frame 0) into the workspace (passed as
  *                   fd2_blit_indexed_sprite's sheet_ptr with idx 0).
  *   clear_buf       64000-byte (mode-13h sized) scratch the unit pose is
  *                   composed into before being blitted into workspace
  *   workspace       128K (0x1F400) work buffer holding the scrolled BG
- *   caster_figani   terrain/BG backdrop RLE stream rendered into clear_buf
- *                   under the unit. NOTE: misnomer -- this is the terrain
- *                   backdrop (cf. the terrain_bg param of the zoom-out
- *                   counterpart), not a caster FIGANI.
+ *   terrain_bg      terrain/BG backdrop RLE stream rendered into clear_buf
+ *                   under the unit (cf. the terrain_bg param of the
+ *                   zoom-out counterpart).
  *
  * The three BG-layer pointers are a real uint32[3] array
  * (data_fd2_battle_special_cinematic_bg_layers), indexed directly so C
  * guarantees the ascending adjacency the frame cycling relies on.
  * ---------------------------------------------------------------- */
 void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
-                                       uint32 char_sprite_idx,
+                                       uint32 char_figani,
                                        uint32 clear_buf,
                                        uint32 workspace,
-                                       uint32 caster_figani)
+                                       uint32 terrain_bg)
 {
     int frame_iter;
 
@@ -153,10 +151,10 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
     /* Phase 2 — reset buffers + paint attacker silhouette into workspace */
     memset((void *)workspace, 0, 0x1f400);
     memset((void *)clear_buf, 0, 64000);
-    fd2_rle_blit_sprite(caster_figani, 0, 0x32, clear_buf, 0x140, 0xffffffff);
+    fd2_rle_blit_sprite(terrain_bg, 0, 0x32, clear_buf, 0x140, 0xffffffff);
     fd2_flash_char_hit_sprite(clear_buf, char_unit_id);
     fd2_blit_rectangle(workspace, 0x280, clear_buf, 0x140, 0x140, 0xc8);
-    fd2_blit_indexed_sprite(char_sprite_idx, 0, (int)workspace, 0x280, -1);
+    fd2_blit_indexed_sprite(char_figani, 0, (int)workspace, 0x280, -1);
 
     /* Phase 3 — ascending scroll with rotated BG cycling (frame_iter = 9..0) */
     for (frame_iter = 9; frame_iter >= 0; frame_iter--) {
