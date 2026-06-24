@@ -466,8 +466,10 @@ int fd2_player_action_menu_loop(uint32 char_idx)
  * Selection dispatch:
  *   0 Attack — AoE target pick, then combat cinematic + damage, death
  *     animation, loot-drop processing.
- *   1 Spell  — spell menu; on commit, divide pending_xp_credit by the AP
- *     divisor (status_flags_block[0], +30 for job_id > 8 priest/cleric).
+ *   1 Spell  — spell menu; on commit, divide pending_xp_credit by the cast
+ *     divisor = character level (status_flags_block[0]), +30 when job_id > 8
+ *     (i.e. a promoted/advanced class, 09h and up) -- throttles spell XP for
+ *     higher-level and promoted casters.
  *   2 Item   — item menu; item use grants no XP (pending_xp_credit = 0).
  *   3 Wait   — recover 20% HP if not yet moved, run tile-event interaction.
  *
