@@ -184,7 +184,7 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id, int n_
 void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id, uint32 n_targets, int target_id_array);
 uint32 fd2_load_figani_sfx_bank(uint32 figani_data);
 void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id, uint32 char_figani, uint32 clear_buf, uint32 workspace, uint32 terrain_bg);
-void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id, uint32 char_sprite_idx, uint32 terrain_bg, uint32 clear_buf, uint32 workspace, uint32 name_banner_sprite);
+void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id, uint32 char_figani, uint32 name_banner_sprite, uint32 clear_buf, uint32 workspace, uint32 terrain_bg);
 void fd2_play_class_promotion_cinematic(uint32 promoting_char_idx, uint32 target_class_id);
 void fd2_cycle_sprite_anim_with_bg_frames(uint32 sprite_atlas, uint32 workspace, uint32 iter_count);
 void fd2_play_char_intro_zoom_anim(uint32 char_unit_id, uint32 mode_flag, uint32 char_sprite, uint32 char_sprite2, uint32 workspace, uint32 bg_sprite, uint32 name_banner_sprite);
@@ -510,8 +510,8 @@ int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
     uint32 banner, uint32 sfx_bank);
 void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id, uint32 char_figani,
     uint32 clear_buf, uint32 workspace, uint32 terrain_bg);
-void fd2_animate_bg_zoom_transition_out(uint32 char_idx, uint32 figani,
-    uint32 name_banner, uint32 framebuffer, uint32 workspace, uint32 bg_buf);
+void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id, uint32 char_figani,
+    uint32 name_banner_sprite, uint32 clear_buf, uint32 workspace, uint32 terrain_bg);
 void fd2_process_xp_and_level_up_for_char(uint32 char_idx);
 int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair, uint32 dialog_text_id, int row_idx);
 void fd2_grant_spell_to_char(uint32 char_idx, uint32 spell_id);

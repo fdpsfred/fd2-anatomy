@@ -180,31 +180,24 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
  * the charge-in section and the second-strike loop tail; the player/ally
  * branch at each site uses fd2_animate_bg_zoom_transition_in instead).
  *
- * Params (__cdecl). Three current names are misnomers; the true semantics
- * (proven via the caller chain fd2_play_full_combat_cinematic and the blit
- * coordinates) are noted, and corrected names are slated for Stage 2 rename:
+ * Params (__cdecl). Param roles proven via the caller chain
+ * fd2_play_full_combat_cinematic and the blit coordinates:
  *   char_unit_id        runtime-char index of the unit (forwarded to the
  *                       hit-flash overlay)
- *   char_sprite_idx     FIGANI/sprite-sheet stream POINTER for the unit pose,
- *                       blitted (frame 0) into the lower band. NOTE: misnomer
- *                       -- a sheet pointer, not an index (passed as
+ *   char_figani         FIGANI/sprite-sheet stream pointer for the unit pose,
+ *                       blitted (frame 0) into the lower band (passed as
  *                       fd2_blit_indexed_sprite's sheet_ptr with idx 0).
- *   terrain_bg          NAME-BANNER RLE sprite, painted at (0xA4,0x9D) into
- *                       clear_buf. NOTE: misnomer -- this is the TAI.DAT name
- *                       banner the caller loads, NOT the terrain backdrop
- *                       (see name_banner_sprite below; the two are swapped).
+ *   name_banner_sprite  TAI.DAT name-banner RLE sprite, painted at
+ *                       (0xA4,0x9D) into clear_buf.
  *   clear_buf           64000-byte (mode-13h sized) scratch the banner,
  *                       backdrop and unit are composed into before being
  *                       blitted into the workspace lower band
  *   workspace           128K (0x1F400) work buffer holding the scrolled BG;
  *                       the unit repaint targets workspace + 0x140 (lower
  *                       row band)
- *   name_banner_sprite  TERRAIN/BG backdrop RLE sprite, painted at (0,0x32)
- *                       into clear_buf. NOTE: misnomer -- this is the BG.DAT
- *                       spotlight terrain backdrop the caller loads, NOT the
- *                       name banner (cf. terrain_bg above; the two are
- *                       swapped). Mirrors the caster_figani backdrop of the
- *                       zoom-in counterpart.
+ *   terrain_bg          BG.DAT spotlight terrain backdrop RLE sprite, painted
+ *                       at (0,0x32) into clear_buf (the same backdrop as the
+ *                       zoom-in counterpart's terrain_bg param).
  *
  * The three BG-layer pointers are a real uint32[3] array
  * (data_fd2_battle_special_cinematic_bg_layers), indexed directly so C
@@ -215,11 +208,11 @@ void fd2_animate_bg_zoom_transition_in(uint32 char_unit_id,
  * first pass and the unit repaint use workspace + 0x140.
  * ---------------------------------------------------------------- */
 void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
-                                        uint32 char_sprite_idx,
-                                        uint32 terrain_bg,
+                                        uint32 char_figani,
+                                        uint32 name_banner_sprite,
                                         uint32 clear_buf,
                                         uint32 workspace,
-                                        uint32 name_banner_sprite)
+                                        uint32 terrain_bg)
 {
     uint32 lower_band = workspace + 0x140;
     int frame_iter;
@@ -235,11 +228,11 @@ void fd2_animate_bg_zoom_transition_out(uint32 char_unit_id,
     /* Phase 2 — reset buffers + paint banner, terrain and defender */
     memset((void *)workspace, 0, 0x1f400);
     memset((void *)clear_buf, 0, 64000);
-    fd2_rle_blit_sprite(name_banner_sprite, 0, 0x32, clear_buf, 0x140, 0xffffffff);
-    fd2_rle_blit_sprite(terrain_bg, 0xa4, 0x9d, clear_buf, 0x140, 0xffffffff);
+    fd2_rle_blit_sprite(terrain_bg, 0, 0x32, clear_buf, 0x140, 0xffffffff);
+    fd2_rle_blit_sprite(name_banner_sprite, 0xa4, 0x9d, clear_buf, 0x140, 0xffffffff);
     fd2_flash_char_hit_sprite(clear_buf, char_unit_id);
     fd2_blit_rectangle(lower_band, 0x280, clear_buf, 0x140, 0x140, 0xc8);
-    fd2_blit_indexed_sprite(char_sprite_idx, 0, (int)lower_band, 0x280, -1);
+    fd2_blit_indexed_sprite(char_figani, 0, (int)lower_band, 0x280, -1);
 
     /* Phase 3 — outward scroll with rotated BG cycling (frame_iter = 1..10) */
     for (frame_iter = 1; frame_iter <= 10; frame_iter++) {
