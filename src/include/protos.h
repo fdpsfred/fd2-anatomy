@@ -651,7 +651,7 @@ int fd2_title_attract_and_main_menu(void);
 void fd2_play_game_ending_cinematic(void);
 void fd2_play_final_chapter_30_ending(void);
 void fd2_show_portrait_dialog_with_input(uint32 dialog_text_id, uint32 portrait_id);
-int fd2_main_menu_continue_dispatcher(void);
+int fd2_main_menu_dispatcher(void);
 void fd2_save_crypt_buffer(uint32 buf, uint32 size);
 int fd2_save_slot_selector_ui(uint32 buf, uint32 mode);
 void fd2_render_save_slot_grid(uint32 highlight_slot, uint32 surface_offset, uint8 *sav_decrypted_buf);

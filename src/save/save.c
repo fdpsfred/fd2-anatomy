@@ -402,7 +402,7 @@ void fd2_load_state_from_selected_slot(void)
  * The workspace buffers a/b/c are NOT freed here — the caller frees
  * them via fd2_close_intro_dialog_with_slide_out (same 3-buffer state).
  *
- * Callers: fd2_main_menu_continue_dispatcher @ 0x25EBB,
+ * Callers: fd2_main_menu_dispatcher @ 0x25EBB,
  *          fd2_save_current_state_to_slot    @ 0x30012,
  *          fd2_load_state_from_selected_slot @ 0x301F4.
  *

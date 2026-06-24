@@ -38,7 +38,7 @@
  * mallocs, INT 10h mode-13h set, and an RNG warm-up of rand()%256
  * fd2_advance_rng_state() iterations seeded off the BIOS tick low word.
  *
- * Main loop: outer = main-menu BGM + fd2_main_menu_continue_dispatcher;
+ * Main loop: outer = main-menu BGM + fd2_main_menu_dispatcher;
  * if it returns 0, run the inner gameplay loop (fd2_game_main_loop +
  * chapter-clear / chapter-switch dispatch keyed on
  * data_fd2_chapter_event_or_battle_end_code @ 0x53ECC). Quit drops to
@@ -132,7 +132,7 @@ void main(void)
 #endif
     do {
         fd2_set_bgm_track_with_fade(0x12, 0);
-        menu_result = fd2_main_menu_continue_dispatcher();
+        menu_result = fd2_main_menu_dispatcher();
         if (menu_result == 0) {
             do {
                 game_loop_result = fd2_game_main_loop();
@@ -178,7 +178,7 @@ void main(void)
 }
 
 /* ----------------------------------------------------------------
- * fd2_main_menu_continue_dispatcher @ 0x25EBB
+ * fd2_main_menu_dispatcher @ 0x25EBB
  *
  * Main-menu dispatcher. Runs the title/record-clear menu
  * (fd2_title_attract_and_main_menu) and branches on its result:
@@ -194,7 +194,7 @@ void main(void)
  *   1  -> quit the game (exit outer loop)
  *   -1 -> stay in / re-enter the main menu
  * ---------------------------------------------------------------- */
-int fd2_main_menu_continue_dispatcher(void)
+int fd2_main_menu_dispatcher(void)
 {
     int menu_choice;
     uint8 *pBuf;
@@ -597,7 +597,7 @@ uint32 data_fd2_field_map_tile_event_consumed_flags_ptr;
  *   MOV AL,byte ptr [ESI + 0xE]; MOV [0x53AF9],AL
  * fd2_load_state_from_selected_slot @ 0x30337 does data_fd2_ui_game_speed_flag =
  * *(uint8 *)(slot_base + 0xA07), and fd2_save_current_state_to_slot @ 0x30101 /
- * fd2_main_menu_continue_dispatcher @ 0x26088 read/write it back. Zero in the image;
+ * fd2_main_menu_dispatcher @ 0x26088 read/write it back. Zero in the image;
  * the first runtime touch is the engine-init byte write that loads it from the saved
  * default state, so this is a zero-init (BSS) byte flag.
  */
@@ -710,7 +710,7 @@ uint32 data_fd2_battle_turn_counter;
  * Writers:
  *   fd2_chapter_01_init               @ 0x32969  MOV dword ptr [0x53BF3],0 (start gold)
  *   fd2_load_save_and_init_engine     @ 0x10426  restored from FD2.SAV
- *   fd2_main_menu_continue_dispatcher @ 0x26078  restored on continue
+ *   fd2_main_menu_dispatcher @ 0x26078  restored on continue
  *   fd2_load_state_from_selected_slot @ 0x30327  restored from save slot
  *   fd2_animate_money_increment       @ 0x2D43A  gold += delta (ADD dword)
  *   fd2_animate_money_decrement       @ 0x2D551  gold -= delta (SUB dword)
@@ -745,7 +745,7 @@ int32 data_fd2_shared_party_total_gold;
  *     memmove(tmp, data_fd2_shared_menu_party_roster_buffer_ptr, 0xA00); (snapshot all 32 slots)
  *     memmove(roster + out*0x50, tmp + (i+1)*0x50, 0x50); (reorder by 0x50 stride)
  * The whole buffer is also block-copied to/from the save image as one 0xA00 chunk
- * (fd2_main_menu_continue_dispatcher @ 0x26050 memmove from FD2.SAV slot,
+ * (fd2_main_menu_dispatcher @ 0x26050 memmove from FD2.SAV slot,
  * fd2_save_current_state_to_slot / fd2_load_state_from_selected_slot the reverse).
  * Element stride is 0x50 (runtime_char); the index is the menu party member count.
  * Zero-initialized in the image; the first use is the startup malloc write, so this
@@ -762,8 +762,8 @@ uint32 data_fd2_shared_menu_party_roster_buffer_ptr;
  * party member count, but storage and access width are 32-bit). It serves dual
  * duty as both the roster element count and the append index.
  * Writers:
- *   fd2_main_menu_continue_dispatcher @ 0x25EFA  MOV dword ptr [0x53BFB],0 (new-game reset)
- *   fd2_main_menu_continue_dispatcher @ 0x26070  restored from FD2.SAV slot byte
+ *   fd2_main_menu_dispatcher @ 0x25EFA  MOV dword ptr [0x53BFB],0 (new-game reset)
+ *   fd2_main_menu_dispatcher @ 0x26070  restored from FD2.SAV slot byte
  *   fd2_load_save_and_init_engine     @ 0x1041E  restored from FD2.SAV (= pBuf[0x30CC])
  *   fd2_load_state_from_selected_slot @ 0x3031F  restored from save slot
  *   fd2_init_runtime_char_from_base_growth @ 0x1144C  INC dword (append a new member, READ_WRITE)
@@ -991,7 +991,7 @@ uint8 data_fd2_ui_terrain_hud_user_enabled = 1;
  * any transition where that HUD must not draw -- the player-turn -> enemy-turn
  * cycle (fd2_check_all_player_acted_or_asleep / fd2_field_command_menu_loop),
  * chapter init/end + clear fanfare here in main, and the chapter
- * transition / save-load paths in fd2_main_menu_continue_dispatcher.
+ * transition / save-load paths in fd2_main_menu_dispatcher.
  */
 uint8 data_fd2_ui_play_active_flag = 1;
 

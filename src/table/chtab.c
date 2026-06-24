@@ -69,7 +69,7 @@ void (*const data_fd2_chapter_post_action_handler_table[30])(uint32) = {
  * const table in .object2.
  *
  * Two readers, both using the same call pattern (no writers):
- *   fd2_main_menu_continue_dispatcher @ 0x25F10 (NEW GAME) and @ 0x260F5
+ *   fd2_main_menu_dispatcher @ 0x25F10 (NEW GAME) and @ 0x260F5
  *     (CONTINUE, after committing a save slot + chapter intro)
  *   main @ 0x25BF4, chapter-switch branch (game_event_flag == 2): runs the
  *     chapter-end handler, then this init handler for the next chapter

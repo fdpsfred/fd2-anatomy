@@ -23,7 +23,7 @@
  * Title-screen attract cinematic + main menu. Despite the "ending" art it
  * draws from, this is the top-level menu screen, not a post-clear-only path.
  *
- * Sole caller: fd2_main_menu_continue_dispatcher @ 0x25EBB, called
+ * Sole caller: fd2_main_menu_dispatcher @ 0x25EBB, called
  * UNCONDITIONALLY at the top of the dispatcher (call site 0x25EC8) on every
  * return to the top level. Its EAX return selects the dispatcher branch:
  *   0 -> NEW GAME ; 1 -> CONTINUE (save-slot loader) ; 2 -> continue an

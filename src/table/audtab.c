@@ -17,7 +17,7 @@
  * Accessor: MOVZX EAX, byte ptr [chapter_id + 0x51E63] -> uint8 FDMUS track
  * id, unsigned, stride 1; the value is passed to fd2_set_bgm_track_with_fade.
  * Read by: fd2_run_full_turn_cycle (new-player-turn phase),
- * fd2_main_menu_continue_dispatcher (NEW GAME / CONTINUE / fallback-reload),
+ * fd2_main_menu_dispatcher (NEW GAME / CONTINUE / fallback-reload),
  * fd2_load_save_and_init_engine (full engine reload), and main (NEW-GAME
  * re-entry after a chapter event). fd2_run_full_turn_cycle also compares this
  * table against the enemy-turn table to decide whether to fade BGM out

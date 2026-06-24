@@ -799,7 +799,7 @@ uint32 data_fd2_ui_menu_cursor_idx;
  *   dispatcher and chapter-transition menu use 0x0D; the chapter-intro menus
  *   reuse this same pointer with their own entries (main: 0x0C/0x1D/0x3F by
  *   cursor state, typeB: 0x0D, typeC: 0x0E). Write/free sites
- *   (e.g. fd2_main_menu_continue_dispatcher @ 0x25F5D /
+ *   (e.g. fd2_main_menu_dispatcher @ 0x25F5D /
  *   0x260CF, fd2_chapter_transition_menu @ 0x2CCAF,
  *   fd2_run_chapter_intro_menu_main @ 0x2E3A7 / 0x2E694,
  *   fd2_run_chapter_intro_menu_typeB @ 0x2FCC1 / 0x2FF92,

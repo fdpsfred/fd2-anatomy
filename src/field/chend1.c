@@ -988,7 +988,7 @@ uint32 data_fd2_chapter_cutscene_event_state;
  * (FDFIELD.DAT idx = id*3, FDTXT.DAT idx = id+1) in
  * fd2_load_save_and_init_engine @ 0x10147, and per-chapter dispatch tables
  * (CALL [id*4 + 0x51DE9], CALL [id*4 + 0x51D71], MOVZX [id + 0x51E63]) in
- * fd2_main_menu_continue_dispatcher @ 0x25E1E/0x25E35/0x25E42.
+ * fd2_main_menu_dispatcher @ 0x25E1E/0x25E35/0x25E42.
  *
  * Writers set it from the save header byte pBuf[0x30C5] (load), or to a chapter
  * constant on chapter entry/exit: fd2_chapter_01_init @ 0x32326/0x3252E/0x327EB
