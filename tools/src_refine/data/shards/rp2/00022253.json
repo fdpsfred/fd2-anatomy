@@ -1,0 +1,83 @@
+{
+  "address": "00022253",
+  "name_current": "fd2_animate_warp_teleport_char",
+  "name_final": "fd2_animate_warp_teleport_char",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor> (domain=animate, descriptor=warp_teleport_char). Accurately reflects purpose: full character warp/teleport visual sequence that also performs the actual position write into runtime_char. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/spell/spellcin.c",
+  "purpose": "Plays the full character warp/teleport animation (source-side portal-open + collapse, row-by-row pop-in at destination, destination-side expand) and writes the unit's new tile position into runtime_char.",
+  "logic_summary": "Loads the warp SFX bank (FDOTHER.DAT[0x51]); mallocs a 0x25680-byte backdrop snapshot and captures the battle scene via fd2_composite_battle_tile_map. Opens a portal at the destination tile (fd2_animate_warp_portal_open_at), computes the warp-in sprite pointer from portrait_sheet[0x1F6], and derives source pixel coords from the battle cursor (cursor_screen_x*0x18+0xC, cursor_screen_y*0x18+0xF). Plays warp SFX with a same-tile flag (set when new_pos == dst_tile), runs the source-side collapse (fd2_animate_warp_out_collapse, returns a band radius), then writes new_pos_x/new_pos_y into runtime_char[char_slot].pos_x/pos_y (the actual teleport). Restores the backdrop, draws a filled-circle band at the source, then copies 0x18-byte rows from the working surface into the mode-13h framebuffer at the destination tile (row_count 0x18, or 0x12 with shifted src/dst start when the destination is on the view-window top edge), with a 10ms delay per row. Finishes with the destination-side expand (fd2_animate_warp_in_expand) and frees the snapshot and SFX buffers. Returns via tail-JMP into the shared Watcom epilogue at 0x18888.",
+  "signature": "void fd2_animate_warp_teleport_char(uint32 char_slot, uint32 new_pos_x, uint32 new_pos_y, uint32 dst_tile_x, uint32 dst_tile_y)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint32",
+      "semantics": "runtime_char_array index of the unit being warped; used as the struct base whose pos_x/pos_y are overwritten with the new tile after the source-side collapse.",
+      "verdict": "rename",
+      "proposed": "char_slot",
+      "reason": "param_1 is a generic Ghidra placeholder; caller fd2_cast_spell_17_complex passes *p_target_byte (target unit id) and fd2_cinematic_warp_char_to_tile passes char_id. Source already names it char_slot."
+    },
+    {
+      "name": "param_2",
+      "type": "uint32",
+      "semantics": "Destination tile X written into runtime_char[char_slot].pos_x (the actual teleport). Spell 0x17 first call passes 0xFF (off-map vanish); cinematic passes the target tile X.",
+      "verdict": "rename",
+      "proposed": "new_pos_x",
+      "reason": "Generic Ghidra placeholder; this is the new position X stored into the runtime_char struct. Source already names it new_pos_x."
+    },
+    {
+      "name": "param_3",
+      "type": "uint32",
+      "semantics": "Destination tile Y written into runtime_char[char_slot].pos_y (the actual teleport). Spell 0x17 first call passes 0xFF; cinematic passes the target tile Y.",
+      "verdict": "rename",
+      "proposed": "new_pos_y",
+      "reason": "Generic Ghidra placeholder; this is the new position Y stored into the runtime_char struct. Source already names it new_pos_y."
+    },
+    {
+      "name": "char_idx",
+      "type": "int",
+      "semantics": "Destination tile X for the framebuffer math (subtracted from battle_view_window_origin_x to compute row offset and src/dst surface addresses); also forwarded to fd2_animate_warp_portal_open_at / collapse / expand as the destination tile X.",
+      "verdict": "rename",
+      "proposed": "dst_tile_x",
+      "reason": "Ghidra name char_idx is misleading -- it is NOT a character index; it is the destination tile X used in framebuffer address math. Source already names it dst_tile_x."
+    },
+    {
+      "name": "dst_x",
+      "type": "int",
+      "semantics": "Destination tile Y for the framebuffer math (subtracted from battle_view_window_origin_y; drives the top-edge row_count=0x12 special case) and forwarded as destination tile Y to the portal/collapse/expand helpers.",
+      "verdict": "rename",
+      "proposed": "dst_tile_y",
+      "reason": "Ghidra name dst_x is misleading -- it carries the destination tile Y, not X. Source already names it dst_tile_y."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value. Side effects: writes runtime_char[char_slot].pos_x/pos_y, mutates the large_game_state_buffer working surface and the mode-13h framebuffer, plays SFX. Control returns via tail-JMP into the shared epilogue at 0x18888."
+  },
+  "reads_globals": [
+    "data_fd2_battle_view_window_origin_x",
+    "data_fd2_battle_view_window_origin_y",
+    "data_fd2_battle_runtime_char_array_ptr",
+    "data_fd2_resource_portrait_sheet_ptr",
+    "data_fd2_battle_cursor_screen_x",
+    "data_fd2_battle_cursor_screen_y",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_string_resource_filename_fdother_dat"
+  ],
+  "writes_globals": [
+    "data_fd2_large_game_state_buffer_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (spellcin.c lines 571-636) is already accurate, refined, ASCII, and verified against disassembly (tail-JMP epilogue @0x2246b->0x18888; framebuffer strength-reduced math 0x2AC0/0x1E00 @0x223b4-0x223e2; src_row=src_base-0xAB0 from LEA +0xfffff550) and callers; kept as-is. runtime_char struct (types.h:20-21) confirms pos_x@+0x00 / pos_y@+0x01, matching the byte writes. Proto in protos.h:178 already declares the correct cdecl 5-arg signature. Ghidra plate was stale (referenced old callee name __delay_thunk_375b2 which is now fd2_delay_ms, and used the misleading auto param names in the body lines); plate updated to use fd2_delay_ms, the refined param names (char_slot/dst_tile_x/dst_tile_y), and to note the tail-JMP epilogue. All five live Ghidra param names need rename (recorded only; applied in Stage 2). No source file edit was needed, so the only staged source-tree change is this shard."
+}
