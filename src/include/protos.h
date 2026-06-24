@@ -504,7 +504,7 @@ void fd2_render_combat_hp_bar_segments(uint32 dst_addr, uint32 stride, uint32 fi
 int fd2_animate_combat_hit_with_hp_drain(uint32 a, uint32 d, uint32 st);
 void fd2_animate_attack_hit_sequence(uint32 attacker_idx, uint32 defender_idx);
 void fd2_render_combat_combatant_panels(uint32 xy_array_ptr, uint32 defender_idx, uint32 attacker_idx);
-void fd2_play_full_combat_cinematic(uint32 a, uint32 d);
+void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx);
 int fd2_execute_combat_hit_cinematic(uint32 attacker_idx, uint32 defender_idx,
     uint32 figani_anim, uint32 silhouette, uint32 workbuf, uint32 dst,
     uint32 banner, uint32 sfx_bank);

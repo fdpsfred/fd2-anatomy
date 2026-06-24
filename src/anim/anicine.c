@@ -348,7 +348,7 @@ void fd2_play_figani_char_intro_animation(uint32 char_idx)
  * void __cdecl (2 stack params). EBX/ESI/EDI/EBP are callee-saved; the
  * __CHK(0x64) stack-probe prologue is compiler-injected.
  * ---------------------------------------------------------------- */
-void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
+void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx)
 {
     void *dst;
     void *workbuf;
@@ -372,8 +372,8 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
 
     def_anim_figani = 0;
     data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr = 0;
-    p_attacker = &data_fd2_battle_runtime_char_array_ptr[a];
-    p_defender = &data_fd2_battle_runtime_char_array_ptr[d];
+    p_attacker = &data_fd2_battle_runtime_char_array_ptr[attacker_idx];
+    p_defender = &data_fd2_battle_runtime_char_array_ptr[defender_idx];
     defender_portrait = p_defender->portrait_id;
     attacker_portrait = p_attacker->portrait_id;
     if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx == 0) {
@@ -465,9 +465,9 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
             data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr,
             spotlight_terrain);
     if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx == 0) {
-        fd2_flash_char_hit_sprite((uint32)dst, a);
+        fd2_flash_char_hit_sprite((uint32)dst, attacker_idx);
     }
-    if ((fd2_check_can_counter_attack(a, d) == 1) ||
+    if ((fd2_check_can_counter_attack(attacker_idx, defender_idx) == 1) ||
         (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx != 0)) {
         def_anim_figani = fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
@@ -479,7 +479,7 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
             data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr,
             0, 0x32, (uint32)dst, 0x140, 0xFFFFFFFF);
         if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx == 0) {
-            fd2_flash_char_hit_sprite((uint32)dst, d);
+            fd2_flash_char_hit_sprite((uint32)dst, defender_idx);
         }
     } else {
         uint32 swap_tmp;
@@ -521,25 +521,26 @@ void fd2_play_full_combat_cinematic(uint32 a, uint32 d)
         data_fd2_audio_figani_sfx_bank_defender_buf_ptr =
             fd2_load_figani_sfx_bank(def_anim_figani);
     }
-    fd2_play_char_intro_zoom_anim(a, split_screen_flag, att_silhouette,
+    fd2_play_char_intro_zoom_anim(attacker_idx, split_screen_flag, att_silhouette,
                                   def_silhouette, (uint32)workbuf, (uint32)dst,
                                   banner_rle);
     if (fd2_execute_combat_hit_cinematic(
-            a, d, att_anim_figani, def_silhouette, (uint32)workbuf, (uint32)dst,
-            banner_rle, data_fd2_audio_figani_sfx_bank_buf_ptr) != 0) {
-        if ((fd2_check_can_counter_attack(a, d) == 1) &&
+            attacker_idx, defender_idx, att_anim_figani, def_silhouette,
+            (uint32)workbuf, (uint32)dst, banner_rle,
+            data_fd2_audio_figani_sfx_bank_buf_ptr) != 0) {
+        if ((fd2_check_can_counter_attack(attacker_idx, defender_idx) == 1) &&
             (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx == 0)) {
             fd2_execute_combat_hit_cinematic(
-                d, a, def_anim_figani, att_silhouette, (uint32)workbuf,
-                (uint32)dst, banner_rle,
+                defender_idx, attacker_idx, def_anim_figani, att_silhouette,
+                (uint32)workbuf, (uint32)dst, banner_rle,
                 data_fd2_audio_figani_sfx_bank_defender_buf_ptr);
         }
     }
     if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx != 0) {
         data_fd2_battle_scripted_cinematic_mode_or_terrain_idx = 1;
         fd2_execute_combat_hit_cinematic(
-            d, a, def_anim_figani, att_silhouette, (uint32)workbuf,
-            (uint32)dst, banner_rle,
+            defender_idx, attacker_idx, def_anim_figani, att_silhouette,
+            (uint32)workbuf, (uint32)dst, banner_rle,
             data_fd2_audio_figani_sfx_bank_defender_buf_ptr);
     }
 
