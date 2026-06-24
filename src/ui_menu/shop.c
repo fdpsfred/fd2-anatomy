@@ -82,7 +82,7 @@ uint32 fd2_pick_stat_compare_color(int current_stat, int preview_stat)
  * compare the full 32-bit EAX), captured as an int here — Ghidra
  * narrows it to a byte via CONCAT31, which this avoids.
  * ---------------------------------------------------------------- */
-int fd2_shop_menu_input_loop(uint32 param_1, uint8 *param_2, uint32 param_3)
+int fd2_shop_menu_input_loop(uint32 item_count, uint8 *item_id_array, uint32 sell_mode_flag)
 {
     int scancode;
     uint32 delta;
@@ -92,7 +92,7 @@ int fd2_shop_menu_input_loop(uint32 param_1, uint8 *param_2, uint32 param_3)
     do {
         scancode = fd2_wait_input_with_chapter_dialog_blink(1);
         if (scancode == 0x4d) {
-            if (param_1 - 1 != data_fd2_ui_menu_cursor_idx) {
+            if (item_count - 1 != data_fd2_ui_menu_cursor_idx) {
                 fd2_play_sfx_with_handle(
                     data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
                 data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 1;
@@ -105,8 +105,8 @@ LAB_dfb8:
                     fd2_animate_scroll_up_in_shop_dialog();
                 }
 LAB_dfd4:
-                fd2_render_shop_item_grid(param_1, param_2,
-                    data_fd2_ui_menu_cursor_idx, 0xa0000, param_3 & 0xff);
+                fd2_render_shop_item_grid(item_count, item_id_array,
+                    data_fd2_ui_menu_cursor_idx, 0xa0000, sell_mode_flag & 0xff);
             }
         }
         else if (scancode == 0x4b) {
@@ -133,7 +133,7 @@ LAB_e01e:
             }
         }
         else if (scancode == 0x50) {
-            if ((int)data_fd2_ui_menu_cursor_idx < (int)(param_1 - 2)) {
+            if ((int)data_fd2_ui_menu_cursor_idx < (int)(item_count - 2)) {
                 fd2_play_sfx_with_handle(
                     data_fd2_audio_fdother_sfx_bank_buf_ptr, 0, 1);
                 data_fd2_ui_menu_cursor_idx = data_fd2_ui_menu_cursor_idx + 2;
