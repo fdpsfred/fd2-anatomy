@@ -273,7 +273,7 @@ int fd2_execute_ai_offensive_spell(uint32 caster_idx,
         data_fd2_battle_ai_best_spell_target_y,
         (uint32)target_buf, (uint32)pSpell[4], 0, aoe_flag);
 
-    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
     delay(200);
     data_fd2_battle_anim_phase = (uint32)pSpell[4] + 2;
     fd2_pan_cursor_to_tile_animated(
@@ -373,7 +373,7 @@ void fd2_execute_ai_item_use(uint32 caster_idx, uint32 ctx_flag)
             (uint32)range_class - 0x10, 0);
     }
 
-    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
     delay(200);
     data_fd2_battle_anim_phase = (uint32)pItem[0x12] + 2;
 
@@ -434,7 +434,7 @@ void fd2_execute_ai_item_use(uint32 caster_idx, uint32 ctx_flag)
             fd2_composite_battle_frame(1);
             fd2_wait_n_bios_ticks(1);
         }
-        fd2_obfuscate_battle_tile_map(
+        fd2_battle_reset_tile_transient_state(
             data_fd2_battle_tile_map_ptr);
         fd2_wait_n_bios_ticks(2);
         fd2_pan_cursor_to_char((uint32)target_idxs[0]);

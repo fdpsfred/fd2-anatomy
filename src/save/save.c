@@ -129,7 +129,7 @@ void fd2_save_crypt_buffer(uint32 buf, uint32 size)
 }
 
 /* ----------------------------------------------------------------
- * fd2_obfuscate_battle_tile_map @ 0x4dbfc (15 callers)
+ * fd2_battle_reset_tile_transient_state @ 0x4dbfc (15 callers)
  *
  * In-place per-tile field clamp/reset over a battle tile-map buffer.
  * __cdecl, one arg: tile_map = byte buffer base. void return.
@@ -159,7 +159,7 @@ void fd2_save_crypt_buffer(uint32 buf, uint32 size)
  * underflows the counter; callers always pass a loaded map with
  * valid non-zero dimensions.
  * ---------------------------------------------------------------- */
-void fd2_obfuscate_battle_tile_map(uint32 tile_map)
+void fd2_battle_reset_tile_transient_state(uint32 tile_map)
 {
     uint8 *pTile;
     uint32 tile_count;

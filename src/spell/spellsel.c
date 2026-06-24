@@ -407,12 +407,12 @@ int fd2_spell_selection_menu_main(uint32 caster_idx)
             (uint32)target_buf, aoe_kind, 1, (uint32)pSpell[6]);
         result_or_aoe = fd2_wait_for_action_target_input(
             (int)pSpell[6], aoe_target_count, target_buf);
-        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+        fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
 
         n_targets = fd2_compute_aoe_targets(
             data_fd2_battle_cursor_world_x, data_fd2_battle_cursor_world_y,
             (uint32)target_buf, (uint32)pSpell[4], 0, (uint32)pSpell[6]);
-        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+        fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
 
         if (result_or_aoe != -1) {
             result_or_aoe = fd2_wait_for_action_target_input(
@@ -450,7 +450,7 @@ int fd2_spell_selection_menu_main(uint32 caster_idx)
         saved_cursor_y = data_fd2_battle_cursor_world_y;
         result_or_aoe = fd2_wait_for_action_target_input(
             (int)pSpell[6], aoe_target_count, target_buf);
-        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+        fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
 
         if (spell_id == 0x1e) {
             n_targets = fd2_scan_chars_along_line_with_team_filter(
@@ -465,7 +465,7 @@ int fd2_spell_selection_menu_main(uint32 caster_idx)
         }
     }
 
-    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
 
     if (result_or_aoe == -1) {
         data_fd2_battle_anim_phase = 0;

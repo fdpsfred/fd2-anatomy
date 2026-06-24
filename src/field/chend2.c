@@ -469,7 +469,7 @@ void fd2_chapter_23_end(void)
     data_fd2_tile_attribute_flags_buffer_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
         data_fd2_tile_attribute_flags_buffer_ptr, 0x2F);
-    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
     fd2_load_chapter_background_layers();
     fd2_pan_cursor_and_window(0xE, 0x1D);
     fd2_set_vga_palette_range_with_add(0, 0xFF, 0);

@@ -120,7 +120,7 @@ void fd2_init_runtime_char_for_battle(uint32 char_field_idx, uint32 fdicon_fp)
         }
     }
 
-    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
 
     pRec = (uint8 *)(data_fd2_tile_event_data_table_ptr
          + char_field_idx * 0x1a + 0x83);

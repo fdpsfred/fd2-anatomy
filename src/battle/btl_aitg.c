@@ -447,7 +447,7 @@ int fd2_ai_walk_to_target_tile(uint32 target_x, uint32 target_y,
         data_fd2_tile_attribute_flags_buffer_ptr);
 
     if (pf_result == 0xFF) {
-        fd2_obfuscate_battle_tile_map(
+        fd2_battle_reset_tile_transient_state(
             data_fd2_battle_tile_map_ptr);
         step_count = fd2_pathfind_to_destination(
             (uint32)pCostTbl, src_x, src_y, 0x1C,
@@ -455,7 +455,7 @@ int fd2_ai_walk_to_target_tile(uint32 target_x, uint32 target_y,
             data_fd2_battle_tile_map_ptr,
             data_fd2_tile_attribute_flags_buffer_ptr);
         if (step_count != 0xFF) {
-            fd2_obfuscate_battle_tile_map(
+            fd2_battle_reset_tile_transient_state(
                 data_fd2_battle_tile_map_ptr);
             fd2_paint_threat_overlay_for_team(ctx);
             fd2_init_movement_range_floodfill(
@@ -485,7 +485,7 @@ int fd2_ai_walk_to_target_tile(uint32 target_x, uint32 target_y,
         }
     }
 
-    fd2_obfuscate_battle_tile_map(
+    fd2_battle_reset_tile_transient_state(
         data_fd2_battle_tile_map_ptr);
     fd2_paint_threat_overlay_for_team(ctx);
     fd2_init_movement_range_floodfill(
@@ -516,7 +516,7 @@ int fd2_ai_walk_to_target_tile(uint32 target_x, uint32 target_y,
         }
     }
 
-    fd2_obfuscate_battle_tile_map(
+    fd2_battle_reset_tile_transient_state(
         data_fd2_battle_tile_map_ptr);
     fd2_paint_threat_overlay_for_team(ctx);
     walked = fd2_pathfind_to_destination(
@@ -524,7 +524,7 @@ int fd2_ai_walk_to_target_tile(uint32 target_x, uint32 target_y,
         pPathBuf, best_x, best_y, 0,
         data_fd2_battle_tile_map_ptr,
         data_fd2_tile_attribute_flags_buffer_ptr);
-    fd2_obfuscate_battle_tile_map(
+    fd2_battle_reset_tile_transient_state(
         data_fd2_battle_tile_map_ptr);
 
     if (walked != 0) {
@@ -706,7 +706,7 @@ int fd2_ai_seek_optimal_position(uint32 char_idx, uint32 ctx)
         (uint32)dst_xy, 0, 0, 2,
         data_fd2_battle_tile_map_ptr,
         data_fd2_tile_attribute_flags_buffer_ptr);
-    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
 
     if (pathfind_result == 0xFF) return 0;
 

@@ -277,7 +277,7 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
  *   4. map width/height = tile_map[0]/[2] (16-bit)
  *   5. FDSHAP.DAT[tile_event[0]*2 (+1)] -> data_fd2_battle_scene_snapshot /
  *      tile_attribute_flags_buffer
- *   6. fd2_obfuscate_battle_tile_map(battle_tile_map)
+ *   6. fd2_battle_reset_tile_transient_state(battle_tile_map)
  *   7. cache_total_size=tile_event[1], cache_alloc_offset=tile_event[2],
  *      party_member_count=cache_total_size
  *   8. free data_fd2_portrait_sprite_cache + old runtime_char_array
@@ -336,7 +336,7 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
         (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
         data_fd2_tile_attribute_flags_buffer_ptr, (uint32)scene_id * 2 + 1);
 
-    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
 
     data_fd2_resource_portrait_cache_total_size =
         (uint32)((uint8 *)data_fd2_tile_event_data_table_ptr)[1];

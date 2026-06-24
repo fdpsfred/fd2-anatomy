@@ -545,7 +545,7 @@ void fd2_paint_char_sprite_at_world_with_mode(uint32 ws, uint32 stride, uint32 c
 void fd2_paint_threat_overlay_for_team(uint32 team_selector);
 uint8 fd2_pathfind_to_destination(uint32 ct, uint32 sx, uint32 sy, uint32 ms,
     uint32 db, uint32 f1, uint32 f2, uint32 md, uint32 tm, uint32 af);
-void fd2_obfuscate_battle_tile_map(uint32 tile_map);
+void fd2_battle_reset_tile_transient_state(uint32 tile_map);
 void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
     uint32 rng, uint32 tm, uint32 af);
 int fd2_compute_aoe_targets(uint32 cx, uint32 cy, uint32 buf,

@@ -378,7 +378,7 @@ int fd2_player_action_menu_loop(uint32 char_idx)
     fd2_wait_input_with_status_panel_repaint(char_idx);
 
     target_result = fd2_wait_for_action_target_input(4, 0, (uint8 *)0);
-    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
 
     if (target_result == -1) {
         fd2_pan_cursor_to_tile_animated(saved_x, saved_y);
@@ -391,7 +391,7 @@ int fd2_player_action_menu_loop(uint32 char_idx)
         saved_x, saved_y, range_remaining, (uint32)alloc_buf,
         data_fd2_battle_cursor_world_x, data_fd2_battle_cursor_world_y, 0,
         data_fd2_battle_tile_map_ptr, data_fd2_tile_attribute_flags_buffer_ptr);
-    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
     data_fd2_battle_anim_phase = 0;
     fd2_pan_cursor_to_tile_animated(saved_x, saved_y);
     data_fd2_battle_anim_phase = 1;
@@ -526,7 +526,7 @@ int fd2_player_inline_action_menu_dispatch(int char_idx,
                 weapon_aoe_x, 0) == 0) {
             pSlot_disable_arr[0] = 1;
         }
-        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+        fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
     }
 
     fd2_count_active_menu_items_until_zero(pSlot_disable_arr);
@@ -566,7 +566,7 @@ int fd2_player_inline_action_menu_dispatch(int char_idx,
             weapon_aoe_x, 0);
         sel = fd2_wait_for_action_target_input(0, n_targets,
             (uint8 *)target_ids_buf);
-        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+        fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
         free((void *)target_ids_buf);
         if (sel == -1) {
             fd2_pan_cursor_to_tile_animated(saved_cursor_x, saved_cursor_y);

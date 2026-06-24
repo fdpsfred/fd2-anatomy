@@ -691,7 +691,7 @@ int fd2_item_command_menu_dispatch(uint32 char_idx)
             data_fd2_battle_cursor_world_y, 0, 1, 1, 3) == 0) {
         menu_state[1] = 1;
     }
-    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
 
     fd2_count_active_menu_items_until_zero(menu_state);
     fd2_open_settings_dialog_with_slide(menu_options, menu_state);
@@ -728,14 +728,14 @@ int fd2_item_command_menu_dispatch(uint32 char_idx)
                     (uint32)(item_entry[0xd] == 0x17),
                     (uint32)item_entry[0x15]),
                 target_buf);
-            fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+            fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
 
             data_fd2_battle_anim_phase = 1;
             final_aoe = (uint32)fd2_compute_aoe_targets(
                 data_fd2_battle_cursor_world_x,
                 data_fd2_battle_cursor_world_y, (uint32)target_buf,
                 (uint32)item_entry[0x12], 0, (uint32)item_entry[0x15]);
-            fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+            fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
 
             if (item_entry[0xd] == 0x17) {
                 rc = data_fd2_battle_runtime_char_array_ptr;
@@ -792,7 +792,7 @@ int fd2_item_command_menu_dispatch(uint32 char_idx)
                 data_fd2_battle_cursor_world_y, give_buf, 1, 1, 3),
             (uint8 *)give_buf);
         target_char_idx = fd2_find_char_at_cursor_pos();
-        fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+        fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
         fd2_pan_cursor_to_tile_animated(target_x, target_y);
         free((void *)give_buf);
 

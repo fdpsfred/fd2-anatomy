@@ -286,7 +286,7 @@ void fd2_ai_score_offensive_spell(uint32 caster_idx,
             data_fd2_tile_attribute_flags_buffer_ptr);
         n_reachable = fd2_collect_unmarked_tile_positions(
             pTileBuf);
-        fd2_obfuscate_battle_tile_map(
+        fd2_battle_reset_tile_transient_state(
             data_fd2_battle_tile_map_ptr);
 
         for (tile_j = 0; tile_j < n_reachable; tile_j++) {
@@ -302,7 +302,7 @@ void fd2_ai_score_offensive_spell(uint32 caster_idx,
             n_targets = fd2_compute_aoe_targets(
                 cx, cy, (uint32)tgt_buf,
                 (uint32)pSpell[4], 0, aoe_arg);
-            fd2_obfuscate_battle_tile_map(
+            fd2_battle_reset_tile_transient_state(
                 data_fd2_battle_tile_map_ptr);
 
             if (n_targets != 0) {
@@ -385,7 +385,7 @@ void fd2_ai_score_item_use(uint32 caster_idx, uint32 ctx_flag)
             (uint32)(range_class > 0x0F), 0);
         n_reachable = fd2_collect_unmarked_tile_positions(
             pTileBuf);
-        fd2_obfuscate_battle_tile_map(
+        fd2_battle_reset_tile_transient_state(
             data_fd2_battle_tile_map_ptr);
 
         for (tile_j = 0; tile_j < n_reachable; tile_j++) {
@@ -409,7 +409,7 @@ void fd2_ai_score_item_use(uint32 caster_idx, uint32 ctx_flag)
                         caster_x, caster_y,
                         (uint32)pItem[0x10] - 0x10, 0);
             }
-            fd2_obfuscate_battle_tile_map(
+            fd2_battle_reset_tile_transient_state(
                 data_fd2_battle_tile_map_ptr);
 
             if (n_targets != 0) {
@@ -530,7 +530,7 @@ int fd2_ai_score_physical_attack(uint32 caster_idx, uint32 ctx_flag)
     fd2_mark_char_occupant_tiles_for_team(caster_idx, ctx_flag);
     n_reachable = (uint32)fd2_collect_unmarked_tile_positions(
         pTile_pos_buf);
-    fd2_obfuscate_battle_tile_map(data_fd2_battle_tile_map_ptr);
+    fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
     pTarget_id_buf = (uint32)malloc(100);
 
     for (tile_i = 0; tile_i < (int)n_reachable; tile_i++) {
@@ -554,7 +554,7 @@ int fd2_ai_score_physical_attack(uint32 caster_idx, uint32 ctx_flag)
         n_aoe = fd2_compute_aoe_targets(
             cand_x, cand_y, pTarget_id_buf,
             weapon_aoe_y, weapon_aoe_x, use_smaller_aoe);
-        fd2_obfuscate_battle_tile_map(
+        fd2_battle_reset_tile_transient_state(
             data_fd2_battle_tile_map_ptr);
         if (n_aoe == 0) continue;
 

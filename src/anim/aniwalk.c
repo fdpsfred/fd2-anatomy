@@ -23,7 +23,7 @@
  * ((attr & 0x60) == 0x20) whose consumed flag is set, bumps the +4
  * word (frame counter) and zeroes the +6 byte (phase flag) in the
  * tile-map record. The +4/+6 writes land in the next tile's record by
- * design (intended vendor stride; see fd2_obfuscate_battle_tile_map).
+ * design (intended vendor stride; see fd2_battle_reset_tile_transient_state).
  * ---------------------------------------------------------------- */
 void fd2_tick_tile_event_animations(void)
 {
