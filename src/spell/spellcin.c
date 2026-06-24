@@ -1586,10 +1586,13 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
 }
 
 /*
- * Shared game-state working buffer pointer (0x53A49).
+ * Shared off-screen render workspace pointer (0x53A49).
  * Holds a malloc(0x25680)=153216-byte block allocated once at startup by
- * main; callers index it as base+byte-offset (e.g. base+0x8088 for the
- * combat panel scratch region). Several cinematic routines temporarily swap
+ * main; it is the primary mode-13h back-buffer that battle/dialog/menu/FX
+ * code composites into before blitting to the visible surface (0xA0504).
+ * Callers index it as base+byte-offset: base+0x8088 is the render-workspace
+ * origin (the back-buffer the scene is drawn into; see
+ * fd2_composite_battle_frame). Several cinematic routines temporarily swap
  * it to a scratch allocation and restore it. Zero (NULL) until the startup
  * allocation fills it in.
  */
