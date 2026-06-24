@@ -145,7 +145,7 @@ typedef struct {
 } character_growth;
 
 /* glyph_blit_state @ 0x627A3 -- shared scratch render-state for the 1bpp glyph
- * blitter (fd2_blit_glyph_2bpp_with_outline) and the stride-blit pair
+ * blitter (fd2_blit_glyph_1bpp_with_outline) and the stride-blit pair
  * (fd2_blit_sprite_with_stride_setup / _loop). Inside the packed region, so it
  * is 17B alignment-1, byte-identical to the Ghidra struct layout. */
 typedef struct {

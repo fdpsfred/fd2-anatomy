@@ -1144,7 +1144,7 @@ void fd2_blit_sprite_with_stride_loop(uint32 dst_buf, uint32 sprite_hdr)
 }
 
 /* ----------------------------------------------------------------
- * fd2_blit_glyph_2bpp_with_outline @ 0x4EA2A (2 call sites)
+ * fd2_blit_glyph_1bpp_with_outline @ 0x4EA2A (2 call sites)
  *
  * NOTE: the Ghidra-era name says "2bpp" but the font sheet is in fact
  * 1bpp -- 0x20 bytes per glyph = 16 rows x 2 bytes = 16 bits/row at one
@@ -1202,7 +1202,7 @@ void fd2_blit_sprite_with_stride_loop(uint32 dst_buf, uint32 sprite_hdr)
  *   bg_color      -- background fill before the glyph; 0 = skip bg fill
  *                    (low byte used)
  * ---------------------------------------------------------------- */
-void fd2_blit_glyph_2bpp_with_outline(uint32 font_data, uint32 glyph_idx,
+void fd2_blit_glyph_1bpp_with_outline(uint32 font_data, uint32 glyph_idx,
                                       uint32 dst_buf, uint32 pitch,
                                       uint32 fill_color, uint32 outline_color,
                                       uint16 bg_color)

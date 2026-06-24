@@ -1106,7 +1106,7 @@ uint32 data_fd2_tile_anim_table_base;
  * sprite sheet (FDOTHER.DAT resource index 4). uint32 address slot; zero-init
  * (BSS), written once at startup in main(). Game-mutable (not const).
  *
- * Passed as the font_data argument to fd2_blit_glyph_2bpp_with_outline, which
+ * Passed as the font_data argument to fd2_blit_glyph_1bpp_with_outline, which
  * indexes into the sheet by glyph id to render each character (the dialog VM
  * fd2_display_dialog_scene uses it for both the literal-number path and the
  * general text path).

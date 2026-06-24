@@ -663,7 +663,7 @@ void fd2_load_save_and_init_engine(void);
 
 /* ---- dialog / UI screens ---- */
 uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx, uint32 render_pos, uint32 render_pitch, uint32 glyph_fill_color, uint32 glyph_outline_color, uint32 glyph_bg_color, uint32 glyph_height, uint32 blink_flag);
-void fd2_blit_glyph_2bpp_with_outline(uint32 font_data, uint32 glyph_idx, uint32 dst_buf, uint32 pitch, uint32 fill_color, uint32 outline_color, uint16 bg_color);
+void fd2_blit_glyph_1bpp_with_outline(uint32 font_data, uint32 glyph_idx, uint32 dst_buf, uint32 pitch, uint32 fill_color, uint32 outline_color, uint16 bg_color);
 uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 dst_origin);
 void fd2_assemble_dialog_frame_layered(uint32 dst, uint32 pitch, uint32 col_offset, int row_offset, int n_cols, int n_rows);
 void fd2_scroll_portrait_dialog_text_up_one_line(void);

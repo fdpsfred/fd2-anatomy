@@ -33,7 +33,7 @@ void fd2_cleanup_dialog_sprite_buffer(uint32 saved_block, uint32 dst, uint32 str
  * FD2 dialog VM: interprets a compiled dialog bytecode stream
  * (int16 opcodes) starting at text_base[page_idx].  Negative values
  * are control codes; non-negative values are glyph indices rendered
- * with fd2_blit_glyph_2bpp_with_outline (advancing 0x10 px per glyph).
+ * with fd2_blit_glyph_1bpp_with_outline (advancing 0x10 px per glyph).
  *
  *   -1  (0xFFFF) END          flush open portrait, return render_pos
  *   -2  (0xFFFE) LINE ADVANCE  bump line_count + reflow, NO input wait
@@ -49,7 +49,7 @@ void fd2_cleanup_dialog_sprite_buffer(uint32 saved_block, uint32 dst, uint32 str
  *   glyph_fill_color, glyph_outline_color, glyph_bg_color, glyph_height, blink_flag.
  *   render_pitch also drives the per-line reflow (render_base +
  *   render_pitch * glyph_height * line_count).  the 3 glyph colors are
- *   passed straight through to fd2_blit_glyph_2bpp_with_outline as its
+ *   passed straight through to fd2_blit_glyph_1bpp_with_outline as its
  *   fill_color / outline_color / bg_color palette indices.
  * Returns final render_pos (consumed by the -4/-5 recursive callers).
  *
@@ -152,7 +152,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             sprintf(digit_buf, "%d", data_fd2_dialog_last_action_value_param);
             digit_len = (int)(strlen(digit_buf) & 0xff);
             for (i = 0; i < digit_len; i++) {
-                fd2_blit_glyph_2bpp_with_outline(data_fd2_chinese_font_sheet,
+                fd2_blit_glyph_1bpp_with_outline(data_fd2_chinese_font_sheet,
                                                  (uint32)((uint8)digit_buf[i] - 0x30),
                                                  render_pos, render_pitch,
                                                  glyph_fill_color, glyph_outline_color,
@@ -305,7 +305,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
         }
 
         /* TEXT glyph (default) */
-        fd2_blit_glyph_2bpp_with_outline(data_fd2_chinese_font_sheet,
+        fd2_blit_glyph_1bpp_with_outline(data_fd2_chinese_font_sheet,
                                          (uint32)opcode, render_pos,
                                          render_pitch, glyph_fill_color, glyph_outline_color,
                                          (uint16)glyph_bg_color);
