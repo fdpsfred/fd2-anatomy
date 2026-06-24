@@ -1075,36 +1075,37 @@ void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num,
  * composited on top (the AoE-with-chars overlay look). Built from two
  * fd2_render_circle_anim_row passes plus a straight rectangular fill.
  *
- * Param overloading note (Ghidra names kept verbatim):
- *   param_1 = column center cx (workspace pixels)
- *   param_2 = bottom row index (band-fill end, and the bottom arc's
- *             vertical center / row start)
- *   param_3 = radius factor for the band half-width
- *   cx      = top band-fill start row (also the top arc's row start)
- *   cy      = arc row-loop exclusive end (5th arg)
- *   radius  = the palette-remap SOURCE pointer forwarded straight
- *             through to every fd2_apply_palette_remap_run / row call
- *             (the name "radius" is the Ghidra label, not a length)
+ * Param note (names reflect the overloaded roles, not size/coords):
+ *   col_center        = column center cx (workspace pixels)
+ *   bottom_row        = bottom row index (band-fill end, and the bottom
+ *                       arc's vertical center / row start)
+ *   radius_factor     = radius factor for the band half-width
+ *   top_row           = top band-fill start row (also top arc's row start)
+ *   row_loop_end      = arc row-loop exclusive end (5th arg)
+ *   palette_remap_src = the palette-remap SOURCE pointer forwarded
+ *                       straight through to every
+ *                       fd2_apply_palette_remap_run / row call (a uint8*
+ *                       color-remap table, not a length)
  *
  * Sequence (asm order):
- *   fd2_render_circle_anim_row(param_1, param_2, param_3, 0x10, cx, cy, radius);
+ *   fd2_render_circle_anim_row(col_center, bottom_row, radius_factor, 0x10, top_row, row_loop_end, palette_remap_src);
  *     // top arc rows
  *   fd2_composite_all_chars_overlay();        // paint party chars on top
- *   fd2_render_circle_anim_row(param_1, param_2, param_3, 0x10, param_2, cy, radius);
- *     // bottom arc rows (5th arg = param_2 = bottom_y, not cx)
+ *   fd2_render_circle_anim_row(col_center, bottom_row, radius_factor, 0x10, bottom_row, row_loop_end, palette_remap_src);
+ *     // bottom arc rows (5th arg = bottom_row = bottom_y, not top_row)
  *
  *   // solid middle band:
- *   half_width = trunc( (double)param_3 * 1.6 );
- *     // x87: FILD param_3 / FMUL m64[0x50208]=1.6 then __CHP forces
+ *   half_width = trunc( (double)radius_factor * 1.6 );
+ *     // x87: FILD radius_factor / FMUL m64[0x50208]=1.6 then __CHP forces
  *     // RC=round-toward-zero before FRNDINT, so this is a TRUNCATION
  *     // toward zero, not a round-to-nearest (Ghidra ROUND() misleads).
- *   left_clip = param_1 - half_width, right_off = half_width;
- *   if (left_clip < 0)  { left_clip = 0; right_off = param_1; }   // clamp left to 0
- *   if (param_1 + half_width > 0x137) half_width = 0x138 - param_1; // clamp right to 0x138
+ *   left_clip = col_center - half_width, right_off = half_width;
+ *   if (left_clip < 0)  { left_clip = 0; right_off = col_center; }   // clamp left to 0
+ *   if (col_center + half_width > 0x137) half_width = 0x138 - col_center; // clamp right to 0x138
  *   run_width = half_width + right_off;
- *   row_ptr = large_game_state_buffer + 0x8088 + cx*0x1C8 + left_clip;
- *   for (; cx < param_2; cx++) {
- *       fd2_apply_palette_remap_run(radius, run_width, row_ptr);
+ *   row_ptr = large_game_state_buffer + 0x8088 + top_row*0x1C8 + left_clip;
+ *   for (; top_row < bottom_row; top_row++) {
+ *       fd2_apply_palette_remap_run(palette_remap_src, run_width, row_ptr);
  *       row_ptr += 0x1C8;
  *   }
  *
@@ -1122,38 +1123,38 @@ void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num,
  * fd2_animate_warp_teleport_char, fd2_animate_warp_out_collapse,
  * fd2_animate_warp_in_expand, fd2_cast_screen_wide_spell_with_fade.
  * ---------------------------------------------------------------- */
-void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2,
-                                        uint32 param_3, int cx, int cy,
-                                        int radius)
+void fd2_render_filled_circle_band_anim(uint32 col_center, uint32 bottom_row,
+                                        uint32 radius_factor, int top_row,
+                                        int row_loop_end, int palette_remap_src)
 {
     uint32 half_width;
     uint32 left_clip;
     uint32 right_off;
     uint32 row_ptr;
 
-    fd2_render_circle_anim_row(param_1, param_2, param_3, 0x10, cx, cy,
-                               (uint8 *)radius);
+    fd2_render_circle_anim_row(col_center, bottom_row, radius_factor, 0x10,
+                               top_row, row_loop_end, (uint8 *)palette_remap_src);
     fd2_composite_all_chars_overlay();
-    fd2_render_circle_anim_row(param_1, param_2, param_3, 0x10, param_2, cy,
-                               (uint8 *)radius);
+    fd2_render_circle_anim_row(col_center, bottom_row, radius_factor, 0x10,
+                               bottom_row, row_loop_end, (uint8 *)palette_remap_src);
 
-    half_width = (uint32)(int32)((double)(int32)param_3 *
+    half_width = (uint32)(int32)((double)(int32)radius_factor *
                                  data_fd2_graphics_circle_band_radius_scale_16);
 
-    left_clip = param_1 - half_width;
+    left_clip = col_center - half_width;
     right_off = half_width;
     if ((int32)left_clip < 0) {
         left_clip = 0;
-        right_off = param_1;
+        right_off = col_center;
     }
-    if (0x137 < (int32)(half_width + param_1)) {
-        half_width = 0x138 - param_1;
+    if (0x137 < (int32)(half_width + col_center)) {
+        half_width = 0x138 - col_center;
     }
 
     row_ptr = left_clip + data_fd2_large_game_state_buffer_ptr + 0x8088 +
-              (uint32)cx * 0x1c8;
-    for (; cx < (int32)param_2; cx++) {
-        fd2_apply_palette_remap_run(radius, half_width + right_off,
+              (uint32)top_row * 0x1c8;
+    for (; top_row < (int32)bottom_row; top_row++) {
+        fd2_apply_palette_remap_run(palette_remap_src, half_width + right_off,
                                     (uint8 *)row_ptr);
         row_ptr += 0x1c8;
     }

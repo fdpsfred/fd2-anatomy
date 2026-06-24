@@ -215,7 +215,7 @@ void fd2_interpolate_palette_range_toward_color(uint32 start_idx, uint32 end_idx
 void fd2_apply_palette_remap_run(uint32 remap_table, uint32 byte_count, uint8 *buf);
 void fd2_fill_palette_blink_pattern_6byte(int input_index, uint32 output_buffer_addr);
 void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num, int start_row, int end_row, uint8 *palette_remap_src);
-void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2, uint32 param_3, int cx, int cy, int radius);
+void fd2_render_filled_circle_band_anim(uint32 col_center, uint32 bottom_row, uint32 radius_factor, int top_row, int row_loop_end, int palette_remap_src);
 void fd2_tick_chapter_palette_animation(void);
 void fd2_update_palette_cycle_anim(void);
 void fd2_animate_palette_flash_pulse_white(void);
@@ -723,7 +723,7 @@ void fd2_blit_24x24_tile_to_battle_grid_position(uint32 atlas_base, uint32 tile_
 void fd2_render_terrain_info_hud_panel(uint32 buf, uint32 stride);
 void fd2_blit_rectangle(uint32 dst, uint32 dstride, uint32 src, uint32 sstride, uint32 w, uint32 h);
 void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num, int start_row, int end_row, uint8 *palette_remap_src);
-void fd2_render_filled_circle_band_anim(uint32 param_1, uint32 param_2, uint32 param_3, int cx, int cy, int radius);
+void fd2_render_filled_circle_band_anim(uint32 col_center, uint32 bottom_row, uint32 radius_factor, int top_row, int row_loop_end, int palette_remap_src);
 void fd2_blit_money_digit_sprite(uint32 dst_buf, uint32 dst_stride, uint32 sprite_idx);
 uint32 fd2_alloc_and_blit_indexed_sprite_chunk(uint32 sheet_base, uint32 dst, uint32 surface_pitch, uint32 col_offset, uint32 row_idx, uint32 sprite_idx);
 void fd2_blit_money_digit_sprite(uint32 dst_buf, uint32 dst_stride, uint32 sprite_idx);
