@@ -47,10 +47,10 @@ uint32 fd2_ail_set_alloc_fnptr(uint32 new_fnptr)
 }
 
 /* ----------------------------------------------------------------
- * fd2_set_word_global_5275c @ 0x3616E
+ * fd2_ail_install_free_fnptr @ 0x3616E
  *
  * Get-and-set helper for the AIL internal de-allocator slot
- * data_ail_free_fnptr (0x5275C): stores new_val as the new free
+ * data_ail_free_fnptr (0x5275C): stores new_free_fnptr as the new free
  * function pointer and returns the prior pointer (so a caller can save
  * and restore it). The AIL internal routines call through this slot to
  * release memory; default value is the CRT free. Dword (32-bit pointer)
@@ -59,11 +59,11 @@ uint32 fd2_ail_set_alloc_fnptr(uint32 new_fnptr)
  * and the AIL load/install routines). Paired with the alloc-slot helper
  * @ 0x3615E which swaps data_ail_alloc_fnptr (the +4-below sibling).
  * ---------------------------------------------------------------- */
-uint32 fd2_set_word_global_5275c(uint32 new_val)
+uint32 fd2_ail_install_free_fnptr(uint32 new_free_fnptr)
 {
     uint32 old;
     old = data_ail_free_fnptr;
-    data_ail_free_fnptr = new_val;
+    data_ail_free_fnptr = new_free_fnptr;
     return old;
 }
 
