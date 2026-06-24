@@ -8,10 +8,18 @@
 #include "protos.h"
 
 /* ----------------------------------------------------------------
- * fd2_pathfind_count_unique_directions @ 0x4E3CF
+ * fd2_pathfind_count_unique_directions @ 0x4E3CF (1 caller: the cost-tie
+ * branches of fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330)
  *
- * Count direction-change transitions in the pathfind stack.
- * Returns transition_count * 4 as tiebreak weight.
+ * Count direction-change transitions along the current pathfind step stack and
+ * return transition_count * 4 as a tiebreak weight. Walks the step stack
+ * (data_fd2_battle_pathfind_step_stack) for data_fd2_battle_pathfind_current_depth
+ * frames, 8 bytes per frame, reading each frame's direction byte at [+3]; every
+ * time that byte differs from the previous frame's it counts one transition (the
+ * 0xFF prev-dir sentinel makes the first frame always count). No params (state via
+ * the pathfind globals); returns the count shifted left 2 (== count * 4) so paths
+ * with more turns get a higher weight, biasing the search toward more natural
+ * zigzag paths over straight-line diagonal shortcuts.
  * ---------------------------------------------------------------- */
 uint8 fd2_pathfind_count_unique_directions(void)
 {

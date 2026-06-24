@@ -1,0 +1,34 @@
+{
+  "address": "0004e3cf",
+  "name_current": "fd2_pathfind_count_unique_directions",
+  "name_final": "fd2_pathfind_count_unique_directions",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant fd2_<domain>_<descriptor> (domain=pathfind). No address residue. Descriptor accurately reflects the body: it counts consecutive direction-change transitions (runs) along the step stack. 'unique_directions' reads as the count of direction runs; the precise transition-count semantics are documented in the comment/plate. A marginal rename to count_direction_transitions is possible but not required and would ripple into protos.h, so keep.",
+  "kind": "function",
+  "home": "src/util/pathfnd.c",
+  "purpose": "Count direction-change transitions along the current pathfind step stack and return transition_count*4 as a tiebreak weight that biases the search toward paths with more turns.",
+  "logic_summary": "AH = current_depth (number of frames to scan); ESI = step_stack base (0x60079, 8-byte stride). prev_dir = 0xFF sentinel, count = 0. For each of current_depth frames: read the frame's direction byte at [ESI+3]; if it differs from prev_dir, increment count and set prev_dir to it; advance ESI by 8. Return count << 2 (count*4) in AL. The 0xFF sentinel guarantees the first frame always counts as a transition.",
+  "signature": "uint8 __cdecl fd2_pathfind_count_unique_directions(void)",
+  "params": [],
+  "returns": {
+    "type": "uint8",
+    "semantics": "Number of direction-change transitions along the step stack, shifted left 2 (== transition_count * 4). Returned in AL; consumed by fd2_pathfind_neighbor_step_with_tiebreak as a direction-diversity tiebreak weight (more turns -> higher weight)."
+  },
+  "reads_globals": [
+    "data_fd2_battle_pathfind_current_depth",
+    "data_fd2_battle_pathfind_step_stack"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment was correct but terse (2 lines): it did not state the per-frame direction byte at [+3], the 8-byte stride, that current_depth frames are scanned, the 0xFF first-frame sentinel, or the single caller / heuristic rationale.",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Disassembly at 0x4E3CF confirms decompile exactly (LEA ESI,[0x60079]; MOV AH,[0x60077]; SHL AL,2). Single caller fd2_pathfind_neighbor_step_with_tiebreak @ 0x4E330 (two call sites at 0x4E364/0x4E375, the cost->tie branches). Plate was updated only to replace outdated global names (pathfind_direction_stack -> data_fd2_battle_pathfind_step_stack; pathfind_current_depth -> data_fd2_battle_pathfind_current_depth) confirmed live via xrefs_from at 0x4E3DA; body/heuristic content preserved. save_program succeeded. set_plate_comment returned non-blocking formatting warnings (missing Algorithm/Parameters/Returns headers) only."
+}
