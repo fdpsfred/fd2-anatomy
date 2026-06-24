@@ -29,7 +29,7 @@ const char data_fd2_string_save_load_oom_msg_tile_event[20] = {
  * Distinct literal copy used on the runtime_char_array malloc(0x1e00)
  * failure path inside fd2_load_save_and_init_engine, printed before exit(1).
  * Read-only; consumed as a char* by printf. */
-const char data_fd2_string_save_load_oom_msg_runtime_char_50037[20] = {
+const char data_fd2_string_save_load_oom_msg_runtime_char[20] = {
     0x20, 0x4f, 0x75, 0x74, 0x20, 0x6f, 0x66, 0x20, 0x4d, 0x65,
     0x6d, 0x6f, 0x72, 0x79, 0x20, 0x21, 0x21, 0x21, 0x0a, 0x00
 };
