@@ -1,0 +1,95 @@
+{
+  "address": "0004e040",
+  "name_current": "fd2_init_movement_range_floodfill",
+  "name_final": "fd2_init_movement_range_floodfill",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>; the descriptor accurately captures the function's role: it seeds (init) the pathfind state globals and the origin tile marker, then kicks off the movement-range flood fill. No address residue, no generic placeholder. The plate also calls it an 'orchestrator'; 'init' covers the seeding/setup role well. Distinct from the path-aware sibling fd2_pathfind_to_destination and from the recursive helper fd2_flood_fill_movement_range_recursive.",
+  "kind": "function",
+  "home": "src/util/pathfnd.c",
+  "purpose": "Movement-range flood-fill orchestrator: seeds the pathfind state globals from the caller's six arguments, marks the origin tile with the full step budget, and kicks off the recursive 4-neighbour expansion that paints the 'where can this unit move?' markers.",
+  "logic_summary": "Spills all six __cdecl stack args into the pathfind state globals at 0x60060..0x60070 (caller_context/secondary cost table first, then seed_x/seed_y/max_steps, the tile-map pointer, and the primary tile-attribute cost-table pointer). Reads map_width from tile_map[0] and map_height from tile_map[2]. Computes the origin tile's marker pointer = tile_map + ((uint16)(map_width*seed_y)+seed_x)*4 + 7 and writes max_steps there as the starting (highest) residual cost. Then calls fd2_flood_fill_movement_range_recursive(seed_x, seed_y, max_steps, origin_ptr); in the binary the recursion inherits the secondary cost-table base via ESI (captured into caller_context) and the map_width*4 row stride via EBP (recomputed inside the helper from the map_width global). EAX is never read by any of the 6 call sites (all do ADD ESP,0x18), so it is effectively void.",
+  "signature": "void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y, uint32 rng, uint32 tm, uint32 af)",
+  "params": [
+    {
+      "name": "ct",
+      "type": "uint32",
+      "semantics": "Caller context / secondary cost-table base: the per-job movement-cost table the caller obtained from fd2_get_movement_cost_table_for_job. Stored 32-bit into data_fd2_battle_pathfind_caller_context (binary's ESI capture, first store); the leaf step reads it back as the cost table indexed by the primary table's secondary index.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Short domain abbreviation (cost table) matching the caller's source variable (pMove_cost_table); not a generic placeholder, no address residue, and fully documented in the comment block. Terse but functional."
+    },
+    {
+      "name": "x",
+      "type": "uint32",
+      "semantics": "Origin tile X (source column); truncated to its low byte into data_fd2_battle_pathfind_floodfill_seed_x. Caller passes cursor_world_x.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear coordinate name matching its use as the origin column; no address residue."
+    },
+    {
+      "name": "y",
+      "type": "uint32",
+      "semantics": "Origin tile Y (source row); truncated to its low byte into data_fd2_battle_pathfind_floodfill_seed_y. Caller passes cursor_world_y.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear coordinate name matching its use as the origin row; no address residue."
+    },
+    {
+      "name": "rng",
+      "type": "uint32",
+      "semantics": "Movement step budget (range); truncated to its low byte into data_fd2_battle_pathfind_floodfill_max_steps and written into the origin tile's marker as the starting (highest) residual cost. Caller passes range_remaining.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear abbreviation (range) matching its use as the step budget; no address residue."
+    },
+    {
+      "name": "tm",
+      "type": "uint32",
+      "semantics": "Battle tile map base (4-byte-per-tile map); stored 32-bit into data_fd2_battle_pathfind_battle_tile_map_ptr and used as the base for origin-tile address math. map_width = tm[0], map_height = tm[2].",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Clear abbreviation (tile map) matching its use; no address residue."
+    },
+    {
+      "name": "af",
+      "type": "uint32",
+      "semantics": "Primary tile-attribute -> cost lookup table base; stored 32-bit into data_fd2_battle_pathfind_tile_cost_table_ptr. The leaf step indexes it at [(attr & 0x3FF)<<2 + 1] to obtain the secondary index into the per-job cost table (ct). Caller passes tile_attribute_flags_buffer_ptr.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Short abbreviation (attribute flags) matching the caller's source variable (tile_attribute_flags_buffer_ptr); not a generic placeholder, no address residue, fully documented. Terse but functional."
+    }
+  ],
+  "returns": {
+    "type": "void",
+    "semantics": "No meaningful return. The decompiled 'return in_EAX' is a pass-through signature artifact; all 6 call sites do ADD ESP,0x18 and discard EAX, so the function is effectively void."
+  },
+  "reads_globals": [
+    "data_fd2_battle_pathfind_battle_tile_map_ptr",
+    "data_fd2_battle_pathfind_map_width",
+    "data_fd2_battle_pathfind_floodfill_seed_x",
+    "data_fd2_battle_pathfind_floodfill_seed_y",
+    "data_fd2_battle_pathfind_floodfill_max_steps"
+  ],
+  "writes_globals": [
+    "data_fd2_battle_pathfind_caller_context",
+    "data_fd2_battle_pathfind_floodfill_seed_x",
+    "data_fd2_battle_pathfind_floodfill_seed_y",
+    "data_fd2_battle_pathfind_floodfill_max_steps",
+    "data_fd2_battle_pathfind_battle_tile_map_ptr",
+    "data_fd2_battle_pathfind_map_width",
+    "data_fd2_battle_pathfind_map_height",
+    "data_fd2_battle_pathfind_tile_cost_table_ptr"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Existing src comment (lines 526-575) and Ghidra plate are both accurate and mutually consistent; verified line-by-line against the disassembly (0x4E044-0x4E0DB) and against the caller fd2_player_action_menu_loop (arg order ct/x/y/rng/tm/af = pMove_cost_table/cursor_world_x/cursor_world_y/range_remaining/tile_map/tile_attribute_flags_buffer) and the call site in fd2_ai_score_physical_attack (CALL 0x4E040 then ADD ESP,0x18, EAX unused). Comment block is ASCII-clean (grep verified). No name/param/comment/plate changes needed; no logic issues. Note params ct and af are terse domain abbreviations (cost table / attribute flags) matching the caller's source variable names and fully documented -- kept as-is rather than renamed."
+}
