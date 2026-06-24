@@ -63,11 +63,16 @@ void (*const data_fd2_chapter_post_action_handler_table[30])(uint32) = {
 /* ----------------------------------------------------------------
  * data_fd2_chapter_init_handler_table @ 0x51D71  (30 entries, 4-byte ptrs)
  *
- * Per-chapter init handler, invoked once when a chapter starts (NEW GAME and
- * after a save slot is loaded). Indexed by current_chapter_id (index 0 =
- * chapter 1). Read-only const table in .object2.
+ * Per-chapter init handler, invoked once whenever a chapter starts: on NEW
+ * GAME, after a save slot is loaded (CONTINUE), and on each in-game chapter
+ * switch. Indexed by current_chapter_id (index 0 = chapter 1). Read-only
+ * const table in .object2.
  *
- * Caller (fd2_main_menu_continue_dispatcher @ 0x25EBB):
+ * Two readers, both using the same call pattern (no writers):
+ *   fd2_main_menu_continue_dispatcher @ 0x25F10 (NEW GAME) and @ 0x260F5
+ *     (CONTINUE, after committing a save slot + chapter intro)
+ *   main @ 0x25BF4, chapter-switch branch (game_event_flag == 2): runs the
+ *     chapter-end handler, then this init handler for the next chapter
  *     MOV  EAX,[0x53C03]                 ; current_chapter_id
  *     CALL dword ptr [EAX*0x4 + 0x51D71] ; stride 4, call thru fn ptr, no args
  * => element type: void (*)(void), 30 entries, cdecl, indexed by chapter-1.
