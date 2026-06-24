@@ -1220,23 +1220,23 @@ void fd2_composite_battle_frame_zero(void)
  * Params (caller fd2_play_spell_cast_sequence pushes, per phase):
  *   caster_unit_id : runtime_char index for the team-baseline test.
  *   sprite_handle  : sprite-sheet handle (blit sheet_ptr).
- *   origin_y       : destination work-buffer base (caller passes the
+ *   dst_buf_base   : destination work-buffer base (caller passes the
  *                    0x2A300 frame-scratch buffer or that + an offset);
  *                    it is the blit dst_buf base, NOT a y coordinate
- *                    despite the name. Stage-2 rename pending.
+ *                    despite the name.
  *   row_stride     : destination row stride (0x140 / 0x280); also the
  *                    per-slot row multiplier.
  *   state_code     : phase/state dispatch code.
  *
  * Blit gate per slot: 0 <= counter < 0xF. The blit dst_buf is
- * row_mul[k]*row_stride + x_off[k] + 0x50 + origin_y; row_stride is the
+ * row_mul[k]*row_stride + x_off[k] + 0x50 + dst_buf_base; row_stride is the
  * blit dst_stride and -1 is the palette_op.
  *
  * cc __cdecl (caller cleans 5 stack args; callees blit/sfx are __cdecl).
  * System=battle.
  * ---------------------------------------------------------------- */
 int fd2_render_summon_aura_sprite_ring(int caster_unit_id, int sprite_handle,
-                                       int origin_y, int row_stride,
+                                       int dst_buf_base, int row_stride,
                                        char state_code)
 {
     int x_off[8];
@@ -1277,7 +1277,7 @@ int fd2_render_summon_aura_sprite_ring(int caster_unit_id, int sprite_handle,
                     (uint32)sprite_handle,
                     (uint32)data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
                         i + 7],
-                    row_mul[i] * row_stride + x_off[i] + 0x50 + origin_y,
+                    row_mul[i] * row_stride + x_off[i] + 0x50 + dst_buf_base,
                     row_stride, -1);
             }
         }
@@ -1291,7 +1291,7 @@ int fd2_render_summon_aura_sprite_ring(int caster_unit_id, int sprite_handle,
                     (uint32)sprite_handle,
                     (uint32)(data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
                         i + 7] + 0xf),
-                    row_mul[j] * row_stride + x_off[j] + 0x50 + origin_y,
+                    row_mul[j] * row_stride + x_off[j] + 0x50 + dst_buf_base,
                     row_stride, -1);
             }
         }
@@ -1309,7 +1309,7 @@ int fd2_render_summon_aura_sprite_ring(int caster_unit_id, int sprite_handle,
                     (uint32)sprite_handle,
                     (uint32)(data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
                         i + 7] + 0xf),
-                    row_mul[j] * row_stride + x_off[j] + 0x50 + origin_y,
+                    row_mul[j] * row_stride + x_off[j] + 0x50 + dst_buf_base,
                     row_stride, -1);
             }
         }
@@ -1322,7 +1322,7 @@ int fd2_render_summon_aura_sprite_ring(int caster_unit_id, int sprite_handle,
                     (uint32)sprite_handle,
                     (uint32)data_fd2_battle_summon_spell_shared_15slot_frame_counter_array[
                         i + 7],
-                    row_mul[i] * row_stride + x_off[i] + 0x50 + origin_y,
+                    row_mul[i] * row_stride + x_off[i] + 0x50 + dst_buf_base,
                     row_stride, -1);
             }
         }
