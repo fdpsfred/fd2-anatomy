@@ -1,0 +1,48 @@
+{
+  "address": "00036316",
+  "name_current": "fd2_dpmi_lock_size",
+  "name_final": "fd2_dpmi_lock_size",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows the DPMI naming convention fd2_dpmi_*. Descriptor 'lock_size' accurately distinguishes this size-based wrapper (takes base + size) from fd2_dpmi_lock_region (takes start + end). No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/util/dpmi.c",
+  "purpose": "Size-based convenience wrapper that locks a DPMI linear-memory region given a base address and a byte size, by computing end = base + size and delegating to fd2_dpmi_lock_region.",
+  "logic_summary": "Tail-wrapper: returns fd2_dpmi_lock_region(base, base + size). Disassembly: MOV EAX,[ESP+4] (base); ADD EAX,[ESP+8] (base+size=end) then PUSH (arg2=end); MOV EBX,[ESP+8] (base, after first push=arg1=start) then PUSH; CALL fd2_dpmi_lock_region; ADD ESP,8; RET. EAX (lock_region's CF result) flows straight through to RET.",
+  "signature": "int fd2_dpmi_lock_size(uint32 base, uint32 size)",
+  "params": [
+    {
+      "name": "base",
+      "type": "uint32",
+      "semantics": "Base linear byte address of the region to lock; passed as lock_region's start argument.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches body usage (start of region), no address residue."
+    },
+    {
+      "name": "size",
+      "type": "uint32",
+      "semantics": "Size of the region in bytes; end address computed as base + size and passed as lock_region's end argument.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive, matches body usage (region byte size), no address residue."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Pass-through of fd2_dpmi_lock_region's result: 1 on success (DPMI CF clear), 0 on failure. Tail-call leaves the callee's EAX intact at RET. Ghidra decompiles as void only because no current caller consumes the value."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Return-type nuance: Ghidra plate/decompile said 'void return'; the assembly is a tail-wrapper (CALL fd2_dpmi_lock_region; ADD ESP,8; RET) so EAX carries lock_region's CF result through to RET. The src correctly declares 'int' and returns the call result -- consistent with the asm. Updated the Ghidra plate to fix the inaccurate 'void return' note (now documents the EAX pass-through); src comment was already concise+correct so kept it (no Edit to dpmi.c). No global reads/writes. No logic issues."
+}
