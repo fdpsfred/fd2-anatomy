@@ -312,7 +312,7 @@ void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32) = {
  * The two readers only reach this table on the status/special branch (spell id
  * >= 9 and not the plain cast-sequence ids); the basic damage/heal spells take
  * fd2_play_spell_cast_sequence instead. Several handlers' Ghidra prototypes
- * differ cosmetically (e.g. fd2_cast_spell_17_complex's 3rd param shows as
+ * differ cosmetically (e.g. fd2_cast_spell_17_teleport's 3rd param shows as
  * uint32, fd2_spell_handler_id_26/27's as int), but the binary calling
  * convention is uniform: 3 dword args pushed as (caster_unit_id, n_targets,
  * target_id_array_ptr). Each initializer is therefore cast to the table's
@@ -358,7 +358,7 @@ void (*data_fd2_battle_spell_handler_table[28])(uint32, uint32, uint8 *) = {
     /* 0x14 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_14_dispatch_aa8,
     /* 0x15 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_15_dispatch_aa8,
     /* 0x16 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_16_dispatch_cda,
-    /* 0x17 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_17_complex,
+    /* 0x17 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_17_teleport,
     /* 0x18 */ (void (*)(uint32, uint32, uint8 *)) fd2_cast_spell_10_variant_b,
     /* 0x19 */ (void (*)(uint32, uint32, uint8 *)) fd2_execute_status_clear_holy_word_spell_id_25,
     /* 0x1a */ (void (*)(uint32, uint32, uint8 *)) fd2_spell_handler_id_26_via_status_d1b_effect_25,

@@ -8,6 +8,10 @@
     {"n": 30, "address": "00016b43", "did": "both", "note": "slide_in_at->slide_out_to_cursor (2 files); ghidra params param_1/param_2 -> anim_handle/slot_offset (src already correct)"},
     {"n": 31, "address": "00016e24", "did": "name", "note": "cinematic_scroll_text_up_for_special_scenes -> scroll_portrait_dialog_text_up_one_line; 3 files"},
     {"n": 41, "address": "00018409", "did": "both", "note": "play_status_screen_outro_step -> render_status_screen_slide_frame (6 files); ghidra params -> frame_idx/workspace/src_buffer/snapshot_b; protos.h decl aligned"},
-    {"n": 45, "address": "0001956b", "did": "both", "note": "load_chapter_portrait -> dialog_open_speaker_portrait (16 files, 52 callers); ghidra param_1 + src def/body portrait_kind -> portrait_id"}
+    {"n": 45, "address": "0001956b", "did": "both", "note": "load_chapter_portrait -> dialog_open_speaker_portrait (16 files, 52 callers); ghidra param_1 + src def/body portrait_kind -> portrait_id"},
+    {"n": 62, "address": "0001d4f6", "did": "name", "note": "play_and_free_status_effect_sfx -> stop_and_free_status_effect_sfx; 7 files"},
+    {"n": 76, "address": "0001f894", "did": "name", "note": "play_ending_and_record_clear -> title_attract_and_main_menu; 7 files"},
+    {"n": 83, "address": "00021b18", "did": "both", "note": "dispatch_variant_b_cast -> execute_variant_b_heal_cast (5 files); ghidra params -> caster/spell_id/n_targets/p_targets"},
+    {"n": 86, "address": "0002218a", "did": "both", "note": "cast_spell_17_complex -> cast_spell_17_teleport (4 files); ghidra param_2 + src def spell_arg -> target_count"}
   ]
 }

@@ -144,7 +144,7 @@ consume_item:
         fd2_cast_status_inflict_spell(
             caster_idx, 0x16, target_count, p_target_array, 0x27);
     } else if (effect_code == 0x17) {
-        fd2_cast_spell_17_complex(
+        fd2_cast_spell_17_teleport(
             caster_idx, target_count, p_target_array);
     }
 
@@ -397,11 +397,11 @@ void fd2_cast_status_cure_spell(uint32 caster, uint32 spell_id,
 }
 
 /* ----------------------------------------------------------------
- * fd2_cast_spell_17_complex @ 0x2218A  (2 callers)
+ * fd2_cast_spell_17_teleport @ 0x2218A  (2 callers)
  *
  * Teleport spell: job-based XP + dual-position warp animation.
  * ---------------------------------------------------------------- */
-void fd2_cast_spell_17_complex(uint32 caster, uint32 spell_arg,
+void fd2_cast_spell_17_teleport(uint32 caster, uint32 target_count,
                                uint32 p_target_byte)
 {
     uint8 target_id;
