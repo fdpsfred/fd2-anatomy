@@ -661,13 +661,17 @@ const spell_effect data_fd2_battle_spell_effect_table[36] = {
 /* ----------------------------------------------------------------
  * data_fd2_battle_enemy_data_table @ 0x61AF9  (680 bytes = 68 x 10)
  *
- * Read-only enemy stat table; 68 entries of struct enemy_data (10 bytes:
- * race_id, class_id, hp(uint16), mp, ap, dp, dx, mv, exp_reward).
- * Indexed by (enemy_class_id - 0x44) via fd2_get_enemy_data_entry @ 0x4E4FF
- * (base + idx*0xA). Callers read +2 as 16-bit hp (MOVZX word) and +4..+9 as
- * bytes; on battle spawn enemy HP/MP/AP/DP/DX = field * level, and +9
- * (exp_reward) grants XP on kill. Readers: fd2_init_runtime_char_for_battle,
- * fd2_execute_attack_damage_calculation, fd2_apply_damage_and_award_xp.
+ * Read-only enemy stat table; 68 entries of struct enemy_data (10 bytes,
+ * fully mapped: race_id+0, class_id+1, hp(uint16)+2, mp+4, ap+5, dp+6, dx+7,
+ * mv+8, exp_reward+9). Indexed by (enemy portrait id - 0x44) via accessor
+ * fd2_get_enemy_data_entry @ 0x4E4FF (base + idx*0xA). Callers read +2 as
+ * 16-bit hp (MOVZX word) and +4..+9 as bytes; on battle spawn enemy
+ * HP/MP/AP/DP/DX = field * level, and +9 (exp_reward) is multiplied by the
+ * victim level to grant XP on kill. Readers (via the accessor):
+ * fd2_init_runtime_char_for_battle (0x10C50),
+ * fd2_execute_attack_damage_calculation (0x1ECC7),
+ * fd2_calculate_combat_hit_outcome (0x29F72),
+ * fd2_apply_damage_and_award_xp (0x1C81F). No writers (const).
  * Bytes are byte-exact from FD2.LE .object3 @ 0x61AF9.
  */
 const enemy_data data_fd2_battle_enemy_data_table[68] = {
