@@ -198,10 +198,12 @@ int fd2_promote_members_select_loop(uint32 candidate_count, uint8 *candidate_idx
  * ESC(0x01) -> return -1.
  *
  * Sole caller: fd2_run_class_promotion_menu_main @ 0x31385. Unlike the
- * revive picker, this one takes a THIRD param (price_aux_list_ptr; the
- * caller passes target_classes[]) and renders via the 5-arg
- * fd2_render_promote_candidates_grid (which shows the post-promotion
- * target job per candidate).
+ * revive picker, this one takes a THIRD param: the per-candidate
+ * post-promotion target-class list (caller passes target_classes[]).
+ * It renders via the 5-arg fd2_render_promote_candidates_grid, which
+ * feeds each target class to fd2_get_class_promotion_data_entry to show
+ * the post-promotion target job (the "current job -> target job" arrow)
+ * per candidate.
  *
  * int __cdecl with the __CHK(0x28) stack-probe prologue (compiler-
  * injected, not part of the source). ESI is the result accumulator
