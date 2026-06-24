@@ -1,0 +1,36 @@
+{
+  "address": "0002d7bd",
+  "name_current": "fd2_chapter_intro_menu_input_loop",
+  "name_final": "fd2_chapter_intro_menu_input_loop",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> (domain=chapter_intro_menu, descriptor=input_loop). No address residue. Accurately describes the function: a blocking input dispatch loop for the chapter-intro 4-way menu. Shared by all 3 chapter-intro menu variants (main/typeB/typeC).",
+  "kind": "function",
+  "home": "src/ui_menu/chintro.c",
+  "purpose": "Chapter-intro 4-way menu input loop: blocks reading scancodes, moves the cursor left/right (with 0..3 wrap), and returns when the user commits (1) or cancels (-1).",
+  "logic_summary": "result=0; loop: scancode = fd2_wait_input_with_chapter_dialog_blink(0) (blinks dialog cursor while waiting). Dispatch on scancode: 0x4B (Left) -> play cursor chime, cursor--, wrap (int)cursor<0 -> 3; 0x4D (Right) -> play cursor chime, cursor++, wrap (int)cursor>3 -> 0; 0x1C (Enter) or 0x39 (Space) -> result=1; 0x01 (Esc) -> result=-1; otherwise keep looping. while (result==0); return result. Has the __CHK(0x14) stack-probe prologue. The wrap bound tests are signed (JGE/JLE in asm), so the unsigned cursor global is cast to int in src; matches the disassembly.",
+  "signature": "int __cdecl fd2_chapter_intro_menu_input_loop(void)",
+  "params": [],
+  "returns": {
+    "type": "int",
+    "semantics": "1 = user committed (Enter/Space); -1 = user cancelled (Esc). Never returns 0 (the loop continues while result==0). Caller treats (ret & 0xff)==1 as commit."
+  },
+  "reads_globals": [
+    "data_fd2_ui_menu_cursor_idx",
+    "data_fd2_audio_fdother_sfx_bank_buf_ptr"
+  ],
+  "writes_globals": [
+    "data_fd2_ui_menu_cursor_idx"
+  ],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (chintro.c lines 12-35) is already precise, ASCII-only, well-structured, and consistent with both the decompilation and the caller context (fd2_run_chapter_intro_menu_main restores cursor, calls this, saves cursor on commit, dispatches 0=buy/1=sell/2=equip/else=give). Ghidra plate is equally accurate and not contradictory; left untouched. void function so params=[]. Symbol names verified consistent across src, protos.h (line 763) and globals.h (cursor idx @0x53C57 line 210, sfx bank ptr @0x53EEC line 435). No logic concerns. Only staged my own two files (src/ui_menu/chintro.c unchanged; shard 0002d7bd.json); other modified shards in the tree belong to a concurrent refiner and were left alone."
+}
