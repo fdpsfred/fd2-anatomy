@@ -46,9 +46,9 @@ void fd2_cleanup_dialog_sprite_buffer(uint32 saved_block, uint32 dst, uint32 str
  *   else         TEXT glyph
  *
  * Args (9, __cdecl): text_base, page_idx, render_pos, render_pitch,
- *   glyph_p5, glyph_p6, glyph_p7, glyph_height, blink_flag.
+ *   glyph_fill_color, glyph_outline_color, glyph_bg_color, glyph_height, blink_flag.
  *   render_pitch also drives the per-line reflow (render_base +
- *   render_pitch * glyph_height * line_count).  glyph_p5/p6/p7 are
+ *   render_pitch * glyph_height * line_count).  the 3 glyph colors are
  *   passed straight through to fd2_blit_glyph_2bpp_with_outline as its
  *   fill_color / outline_color / bg_color palette indices.
  * Returns final render_pos (consumed by the -4/-5 recursive callers).
@@ -59,8 +59,8 @@ void fd2_cleanup_dialog_sprite_buffer(uint32 saved_block, uint32 dst, uint32 str
  * ---------------------------------------------------------------- */
 uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
                                 uint32 render_pos, uint32 render_pitch,
-                                uint32 glyph_p5, uint32 glyph_p6,
-                                uint32 glyph_p7, uint32 glyph_height,
+                                uint32 glyph_fill_color, uint32 glyph_outline_color,
+                                uint32 glyph_bg_color, uint32 glyph_height,
                                 uint32 blink_flag)
 {
     uint32        render_base;
@@ -155,8 +155,8 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
                 fd2_blit_glyph_2bpp_with_outline(data_fd2_chinese_font_sheet,
                                                  (uint32)((uint8)digit_buf[i] - 0x30),
                                                  render_pos, render_pitch,
-                                                 glyph_p5, glyph_p6,
-                                                 (uint16)glyph_p7);
+                                                 glyph_fill_color, glyph_outline_color,
+                                                 (uint16)glyph_bg_color);
                 if (fd2_check_keyboard_buffer_nonempty() != 0) {
                     blink_flag = 0;
                 }
@@ -307,8 +307,8 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
         /* TEXT glyph (default) */
         fd2_blit_glyph_2bpp_with_outline(data_fd2_chinese_font_sheet,
                                          (uint32)opcode, render_pos,
-                                         render_pitch, glyph_p5, glyph_p6,
-                                         (uint16)glyph_p7);
+                                         render_pitch, glyph_fill_color, glyph_outline_color,
+                                         (uint16)glyph_bg_color);
         render_pos += 0x10;
         if (fd2_check_keyboard_buffer_nonempty() != 0) {
             blink_flag = 0;

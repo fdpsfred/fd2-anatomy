@@ -422,7 +422,7 @@ void fd2_redraw_terrain_tiles_under_chars(void)
  * Per party slot: skip dead (flags bit0), then apply the team filter;
  * pass the char's (pos_x, pos_y) to fd2_mark_aoe_plus_pattern_at.
  * ---------------------------------------------------------------- */
-void fd2_paint_threat_overlay_for_team(uint32 ctx)
+void fd2_paint_threat_overlay_for_team(uint32 team_selector)
 {
     uint32 i;
     runtime_char *pchar;
@@ -430,8 +430,8 @@ void fd2_paint_threat_overlay_for_team(uint32 ctx)
     for (i = 0; (int32)i < (int32)data_fd2_battle_party_member_count; i++) {
         pchar = &data_fd2_battle_runtime_char_array_ptr[i];
         if ((pchar->flags & 1) == 0) {
-            if (((ctx == 0) && (pchar->team != 0)) ||
-                ((ctx != 0) && (pchar->team == 0))) {
+            if (((team_selector == 0) && (pchar->team != 0)) ||
+                ((team_selector != 0) && (pchar->team == 0))) {
                 fd2_mark_aoe_plus_pattern_at(pchar->pos_x, pchar->pos_y);
             }
         }
