@@ -8,7 +8,7 @@
  * Functions in this file:
  *   crt_equivalent_lx_chunk_read  @ 0x36107  (2 callers)
  *   crt_equivalent_lx_header_reader @ 0x36344 (1 caller)
- *   crt_equivalent_lx_module_loader_3647b @ 0x3647b (0 callers)
+ *   crt_equivalent_lx_module_loader @ 0x3647b (0 callers)
  *   crt_equivalent_exit_chain_stub_36de3 @ 0x36de3 (2 callers)
  *   crt_equivalent_get_eflags_thunk     @ 0x37f86 (2 callers)
  *   crt_equivalent_get_eflags           @ 0x3ed58 (0 callers; thunk JMP target)
@@ -145,7 +145,7 @@ int crt_equivalent_lx_header_reader(char *path_or_base, uint8 mode_byte)
 }
 
 /* ----------------------------------------------------------------
- * crt_equivalent_lx_module_loader_3647b @ 0x3647b  (0 callers)
+ * crt_equivalent_lx_module_loader @ 0x3647b  (0 callers)
  *
  * LX/LE module loader: reads MZ->LX header, parses the object table +
  * page table + fixup records, and writes the loaded image into either a
@@ -180,7 +180,7 @@ int crt_equivalent_lx_header_reader(char *path_or_base, uint8 mode_byte)
  * __cdecl: the body ends with a plain RET (no callee stack cleanup); a
  * caller would push 3 args and clean up with ADD ESP,0xC.
  * ---------------------------------------------------------------- */
-void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
+void *crt_equivalent_lx_module_loader(char *path, int flags,
                                             void *caller_buf)
 {
     uint32 page_base_table[100]; /* per-page output base, indexed by page#  */

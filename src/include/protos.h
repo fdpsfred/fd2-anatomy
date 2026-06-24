@@ -822,7 +822,7 @@ void fd2_delay_ms(uint32 ticks);
 int crt_equivalent_lx_chunk_read(int file_handle, int offset,
                                        uint8 mode, void *dest, uint32 length);
 int crt_equivalent_lx_header_reader(char *path_or_base, uint8 mode_byte);
-void *crt_equivalent_lx_module_loader_3647b(char *path, int flags,
+void *crt_equivalent_lx_module_loader(char *path, int flags,
                                             void *caller_buf);
 void crt_equivalent_exit_chain_stub_36de3(void);
 

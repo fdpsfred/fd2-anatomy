@@ -35,7 +35,7 @@ unsigned long crt_equivalent_get_eflags_thunk(void);
 int  crt_equivalent_lx_chunk_read(int file_handle, int offset,
                                         uint8 mode, void *dest, uint32 length);
 void crt_equivalent_lx_header_reader(void);
-void crt_equivalent_lx_module_loader_3647b(void);
+void crt_equivalent_lx_module_loader(void);
 
 /* exit / error handlers */
 void crt_equivalent_exit_chain_stub_36de3(void);
