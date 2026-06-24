@@ -1045,7 +1045,7 @@ void fd2_chapter_event_handler_47__unref_dyn_turn_event(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_48__unref_ai_ctrl @ 0x35BF2
+ * fd2_chapter_event_handler_48__unref_portrait_cinematic_pair @ 0x35BF2
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CB1)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x48. No chapter
@@ -1067,7 +1067,7 @@ void fd2_chapter_event_handler_47__unref_dyn_turn_event(uint32 event_arg)
  * functionally-exact source is the two complete calls followed by the
  * battle_anim_phase store below.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_48__unref_ai_ctrl(uint32 event_arg)
+void fd2_chapter_event_handler_48__unref_portrait_cinematic_pair(uint32 event_arg)
 {
     (void)event_arg;
 

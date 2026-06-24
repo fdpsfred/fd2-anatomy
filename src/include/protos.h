@@ -397,7 +397,7 @@ void fd2_chapter_event_handler_44__ch28_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_45__ch28_dyn_turn_event(uint32 stepping_char_id);
 void fd2_chapter_event_handler_46__ch28_dialog_with_state(uint32 event_arg);
 void fd2_chapter_event_handler_47__unref_dyn_turn_event(uint32 event_arg);
-void fd2_chapter_event_handler_48__unref_ai_ctrl(uint32 event_arg);
+void fd2_chapter_event_handler_48__unref_portrait_cinematic_pair(uint32 event_arg);
 void fd2_chapter_event_handler_49__unref_sentinel(uint32 event_arg);
 void fd2_chapter_event_handler_4a__ch29_dyn_turn_event(uint32 event_arg);
 void fd2_chapter_event_handler_4b__ch29_major_cinematic(uint32 stepping_char_id);
