@@ -44,8 +44,8 @@
     }
   ],
   "processed": true,
-  "committed": false,
-  "commit_hash": "",
+  "committed": true,
+  "commit_hash": "ca3507e7322328b4cea01a441330f744530ab1e7",
   "status": "done",
   "ghidra_unreachable": false,
   "ghidra_error_detail": "",
