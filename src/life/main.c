@@ -181,7 +181,7 @@ void main(void)
  * fd2_main_menu_continue_dispatcher @ 0x25EBB
  *
  * Main-menu dispatcher. Runs the title/record-clear menu
- * (fd2_play_ending_and_record_clear) and branches on its result:
+ * (fd2_title_attract_and_main_menu) and branches on its result:
  *   choice 0 -> NEW GAME    (chapter 1 init, BGM, returns 0)
  *   choice 1 -> CONTINUE    (load FD2.SAV slot via selector UI,
  *                            returns fd2_chapter_transition_menu
@@ -202,7 +202,7 @@ int fd2_main_menu_continue_dispatcher(void)
     uint8 *src;
     int slot_result;
 
-    menu_choice = fd2_play_ending_and_record_clear();
+    menu_choice = fd2_title_attract_and_main_menu();
 
     if (menu_choice == 0) {
         fd2_play_palette_fade_to_black();

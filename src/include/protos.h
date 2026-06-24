@@ -647,7 +647,7 @@ void fd2_chapter_19_end(void);
 /* ---- lifecycle / main menu ---- */
 void fd2_play_chapter_clear_fanfare(void);
 void fd2_play_chapter_intro_sprite_slideshow(void);
-int fd2_play_ending_and_record_clear(void);
+int fd2_title_attract_and_main_menu(void);
 void fd2_play_game_ending_cinematic(void);
 void fd2_play_final_chapter_30_ending(void);
 void fd2_show_portrait_dialog_with_input(uint32 dialog_text_id, uint32 portrait_id);

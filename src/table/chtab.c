@@ -173,7 +173,7 @@ void (*const data_fd2_chapter_end_handler_table[30])(void) = {
  * of this table, the ending SFX is fired and the palette is swapped, then the
  * music index advances to the next entry. Read-only const table in .object2.
  *
- * Caller (fd2_play_ending_and_record_clear @ 0x1F894):
+ * Caller (fd2_title_attract_and_main_menu @ 0x1F894):
  *     int *piVar3 = data_fd2_chapter_ending_music_trigger_frames;
  *     for (n = 15; n != 0; n--) { *(int *)dst = *piVar3; piVar3++; dst += 4; }
  *     ...

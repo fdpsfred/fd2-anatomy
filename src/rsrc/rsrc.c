@@ -564,7 +564,7 @@ void fd2_dialog_open_speaker_portrait(uint32 portrait_id)
  *
  * Loads a cinematic image palette, plays its ANI.DAT animation
  * sequence, then fades the screen to black. Used during the chapter
- * ending cinematic (fd2_play_ending_and_record_clear, 3 sites).
+ * ending cinematic (fd2_title_attract_and_main_menu, 3 sites).
  *
  * Steps:
  *   1. If palette_idx != -1: clear the mode-13h framebuffer

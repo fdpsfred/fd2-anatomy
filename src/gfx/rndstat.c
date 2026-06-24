@@ -1032,7 +1032,7 @@ void fd2_render_party_status_overview_content(uint32 dst_surface, uint32 stride)
  *   segment 2 @ 0xAE401  -> idx (active_idx==2 ? 6 : 5)   [if count > 2]
  * Row offsets are spaced 0xB40 apart (= 9 * 320 stride, ~9 scanlines/segment).
  *
- * Sole caller: fd2_play_ending_and_record_clear @ 0x1f894 (end-of-game menu).
+ * Sole caller: fd2_title_attract_and_main_menu @ 0x1f894 (end-of-game menu).
  *
  * Cdecl, 3 stack params; void return. The active-segment test on active_idx
  * is an unsigned equality (== 0/1/2); the segment_count gates are signed

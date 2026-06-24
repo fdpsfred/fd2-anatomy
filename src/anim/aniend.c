@@ -18,7 +18,7 @@
 #include <stdio.h>
 
 /* ----------------------------------------------------------------
- * fd2_play_ending_and_record_clear @ 0x1F894  (1 caller)
+ * fd2_title_attract_and_main_menu @ 0x1F894  (1 caller)
  *
  * Title-screen attract cinematic + main menu. Despite the "ending" art it
  * draws from, this is the top-level menu screen, not a post-clear-only path.
@@ -52,7 +52,7 @@
  * as a stale local ("frame_buf"); every such site is the palette-data global,
  * which is both passed as the load buffer and assigned the load result.
  * ---------------------------------------------------------------- */
-int fd2_play_ending_and_record_clear(void)
+int fd2_title_attract_and_main_menu(void)
 {
     uint8 *sfx_bank;
     uint8 *scroll_segment_buf;   /* title sprite reused as 5-segment loader buf */

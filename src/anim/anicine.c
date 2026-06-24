@@ -144,7 +144,7 @@ uint32 data_fd2_audio_figani_sfx_bank_defender_buf_ptr;
  *   row_idx = stage-2 source start row (multiplied by the 320 stride to
  *     index into src_buf, i.e. the panel scroll position).
  *
- * Sole caller: fd2_play_ending_and_record_clear @ 0x1FBAF (two scroll-loop
+ * Sole caller: fd2_title_attract_and_main_menu @ 0x1FBAF (two scroll-loop
  *   sites: row 0x1C2 with image 0x64 / palette 99, and row 0x0A with image
  *   0x4B / palette 0x4C).
  * ---------------------------------------------------------------- */
