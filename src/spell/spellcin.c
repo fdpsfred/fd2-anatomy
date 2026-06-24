@@ -352,7 +352,7 @@ void fd2_scatter_sprite_around_origin_with_random_offset(
 
 /* ----------------------------------------------------------------
  * fd2_execute_aoe_spell_with_caster_portrait_radial_scatter @ 0x21bd0
- *   (0 callers — ORPHAN / UNREACHABLE)
+ *   (0 callers -- ORPHAN / UNREACHABLE)
  *
  * AoE radial sprite-scatter cinematic with a caster portrait. Implemented in
  * the binary but never invoked by any caller, not present in the spell dispatch
@@ -366,12 +366,12 @@ void fd2_scatter_sprite_around_origin_with_random_offset(
  * each function is emitted as its own self-contained C routine.
  *
  * Params (cdecl, 7 stack args):
- *   origin_x, origin_y       — AoE center pixel coordinates
- *   portrait_idx             — caster portrait_sheet entry index
- *   scatter_range_max        — sprite radial scatter max radius
- *   animation_frame_count    — total animation frames
- *   max_active_sprites       — simultaneous active-sprite cap (<= 50)
- *   ptr_game_state_snapshot  — backdrop source, memmove'd in each frame
+ *   origin_x, origin_y       -- AoE center pixel coordinates
+ *   portrait_idx             -- caster portrait_sheet entry index
+ *   scatter_range_max        -- sprite radial scatter max radius
+ *   animation_frame_count    -- total animation frames
+ *   max_active_sprites       -- simultaneous active-sprite cap (<= 50)
+ *   ptr_game_state_snapshot  -- backdrop source, memmove'd in each frame
  *
  * sprite_mask is the caster portrait's pixel data, located via the portrait
  * sheet's self-relative offset table: *(int*)(sheet + 6 + portrait_idx*4) is

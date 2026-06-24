@@ -1,0 +1,40 @@
+{
+  "address": "00021bd0",
+  "name_current": "fd2_execute_aoe_spell_with_caster_portrait_radial_scatter",
+  "name_final": "fd2_execute_aoe_spell_with_caster_portrait_radial_scatter",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Compliant with fd2_<domain>_<descriptor> convention; no Ghidra address residue in the name. Descriptor accurately captures the distinctive behavior (AoE radial sprite scatter using the caster portrait as the sprite mask). Consistent with how the plate and the rest of the spellcin.c family name this orphan. 'execute_aoe_spell' is a defensible high-level name for the spell's visible execution even though the body is purely cinematic (no damage/MP) -- the family mixes fd2_execute_*/fd2_animate_*/fd2_play_* and this descriptor is unambiguous.",
+  "kind": "function",
+  "home": "src/spell/spellcin.c",
+  "purpose": "ORPHAN/unreachable AoE spell cinematic: scatters sprites radially around an origin and drifts them upward over N frames, drawing each with the caster portrait as the sprite mask over a per-frame-restored battle backdrop.",
+  "logic_summary": "active_sprite_count=0; sprite_mask = portrait_sheet + *(int*)(portrait_sheet + 6 + portrait_idx*4) (self-relative offset table into the portrait sheet). Outer loop over animation_frame_count frames: (1) if active_sprite_count<max_active_sprites, scatter one new sprite via fd2_scatter_sprite_around_origin_with_random_offset and bump count; (2) memmove restore backdrop (0x25680 bytes) from ptr_game_state_snapshot into data_fd2_large_game_state_buffer_ptr; (3) for each active sprite landing inside x in (0,0x136) and y in (0,0xbe), blit it at buffer+x+y*0x1c8+0x8088 via fd2_blit_palette_remap_with_sprite_mask using a remap table at tile_anim_base + *(tile_anim_base+0x12); (4) blit composed buffer+0x8088 to mode-13h framebuffer 0xA0504 (stride 0x140, 0x1c8 src stride, 0x138 width? per fd2_blit_rectangle args); (5) for each active sprite, sprite_y -= sprite_type (per-sprite shrink/rise rate); any sprite with new y < -10 is re-scattered; (6) fd2_delay_ms(10). Void return.",
+  "signature": "void __cdecl fd2_execute_aoe_spell_with_caster_portrait_radial_scatter(int origin_x, int origin_y, int portrait_idx, int scatter_range_max, int animation_frame_count, int max_active_sprites, uint32 *ptr_game_state_snapshot)",
+  "params": [
+    {"name": "origin_x", "type": "int", "semantics": "AoE center pixel X; passed straight into the scatter helper as the polar-offset origin X.", "verdict": "keep", "proposed": null, "reason": "Accurate, no address residue."},
+    {"name": "origin_y", "type": "int", "semantics": "AoE center pixel Y; passed straight into the scatter helper as the polar-offset origin Y.", "verdict": "keep", "proposed": null, "reason": "Accurate, no address residue."},
+    {"name": "portrait_idx", "type": "int", "semantics": "Caster portrait-sheet entry index (FDICON/portrait sheet, ID range 00h-41h); selects the sprite mask via portrait_sheet[6 + portrait_idx*4] self-relative offset.", "verdict": "keep", "proposed": null, "reason": "Accurate domain term; the numeric meaning (portrait ID) is preserved; no address residue."},
+    {"name": "scatter_range_max", "type": "int", "semantics": "Max radial scatter radius forwarded to fd2_scatter_sprite_around_origin_with_random_offset (radius = (rng%0x40)*range/0x40 - 1).", "verdict": "keep", "proposed": null, "reason": "Accurate, no address residue."},
+    {"name": "animation_frame_count", "type": "int", "semantics": "Total number of outer animation frames (outer_frame_idx loop bound).", "verdict": "keep", "proposed": null, "reason": "Accurate, no address residue."},
+    {"name": "max_active_sprites", "type": "int", "semantics": "Cap on simultaneously active sprites (<= 50, the stack array dimension); a new sprite is spawned each frame until this cap is reached.", "verdict": "keep", "proposed": null, "reason": "Accurate, no address residue."},
+    {"name": "ptr_game_state_snapshot", "type": "uint32 *", "semantics": "Source backdrop buffer memmove'd (0x25680 bytes) into the large game-state buffer at the start of every frame to clear the previous frame's sprites.", "verdict": "keep", "proposed": null, "reason": "Accurate, no address residue."}
+  ],
+  "returns": {"type": "void", "semantics": "No return value; pure side-effecting cinematic that writes to the large game-state buffer and the mode-13h framebuffer."},
+  "reads_globals": [
+    "data_fd2_resource_portrait_sheet_ptr",
+    "data_fd2_large_game_state_buffer_ptr",
+    "data_fd2_tile_anim_table_base"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment block was accurate and well-structured but contained 7 em-dash (U+2014) characters (lines 355, 369-374), violating the code-ASCII-only rule (em-dash must be '--').",
+  "comment_verdict": "rewrite",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Function body matches the Ghidra decompile exactly; no logic touched. Only change to src was converting 7 em-dashes to '--' in this symbol's comment block (other functions' em-dashes left untouched, out of scope). Ghidra plate is detailed and semantically consistent with the refined source (orphan/unreachable, params, per-frame logic, class-3 shared epilogue with fd2_render_filled_circle_band_anim @0x22046 via cond JMP at 0x220FF -> 0x21DAD); left unchanged per 'consistent => don't touch'. Minor stale callee-name mentions in the plate prose ('__delay_thunk_375b2', unprefixed 'scatter_sprite_around_origin_with_random_offset') do not contradict the refined understanding (live callees are fd2_delay_ms and fd2_scatter_sprite_around_origin_with_random_offset) -- noted but not churned. Confirmed orphan: get_function_callers and get_xrefs_to both return none. The plate's Chinese term 群體攻擊 (AoE) is acceptable in a Ghidra plate (KB Traditional-Chinese norm, not the code-ASCII rule)."
+}
