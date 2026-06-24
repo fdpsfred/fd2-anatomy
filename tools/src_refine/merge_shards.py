@@ -21,6 +21,27 @@ DATA = ROOT / "tools" / "src_refine" / "data"
 SHARDS = DATA / "shards"
 
 
+def norm_home(h):
+    """Canonicalize the agent-written 'home' to a repo-relative src/... path.
+
+    Refiners ran in 4 worktrees and wrote 'home' inconsistently (bare
+    'src/crt/crt.c', 'ROOT/src/crt/crt.c', or the absolute worktree path
+    'C:/.../fd2-wt/rp4/src/crt/crt.c'). Every src file lives at src/<dir>/<file>.c
+    with exactly one '/src/' segment, so slice from the last '/src/'.
+    """
+    if not h:
+        return h
+    h = h.replace("\\", "/")
+    i = h.rfind("/src/")
+    if i >= 0:
+        return h[i + 1:]          # ".../src/crt/crt.c" -> "src/crt/crt.c"
+    if h.startswith("src/"):
+        return h                  # already canonical
+    if h.startswith("ROOT/"):
+        return h[len("ROOT/"):]   # "ROOT/foo" -> "foo" (defensive; no /src/ case)
+    return h
+
+
 def main():
     recs = {}
     for p in sorted(glob.glob(str(SHARDS / "rp*" / "*.json"))):
@@ -32,6 +53,7 @@ def main():
         if a in recs:
             raise SystemExit("duplicate shard address %s (%s vs %s)" % (a, p, recs[a].get("_shard")))
         r["address"] = a
+        r["home"] = norm_home(r.get("home"))
         r["_shard"] = p.replace("\\", "/").split("/tools/")[-1]
         recs[a] = r
 
