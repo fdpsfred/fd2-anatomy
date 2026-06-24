@@ -7,7 +7,7 @@
 #include "protos.h"   /* ANI-decoder chunk handler prototypes (dispatch table below) */
 
 /* ----------------------------------------------------------------
- * data_fd2_animation_summon_radial_angle_step_12 @ 0x5022B  (8 bytes, double)
+ * data_fd2_animation_summon_radial_y_amplitude_scale @ 0x5022B  (8 bytes, double)
  *
  * Summon-spell variant-C 5-slot radial animation y-amplitude scale.
  * Sole reader fd2_tick_summon_anim_variant_c_5slot_radial (@ 0x26E39) consumes
@@ -20,7 +20,7 @@
  * Bytes 33 33 33 33 33 33 F3 3F (LE) = IEEE-754 double 1.2 exactly.
  * Read-only (single READ xref, no writers); compiler rodata literal.
  */
-const double data_fd2_animation_summon_radial_angle_step_12 = 1.2;
+const double data_fd2_animation_summon_radial_y_amplitude_scale = 1.2;
 
 /* ----------------------------------------------------------------
  * data_fd2_animation_summon_radial_radius_30 @ 0x50233  (8 bytes, double)
