@@ -388,7 +388,7 @@ extern const char data_fd2_string_ui_render_decimal_format_template[6]; /* 0x51E
 
 /* ---- save/load OOM message strings (.object2 const, 3 cross-.obj copies) ---- */
 extern const char data_fd2_string_save_load_oom_msg_load_pbuf[20];   /* 0x50004  " Out of Memory !!!\n" */
-extern const char data_fd2_string_save_load_oom_msg_tile_event_50023[20];  /* 0x50023  " Out of Memory !!!\n" */
+extern const char data_fd2_string_save_load_oom_msg_tile_event[20];  /* 0x50023  " Out of Memory !!!\n" */
 extern const char data_fd2_string_save_load_oom_msg_runtime_char_50037[20]; /* 0x50037  " Out of Memory !!!\n" */
 
 /* ---- chapter battle-data load error strings (.object2 const) ---- */
