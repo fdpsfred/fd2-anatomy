@@ -841,12 +841,12 @@ unsigned long crt_equivalent_get_eflags(void);
  * src/crt/crt.c. */
 unsigned long crt_equivalent_get_eflags_thunk(void);
 
-/* crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e — SIGFPE / FPU-exception
+/* crt_equivalent_fpe_default_handler @ 0x3d26e — SIGFPE / FPU-exception
  * default no-op handler (1-byte RET). Seeds the FPE dispatch slot @ 0x5283c;
  * invoked indirectly by __FPE_exception_ / __int7 when signal(SIGFPE, ...) was
  * never set. Address-taken (referenced as DATA from the slot), so it is a real
  * callable function. __cdecl void(int fpe_code); ignores the code and returns. */
-void crt_equivalent_fpe_default_handler_3d26e(int fpe_code);
+void crt_equivalent_fpe_default_handler(int fpe_code);
 
 /* crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340 — default value of the
  * user-matherr-handler slot @ 0x539A8. Read+CALLed by _matherr (PUSH exc;

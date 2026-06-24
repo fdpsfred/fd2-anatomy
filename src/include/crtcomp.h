@@ -39,7 +39,7 @@ void crt_equivalent_lx_module_loader(void);
 
 /* exit / error handlers */
 void crt_equivalent_atexit_default_stub(void);
-void crt_equivalent_fpe_default_handler_3d26e(void);
+void crt_equivalent_fpe_default_handler(void);
 int  crt_equivalent_matherr_default_thunk_4d340(void *exc);
 int  crt_equivalent_matherr_default_return_zero_4d8ea(void *exc);
 

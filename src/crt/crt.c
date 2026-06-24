@@ -12,7 +12,7 @@
  *   crt_equivalent_atexit_default_stub @ 0x36de3 (2 callers)
  *   crt_equivalent_get_eflags_thunk     @ 0x37f86 (2 callers)
  *   crt_equivalent_get_eflags           @ 0x3ed58 (0 callers; thunk JMP target)
- *   crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e (2 callers)
+ *   crt_equivalent_fpe_default_handler @ 0x3d26e (2 callers)
  *   crt_equivalent_matherr_default_thunk_4d340 @ 0x4d340 (1 caller)
  *   crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4d8ea (0 callers)
  */
@@ -463,7 +463,7 @@ unsigned long crt_equivalent_get_eflags(void)
 }
 
 /* ----------------------------------------------------------------
- * crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e  (2 callers)
+ * crt_equivalent_fpe_default_handler @ 0x3d26e  (2 callers)
  *
  * SIGFPE / FPU-exception default no-op handler. 1-byte RET stub. The
  * Watcom CRT seeds the FPE-handler dispatch slot @ 0x5283c with a pointer
@@ -487,7 +487,7 @@ unsigned long crt_equivalent_get_eflags(void)
  * __FPE_exception_ does via ADD ESP,4. No CALL inside, so there is no
  * EAX-tracking concern.
  * ---------------------------------------------------------------- */
-void crt_equivalent_fpe_default_handler_3d26e(int fpe_code)
+void crt_equivalent_fpe_default_handler(int fpe_code)
 {
     (void)fpe_code;
     return;
