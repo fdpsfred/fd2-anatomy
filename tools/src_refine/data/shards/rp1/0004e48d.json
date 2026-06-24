@@ -1,0 +1,40 @@
+{
+  "address": "0004e48d",
+  "name_current": "fd2_get_class_promotion_data_entry",
+  "name_final": "fd2_get_class_promotion_data_entry",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor> convention and accurately describes a class-promotion data-table accessor returning a 2-byte entry pointer. No address residue (the trailing 'entry' is semantic, not a hex suffix). Consistent with sibling accessors in table.c (fd2_get_enemy_data_entry, fd2_get_char_base_entry).",
+  "kind": "function",
+  "home": "src/table/table.c",
+  "purpose": "Leaf accessor returning a byte pointer to the 2-byte class-promotion entry for a given promoted class id (class_id >= 0x20) in the read-only class-promotion data table at 0x615FE in .object3.",
+  "logic_summary": "EAX = class_id (stack arg); EAX -= 0x20 (table starts at class 0x20); EAX <<= 1 (2-byte stride); EDX = 0x615FE (table base, via LEA); EAX += EDX; return EAX. No +1 baked into the result -- it returns the base of the 2-byte entry; callers index byte[0]/byte[1] themselves. The decompiler renders base 0x615FE as data_orphan_615fd + 1 (0x615FD + 1 = 0x615FE), which equals the same address as the LEA; the src form (table_base + (class_id-0x20)*2) is the correct interpretation.",
+  "signature": "uint8 * __cdecl fd2_get_class_promotion_data_entry(int class_id)",
+  "params": [
+    {
+      "name": "class_id",
+      "type": "int",
+      "semantics": "Target/promoted class id, >= 0x20. Used as table index via (class_id - 0x20). In fd2_run_class_promotion_menu_main and fd2_render_promote_candidates_grid it is the chosen target class id; in fd2_execute_class_promotion_with_dialog the caller passes rt_chars[idx].bPortrait_id, which in the promotion context holds the new (promoted) class identity.",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Name accurately reflects the value's role as a class id used to index the promotion table; no address residue."
+    }
+  ],
+  "returns": {
+    "type": "uint8 *",
+    "semantics": "Pointer to the base of the 2-byte entry &data_fd2_battle_class_promotion_data_table[(class_id-0x20)*2]. byte[0] = post-promotion job_id (00h..1Ah job-id space); byte[1] = learned-spell id on promotion (0 = none)."
+  },
+  "reads_globals": ["data_fd2_battle_class_promotion_data_table"],
+  "writes_globals": [],
+  "comment_original_issue": "Original src comment was correct and precise (return value, exact assembly, 3 callers) but omitted the meaning of the 2 entry bytes, which is the key semantic of the returned pointer and explains callers indexing [0] (job_id) and [1] (spell_id).",
+  "comment_verdict": "augment",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Cross-checked base address 0x615FE three ways: disassembly LEA [0x615fe], globals.h/btltab3.c symbol address, and decompiler data_orphan_615fd+1. Only xref to 0x615FE is the DATA ref from this accessor at 0x4e498 (no write-xref), confirming const correctness. Raw table bytes at 0x615FE match btltab3.c definition exactly. All 3 callers confirm byte[0]=job_id (rt_chars[idx].bJob_id = *promo_entry) and byte[1]=spell_id (if (*(promo_entry+1) != 0) -> learned spell)."
+}

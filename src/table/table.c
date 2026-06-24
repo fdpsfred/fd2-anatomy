@@ -91,7 +91,9 @@ uint8 *fd2_get_spell_learning_entry(int idx)
 /* ----------------------------------------------------------------
  * fd2_get_class_promotion_data_entry @ 0x4E48D  (3 callers)
  *
- * Returns pointer to 2-byte promotion entry for class_id >= 0x20.
+ * Returns pointer to the 2-byte promotion entry for class_id >= 0x20.
+ * Entry layout: byte[0] = post-promotion job_id, byte[1] = learned-spell
+ * id (0 = none). Callers read byte[0] (new job) and byte[1] (spell unlock).
  * Assembly: EAX = (class_id - 0x20) << 1 + 0x615FE
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_class_promotion_data_entry(int class_id)
