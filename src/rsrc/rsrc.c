@@ -356,7 +356,7 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
         *(uint16 *)&data_fd2_input_last_key_pressed = 3;
         int386(0x10, (union REGS *)&data_fd2_input_last_key_pressed,
                      (union REGS *)&data_fd2_input_last_key_pressed);
-        printf(data_fd2_string_field_map_oom_msg_chapter_runtime_50064);
+        printf(data_fd2_string_chapter_battle_oom_msg_runtime_char);
         exit(1);
     }
 

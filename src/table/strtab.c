@@ -39,7 +39,7 @@ const char data_fd2_string_save_load_oom_msg_runtime_char[20] = {
  * runtime_char_array malloc(0x1e00) failure path (after an int386(0x10,...)
  * text-mode reset) before exit. Read-only; loaded as a char* and consumed
  * directly by printf. Distinct literal copy from the 0x50004/23/37 ones. */
-const char data_fd2_string_field_map_oom_msg_chapter_runtime_50064[20] = {
+const char data_fd2_string_chapter_battle_oom_msg_runtime_char[20] = {
     0x20, 0x4f, 0x75, 0x74, 0x20, 0x6f, 0x66, 0x20, 0x4d, 0x65,
     0x6d, 0x6f, 0x72, 0x79, 0x20, 0x21, 0x21, 0x21, 0x0a, 0x00
 };
