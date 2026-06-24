@@ -49,7 +49,15 @@ uint32 fd2_set_word_global_52758(uint32 new_val)
 /* ----------------------------------------------------------------
  * fd2_set_word_global_5275c @ 0x3616E
  *
- * Swap AIL free function pointer. Returns old value.
+ * Get-and-set helper for the AIL internal de-allocator slot
+ * data_ail_free_fnptr (0x5275C): stores new_val as the new free
+ * function pointer and returns the prior pointer (so a caller can save
+ * and restore it). The AIL internal routines call through this slot to
+ * release memory; default value is the CRT free. Dword (32-bit pointer)
+ * value, not a word. No callers in static xrefs (the API entry; the slot
+ * itself is consumed as a data pointer by AIL_internal_decommit_and_free
+ * and the AIL load/install routines). Paired with the alloc-slot helper
+ * @ 0x3615E which swaps data_ail_alloc_fnptr (the +4-below sibling).
  * ---------------------------------------------------------------- */
 uint32 fd2_set_word_global_5275c(uint32 new_val)
 {
