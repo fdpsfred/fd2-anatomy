@@ -33,7 +33,7 @@ void fd2_chapter_event_handler_2f__ch21_turn_gated(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_dialog_open_speaker_portraits_and_dump_tmp(
+    fd2_load_chapter_portraits_and_dump_tmp(
         (uint32)((int)data_fd2_battle_turn_counter / 2));
     fd2_wait_n_bios_ticks(1);
 
@@ -102,7 +102,7 @@ void fd2_chapter_event_handler_31__ch22_turn_gated(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_dialog_open_speaker_portraits_and_dump_tmp(
+    fd2_load_chapter_portraits_and_dump_tmp(
         (uint32)((int)data_fd2_battle_turn_counter / 2));
 
     fd2_pan_cursor_and_window(0x20, 0x23);
@@ -142,7 +142,7 @@ void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_dialog_open_speaker_portraits_and_dump_tmp(2);
+    fd2_load_chapter_portraits_and_dump_tmp(2);
     fd2_pan_cursor_and_window(0x10, 0x2A);
     fd2_wait_n_bios_ticks(8);
     fd2_init_runtime_char_from_base_growth(0x14);
@@ -263,14 +263,14 @@ void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
  * to mask the portrait change.
  *
  * Despite the name, the third arg is NOT a chapter number: it is forwarded (low
- * byte only) to fd2_dialog_open_speaker_portraits_and_dump_tmp as its target_race_id --
+ * byte only) to fd2_load_chapter_portraits_and_dump_tmp as its target_race_id --
  * a portrait-group / race selector that picks which characters in the current
  * chapter's portrait set get (re)loaded. Callers pass small group indices
  * (portrait-pair ids 0/1, 2/3, ... or group ids 1..5), never chapter ids 1..30.
  *
  * Sequence (functionally-exact):
  *   fd2_pan_cursor_and_window(target_tile_x, target_tile_y)
- *   fd2_dialog_open_speaker_portraits_and_dump_tmp(chapter_id & 0xFF)
+ *   fd2_load_chapter_portraits_and_dump_tmp(chapter_id & 0xFF)
  *   fd2_delay_ms(300)                            -- hold the new portrait
  *   fd2_set_vga_palette_range_with_add(0, 0xFF, 0xFF)   -- +0xFF = pure white
  *   fd2_delay_ms(200)                            -- white screen
@@ -289,7 +289,7 @@ void fd2_cinematic_chapter_portrait_dump_with_white_flash(
     uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id)
 {
     fd2_pan_cursor_and_window(target_tile_x, target_tile_y);
-    fd2_dialog_open_speaker_portraits_and_dump_tmp(chapter_id & 0xFF);
+    fd2_load_chapter_portraits_and_dump_tmp(chapter_id & 0xFF);
     fd2_delay_ms(300);
     fd2_set_vga_palette_range_with_add(0, 0xFF, 0xFF);
     fd2_delay_ms(200);
@@ -353,7 +353,7 @@ void fd2_chapter_event_handler_36__ch24_cinematic(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_dialog_open_speaker_portraits_and_dump_tmp(data_fd2_battle_turn_counter);
+    fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter);
 
     fd2_pan_cursor_and_window(0, 4);
     fd2_delay_ms(400);
@@ -446,7 +446,7 @@ void fd2_chapter_event_handler_38__ch25_dialog_with_state(uint32 event_arg)
     (void)event_arg;
 
     fd2_pan_cursor_and_window(6, 0x28);
-    fd2_dialog_open_speaker_portraits_and_dump_tmp(1);
+    fd2_load_chapter_portraits_and_dump_tmp(1);
     fd2_cutscene_event_trigger(0x4A);
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 5, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
@@ -478,7 +478,7 @@ void fd2_chapter_event_handler_39__ch26_cinematic(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_dialog_open_speaker_portraits_and_dump_tmp(data_fd2_battle_turn_counter);
+    fd2_load_chapter_portraits_and_dump_tmp(data_fd2_battle_turn_counter);
     fd2_pan_cursor_and_window(9, 0);
     fd2_delay_ms(400);
 }
@@ -676,7 +676,7 @@ void fd2_chapter_event_handler_3d__ch26_pickup(uint32 stepping_char_id)
 
     *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0xC) = 1;
     fd2_tick_tile_event_animations();
-    fd2_dialog_open_speaker_portraits_and_dump_tmp(1);
+    fd2_load_chapter_portraits_and_dump_tmp(1);
     fd2_init_runtime_char_from_base_growth(0x1F);
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
@@ -1272,7 +1272,7 @@ void fd2_chapter_event_handler_4c__ch29_major_cinematic(uint32 event_arg)
 
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
-    fd2_dialog_open_speaker_portraits_and_dump_tmp(1);
+    fd2_load_chapter_portraits_and_dump_tmp(1);
 
     *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x15) =
         (uint8)((uint8)data_fd2_battle_party_member_count - 3);
@@ -1498,7 +1498,7 @@ void fd2_chapter_event_handler_52__ch30_major_cinematic(uint32 event_arg)
     if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) != 4) {
         uint32 ai_char;
 
-        fd2_dialog_open_speaker_portraits_and_dump_tmp(
+        fd2_load_chapter_portraits_and_dump_tmp(
             (uint32)*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10));
         ai_char = 0x18 - *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10);
         fd2_set_combat_aux_block_byte_d_low4_for_char_range(ai_char, ai_char, 0);

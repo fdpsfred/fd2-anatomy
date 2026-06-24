@@ -87,7 +87,7 @@ const char data_fd2_string_resource_filename_fdother_dat[12] = {
  * chapter*3+2 -> portrait load buffer. Readers: fd2_load_chapter_battle_data
  * loads all three indices; fd2_load_save_and_init_engine loads chapter*3 and
  * chapter*3+2 (it restores the tile-event table from FD2.SAV instead);
- * fd2_dialog_open_speaker_portraits_and_dump_tmp re-loads chapter*3+2; and
+ * fd2_load_chapter_portraits_and_dump_tmp re-loads chapter*3+2; and
  * fd2_chapter_23_end loads the fixed index 0x45 for the chapter's second
  * battlefield. The address is taken (array decays) and consumed as a char*
  * path; never written. Immediately follows the "FDOTHER.DAT" string at

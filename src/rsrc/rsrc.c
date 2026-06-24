@@ -286,7 +286,7 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
  *  11. per slot (0..cache_total_size): build active player units from the
  *      shared menu party roster template, or zero+mark dead for empty slots
  *  12. fclose; free data_fd2_chapter_portrait_load_buffer
- *  13. fd2_dialog_open_speaker_portraits_and_dump_tmp(0)
+ *  13. fd2_load_chapter_portraits_and_dump_tmp(0)
  *
  * malloc/fopen failure -> INT 10h text-mode reset + printf + exit.
  *
@@ -408,11 +408,11 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     fclose(fp);
     free((void *)data_fd2_chapter_portrait_load_buffer);
     data_fd2_chapter_portrait_load_buffer = 0;
-    fd2_dialog_open_speaker_portraits_and_dump_tmp(0);
+    fd2_load_chapter_portraits_and_dump_tmp(0);
 }
 
 /* ----------------------------------------------------------------
- * fd2_dialog_open_speaker_portraits_and_dump_tmp @ 0x10b4e  (~52 callers)
+ * fd2_load_chapter_portraits_and_dump_tmp @ 0x10b4e  (~52 callers)
  *
  * Portrait loader + FD2.TMP swap-file writer. Used by chapter init/end
  * paths and many chapter event handlers.
@@ -436,7 +436,7 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
  * printf("%s") + exit(1) stub at 0x10056; emitted inline here to match
  * the fd2_load_chapter_battle_data idiom.
  * ---------------------------------------------------------------- */
-void fd2_dialog_open_speaker_portraits_and_dump_tmp(uint32 target_race_id)
+void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
 {
     void  *fp;
     uint32 iter;
@@ -607,7 +607,7 @@ void fd2_load_and_fade_in_cinematic_image(uint32 anim_idx, uint32 per_frame_dela
  * Restores the portrait sprite cache (data_fd2_portrait_sprite_cache @ 0x53A61)
  * by reading the full 0x32A00-byte (~207KB) image back from FD2.TMP.
  * Symmetric read-back of the swap file written by
- * fd2_dialog_open_speaker_portraits_and_dump_tmp's fopen("FD2.TMP","wb")+
+ * fd2_load_chapter_portraits_and_dump_tmp's fopen("FD2.TMP","wb")+
  * fwrite tail. Called after FIGANI combat cinematics that freed and
  * replaced the in-game portrait/tile caches; this re-loads the working
  * portrait set from the precomputed file written during chapter init.

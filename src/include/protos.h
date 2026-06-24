@@ -606,7 +606,7 @@ void fd2_restore_portrait_cache_from_tmp(void);
 
 /* ---- chapter / battle init ---- */
 void fd2_load_chapter_battle_data(uint32 chapter_id);
-void fd2_dialog_open_speaker_portraits_and_dump_tmp(uint32 target_race_id);
+void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id);
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_restore_portrait_cache_from_tmp(void);
 int  fd2_load_chapter_party_roster(uint8 *out_buf);

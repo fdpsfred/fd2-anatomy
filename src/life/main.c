@@ -617,7 +617,7 @@ uint8 data_fd2_ui_game_speed_flag;
  *   data_fd2_resource_portrait_cache_alloc_offset = (uint32)tile_event_data_table[2];
  * so the value is an unsigned record count. It is consumed at 32-bit width in two
  * dual roles:
- *   - As a loop bound: fd2_dialog_open_speaker_portraits_and_dump_tmp @ 0x10BCC scans the
+ *   - As a loop bound: fd2_load_chapter_portraits_and_dump_tmp @ 0x10BCC scans the
  *     tile-event records (stride 0x1A, race byte at +0x98) for indices 0..count and
  *     spawns each matching-race entry via fd2_init_runtime_char_for_battle.
  *   - As a position-table index base: fd2_load_chapter_battle_data @ 0x10A5B does
