@@ -388,7 +388,7 @@ void fd2_chapter_event_handler_3b__ch26_ai_ctrl(uint32 stepping_char_id);
 void fd2_chapter_event_handler_3c__ch26_ai_ctrl(uint32 stepping_char_id);
 void fd2_chapter_event_handler_3d__ch26_pickup(uint32 stepping_char_id);
 void fd2_chapter_event_handler_3e__ch27_dyn_turn_event(uint32 event_arg);
-void fd2_chapter_event_handler_3f__ch27_ai_ctrl(uint32 event_arg);
+void fd2_chapter_event_handler_3f__ch27_cinematic(uint32 event_arg);
 void fd2_chapter_event_handler_40__unref_dyn_turn_event(uint32 event_arg);
 void fd2_chapter_event_handler_41__shared_dyn_turn_event(uint32 event_arg);
 void fd2_chapter_event_handler_42__ch28_dialog_with_state(uint32 event_arg);

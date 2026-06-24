@@ -225,7 +225,7 @@ void fd2_chapter_event_handler_34__ch23_ai_ctrl(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash @ 0x35318
- *   (1 caller: fd2_chapter_event_handler_3f__ch27_ai_ctrl)
+ *   (1 caller: fd2_chapter_event_handler_3f__ch27_cinematic)
  *
  * Transparent thunk that forwards its 3 stack args (12 bytes) to
  * fd2_cinematic_chapter_portrait_dump_with_white_flash @ 0x35822 and cleans
@@ -236,7 +236,7 @@ void fd2_chapter_event_handler_34__ch23_ai_ctrl(uint32 event_arg)
  * No __CHK, no own stack frame.
  *
  * The thunk exists purely as a layer-insertion / binary size optimisation: it
- * is the tail-JMP target of fd2_chapter_event_handler_3f__ch27_ai_ctrl
+ * is the tail-JMP target of fd2_chapter_event_handler_3f__ch27_cinematic
  * @ 0x358C7, which pushes its 3 args (0xF, 0x1B, 2) and JMPs here so it can
  * borrow this thunk's 0xC-byte cleanup tail instead of emitting its own. It
  * carries no independent game semantics — it just passes the 3 args straight
@@ -714,7 +714,7 @@ void fd2_chapter_event_handler_3e__ch27_dyn_turn_event(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_3f__ch27_ai_ctrl @ 0x358C7
+ * fd2_chapter_event_handler_3f__ch27_cinematic @ 0x358C7
  *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51C8D)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x3F. Triggered
@@ -734,7 +734,7 @@ void fd2_chapter_event_handler_3e__ch27_dyn_turn_event(uint32 event_arg)
  * thunk here keeps that documented tail-JMP relationship intact and is
  * functionally exact.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_3f__ch27_ai_ctrl(uint32 event_arg)
+void fd2_chapter_event_handler_3f__ch27_cinematic(uint32 event_arg)
 {
     (void)event_arg;
 
