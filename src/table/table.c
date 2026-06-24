@@ -46,7 +46,11 @@ uint8 *fd2_get_enemy_data_entry(int idx)
 /* ----------------------------------------------------------------
  * fd2_get_char_base_entry @ 0x4E4E8  (2 callers)
  *
- * Returns pointer to character_base_table[idx].
+ * Returns pointer to character_base_table[idx], the per-character starting-
+ * attribute table. idx = char_id (0..0x1F; 32 entries, one per playable
+ * character). The 24-byte entry holds base RA/CL/LV/HP/MP/MV, initial spell
+ * bitmap + equipment/inventory item ids, and base AP/DP/DX. Callers combine
+ * it with char_growth (scaled by level) to populate a runtime char slot.
  * Assembly: EAX = idx * 0x18 + 0x61DA1
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_char_base_entry(uint32 idx)
