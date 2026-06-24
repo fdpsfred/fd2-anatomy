@@ -1,0 +1,34 @@
+{
+  "address": "0001a7f1",
+  "name_current": "fd2_maybe_free_speed_mode_overlay",
+  "name_final": "fd2_maybe_free_speed_mode_overlay",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>. Conditionally frees the fast-mode (speed-mode) walk-animation overlay; 'maybe_free' captures the gated free, 'speed_mode_overlay' the resource. Paired with fd2_maybe_load_speed_mode_overlay. No Ghidra address residue.",
+  "kind": "function",
+  "home": "src/ui_menu/menucfg.c",
+  "purpose": "Fast-mode battle cleanup: if game-speed (fast) mode is on, free the fast-walk animation overlay that fd2_maybe_load_speed_mode_overlay allocated.",
+  "logic_summary": "Watcom __CHK(8) stack-probe prologue, then: if (data_fd2_ui_game_speed_flag != 0) free(data_fd2_battle_fast_mode_walk_overlay_ptr). When fast mode is off the overlay pointer was never loaded so nothing is freed. The free+RET tail (entry+0x19 @ 0x1A80A) is a shared epilogue: fd2_play_and_free_status_effect_sfx (@ 0x1D518) tail-JMPs here to reuse the CALL free; ADD ESP,4; RET sequence.",
+  "signature": "void __cdecl fd2_maybe_free_speed_mode_overlay(void)",
+  "params": [],
+  "returns": {
+    "type": "void",
+    "semantics": "No return value."
+  },
+  "reads_globals": [
+    "data_fd2_ui_game_speed_flag @ 0x00053AF9 (gate: fast-mode flag)",
+    "data_fd2_battle_fast_mode_walk_overlay_ptr @ 0x00053B0F (overlay handle passed to free)"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": "Source comment (menucfg.c lines 422-443) is already accurate, ASCII, and uses current symbol names; kept. Ghidra plate was factually correct on architecture (caller, gate, shared tail-JMP epilogue) but used stale variable names (walk_anim_frame_state -> data_fd2_battle_fast_mode_walk_overlay_ptr; game_speed_flag -> data_fd2_ui_game_speed_flag); updated plate to current names while preserving the tail-JMP epilogue note.",
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "updated",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Verified: disasm matches decomp exactly (CMP byte [0x53AF9],0; JZ; PUSH dword [0x53B0F]; CALL free; ADD ESP,4; RET). Single caller fd2_run_full_turn_cycle, 2 call sites (0x1A4F0, 0x1A594) = Phase C/E exits. Tail-JMP into 0x1A80A from fd2_play_and_free_status_effect_sfx (0x1D518) confirmed via xrefs. data_fd2_battle_fast_mode_walk_overlay_ptr also read by fd2_animate_attack_hit_sequence (consistent with src global doc). Plate saved via save_program. No source Edit needed (comment kept)."
+}
