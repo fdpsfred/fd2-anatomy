@@ -258,19 +258,19 @@ void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
  *    46/48/4a, and the transparent thunk above)
  *
  * Chapter portrait cinematic with a white-flash transition. Pans the cursor /
- * window to the target tile, swaps the portrait set (chapter_id truncated to its
+ * window to the target tile, swaps the portrait set (portrait_set_id truncated to its
  * low byte), then plays a brief pure-white screen flash (palette +0xFF then +0)
  * to mask the portrait change.
  *
- * Despite the name, the third arg is NOT a chapter number: it is forwarded (low
- * byte only) to fd2_load_chapter_portraits_and_dump_tmp as its target_race_id --
+ * The third arg is forwarded (low byte only) to
+ * fd2_load_chapter_portraits_and_dump_tmp as its target_race_id --
  * a portrait-group / race selector that picks which characters in the current
  * chapter's portrait set get (re)loaded. Callers pass small group indices
  * (portrait-pair ids 0/1, 2/3, ... or group ids 1..5), never chapter ids 1..30.
  *
  * Sequence (functionally-exact):
  *   fd2_pan_cursor_and_window(target_tile_x, target_tile_y)
- *   fd2_load_chapter_portraits_and_dump_tmp(chapter_id & 0xFF)
+ *   fd2_load_chapter_portraits_and_dump_tmp(portrait_set_id & 0xFF)
  *   fd2_delay_ms(300)                            -- hold the new portrait
  *   fd2_set_vga_palette_range_with_add(0, 0xFF, 0xFF)   -- +0xFF = pure white
  *   fd2_delay_ms(200)                            -- white screen
@@ -278,7 +278,7 @@ void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
  *   fd2_composite_battle_frame(0)
  *   fd2_delay_400ms()                    -- 400ms recovery hold
  *
- * The chapter_id arg arrives as a full 32-bit stack word; the binary applies a
+ * The portrait_set_id arg arrives as a full 32-bit stack word; the binary applies a
  * MOVZX of its low byte (param_3 & 0xFF) before forwarding it to the portrait
  * loader. In the binary the final delay is reached by JMP into
  * fd2_delay_400ms @ 0x353CC (a tail-call that borrows that
@@ -286,10 +286,10 @@ void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(
  * functionally-exact source is a plain call followed by return.
  * ---------------------------------------------------------------- */
 void fd2_cinematic_chapter_portrait_dump_with_white_flash(
-    uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id)
+    uint32 target_tile_x, uint32 target_tile_y, uint32 portrait_set_id)
 {
     fd2_pan_cursor_and_window(target_tile_x, target_tile_y);
-    fd2_load_chapter_portraits_and_dump_tmp(chapter_id & 0xFF);
+    fd2_load_chapter_portraits_and_dump_tmp(portrait_set_id & 0xFF);
     fd2_delay_ms(300);
     fd2_set_vga_palette_range_with_add(0, 0xFF, 0xFF);
     fd2_delay_ms(200);

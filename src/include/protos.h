@@ -415,7 +415,7 @@ void fd2_chapter_event_handler_56__unref_sentinel(uint32 event_arg);
 void fd2_chapter_event_handler_57__unref_sentinel(uint32 event_arg);
 void fd2_chapter_event_handler_58__unref_sentinel(uint32 event_arg);
 void fd2_chapter_event_handler_59__unref_sentinel(uint32 event_arg);
-void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
+void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 portrait_set_id);
 void fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
 void fd2_cinematic_warp_char_to_tile(uint32 char_id, uint32 tile_x, uint32 tile_y);
 
@@ -607,7 +607,7 @@ void fd2_restore_portrait_cache_from_tmp(void);
 /* ---- chapter / battle init ---- */
 void fd2_load_chapter_battle_data(uint32 chapter_id);
 void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id);
-void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 chapter_id);
+void fd2_cinematic_chapter_portrait_dump_with_white_flash(uint32 target_tile_x, uint32 target_tile_y, uint32 portrait_set_id);
 void fd2_restore_portrait_cache_from_tmp(void);
 int  fd2_load_chapter_shop_item_ids(uint8 *out_buf);
 void fd2_init_runtime_char_for_battle(uint32 char_field_idx, uint32 fdicon_fp);
