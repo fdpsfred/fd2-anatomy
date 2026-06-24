@@ -6,9 +6,8 @@
 
 ## 0. 目前狀態（最重要）
 
-- **Stage 1（逐 symbol refine，4 worktree 平行）進行中，未完成**。**4 個 workflow 已重啟、進行中**；task ID 在 `workspace/src_refine/running_tasks.json`，auto-resume cron job 每 :37 看守。實時進度＝各 worktree `shards/rpN` 計數（見 §4 查詢指令），不要信本檔的靜態快照。
-  - 上次快照（會過時）：rp1 100/253、rp2 82/253、rp3 86/255、rp4 84/255 = 352/1016，剩 ~664。per-symbol commit 全 durable，撞 limit 零損失。
-- 累計（僅這 352 個，partial）：符號改名 ~19、**參數改名 ~98**、logic issue ~10。最終數字待 Stage 1 全完成後 `merge_shards.py` 統計。
+- **Stage 1（逐 symbol refine）全部完成：1016/1016，0 異常**（rp1 253 / rp2 253 / rp3 255 / rp4 255；`scout --stats` 全 0 remaining，四 worktree 皆乾淨；每 shard 皆 status=done/processed、無 ghidra_unreachable）。auto-resume cron 已刪。**目前依使用者指示暫停在 merge 之前**，尚未開始 §5（merge）/§6（Stage 2）。
+- Stage 1 統計（全 1016，per-shard 即時統計；正式彙整待 `merge_shards.py`）：符號名 rename **72**、符號名 uncertain 4、參數名 rename **279**、logic issue **23**、註解改善 293（rewrite 146 + augment 147、keep 723）、Ghidra plate created 253 + updated 148。
 - baseline hash：`ab5f110af02608462a1da464732c098ef4dc8e17e6dc43252b535ed1cbf3bd9b`（在 `tools/src_refine/data/baseline_hash.txt`）。
 - **尚未做**：Stage 2（套用 symbol + 參數 rename）、merge 回 main、merge_shards、最終 build gate、收尾 reconcile、處理 src_issues。
 - **[DEFERRED] 遺失 plate 重建**：曾發生一次 Ghidra MCP wedge（hang，非乾淨斷線），4 個 workflow 卡 `running` 不前進、不 fast-stop；kill+重啟 Ghidra 恢復。Ghidra 最後存檔在 wedge 前約 37 分鐘，期間 refiner 建立/更新的 plate（in-memory）隨 kill 遺失。src/shard 全在 git 安全；遺失的只有 Ghidra plate，**可重建**（shard 的 `ghidra_plate_action` 記了哪些 symbol 有 plate 動作）。**收尾前必做**：對每個 `ghidra_plate_action in (updated,created)` 的 shard，驗證 Ghidra 現有 plate 非空/相符，缺的就依 src 註解重新套用。已加防線：refiner 改 plate 後**立即 save_program 落地**（src_refine.wf.js 步驟 D3），不會再大量遺失。
