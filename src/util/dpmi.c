@@ -144,6 +144,8 @@ int fd2_dpmi_lock_size(uint32 base, uint32 size)
  *
  * Unlock a region starting at `base` of `size` bytes.
  * Wrapper: calls fd2_dpmi_unlock_region(base, base + size).
+ * Tail-wrapper: the callee's int result (1 on success / 0 on failure)
+ * is returned straight through. Sibling of fd2_dpmi_lock_size.
  * ---------------------------------------------------------------- */
 int fd2_dpmi_unlock_size(uint32 base, uint32 size)
 {
