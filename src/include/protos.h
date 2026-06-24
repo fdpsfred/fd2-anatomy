@@ -824,7 +824,7 @@ int crt_equivalent_lx_chunk_read(int file_handle, int offset,
 int crt_equivalent_lx_header_reader(char *path_or_base, uint8 mode_byte);
 void *crt_equivalent_lx_module_loader(char *path, int flags,
                                             void *caller_buf);
-void crt_equivalent_exit_chain_stub_36de3(void);
+void crt_equivalent_atexit_default_stub(void);
 
 /* crt_equivalent_get_eflags @ 0x3ed58 — the 4-byte Watcom `_disable`
  * primitive the thunk @ 0x37f86 JMPs into (PUSHFD; POP EAX; CLI; RET).

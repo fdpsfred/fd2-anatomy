@@ -9,7 +9,7 @@
  *   crt_equivalent_lx_chunk_read  @ 0x36107  (2 callers)
  *   crt_equivalent_lx_header_reader @ 0x36344 (1 caller)
  *   crt_equivalent_lx_module_loader @ 0x3647b (0 callers)
- *   crt_equivalent_exit_chain_stub_36de3 @ 0x36de3 (2 callers)
+ *   crt_equivalent_atexit_default_stub @ 0x36de3 (2 callers)
  *   crt_equivalent_get_eflags_thunk     @ 0x37f86 (2 callers)
  *   crt_equivalent_get_eflags           @ 0x3ed58 (0 callers; thunk JMP target)
  *   crt_equivalent_fpe_default_handler_3d26e @ 0x3d26e (2 callers)
@@ -346,7 +346,7 @@ loader_abort:
 }
 
 /* ----------------------------------------------------------------
- * crt_equivalent_exit_chain_stub_36de3 @ 0x36de3  (2 callers)
+ * crt_equivalent_atexit_default_stub @ 0x36de3  (2 callers)
  *
  * atexit default no-op handler. 1-byte RET stub. The Watcom CRT
  * initializes the three atexit chain slots @ 0x527d8 / 0x527dc / 0x527e0
@@ -363,7 +363,7 @@ loader_abort:
  * ESP because nothing was pushed). No CALL inside, so there is no
  * EAX-tracking concern.
  * ---------------------------------------------------------------- */
-void crt_equivalent_exit_chain_stub_36de3(void)
+void crt_equivalent_atexit_default_stub(void)
 {
     return;
 }
