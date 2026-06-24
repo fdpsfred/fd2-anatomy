@@ -96,9 +96,9 @@ uint8 data_fd2_battle_summon_anim_variant_b_6slot_jitter_byte_array[6];
  * flat byte buffer rather than a struct array:
  *
  *   - Path-search engine fd2_pathfind_recursive_with_direction (0x4E27C):
- *     8-byte frames. EDI is seeded with LEA EDI,[0x60079] in
- *     fd2_pathfind_check_destination_save_path (0x4E252) before the first
- *     recursive call. Each push writes "MOV word ptr [EDI],DX" (tile x,y at +0),
+ *     8-byte frames. EDI is seeded with LEA EDI,[0x60079] by the top-level
+ *     entry fd2_pathfind_to_destination (0x4E252) before its first recursive
+ *     call. Each push writes "MOV word ptr [EDI],DX" (tile x,y at +0),
  *     "MOV word ptr [EDI+0x2],CX" (CH at +3 = direction code 0..3),
  *     "MOV dword ptr [EDI+0x4],EBX" (tile-map address at +4), then "ADD EDI,0x8".
  *     The retry path rewrites the previous frame's +3 direction via
