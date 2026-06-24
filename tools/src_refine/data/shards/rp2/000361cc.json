@@ -1,0 +1,64 @@
+{
+  "address": "000361cc",
+  "name_current": "fd2_dpmi_alloc_dos_memory",
+  "name_final": "fd2_dpmi_alloc_dos_memory",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_dpmi_* convention with a clear descriptor (alloc_dos_memory) that accurately reflects the body: DPMI INT 31h fn 0x100 'Allocate DOS Memory Block'. No Ghidra address residue in the name.",
+  "kind": "function",
+  "home": "src/util/dpmi.c",
+  "purpose": "Allocate a DOS conventional-memory block via DPMI INT 31h function 0x100, return its linear address / real-mode segment / PM selector, and lock the allocated pages in physical memory.",
+  "logic_summary": "Zero-fills the input REGS struct, sets EAX=0x100 (DPMI fn) and EBX=paragraph_count, then int386(0x31). On success (carry flag clear): writes *out_segment = AX<<16 (real-mode segment in the high word), *out_linear = (AX&0xFFFF)<<4 (linear address = segment*16), *out_selector = DX&0xFFFF (PM selector handle). Then calls fd2_dpmi_lock_region(linear>>12, (paragraphs*16 + linear>>12) - 1) to lock the page range covering the block. Returns (cflag == 0) as a bool success flag.",
+  "signature": "int fd2_dpmi_alloc_dos_memory(uint32 paragraphs, uint32 *out_linear, uint32 *out_segment, uint32 *out_selector)",
+  "params": [
+    {
+      "name": "param_1",
+      "type": "uint",
+      "semantics": "Requested allocation size in paragraphs (16-byte units). Loaded into EBX for DPMI fn 0x100 and reused to compute the lock page-range end. Caller (AIL_internal_install_driver_inner) passes (image_size + 0xf) >> 4, i.e. byte size rounded up to paragraphs.",
+      "verdict": "rename",
+      "proposed": "paragraphs",
+      "reason": "Ghidra-live name is the generic placeholder param_1; does not convey that it is the paragraph (16-byte unit) count. Source home file already uses 'paragraphs'."
+    },
+    {
+      "name": "param_2",
+      "type": "int *",
+      "semantics": "Out pointer: receives the linear address of the block (= real-mode segment * 16, AX&0xFFFF<<4). Caller stores it at ptr[2] and later uses it directly as the memmove destination for the driver image.",
+      "verdict": "rename",
+      "proposed": "out_linear",
+      "reason": "Generic placeholder param_2; it is an output pointer for the linear address. Source home file already uses 'out_linear'."
+    },
+    {
+      "name": "param_3",
+      "type": "int *",
+      "semantics": "Out pointer: receives the real-mode segment word for DOS in the high 16 bits (AX<<16). Caller stores it at ptr[0]; later passed back to fd2_dpmi_free_dos_memory as the segment_unused arg.",
+      "verdict": "rename",
+      "proposed": "out_segment",
+      "reason": "Generic placeholder param_3; it is an output pointer for the real-mode segment. Source home file already uses 'out_segment'."
+    },
+    {
+      "name": "param_4",
+      "type": "uint *",
+      "semantics": "Out pointer: receives the protected-mode selector handle (DX&0xFFFF) returned by DPMI fn 0x100. Caller stores it at ptr[1]; later passed to fd2_dpmi_free_dos_memory as the selector to free the block.",
+      "verdict": "rename",
+      "proposed": "out_selector",
+      "reason": "Generic placeholder param_4; it is an output pointer for the PM selector handle. Source home file already uses 'out_selector'."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Boolean success flag: 1 when the DPMI host cleared the carry flag (allocation succeeded), 0 on failure (CF set). On failure no outputs are written and no region is locked."
+  },
+  "reads_globals": [],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": false,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source home-file comment block (src/util/dpmi.c lines 31-37) is already concise and accurate (DPMI fn 0x100; outputs linear/segment/selector in param order; locks via fd2_dpmi_lock_region) -- kept as-is. Ghidra plate is detailed and fully consistent with the refined understanding (matches body line-by-line); left unchanged, no save needed. No source code/logic edited. Note (not a logic issue): Ghidra types out_linear/out_segment as int* vs source uint32*; the <<16 and <<4 stores are value-identical regardless of pointee signedness. Callers: AIL_internal_install_driver_inner @ 0x3f600 and AIL_internal_dig_driver_setup_full @ 0x409a0 (AIL driver setup grabbing+locking DOS conventional memory)."
+}
