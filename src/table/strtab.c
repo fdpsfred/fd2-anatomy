@@ -9,7 +9,7 @@
  * malloc(0x59CB) failure path before exit(1) (BIOS int 10h text-mode reset
  * then printf). Read-only; consumed as a char* by printf. Distinct literal
  * copy from the sibling OOM strings at 0x50023/0x50037 in the same function. */
-const char data_fd2_string_save_load_oom_msg_load_pbuf_50004[20] = {
+const char data_fd2_string_save_load_oom_msg_load_pbuf[20] = {
     0x20, 0x4f, 0x75, 0x74, 0x20, 0x6f, 0x66, 0x20, 0x4d, 0x65,
     0x6d, 0x6f, 0x72, 0x79, 0x20, 0x21, 0x21, 0x21, 0x0a, 0x00
 };

@@ -333,7 +333,7 @@ void fd2_load_save_and_init_engine(void)
         *(uint16 *)&data_fd2_input_last_key_pressed = 3;
         int386(0x10, (union REGS *)&data_fd2_input_last_key_pressed,
                      (union REGS *)&data_fd2_input_last_key_pressed);
-        err_msg = data_fd2_string_save_load_oom_msg_load_pbuf_50004;
+        err_msg = data_fd2_string_save_load_oom_msg_load_pbuf;
         printf(err_msg);
         exit(1);
     }

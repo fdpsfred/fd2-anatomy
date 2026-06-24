@@ -387,7 +387,7 @@ extern const char data_fd2_string_resource_filename_tai_dat[8];         /* 0x523
 extern const char data_fd2_string_ui_render_decimal_format_template[6]; /* 0x51EBF  "%0.5d" */
 
 /* ---- save/load OOM message strings (.object2 const, 3 cross-.obj copies) ---- */
-extern const char data_fd2_string_save_load_oom_msg_load_pbuf_50004[20];   /* 0x50004  " Out of Memory !!!\n" */
+extern const char data_fd2_string_save_load_oom_msg_load_pbuf[20];   /* 0x50004  " Out of Memory !!!\n" */
 extern const char data_fd2_string_save_load_oom_msg_tile_event_50023[20];  /* 0x50023  " Out of Memory !!!\n" */
 extern const char data_fd2_string_save_load_oom_msg_runtime_char_50037[20]; /* 0x50037  " Out of Memory !!!\n" */
 
