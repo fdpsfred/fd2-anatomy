@@ -558,7 +558,7 @@ uint32 fd2_run_chapter_intro_menu_typeC(uint32 pose_bitmap)
  * signed (JGE/JLE/JL), so the unsigned cursor/count/scroll globals are cast to
  * int. Buffer cleanup is performed by the caller via
  * fd2_close_intro_dialog_with_slide_out @ 0x2D31B (this fn opens; the companion
- * closes — same 3-buffer state shared).
+ * closes -- same 3-buffer state shared).
  * ---------------------------------------------------------------- */
 int fd2_party_roster_single_select_loop(void)
 {
