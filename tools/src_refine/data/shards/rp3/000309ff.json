@@ -1,0 +1,43 @@
+{
+  "address": "000309ff",
+  "name_current": "fd2_build_dead_chars_list_for_revive",
+  "name_final": "fd2_build_dead_chars_list_for_revive",
+  "name_verdict": "keep",
+  "name_proposed": null,
+  "name_reason": "Follows fd2_<domain>_<descriptor>: domain = ui_menu/revive service, descriptor accurately states it builds the list of currently-dead party members eligible for the church-revive service. No Ghidra address residue (no hex suffix matching 0x309ff or any data address). 'dead_chars', 'list', 'revive' are all genuine semantics confirmed by the body (loop over party, fd2_check_char_is_dead, append idx) and the sole caller fd2_run_revive_menu_main (the church-revive 復活 menu).",
+  "kind": "function",
+  "home": "src/ui_menu/promote.c",
+  "purpose": "Build a list of party members currently flagged DEAD (eligible for the church-revive service), returning the count.",
+  "logic_summary": "count = 0; for idx in 0..menu_party_member_count-1: if fd2_check_char_is_dead(idx) == 1 (runtime_char[idx].flags & CHARFLAG_DEAD, i.e. bit 0 set) then out_list_buf[count] = (uint8)idx, count++. Returns count (byte, zero-extended into EAX). count is a single-byte local; the strict ==1 compare narrows the dead-flag test to exactly bit 0.",
+  "signature": "int __cdecl fd2_build_dead_chars_list_for_revive(uint8 *out_list_buf)",
+  "params": [
+    {
+      "name": "out_list_buf",
+      "type": "uint8 *",
+      "semantics": "Output buffer receiving the byte char-indices of dead party members; written densely (out_list_buf[0..count-1]). Sole caller passes a 32-byte stack buffer (candidate_chars[32]).",
+      "verdict": "keep",
+      "proposed": null,
+      "reason": "Descriptive and accurate (output buffer for the dead-char index list). No address residue, not a generic param_N name."
+    }
+  ],
+  "returns": {
+    "type": "int",
+    "semantics": "Count of dead party members written to out_list_buf (single-byte local count, zero-extended into EAX by the epilogue)."
+  },
+  "reads_globals": [
+    "data_fd2_shared_menu_party_member_count",
+    "data_fd2_battle_runtime_char_array_ptr"
+  ],
+  "writes_globals": [],
+  "comment_original_issue": null,
+  "comment_verdict": "keep",
+  "ghidra_plate_action": "none",
+  "issues": [],
+  "processed": true,
+  "committed": true,
+  "commit_hash": "",
+  "status": "done",
+  "ghidra_unreachable": false,
+  "ghidra_error_detail": "",
+  "notes": "Source comment block (promote.c lines 13-30) already accurate and concise: correct algorithm, sole caller, __CHK(0x14) compiler-injected prologue note, EBX/ESI register roles, byte-local count returned zero-extended. No change needed. Ghidra plate is consistent with the src understanding (algorithm, globals, sole caller all match) -> plate left untouched. reads_globals: party_member_count is read directly in the body; runtime_char_array is read transitively via the callee fd2_check_char_is_dead (battle.c: runtime_char[idx].flags & CHARFLAG_DEAD). Function writes no globals (only the caller-provided out buffer). Simple build-list loop, no logic/equivalence concerns."
+}
