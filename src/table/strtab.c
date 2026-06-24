@@ -184,15 +184,20 @@ const char data_fd2_string_resource_filename_figani_dat_52388[11] = {
 
 /* 0x52393  "TAI.DAT" + NUL (8 bytes).
  * Resource filename passed as the first argument to fd2_load_dat_resource to
- * open the caster character-base sprite archive TAI.DAT. The combat/spell/
- * skill cinematic routines (fd2_play_full_combat_cinematic,
- * fd2_play_spell_cast_sequence, fd2_execute_special_attack_skill,
- * fd2_play_figani_char_intro_animation, fd2_execute_summon_spell_cast,
- * fd2_play_final_chapter_30_ending) load the caster base sprite (indexed by the
- * tile attribute byte at the caster position) into the cast-pose resource
- * buffer. The address is taken (PUSH 0x52393 / array decays) and consumed as a
- * char* path; never written. Immediately follows the "FIGANI.DAT" string at
- * 0x52388. */
+ * open the terrain-overlay sprite archive TAI.DAT (the "Terrain AI" archive;
+ * 56 entries, loaded as a pair with BG.DAT and sharing its placeholder entry
+ * constant -- see resource_info/tai.md). The combat/spell/skill cinematic
+ * routines (fd2_play_full_combat_cinematic, fd2_play_spell_cast_sequence,
+ * fd2_execute_special_attack_skill, fd2_execute_summon_spell_cast,
+ * fd2_play_final_chapter_30_ending) load the entry by the tile-attribute
+ * (terrain) byte read at the caster position -- the same index used for the
+ * paired BG.DAT load -- and hand the overlay to fd2_play_char_intro_zoom_anim /
+ * fd2_play_figani_animation_loop as an extra sprite layer. The lone exception
+ * is fd2_play_figani_char_intro_animation, which loads the fixed index 3 (the
+ * character-intro name-banner sprite). The caster's own pose sprite is NOT from
+ * here: that comes from FIGANI.DAT[portrait_id*3]. The address is taken
+ * (PUSH 0x52393 / array decays) and consumed as a char* path; never written.
+ * Immediately follows the "FIGANI.DAT" string at 0x52388. */
 const char data_fd2_string_resource_filename_tai_dat[8] = {
     0x54, 0x41, 0x49, 0x2e, 0x44, 0x41, 0x54, 0x00
 };
