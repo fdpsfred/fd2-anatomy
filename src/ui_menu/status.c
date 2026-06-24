@@ -15,7 +15,14 @@
  * Compute stats as if candidate item_id were equipped, replacing
  * the currently equipped item of the same category (weapon/armor).
  * Bonuses from the OPPOSITE category's equipped items are preserved.
- * Output: 4 int32 at stats_out_ptr: [AP, DP, DX, Stat4].
+ * Output: 4 int32 at stats_out_ptr: [AP, DP, hit, evade].
+ *
+ * Category split: item_entry[0] (the category byte) <= 0x14 is a
+ * weapon, > 0x14 is armor. Base stats come from the runtime char:
+ * AP/DP from combat_aux_block+0x10/+0x12, and BOTH hit and evade
+ * from the single ai_target_and_dx_block+1 (dx_total) base; they
+ * differ only by which item bonus is added (item_entry +1=AP,
+ * +3=hit, +5=DP, +7=evade). Pure compute, no side effects.
  * ---------------------------------------------------------------- */
 void fd2_compute_equipped_stats_with_item_preview(uint32 char_idx,
                                                    uint32 item_id,
