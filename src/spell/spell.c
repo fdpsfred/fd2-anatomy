@@ -271,7 +271,7 @@ void fd2_cast_spell_1a_dispatch(
  * tail-jumps into the 0x16 body (@ 0x22BF7) to reuse its {push caster + call
  * worker + cleanup} tail. Sibling of the 0x1A entry above (spell 0x1A with
  * effect 0x25). */
-void fd2_spell_handler_id_27_via_status_d1b_effect_26(
+void fd2_cast_spell_1b_dispatch(
     int caster, int n_tgt, int tgt_arr)
 {
     fd2_cast_status_spell_via_d1b(

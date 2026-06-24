@@ -130,7 +130,7 @@ void fd2_cast_spell_14_dispatch(int, int, uint8 *);
 void fd2_cast_spell_15_dispatch(int, int, uint8 *);
 void fd2_cast_spell_16_dispatch(int, int, uint8 *);
 void fd2_cast_spell_1a_dispatch(int, int, int);
-void fd2_spell_handler_id_27_via_status_d1b_effect_26(int, int, int);
+void fd2_cast_spell_1b_dispatch(int, int, int);
 void fd2_cast_spell_17_teleport(uint32, uint32, uint32);
 /* spell worker forward decls */
 void fd2_execute_offensive_targeted_spell(int, int, int, int);
