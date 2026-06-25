@@ -1,25 +1,29 @@
 # src_refine 交接文件（新 session 接續用）
 
 對 `src/` 內每個 symbol 逐一 refine 名稱/參數名/註解並同步 Ghidra（**只改名稱與註解，遊戲邏輯不動**）。
-**Stage 2 rename + 23 個 closeout logic issue 皆已完成**；剩 Phase 2（plate 重建，使用者暫停中）+ 零星收尾。
+**Stage 2 rename + 23 個 closeout logic issue 皆已完成**；Phase 2（plate 重建）已驗證為 moot 並關閉（0 plate 遺失，詳見 0a）；剩零星 closeout 收尾。
 完整工具說明見 `tools/src_refine/_index.md`（本檔不重複，只給接續所需）。
 
 ## 0. 剩餘工作（phase-tagged，最重要）
 
-> 使用者 2026-06-25 指示 **Phase 2 暫不進入**；以下全部「勿自行開工，等指示」。
+> Phase 2（plate 重建）已 2026-06-25 驗證為 **moot 並關閉**（0 plate 遺失，詳見 0a）。以下 closeout 項仍「勿自行開工，等指示」。
 
-1. **[PHASE2] 遺失 plate 重建**（前次 Ghidra wedge kill 重啟，遺失 wedge 前約 37 分 in-memory plate；src/shard 全在 git 安全，只 Ghidra plate 要重建）
-   - 目標清單 = shard `ghidra_plate_action in (created, updated)`。`tools/src_refine/plate_rebuild_scope.py` 已**實算 = 401 個**（created 253 + updated 148；舊 handoff 估的 339 偏低，做時以實算為準），輸出 `workspace/src_refine/plate_targets.txt`（每行 `addr|kind|action|name|home`）。
-   - 建議做法：先寫 Ghidra-side 批次掃出「現在 plate 為空」的（= wedge 真正遺失的），縮小 401→實際缺漏；對缺的**依現行 src 註解**重套（function plate 用 MCP `set_plate_comment`；data plate 用 `run_script_inline` 的 `cu.setComment(PLATE_COMMENT,…)`，見 memory `project_ghidra_data_plate_mechanism`）。
-   - closeout 已修好、**不必再動**的 plate：ISS-0004（fn 0x1a813 的 256→90）、0008/0017（pose 表 0x52635/0x52647 PLATE+清 PRE）、0018（fn 0x1a7bd/0x1a7f1 + 全域 0x53b0f 改 SFX）、0022（0x615fd/0x61646/0x6188a 三表 PLATE）、0001（home 0x13fd4）。
-   - closeout **未涵蓋、仍待查**：n=164（plate 寫「SFX trigger frame index」應為 SFX id）。
+1. **[CLOSEOUT] 次級引用一次性同步**（使用者已批准、時機待定）：`tools/code_emit/data/routing.json`、`emit_issues.json`、KB 內所有被改 **75 符號**的引用，用 ledger old→new 映射一次性同步並驗證。name-sweep 只抓完整符號名；無前綴簡寫 prose 抓不到（closeout 已手動補 n=173 一處，類似情況另查）。
 
-2. **[CLOSEOUT] 次級引用一次性同步**（使用者已批准、時機待定）：`tools/code_emit/data/routing.json`、`emit_issues.json`、KB 內所有被改 **75 符號**的引用，用 ledger old→new 映射一次性同步並驗證。name-sweep 只抓完整符號名；無前綴簡寫 prose 抓不到（closeout 已手動補 n=173 一處，類似情況另查）。
-
-3. **[CLOSEOUT] 零星項**：
+2. **[CLOSEOUT] 零星項**：
    - n=181：function `fd2_maybe_load_speed_mode_overlay` / `fd2_maybe_free_speed_mode_overlay` 是否改名 `_overlay→_sfx_bank`（plate 已於 ISS-0018 改成 SFX 語意，名仍含 _overlay）— 由使用者定奪。
    - n=173：`resource_info/fdfield.md` 用詞（closeout 補過一處，確認有無遺漏）。
-   - 清理：`git worktree remove` rp1-4（`C:/Users/fdpsf/Documents/fd2-wt/rp1..rp4`，branch refine-p1..4）、刪 `workspace/src_refine/`；未追蹤的 `tools/src_refine/plate_rebuild_scope.py`（Phase2 prep）待 commit 或刪。
+   - n=164：plate 寫「SFX trigger frame index」應為 SFX id（plate 內容用詞修正，與 wedge 無關，待修）。
+   - 清理：`git worktree remove` rp1-4（`C:/Users/fdpsf/Documents/fd2-wt/rp1..rp4`，branch refine-p1..4）、刪 `workspace/src_refine/`；未追蹤的 `tools/src_refine/plate_rebuild_scope.py`（Phase2 prep，已 moot）建議刪。
+
+## 0a. Phase 2 已關閉（moot — 已驗證 0 plate 遺失）
+
+驗證結論（數字皆 Ghidra 即時掃描，非推測）：
+
+- 401 個 plate-rebuild 目標中 **379 個 PLATE 完好**（113 function 全在 + 266 data），僅 **22 個（全 data）PLATE 為空**。
+- 該 22 個的完整文件內容**全在 PRE_COMMENT**（逐一檢查 + 對 shard 交叉驗證內容一致），0 內容遺失；src/ 亦在 git 安全。
+- 全程式 data 註解普查（1062 defined data）：PRE-only **646**、PLATE-only 87、both 217、無 112。PRE_COMMENT 才是本專案 data 文件的主流位置；那 22 個只是 646 的一小角，與 wedge **無關**，屬「按 `project_ghidra_data_plate_mechanism` 慣例應遷 PLATE 但既有未遷」的狀態。
+- 使用者 2026-06-25 決定：**保留 PRE 文件現狀**（與全程式慣例一致），不做 PRE→PLATE 欄位遷移。`plate_rebuild_scope.py` / `plate_targets.txt` 隨之失去用途（見 0.2 清理）。
 
 ## 0b. 已完成（摘要；逐筆細節見 `src_issues.json` 的 `resolution` 欄 / ledger）
 
@@ -38,7 +42,7 @@
 1. `CLAUDE.md`、`index.md`（專案規範、工具）
 2. 本檔
 3. **逐筆收尾結論**：`tools/src_refine/data/src_issues.json`（23 issue 每筆 `resolution`）；**進度 ledger** `tools/src_refine/data/stage2_progress.json`
-4. **Phase 2 來源**：`tools/src_refine/data/shards/rp*/*.json`（`ghidra_plate_action` 欄）+ `workspace/src_refine/plate_targets.txt`；`src_info.json` / `src_info_by_name.json`（address↔name 雙向查）
+4. **符號/位址查詢與 ledger 來源**（closeout 次級引用同步用）：`tools/src_refine/data/shards/rp*/*.json`、`src_info.json` / `src_info_by_name.json`（address↔name 雙向查）、75-符號 old→new ledger
 5. `tools/src_refine/_index.md`（全部 script 用法 + 流程）
 6. memory：`project_src_refine_rename_eqcheck`（eqcheck gate / baseline 推進）、`feedback_semantic_correctness_over_eqcheck`（語意正確凌駕 eqcheck 等價）、`project_ghidra_data_plate_mechanism`（plate 機制）、`feedback_no_unverified_claim`、`feedback_modification_sync_mandatory`、`feedback_no_surface_verify`、`feedback_ghidra_disconnect_handling`
 
@@ -75,7 +79,7 @@ Ghidra MCP 已開 FD2.LE；DOSBox-X 在 PATH（silent mode）；Watcom 9.5a 在 
 
 ## 7. 關鍵路徑
 
-- 工具 + 用法：`tools/src_refine/_index.md`；closeout 新增 `dedup_protos.py`（protos 去重）、`plate_rebuild_scope.py`（Phase2 plate 目標收集）。
+- 工具 + 用法：`tools/src_refine/_index.md`；closeout 新增 `dedup_protos.py`（protos 去重）；`plate_rebuild_scope.py`（Phase2 plate 目標收集，Phase 2 已 moot，見 0.2 建議刪）。
 - 耐久資料（tracked）：`tools/src_refine/data/`（baseline_hash.txt、baseline_eq.json、stage2_progress.json、shards/rpN/、src_info*.json、src_issues.json、eqcheck.py、stage2_reconcile.py）。
 - 可重生 scratch（gitignored）：`workspace/src_refine/`（plate_targets.txt、ghidra dump、worklist 等）。
 - 4 worktree：`C:/Users/fdpsf/Documents/fd2-wt/rp1..rp4`（branch refine-p1..4，收尾時 remove）。
