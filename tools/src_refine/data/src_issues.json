@@ -66,7 +66,8 @@
     "title": "Duplicate prototype declarations in protos.h",
     "description": "fd2_blit_scaled_tile_map_view is declared twice in src/include/protos.h (line 706 with params src_cx/src_cy and line 720 with src_cx_fp/src_cy_fp). The sibling fd2_blit_24x24_tile_to_battle_grid_position is likewise declared twice (lines 703 and 722). The declarations are compatible (only param spelling differs) so they compile, but the redundancy should be de-duplicated. Out of this symbol's comment-refine scope; not fixed here.",
     "evidence": "Grep of protos.h: line 706 'void fd2_blit_scaled_tile_map_view(uint32 src_cx, uint32 src_cy, uint32 scale, uint32 tile_data_table);' and line 720 'void fd2_blit_scaled_tile_map_view(uint32 src_cx_fp, uint32 src_cy_fp, uint32 scale, uint32 tile_data_table);'.",
-    "status": "open"
+    "resolution": "RESOLVED (closeout) -- the duplication was systematic, NOT just these 4 functions: 47 fd2_* functions were declared 2-3x in protos.h (the emit pipeline added each prototype to every section it associated with). User approved a full dedup. Wrote tools/src_refine/dedup_protos.py (plan/apply): for each duplicated function it keeps the declaration whose param names best match the authoritative src_info.json signature, else the named version, and removes the rest; refuses to touch any function whose occurrences disagree on param count. Removed 60 lines / 52 spans -> re-scan shows 0 duplicates. Build 0-undefined + eqcheck PASS[RELOC] (prototypes emit no code -> zero binary delta). This function: kept line 720 (src_cx_fp/src_cy_fp, matches blittile.c:170 def); sibling fd2_blit_24x24_tile_to_battle_grid_position kept the dst_row_stride decl (matches blittile.c:344).",
+    "status": "resolved"
   },
   "ISS-0006": {
     "id": "ISS-0006",
@@ -92,7 +93,8 @@
     "title": "Duplicate fd2_play_char_intro_zoom_anim prototype in protos.h with divergent param names",
     "description": "protos.h declares fd2_play_char_intro_zoom_anim twice: line 190 (params caster_idx, mode_flag, caster_figani_a, target_figani0, workbuf2, workbuf1, tai_resource) and lines 524-527 (char_unit_id, mode_flag, char_sprite, char_sprite2, workspace, bg_sprite, weapon_sprite). Both have identical types (7x uint32, void) so it compiles, but the duplicate + divergent names are an inconsistency. Recommend removing the line-190 copy during Stage 2 (when the param rename to name_banner_sprite is also applied) so a single canonical declaration remains. Not modified this stage (declaration-level change reserved for Stage 2).",
     "evidence": "src/include/protos.h:190 and src/include/protos.h:524-527",
-    "status": "open"
+    "resolution": "RESOLVED by the full protos.h dedup (see ISS-0005 for the tool + method + build/eqcheck gate). fd2_play_char_intro_zoom_anim: both occurrences (line 190, lines 524-527) had identical param names incl. the Stage-2 'name_banner_sprite'; kept the line-190 single-line copy, removed lines 524-527.",
+    "status": "resolved"
   },
   "ISS-0008": {
     "id": "ISS-0008",
@@ -118,7 +120,8 @@
     "title": "Duplicate prototype for fd2_count_selected_chars in protos.h",
     "description": "protos.h declares fd2_count_selected_chars twice: line 784 (int fd2_count_selected_chars(uint32 sel_state);) and line 796 (int  fd2_count_selected_chars(uint32 selection_state);). The two declarations are C-compatible (same return/param type, only the param name differs) so it still compiles, but the redundant + name-divergent prototype should be deduplicated. The sibling functions fd2_reorder_party_by_selection (lines 785/797) and fd2_pin_required_char_to_party_slot1 (lines 786/799) have the same duplicate-prototype situation. Not a logic issue; deferred to declaration/Stage-2 cleanup, not fixed this phase.",
     "evidence": "grep protos.h: line 784 'int fd2_count_selected_chars(uint32 sel_state);' and line 796 'int  fd2_count_selected_chars(uint32 selection_state);'",
-    "status": "open"
+    "resolution": "RESOLVED by the full protos.h dedup (see ISS-0005). fd2_count_selected_chars: kept line 784 (sel_state, matches misc.c def), removed line 796 (selection_state).",
+    "status": "resolved"
   },
   "ISS-0010": {
     "id": "ISS-0010",
@@ -131,7 +134,8 @@
     "title": "Duplicate prototypes for fd2_reorder_party_by_selection (and siblings) in protos.h",
     "description": "protos.h declares fd2_reorder_party_by_selection twice: line 785 'void fd2_reorder_party_by_selection(uint32 sel_state);' and line 797 'void fd2_reorder_party_by_selection(uint32 selection_state);'. The duplication also covers fd2_count_selected_chars (lines 784 vs 796) and fd2_pin_required_char_to_party_slot1 (lines 786 vs 799), spanning two adjacent prototype blocks. The signatures are compatible (only the cosmetic param name differs), so this compiles, but the redundant block should be de-duplicated and the param name standardized to the definition's sel_state. Out of scope for this single-symbol comment-refine stage; flagged for a separate protos.h cleanup.",
     "evidence": "src/include/protos.h lines 783-786 vs 795-799; misc.c definition at line 272 uses param name 'sel_state'.",
-    "status": "open"
+    "resolution": "RESOLVED by the full protos.h dedup (see ISS-0005). The whole sibling block deduped: fd2_reorder_party_by_selection kept line 785 (sel_state), fd2_count_selected_chars line 784, fd2_pin_required_char_to_party_slot1 line 786; the line 795-799 copies removed. All kept decls match their .c defs.",
+    "status": "resolved"
   },
   "ISS-0011": {
     "id": "ISS-0011",
