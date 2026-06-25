@@ -377,7 +377,7 @@ extern uint32 data_fd2_chinese_font_sheet;                              /* 0x53A
 extern const char data_fd2_string_resource_filename_fdtxt_dat[10];      /* 0x51A43  "FDTXT.DAT" */
 extern const char data_fd2_string_resource_filename_fdother_dat[12];    /* 0x51A4D  "FDOTHER.DAT" */
 extern const char data_fd2_string_resource_filename_fdfield_dat[12]; /* 0x51A59  "FDFIELD.DAT" */
-extern const char data_fd2_string_resource_filename_fdshap_dat_51a65[11];  /* 0x51A65  "FDSHAP.DAT" */
+extern const char data_fd2_string_resource_filename_fdshap_dat[11];  /* 0x51A65  "FDSHAP.DAT" */
 extern const char data_fd2_string_resource_filename_dato_dat_51a70[9];  /* 0x51A70  "DATO.DAT" */
 extern const char data_fd2_string_resource_filename_bg_dat_52381[7];    /* 0x52381  "BG.DAT" */
 extern const char data_fd2_string_resource_filename_figani_dat_52388[11]; /* 0x52388  "FIGANI.DAT" */

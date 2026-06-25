@@ -280,7 +280,7 @@ void fd2_play_figani_char_intro_animation(uint32 char_idx)
     data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
     data_fd2_battle_scene_snapshot =
         fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
+            (uint32)data_fd2_string_resource_filename_fdshap_dat,
             data_fd2_battle_scene_snapshot,
             (uint32) * (uint8 *)data_fd2_tile_event_data_table_ptr * 2);
     fd2_wait_n_bios_ticks(6);
@@ -573,7 +573,7 @@ void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx)
         data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
         data_fd2_battle_scene_snapshot =
             fd2_load_dat_resource(
-                (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
+                (uint32)data_fd2_string_resource_filename_fdshap_dat,
                 data_fd2_battle_scene_snapshot,
                 (uint32) * (uint8 *)data_fd2_tile_event_data_table_ptr * 2);
         fd2_restore_portrait_cache_from_tmp();

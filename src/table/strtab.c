@@ -109,7 +109,7 @@ const char data_fd2_string_resource_filename_fdfield_dat[12] = {
  * (array decays) and consumed as a char* path; never written. Immediately
  * follows the "FDFIELD.DAT" string at 0x51A59 and precedes the "DATO.DAT"
  * string at 0x51A70. */
-const char data_fd2_string_resource_filename_fdshap_dat_51a65[11] = {
+const char data_fd2_string_resource_filename_fdshap_dat[11] = {
     0x46, 0x44, 0x53, 0x48, 0x41, 0x50, 0x2e, 0x44, 0x41, 0x54,
     0x00
 };

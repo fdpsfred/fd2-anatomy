@@ -1274,7 +1274,7 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
 
     data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
     data_fd2_battle_scene_snapshot = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
+        (uint32)data_fd2_string_resource_filename_fdshap_dat,
         data_fd2_battle_scene_snapshot,
         (uint32)*(uint8 *)data_fd2_tile_event_data_table_ptr * 2);
     fd2_restore_portrait_cache_from_tmp();
@@ -1521,7 +1521,7 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
 
     data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
     data_fd2_battle_scene_snapshot = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_fdshap_dat_51a65,
+        (uint32)data_fd2_string_resource_filename_fdshap_dat,
         data_fd2_battle_scene_snapshot,
         (uint32)*(uint8 *)data_fd2_tile_event_data_table_ptr * 2);
 
