@@ -176,5 +176,5 @@ uint8 *fd2_get_cutscene_event_script(int event_id)
  * ---------------------------------------------------------------- */
 uint8 *fd2_get_orphan_packed3_table_entry(int idx)
 {
-    return (uint8 *)(data_fd2_orphan_table_60181 + idx * 3);
+    return (uint8 *)(data_fd2_orphan_packed3_table + idx * 3);
 }

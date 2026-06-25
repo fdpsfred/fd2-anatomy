@@ -10,11 +10,11 @@
 #include "globals.h"
 
 /* ----------------------------------------------------------------
- * data_fd2_orphan_table_60181 @ 0x60181  (299 bytes)
+ * data_fd2_orphan_packed3_table @ 0x60181  (299 bytes)
  *
  * Read-only table of packed 3-byte records; every byte is a 6-bit value
  * (0x00..0x3F). Sole accessor fd2_get_orphan_packed3_table_entry returns
- * (data_fd2_orphan_table_60181 + idx * 3): a raw byte pointer to the idx-th
+ * (data_fd2_orphan_packed3_table + idx * 3): a raw byte pointer to the idx-th
  * 3-byte record, so element type is uint8 and the stride is 3. The accessor
  * has 0 static callers (orphan -- reached, if ever, only via indirect/
  * function-pointer dispatch). Table size is fixed by the .object3 layout: it
@@ -25,7 +25,7 @@
  * emitted here because the accessor indexes only from the 0x60181 base. No
  * game-side writers; emitted as const.
  * ---------------------------------------------------------------- */
-const uint8 data_fd2_orphan_table_60181[299] = {
+const uint8 data_fd2_orphan_packed3_table[299] = {
     0x01, 0x2D, 0x29, 0x0B, 0x12, 0x27, 0x15, 0x0C, 0x1B, 0x01, 0x21, 0x18,
     0x21, 0x01, 0x0B, 0x15, 0x1F, 0x0D, 0x3E, 0x0C, 0x1F, 0x16, 0x18, 0x1B,
     0x02, 0x21, 0x18, 0x0D, 0x02, 0x0A, 0x19, 0x0C, 0x23, 0x35, 0x0B, 0x20,
