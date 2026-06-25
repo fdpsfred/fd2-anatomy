@@ -836,10 +836,10 @@ void fd2_play_final_chapter_30_ending(void)
         figani_idx = (uint32)portrait_id * 3;
 
         pose_data = (uint8 *)fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+            (uint32)data_fd2_string_resource_filename_figani_dat,
             (uint32)pose_data, figani_idx + 1);
         sprite_sheet = fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+            (uint32)data_fd2_string_resource_filename_figani_dat,
             sprite_sheet, figani_idx);
 
         fd2_play_char_intro_zoom_anim((uint32)char_idx, 1, sprite_sheet, 0,

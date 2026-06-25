@@ -380,7 +380,7 @@ extern const char data_fd2_string_resource_filename_fdfield_dat[12]; /* 0x51A59 
 extern const char data_fd2_string_resource_filename_fdshap_dat[11];  /* 0x51A65  "FDSHAP.DAT" */
 extern const char data_fd2_string_resource_filename_dato_dat[9];  /* 0x51A70  "DATO.DAT" */
 extern const char data_fd2_string_resource_filename_bg_dat[7];    /* 0x52381  "BG.DAT" */
-extern const char data_fd2_string_resource_filename_figani_dat_52388[11]; /* 0x52388  "FIGANI.DAT" */
+extern const char data_fd2_string_resource_filename_figani_dat[11]; /* 0x52388  "FIGANI.DAT" */
 extern const char data_fd2_string_resource_filename_tai_dat[8];         /* 0x52393  "TAI.DAT" */
 
 /* ---- UI render format strings (.object2 const) ---- */

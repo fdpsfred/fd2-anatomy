@@ -1154,10 +1154,10 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
 
     portrait_x3 = (uint32)caster_char->portrait_id * 3;
     pCaster_figani_a = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+        (uint32)data_fd2_string_resource_filename_figani_dat,
         pCaster_figani_a, portrait_x3);
     pCaster_figani_b = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+        (uint32)data_fd2_string_resource_filename_figani_dat,
         pCaster_figani_b, portrait_x3 + 2);
     data_fd2_audio_figani_sfx_bank_buf_ptr =
         fd2_load_figani_sfx_bank(pCaster_figani_b);
@@ -1166,7 +1166,7 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
 
     for (i = 0; i < n_targets; i++) {
         target_figani_arr[i] = fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+            (uint32)data_fd2_string_resource_filename_figani_dat,
             target_figani_arr[i],
             (uint32)data_fd2_battle_runtime_char_array_ptr[target_idx_buf[i]]
                 .portrait_id * 3);
@@ -1416,10 +1416,10 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
 
     figani_idx_x3 = (uint32)caster_char->portrait_id * 3;
     pCaster_figani_a = (uint32)fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+        (uint32)data_fd2_string_resource_filename_figani_dat, 0,
         figani_idx_x3);
     pCaster_figani_b = (uint32)fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+        (uint32)data_fd2_string_resource_filename_figani_dat, 0,
         figani_idx_x3 + 1);
     pSummon_sprite = (uint32)fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdother_dat, 0,

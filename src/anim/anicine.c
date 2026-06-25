@@ -240,10 +240,10 @@ void fd2_play_figani_char_intro_animation(uint32 char_idx)
     ptr_00 = fd2_load_dat_resource(
                  (uint32)data_fd2_string_resource_filename_tai_dat, 0, 3);
     ptr_01 = fd2_load_dat_resource(
-                 (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+                 (uint32)data_fd2_string_resource_filename_figani_dat, 0,
                  (uint32)portrait_id * 3);
     figani_buf = fd2_load_dat_resource(
-                 (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+                 (uint32)data_fd2_string_resource_filename_figani_dat, 0,
                  (uint32)portrait_id * 3 + 1);
     fd2_play_palette_fade_to_black();
     data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr =
@@ -449,13 +449,13 @@ void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx)
     banner_rle = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_tai_dat, 0, banner_idx);
     def_silhouette = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+        (uint32)data_fd2_string_resource_filename_figani_dat, 0,
         defender_portrait * 3);
     att_silhouette = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+        (uint32)data_fd2_string_resource_filename_figani_dat, 0,
         attacker_portrait * 3);
     att_anim_figani = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+        (uint32)data_fd2_string_resource_filename_figani_dat, 0,
         attacker_portrait * 3 + 1);
     split_screen_flag = *(uint8 *)(att_anim_figani + 1);
     fd2_play_palette_fade_to_black();
@@ -470,7 +470,7 @@ void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx)
     if ((fd2_check_can_counter_attack(attacker_idx, defender_idx) == 1) ||
         (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx != 0)) {
         def_anim_figani = fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+            (uint32)data_fd2_string_resource_filename_figani_dat, 0,
             defender_portrait * 3 + 1);
     }
 

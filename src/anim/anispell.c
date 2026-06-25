@@ -305,10 +305,10 @@ void fd2_play_class_promotion_cinematic(uint32 promoting_char_idx, uint32 target
 
     work = malloc(0x1f400);
     caster_figani = (void *)fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+        (uint32)data_fd2_string_resource_filename_figani_dat, 0,
         (uint32)data_fd2_battle_runtime_char_array_ptr[promoting_char_idx].portrait_id * 3);
     target_figani = (void *)fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0,
+        (uint32)data_fd2_string_resource_filename_figani_dat, 0,
         target_class_id * 3);
     vga_backup = malloc(64000);
     memmove(vga_backup, (void *)0xa0000, 64000);
@@ -603,9 +603,9 @@ void fd2_play_spell_cast_sequence(uint32 caster_idx, uint32 spell_id,
     caster_anim_base =
         (uint32)data_fd2_battle_runtime_char_array_ptr[caster_idx].portrait_id * 3;
     caster_figani_a = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0, caster_anim_base);
+        (uint32)data_fd2_string_resource_filename_figani_dat, 0, caster_anim_base);
     caster_figani_b = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_figani_dat_52388, 0, caster_anim_base + 2);
+        (uint32)data_fd2_string_resource_filename_figani_dat, 0, caster_anim_base + 2);
 
     data_fd2_audio_summon_spell_sfx_bank_buf_ptr = 0;
     data_fd2_audio_summon_spell_sfx_bank_buf_ptr = fd2_load_dat_resource(
@@ -614,7 +614,7 @@ void fd2_play_spell_cast_sequence(uint32 caster_idx, uint32 spell_id,
 
     if (*(int16 *)caster_figani_b == 0) {
         caster_figani_b = fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_figani_dat_52388,
+            (uint32)data_fd2_string_resource_filename_figani_dat,
             caster_figani_b, caster_anim_base + 1);
     }
 
@@ -622,7 +622,7 @@ void fd2_play_spell_cast_sequence(uint32 caster_idx, uint32 spell_id,
 
     for (i = 0; i < (int)target_count; i++) {
         figani_buf[i] = fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_figani_dat_52388, figani_buf[i],
+            (uint32)data_fd2_string_resource_filename_figani_dat, figani_buf[i],
             (uint32)data_fd2_battle_runtime_char_array_ptr[target_ids[i]].portrait_id * 3);
     }
 

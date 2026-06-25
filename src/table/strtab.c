@@ -177,7 +177,7 @@ const char data_fd2_string_resource_filename_bg_dat[7] = {
  * metadata). The address is taken (PUSH 0x52388 / array decays) and consumed as
  * a char* path; never written. Immediately follows the "BG.DAT" string at
  * 0x52381. */
-const char data_fd2_string_resource_filename_figani_dat_52388[11] = {
+const char data_fd2_string_resource_filename_figani_dat[11] = {
     0x46, 0x49, 0x47, 0x41, 0x4e, 0x49, 0x2e, 0x44, 0x41, 0x54,
     0x00
 };
