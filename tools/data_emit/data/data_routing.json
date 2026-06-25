@@ -295,7 +295,7 @@
     "home": "field/chtrans.c",
     "writers": [
       "fd2_load_save_and_init_engine",
-      "fd2_play_ending_and_record_clear",
+      "fd2_title_attract_and_main_menu",
       "fd2_chapter_transition_menu",
       "fd2_chapter_transition_with_intro"
     ],
@@ -372,7 +372,7 @@
       "fd2_main",
       "fd2_check_all_player_acted_or_asleep",
       "fd2_field_command_menu_loop",
-      "fd2_main_menu_continue_dispatcher"
+      "fd2_main_menu_dispatcher"
     ],
     "note": "multi-writer:battle/btl_turn.c,life/main.c,ui_menu/menu.c",
     "emitted": true,
@@ -391,7 +391,7 @@
     "writers": [
       "fd2_game_options_menu_loop",
       "fd2_load_save_and_init_engine",
-      "fd2_main_menu_continue_dispatcher",
+      "fd2_main_menu_dispatcher",
       "fd2_load_state_from_selected_slot"
     ],
     "note": "multi-writer:life/main.c,save/save.c,ui_menu/menucfg.c",
@@ -411,7 +411,7 @@
     "writers": [
       "fd2_game_options_menu_loop",
       "fd2_load_save_and_init_engine",
-      "fd2_main_menu_continue_dispatcher",
+      "fd2_main_menu_dispatcher",
       "fd2_load_state_from_selected_slot"
     ],
     "note": "multi-writer:life/main.c,save/save.c,ui_menu/menucfg.c",
@@ -449,7 +449,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_animation_spell_sfx_frame_table": {
+  "data_fd2_animation_spell_sfx_id_table": {
     "addr": "51f75",
     "segment": ".object2",
     "len": 33,
@@ -542,7 +542,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs": {
+  "data_fd2_dialog_frame_layer_save_buffer_ptrs": {
     "addr": "53a18",
     "segment": ".object2",
     "len": 20,
@@ -627,8 +627,8 @@
     "home": "life/main.c",
     "writers": [
       "fd2_load_save_and_init_engine",
-      "fd2_main_menu_continue_dispatcher",
-      "fd2_play_ending_and_record_clear",
+      "fd2_main_menu_dispatcher",
+      "fd2_title_attract_and_main_menu",
       "fd2_display_cinematic_image_with_fade"
     ],
     "note": "multi-writer:anim/anicine.c,anim/aniend.c,life/main.c,rsrc/rsrc.c",
@@ -953,7 +953,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_dialog_last_action_sprite_id_param": {
+  "data_fd2_dialog_last_action_text_id_param": {
     "addr": "53ad9",
     "segment": ".object2",
     "len": 4,
@@ -1041,7 +1041,7 @@
     "writers": [
       "fd2_game_options_menu_loop",
       "fd2_load_save_and_init_engine",
-      "fd2_main_menu_continue_dispatcher",
+      "fd2_main_menu_dispatcher",
       "fd2_load_state_from_selected_slot"
     ],
     "note": "multi-writer:life/main.c,save/save.c,ui_menu/menucfg.c",
@@ -1208,7 +1208,7 @@
       "fd2_handle_tile_event_interaction",
       "fd2_load_save_and_init_engine",
       "fd2_process_battle_drop_entries",
-      "fd2_main_menu_continue_dispatcher"
+      "fd2_main_menu_dispatcher"
     ],
     "note": "multi-writer:anim/aniui.c,battle/btl_turn.c,field/chinit.c,life/main.c,save/save.c,ui_menu/menufld.c",
     "emitted": true,
@@ -1243,7 +1243,7 @@
     "home": "life/main.c",
     "writers": [
       "fd2_load_save_and_init_engine",
-      "fd2_main_menu_continue_dispatcher",
+      "fd2_main_menu_dispatcher",
       "fd2_load_state_from_selected_slot",
       "fd2_init_runtime_char_from_base_growth"
     ],
@@ -1280,7 +1280,7 @@
     "home": "field/chend1.c",
     "writers": [
       "fd2_load_save_and_init_engine",
-      "fd2_main_menu_continue_dispatcher",
+      "fd2_main_menu_dispatcher",
       "fd2_load_state_from_selected_slot",
       "fd2_chapter_05_end"
     ],
@@ -1561,7 +1561,7 @@
     "home": "ui_menu/promote.c",
     "writers": [
       "fd2_open_status_screen_with_slide_in",
-      "fd2_load_chapter_portrait",
+      "fd2_dialog_open_speaker_portrait",
       "fd2_spell_selection_menu_main",
       "fd2_open_shop_dialog_panel"
     ],
@@ -1581,7 +1581,7 @@
     "home": "ui_menu/promote.c",
     "writers": [
       "fd2_open_status_screen_with_slide_in",
-      "fd2_load_chapter_portrait",
+      "fd2_dialog_open_speaker_portrait",
       "fd2_spell_selection_menu_main",
       "fd2_open_shop_dialog_panel"
     ],
@@ -1601,7 +1601,7 @@
     "home": "ui_menu/promote.c",
     "writers": [
       "fd2_open_status_screen_with_slide_in",
-      "fd2_load_chapter_portrait",
+      "fd2_dialog_open_speaker_portrait",
       "fd2_spell_selection_menu_main",
       "fd2_open_shop_dialog_panel"
     ],
@@ -1622,7 +1622,7 @@
     "writers": [
       "fd2_display_dialog_scene",
       "fd2_render_status_screen_static_layout",
-      "fd2_load_chapter_portrait",
+      "fd2_dialog_open_speaker_portrait",
       "fd2_run_equip_member_menu"
     ],
     "note": "multi-writer:anim/aniend.c,dialog/dialog.c,gfx/rndstat.c,rsrc/rsrc.c,ui_menu/shop.c,ui_menu/status.c",
@@ -1802,7 +1802,7 @@
     "needs_bytes": false,
     "home": "anim/aniui.c",
     "writers": [
-      "fd2_tick_tutorial_progress_with_sfx"
+      "fd2_tick_walk_step_footstep_sfx"
     ],
     "note": "",
     "emitted": true,
@@ -1874,7 +1874,7 @@
     "writers": [
       "fd2_play_full_combat_cinematic",
       "fd2_execute_special_attack_skill",
-      "fd2_play_spell_cast_cinematic"
+      "fd2_play_class_promotion_cinematic"
     ],
     "note": "multi-writer:anim/anicine.c,anim/anispell.c,spell/spellcin.c",
     "emitted": true,
@@ -1893,7 +1893,7 @@
     "writers": [
       "fd2_play_full_combat_cinematic",
       "fd2_execute_special_attack_skill",
-      "fd2_play_spell_cast_cinematic"
+      "fd2_play_class_promotion_cinematic"
     ],
     "note": "multi-writer:anim/anicine.c,anim/anispell.c,spell/spellcin.c",
     "emitted": true,
@@ -1912,7 +1912,7 @@
     "writers": [
       "fd2_play_full_combat_cinematic",
       "fd2_execute_special_attack_skill",
-      "fd2_play_spell_cast_cinematic"
+      "fd2_play_class_promotion_cinematic"
     ],
     "note": "multi-writer:anim/anicine.c,anim/anispell.c,spell/spellcin.c",
     "emitted": true,
@@ -2039,7 +2039,7 @@
     "home": "ui_menu/promote.c",
     "writers": [
       "fd2_run_buy_item_menu",
-      "fd2_promote_members_select_loop",
+      "fd2_revive_member_select_loop",
       "fd2_promote_member_select_loop"
     ],
     "note": "multi-writer:ui_menu/promote.c,ui_menu/shop.c",
@@ -2057,7 +2057,7 @@
     "needs_bytes": false,
     "home": "ui_menu/chintro.c",
     "writers": [
-      "fd2_main_menu_continue_dispatcher",
+      "fd2_main_menu_dispatcher",
       "fd2_chapter_transition_menu",
       "fd2_run_chapter_intro_menu_main",
       "fd2_run_chapter_intro_menu_typeB"
@@ -2291,7 +2291,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_chapter_intro_portrait_pose_y_row_table": {
+  "data_fd2_chapter_intro_portrait_pose_x_column_table": {
     "addr": "52635",
     "segment": ".object2",
     "len": 18,
@@ -2306,7 +2306,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_chapter_intro_portrait_pose_x_column_table": {
+  "data_fd2_chapter_intro_portrait_pose_y_row_table": {
     "addr": "52647",
     "segment": ".object2",
     "len": 18,
@@ -2633,7 +2633,7 @@
     "writers": [
       "fd2_game_options_menu_loop",
       "fd2_load_save_and_init_engine",
-      "fd2_main_menu_continue_dispatcher",
+      "fd2_main_menu_dispatcher",
       "fd2_load_state_from_selected_slot"
     ],
     "note": "multi-writer:life/main.c,save/save.c,ui_menu/menucfg.c",
@@ -2763,7 +2763,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_ui_save_load_newgame_menu_template": {
+  "data_fd2_ui_field_status_save_load_quit_menu_template": {
     "addr": "51ef5",
     "segment": ".object2",
     "len": 16,
@@ -2939,7 +2939,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_battle_fast_mode_walk_overlay_ptr": {
+  "data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr": {
     "addr": "53b0f",
     "segment": ".object2",
     "len": 4,
@@ -2949,14 +2949,14 @@
     "needs_bytes": false,
     "home": "ui_menu/menucfg.c",
     "writers": [
-      "fd2_maybe_load_speed_mode_overlay"
+      "fd2_maybe_load_speed_mode_sfx_bank"
     ],
     "note": "",
     "emitted": true,
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_resource_portrait_cache_alloc_offset": {
+  "data_fd2_resource_field_char_record_count": {
     "addr": "53be3",
     "segment": ".object2",
     "len": 4,
@@ -3284,7 +3284,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_chapter_chapter_init_done_flag": {
+  "data_fd2_chapter_init_done_flag": {
     "addr": "53a44",
     "segment": ".object2",
     "len": 1,
@@ -3301,7 +3301,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_runtime_battle_state_ptr": {
+  "data_fd2_cursor_highlight_sprite_sheet_ptr": {
     "addr": "53a4d",
     "segment": ".object2",
     "len": -1,
@@ -3443,7 +3443,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_menu_dialog_state_handle": {
+  "data_fd2_menu_dialog_box_sprite_sheet_ptr": {
     "addr": "53a89",
     "segment": ".object2",
     "len": -1,
@@ -3477,7 +3477,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_battle_compose_walk_step_y_sub_pixel_offset": {
+  "data_fd2_battle_compose_walk_step_sub_pixel_offset": {
     "addr": "53af5",
     "segment": ".object2",
     "len": 4,
@@ -4060,7 +4060,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_string_save_load_oom_msg_load_pbuf_50004": {
+  "data_fd2_string_save_load_oom_msg_load_pbuf": {
     "addr": "50004",
     "segment": ".object2",
     "len": 20,
@@ -4075,7 +4075,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_string_save_load_oom_msg_tile_event_50023": {
+  "data_fd2_string_save_load_oom_msg_tile_event": {
     "addr": "50023",
     "segment": ".object2",
     "len": 20,
@@ -4090,7 +4090,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_string_save_load_oom_msg_runtime_char_50037": {
+  "data_fd2_string_save_load_oom_msg_runtime_char": {
     "addr": "50037",
     "segment": ".object2",
     "len": 20,
@@ -4105,7 +4105,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_string_field_map_oom_msg_chapter_runtime_50064": {
+  "data_fd2_string_chapter_battle_oom_msg_runtime_char": {
     "addr": "50064",
     "segment": ".object2",
     "len": 20,
@@ -4120,7 +4120,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_string_field_map_fdicon_not_found_err_50086": {
+  "data_fd2_string_field_map_fdicon_not_found_err": {
     "addr": "50086",
     "segment": ".object2",
     "len": 35,
@@ -4165,7 +4165,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_string_resource_filename_fdfield_dat_51a59": {
+  "data_fd2_string_resource_filename_fdfield_dat": {
     "addr": "51a59",
     "segment": ".object2",
     "len": 12,
@@ -4180,7 +4180,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_string_resource_filename_fdshap_dat_51a65": {
+  "data_fd2_string_resource_filename_fdshap_dat": {
     "addr": "51a65",
     "segment": ".object2",
     "len": 11,
@@ -4195,7 +4195,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_string_resource_filename_dato_dat_51a70": {
+  "data_fd2_string_resource_filename_dato_dat": {
     "addr": "51a70",
     "segment": ".object2",
     "len": 9,
@@ -4225,7 +4225,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_string_resource_filename_bg_dat_52381": {
+  "data_fd2_string_resource_filename_bg_dat": {
     "addr": "52381",
     "segment": ".object2",
     "len": 7,
@@ -4240,7 +4240,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_string_resource_filename_figani_dat_52388": {
+  "data_fd2_string_resource_filename_figani_dat": {
     "addr": "52388",
     "segment": ".object2",
     "len": 11,
@@ -4287,7 +4287,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_battle_pathfind_caller_context": {
+  "data_fd2_battle_pathfind_move_cost_table_ptr": {
     "addr": "6006a",
     "segment": ".object3",
     "len": 4,
@@ -4446,7 +4446,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_animation_summon_radial_angle_step_12": {
+  "data_fd2_animation_summon_radial_y_amplitude_scale": {
     "addr": "5022b",
     "segment": ".object2",
     "len": 8,
@@ -4461,7 +4461,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_animation_summon_radial_radius_30": {
+  "data_fd2_animation_summon_radial_y_offset_30": {
     "addr": "50233",
     "segment": ".object2",
     "len": 8,
@@ -4476,7 +4476,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_ui_terrain_hud_panel_offset_51a0c": {
+  "data_fd2_ui_terrain_hud_panel_offset": {
     "addr": "51a0c",
     "segment": ".object2",
     "len": 4,
@@ -5577,7 +5577,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_battle_scene_snapshot": {
+  "data_fd2_battle_scene_tile_gfx_ptr": {
     "addr": "53a5d",
     "segment": ".object2",
     "len": -1,
@@ -5597,7 +5597,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_chapter_portrait_load_buffer": {
+  "data_fd2_chapter_char_spawn_pos_table": {
     "addr": "53a59",
     "segment": ".object2",
     "len": -1,
@@ -5616,7 +5616,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_current_chapter_text": {
+  "data_fd2_current_chapter_text_ptr": {
     "addr": "53a79",
     "segment": ".object2",
     "len": -1,
@@ -5712,7 +5712,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_orphan_table_60181": {
+  "data_fd2_orphan_packed3_table": {
     "addr": "60181",
     "segment": ".object3",
     "len": -1,
@@ -5727,7 +5727,7 @@
     "reviewed": true,
     "commit": null
   },
-  "data_fd2_portrait_sprite_buffer": {
+  "data_fd2_portrait_sprite_buf_ptr": {
     "addr": "53a85",
     "segment": ".object2",
     "len": -1,
@@ -5739,7 +5739,7 @@
     "writers": [
       "fd2_display_dialog_scene",
       "fd2_render_status_screen_static_layout",
-      "fd2_load_chapter_portrait",
+      "fd2_dialog_open_speaker_portrait",
       "fd2_run_equip_member_menu"
     ],
     "note": "multi-writer:anim/aniend.c,dialog/dialog.c,gfx/rndstat.c,rsrc/rsrc.c,ui_menu/shop.c,ui_menu/status.c",

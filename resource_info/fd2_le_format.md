@@ -84,6 +84,6 @@ crt_entry_start @ 0x3C964
           ├─ malloc 大型 buffer (game state 152 KB 等)
           └─ outer loop:
               ├─ draw_main_menu
-              ├─ main_menu_continue_dispatcher
+              ├─ main_menu_dispatcher
               └─ if entered game: chapter_init → game_main_loop → chapter_end → next_chapter
 ```

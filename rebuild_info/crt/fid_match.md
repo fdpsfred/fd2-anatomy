@@ -94,7 +94,7 @@ Ghidra OmfLoader EOF bug 無法 import。三個都不影響 FD2 識別 — FD2 �
 discriminator（例 `__nmemneed` 與 `_matherr` default-return-zero stub
 byte-identical，唯一可區分的是 caller 路徑：真 `__nmemneed` 被 `_nmalloc`
 呼叫，0x4d8ea 唯一 caller 是 `_matherr → matherr_default_thunk`，故為
-`crt_equivalent_matherr_default_return_zero_4d8ea`）。
+`crt_equivalent_matherr_default_return_zero`）。
 
 ## 命名規範
 

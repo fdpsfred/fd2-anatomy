@@ -101,7 +101,7 @@ rebuild linker 把字串擺到別處 → `fopen` 拿到空檔名失敗，開場�
 | 0x51a65 | FDSHAP.DAT  | fd2_play_full_combat_cinematic / fd2_execute_special_attack_skill / ... |
 | 0x51a70 | DATO.DAT    | fd2_display_dialog_scene / fd2_run_status_screen_member_menu            |
 | 0x51a79 | FDMUS.DAT   | fd2_set_bgm_track_with_fade                                             |
-| 0x52381 | BG.DAT      | fd2_play_full_combat_cinematic / fd2_play_spell_cast_cinematic          |
+| 0x52381 | BG.DAT      | fd2_play_full_combat_cinematic / fd2_play_class_promotion_cinematic          |
 | 0x52388 | FIGANI.DAT  | 19 callers (combat / spell / special skill / chapter intro)             |
 
 **emit_action = emit_c_const**（**非** link_vendor）。emit pipeline 一律以
@@ -131,7 +131,7 @@ unify boundary，把原本分散的 items 合併為 single semantic item。已�
   for fd2_wait_input_with_chapter_dialog_blink caller)
 - `0x53A18 pointer[5]` ← 合併自 5 個獨立 dword (dialog_frame_layers /
   dialog_frame_layer_extra_a / dialog_open_anim_state / _b / _c) →
-  `data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs`
+  `data_fd2_dialog_frame_layer_save_buffer_ptrs`
 - `0x53A30 dword[4]` ← 合併自 4 個獨立 dword (combat_speech_bubble_state_a/b/c/d)
   → `data_fd2_battle_combat_speech_bubble_pos_pairs` (4 個 (x, y) 對戰泡位)
 - `0x53EF2 byte[16]` ← 合併自 4 個 `undefined4` (zero-init menu state template) →

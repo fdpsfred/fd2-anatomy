@@ -34,7 +34,7 @@ Placeholder idx：11, 12, 13, 15, 20, ... (共 10 個)。
 - `fd2_execute_special_attack_skill` (4 callsites: idx 0/1/2 + dynamic terrain_id)
 - `fd2_execute_summon_spell_cast` (1 dynamic — terrain from tile_attribute)
 - `fd2_play_full_combat_cinematic` (3 + dynamic — terrain dispatch)
-- `fd2_play_spell_cast_cinematic` (3 + dynamic)
+- `fd2_play_class_promotion_cinematic` (3 + dynamic)
 - `fd2_play_figani_char_intro_animation` (1 dynamic — terrain)
 
 Domain：`terrain_id` derived from
@@ -46,9 +46,9 @@ Domain：`terrain_id` derived from
 | idx | callsite | 用途 |
 |---|---|---|
 | 0x00 | `fd2_execute_special_attack_skill` / `fd2_execute_summon_spell_cast` / `fd2_play_figani_char_intro_animation` 等 (5 callsites) | 通用基礎 BG |
-| 0x01 | `fd2_execute_special_attack_skill` / `fd2_play_full_combat_cinematic` / `fd2_play_spell_cast_cinematic` | 通用變體 |
+| 0x01 | `fd2_execute_special_attack_skill` / `fd2_play_full_combat_cinematic` / `fd2_play_class_promotion_cinematic` | 通用變體 |
 | 0x02 | 同上 | 通用變體 2 |
-| 0x38 | `fd2_play_spell_cast_cinematic` | 特殊 spell BG |
+| 0x38 | `fd2_play_class_promotion_cinematic` | 特殊 spell BG |
 
 ## 完整分類
 

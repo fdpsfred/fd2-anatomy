@@ -8,7 +8,7 @@ DOS mode 13h (320×200×256-color)，primary surface @ `0xA0000` (linear)。
 ```
 0xA0000     VGA mode13h primary (visible)
 0x53A49     large_game_state_buffer (0x25680 = 152 KB)
-0x53A5D     data_fd2_battle_scene_snapshot (FDSHAP.DAT)
+0x53A5D     data_fd2_battle_scene_tile_gfx_ptr (FDSHAP.DAT)
 0x53AFF     static_bg_buffer (chapter background)
 0x53B03     animated_bg_buffer (cycling chapters 9 / 0x18 / ...)
 0x53C5B/5F/63   render_workspace_a/b/c (3 × 64000 bytes UI render)

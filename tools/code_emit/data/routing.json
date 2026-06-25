@@ -287,7 +287,7 @@
     "reviewed": true
   },
   "000129ec": {
-    "name": "fd2_paint_chars_shadow_overlay",
+    "name": "fd2_redraw_terrain_tiles_under_chars",
     "target": "gfx/rndscene.c",
     "phase": 3,
     "done": true,
@@ -454,7 +454,7 @@
     "asm": false,
     "reviewed": true,
     "skip": true,
-    "skip_reason": "DECOMPILER FRAGMENT (shared epilogue; calling_convention.md epilogue cluster 0x13994 = ADD ESP 0x5C + POP EBP/EDI/ESI/EBX + RET, locals=0x5C + 4 saved regs; pipeline_spec.md 模式A rule A-1). Not a callable C function: pure caller-frame unwind (call_count=0, param_count=0, cyclomatic=1) reached only by tail-JMP (parent's last instruction `JMP 0x13994` @0x1ff74, preceded by `MOV EAX,EBP` @0x1ff72 so the return value flows through) from the sole parent fd2_play_ending_and_record_clear @0x1f894. Raw bytes @0x1ff72 = 89 e8 e9 1b 3a ff ff: opcode 0xE9 is near JMP, NOT 0xE8 CALL (Ghidra get_xrefs_to mislabels this UNCONDITIONAL_CALL but the opcode is JMP). Parent prologue PUSH EBX/ESI/EDI/EBP + SUB ESP,0x5c @0x1f89e is the exact inverse; this is the tail-merged epilogue of that single parent. Emit pipeline skips this address; epilogue is regenerated inside the parent as return ebp_value;. NOT emitted to util/noop.c."
+    "skip_reason": "DECOMPILER FRAGMENT (shared epilogue; calling_convention.md epilogue cluster 0x13994 = ADD ESP 0x5C + POP EBP/EDI/ESI/EBX + RET, locals=0x5C + 4 saved regs; pipeline_spec.md 模式A rule A-1). Not a callable C function: pure caller-frame unwind (call_count=0, param_count=0, cyclomatic=1) reached only by tail-JMP (parent's last instruction `JMP 0x13994` @0x1ff74, preceded by `MOV EAX,EBP` @0x1ff72 so the return value flows through) from the sole parent fd2_title_attract_and_main_menu @0x1f894. Raw bytes @0x1ff72 = 89 e8 e9 1b 3a ff ff: opcode 0xE9 is near JMP, NOT 0xE8 CALL (Ghidra get_xrefs_to mislabels this UNCONDITIONAL_CALL but the opcode is JMP). Parent prologue PUSH EBX/ESI/EDI/EBP + SUB ESP,0x5c @0x1f89e is the exact inverse; this is the tail-merged epilogue of that single parent. Emit pipeline skips this address; epilogue is regenerated inside the parent as return ebp_value;. NOT emitted to util/noop.c."
   },
   "0001399c": {
     "name": "fd2_convert_battle_tiles_to_24px",
@@ -739,7 +739,7 @@
     "reviewed": true
   },
   "00016886": {
-    "name": "fd2_blit_indexed_sprite_at_xy",
+    "name": "fd2_blit_indexed_sprite_rle",
     "target": "gfx/blitspr.c",
     "phase": 3,
     "done": true,
@@ -755,7 +755,7 @@
     "reviewed": true
   },
   "00016b43": {
-    "name": "fd2_close_dialog_panels_then_slide_in_at",
+    "name": "fd2_close_dialog_panels_then_slide_out_to_cursor",
     "target": "dialog/dialog.c",
     "phase": 5,
     "done": true,
@@ -771,7 +771,7 @@
     "reviewed": true
   },
   "00016e24": {
-    "name": "fd2_cinematic_scroll_text_up_for_special_scenes",
+    "name": "fd2_scroll_portrait_dialog_text_up_one_line",
     "target": "dialog/dialog.c",
     "phase": 4,
     "done": true,
@@ -947,7 +947,7 @@
     "reviewed": true
   },
   "00018409": {
-    "name": "fd2_play_status_screen_outro_step",
+    "name": "fd2_render_status_screen_slide_frame",
     "target": "anim/aniwalk.c",
     "phase": 4,
     "done": true,
@@ -1027,7 +1027,7 @@
     "reviewed": true
   },
   "0001956b": {
-    "name": "fd2_load_chapter_portrait",
+    "name": "fd2_dialog_open_speaker_portrait",
     "target": "rsrc/rsrc.c",
     "phase": 5,
     "done": true,
@@ -1083,7 +1083,7 @@
     "reviewed": true
   },
   "0001a7bd": {
-    "name": "fd2_maybe_load_speed_mode_overlay",
+    "name": "fd2_maybe_load_speed_mode_sfx_bank",
     "target": "ui_menu/menucfg.c",
     "phase": 5,
     "done": true,
@@ -1091,7 +1091,7 @@
     "reviewed": true
   },
   "0001a7f1": {
-    "name": "fd2_maybe_free_speed_mode_overlay",
+    "name": "fd2_maybe_free_speed_mode_sfx_bank",
     "target": "ui_menu/menucfg.c",
     "phase": 5,
     "done": true,
@@ -1443,7 +1443,7 @@
     "reviewed": true
   },
   "0001d4f6": {
-    "name": "fd2_play_and_free_status_effect_sfx",
+    "name": "fd2_stop_and_free_status_effect_sfx",
     "target": "audio/audio.c",
     "phase": 4,
     "done": true,
@@ -1723,7 +1723,7 @@
     "reviewed": true
   },
   "0001f894": {
-    "name": "fd2_play_ending_and_record_clear",
+    "name": "fd2_title_attract_and_main_menu",
     "target": "anim/aniend.c",
     "phase": 4,
     "done": true,
@@ -2123,7 +2123,7 @@
     "reviewed": true
   },
   "00021b18": {
-    "name": "fd2_dispatch_variant_b_cast",
+    "name": "fd2_execute_variant_b_heal_cast",
     "target": "spell/spellcin.c",
     "phase": 4,
     "done": true,
@@ -2187,7 +2187,7 @@
     "reviewed": true
   },
   "0002218a": {
-    "name": "fd2_cast_spell_17_complex",
+    "name": "fd2_cast_spell_17_teleport",
     "target": "spell/spelleff.c",
     "phase": 1,
     "done": true,
@@ -2227,7 +2227,7 @@
     "reviewed": true
   },
   "000226ea": {
-    "name": "fd2_cast_spell_11_stage_a",
+    "name": "fd2_cast_spell_11_ap_boost",
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
@@ -2243,7 +2243,7 @@
     "reviewed": true
   },
   "0002282f": {
-    "name": "fd2_cast_spell_12_stage_b",
+    "name": "fd2_cast_spell_12_dp_boost",
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
@@ -2259,7 +2259,7 @@
     "reviewed": true
   },
   "00022960": {
-    "name": "fd2_cast_spell_13_stage_c",
+    "name": "fd2_cast_spell_13_speed_boost",
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
@@ -2275,7 +2275,7 @@
     "reviewed": true
   },
   "00022a85": {
-    "name": "fd2_cast_spell_14_dispatch_aa8",
+    "name": "fd2_cast_spell_14_dispatch",
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
@@ -2307,7 +2307,7 @@
     "reviewed": true
   },
   "00022bc6": {
-    "name": "fd2_cast_spell_15_dispatch_aa8",
+    "name": "fd2_cast_spell_15_dispatch",
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
@@ -2315,7 +2315,7 @@
     "reviewed": true
   },
   "00022be1": {
-    "name": "fd2_cast_spell_16_dispatch_cda",
+    "name": "fd2_cast_spell_16_dispatch",
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
@@ -2323,7 +2323,7 @@
     "reviewed": true
   },
   "00022c04": {
-    "name": "fd2_execute_status_clear_holy_word_spell_id_25",
+    "name": "fd2_execute_reactivate_spell_id_25",
     "target": "spell/spelleff.c",
     "phase": 4,
     "done": true,
@@ -2331,7 +2331,7 @@
     "reviewed": true
   },
   "00022cbf": {
-    "name": "fd2_spell_handler_id_26_via_status_d1b_effect_25",
+    "name": "fd2_cast_spell_1a_dispatch",
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
@@ -2339,7 +2339,7 @@
     "reviewed": true
   },
   "00022cda": {
-    "name": "fd2_cast_status_spell_via_d1b",
+    "name": "fd2_cast_status_inflict_spell_wrapper",
     "target": "spell/spelleff.c",
     "phase": 4,
     "done": true,
@@ -2355,7 +2355,7 @@
     "reviewed": true
   },
   "00022e41": {
-    "name": "fd2_spell_handler_id_27_via_status_d1b_effect_26",
+    "name": "fd2_cast_spell_1b_dispatch",
     "target": "spell/spell.c",
     "phase": 1,
     "done": true,
@@ -2547,7 +2547,7 @@
     "reviewed": true
   },
   "00024336": {
-    "name": "fd2_play_chapter_intro_sprite_slideshow",
+    "name": "fd2_play_chapter_21_hidden_stage_unlock_cinematic",
     "target": "anim/aniend.c",
     "phase": 4,
     "done": true,
@@ -2716,7 +2716,7 @@
     "reviewed": true
   },
   "00025ebb": {
-    "name": "fd2_main_menu_continue_dispatcher",
+    "name": "fd2_main_menu_dispatcher",
     "target": "life/main.c",
     "phase": 2,
     "done": true,
@@ -2917,7 +2917,7 @@
     "reviewed": true
   },
   "0002a2e8": {
-    "name": "fd2_play_spell_cast_cinematic",
+    "name": "fd2_play_class_promotion_cinematic",
     "target": "anim/anispell.c",
     "phase": 4,
     "done": true,
@@ -3005,7 +3005,7 @@
     "reviewed": true
   },
   "0002c9ec": {
-    "name": "fd2_tick_tutorial_progress_with_sfx",
+    "name": "fd2_tick_walk_step_footstep_sfx",
     "target": "anim/aniui.c",
     "phase": 2,
     "done": true,
@@ -3045,7 +3045,7 @@
     "reviewed": true
   },
   "0002d392": {
-    "name": "fd2_load_chapter_party_roster",
+    "name": "fd2_load_chapter_shop_item_ids",
     "target": "rsrc/rsrc.c",
     "phase": 5,
     "done": true,
@@ -3077,7 +3077,7 @@
     "reviewed": true
   },
   "0002d669": {
-    "name": "fd2_animate_tutorial_dialog_intro_or_outro",
+    "name": "fd2_animate_chapter_intro_dialog_wings",
     "target": "anim/aniui.c",
     "phase": 4,
     "done": true,
@@ -3325,7 +3325,7 @@
     "reviewed": true
   },
   "00030c22": {
-    "name": "fd2_promote_members_select_loop",
+    "name": "fd2_revive_member_select_loop",
     "target": "ui_menu/promote.c",
     "phase": 5,
     "done": true,
@@ -4213,7 +4213,7 @@
     "reviewed": true
   },
   "000353cc": {
-    "name": "fd2_delay_400ms_via_idle_thunk",
+    "name": "fd2_delay_400ms",
     "target": "util/misc.c",
     "phase": 4,
     "done": true,
@@ -4293,7 +4293,7 @@
     "reviewed": true
   },
   "000358c7": {
-    "name": "fd2_chapter_event_handler_3f__ch27_ai_ctrl",
+    "name": "fd2_chapter_event_handler_3f__ch27_cinematic",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4373,7 +4373,7 @@
     "reviewed": true
   },
   "00035bf2": {
-    "name": "fd2_chapter_event_handler_48__unref_ai_ctrl",
+    "name": "fd2_chapter_event_handler_48__unref_portrait_cinematic_pair",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4533,7 +4533,7 @@
     "reviewed": true
   },
   "00036107": {
-    "name": "crt_equivalent_lx_chunk_read_36107",
+    "name": "crt_equivalent_lx_chunk_read",
     "target": "crt/crt.c",
     "phase": 3,
     "done": true,
@@ -4541,7 +4541,7 @@
     "reviewed": true
   },
   "0003615e": {
-    "name": "fd2_set_word_global_52758",
+    "name": "fd2_ail_set_alloc_fnptr",
     "target": "util/misc.c",
     "phase": 2,
     "done": true,
@@ -4549,7 +4549,7 @@
     "reviewed": true
   },
   "0003616e": {
-    "name": "fd2_set_word_global_5275c",
+    "name": "fd2_ail_set_free_fnptr",
     "target": "util/misc.c",
     "phase": 2,
     "done": true,
@@ -4605,7 +4605,7 @@
     "reviewed": true
   },
   "00036344": {
-    "name": "crt_equivalent_lx_header_reader_36344",
+    "name": "crt_equivalent_lx_header_reader",
     "target": "crt/crt.c",
     "phase": 3,
     "done": true,
@@ -4613,7 +4613,7 @@
     "reviewed": true
   },
   "0003647b": {
-    "name": "crt_equivalent_lx_module_loader_3647b",
+    "name": "crt_equivalent_lx_module_loader",
     "target": "crt/crt.c",
     "phase": 3,
     "done": true,
@@ -4717,7 +4717,7 @@
     "reviewed": true
   },
   "00036de3": {
-    "name": "crt_equivalent_exit_chain_stub_36de3",
+    "name": "crt_equivalent_atexit_default_stub",
     "target": "crt/crt.c",
     "phase": 3,
     "done": true,
@@ -4742,7 +4742,7 @@
     "reviewed": true
   },
   "0003d26e": {
-    "name": "crt_equivalent_fpe_default_handler_3d26e",
+    "name": "crt_equivalent_fpe_default_handler",
     "target": "crt/crt.c",
     "phase": 3,
     "done": true,
@@ -4768,7 +4768,7 @@
     "skip_reason": "Watcom CRT linker alignment padding, not a real function (pipeline_spec.md binary_artifact/skip_artifact; plate 'no logical purpose'). Bytes @ 0x4cbce: lone 0xC3 (Ghidra auto-disassembled as RET and created a spurious 1B fn) followed by 0x00 @ 0x4cbcf, sitting between __int7 (body ends 0x4cbcd) and __init_80x87 (body starts 0x4cbd0). callers=0, callees=0, zero xref/get_xrefs_to (NOT a shared epilogue: nothing tail-jumps in). Emit pipeline skips this address; wlink re-pads the segment alignment on relink. NOT emitted to crt/crt.c; prototype removed from crtcomp.h."
   },
   "0004d340": {
-    "name": "crt_equivalent_matherr_default_thunk_4d340",
+    "name": "crt_equivalent_matherr_default_thunk",
     "target": "crt/crt.c",
     "phase": 3,
     "done": true,
@@ -4776,7 +4776,7 @@
     "reviewed": true
   },
   "0004d8ea": {
-    "name": "crt_equivalent_matherr_default_return_zero_4d8ea",
+    "name": "crt_equivalent_matherr_default_return_zero",
     "target": "crt/crt.c",
     "phase": 3,
     "done": true,
@@ -4784,7 +4784,7 @@
     "reviewed": true
   },
   "0004db84": {
-    "name": "fd2_get_orphan_table_60181_entry",
+    "name": "fd2_get_orphan_packed3_table_entry",
     "target": "table/table.c",
     "phase": 1,
     "done": true,
@@ -4816,7 +4816,7 @@
     "reviewed": true
   },
   "0004dbfc": {
-    "name": "fd2_obfuscate_battle_tile_map",
+    "name": "fd2_battle_reset_tile_transient_state",
     "target": "save/save.c",
     "phase": 5,
     "done": true,
@@ -5136,7 +5136,7 @@
     "reviewed": true
   },
   "0004e915": {
-    "name": "fd2_noop_stub_4e915",
+    "name": "fd2_noop_ret_pad",
     "target": "util/noop.c",
     "phase": 2,
     "done": true,
@@ -5208,7 +5208,7 @@
     "reviewed": true
   },
   "0004ea2a": {
-    "name": "fd2_blit_glyph_2bpp_with_outline",
+    "name": "fd2_blit_glyph_1bpp_with_outline",
     "target": "gfx/blitspr.c",
     "phase": 3,
     "done": true,

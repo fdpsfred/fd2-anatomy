@@ -47,9 +47,9 @@
 | File | 包含的 function 類別 | fn |
 |------|---------------------|-----|
 | `spell.c` | 24 個 spell handler dispatch wrapper (`fd2_spell_handler_id_*`, `fd2_cast_spell_*_dispatch_*`) — 從 spell dispatch table 呼叫，delegate 到 spelleff.c 的 worker | 24 |
-| `spelleff.c` | 法術/道具效果套用: 道具使用派遣 (`apply_use_effect_dispatch`, `apply_item_stat_modifier_with_anim`, `apply_attack_spell_damage`, `apply_status_effect_with_anim`), 攻擊/治療/增益/狀態 targeted cast (`execute_offensive_*`, `cast_group_hp_heal_*`, `cast_ap/dp/speed_boost_*`, `cast_status_cure/inflict_*`, `execute_status_clear_*`, `cast_spell_17_complex`) | 17 |
+| `spelleff.c` | 法術/道具效果套用: 道具使用派遣 (`apply_use_effect_dispatch`, `apply_item_stat_modifier_with_anim`, `apply_attack_spell_damage`, `apply_status_effect_with_anim`), 攻擊/治療/增益/狀態 targeted cast (`execute_offensive_*`, `cast_group_hp_heal_*`, `cast_ap/dp/speed_boost_*`, `cast_status_cure/inflict_*`, `execute_status_clear_*`, `cast_spell_17_teleport`) | 17 |
 | `spellsel.c` | 法術選擇 UI (`spell_selection_menu_main`, `spell_select_input_loop`, `draw_spell_selection_list`, `build_usable_spell_list`, `play_spell_palette_flash_with_sfx`, `grant_spell_to_char`) | 6 |
-| `spellcin.c` | 動畫型/cinematic 法術 (`cast_earthquake_*`, `cast_screen_wide_*`, `execute_aoe_spell_with_caster_portrait_*`, `execute_special_attack_skill`, `execute_summon_spell_cast`, `animate_warp_*`, `scatter_sprite_*`, `play_rising_pre_cast_effect`, `play_variant_b_slide_pre_effect`, `dispatch_variant_b_cast`) | 13 |
+| `spellcin.c` | 動畫型/cinematic 法術 (`cast_earthquake_*`, `cast_screen_wide_*`, `execute_aoe_spell_with_caster_portrait_*`, `execute_special_attack_skill`, `execute_summon_spell_cast`, `animate_warp_*`, `scatter_sprite_*`, `play_rising_pre_cast_effect`, `play_variant_b_slide_pre_effect`, `execute_variant_b_heal_cast`) | 13 |
 
 ### `ui_menu/` — 選單系統
 
@@ -69,8 +69,8 @@
 | File | 包含的 function 類別 | fn |
 |------|---------------------|-----|
 | `blittile.c` | 24×24 tile blit 7 variant (`tile_blit_24x24_*`) + tile-層級 blit (`blit_animated_tile_at_pos`, `blit_24x24_at_window_relative_pos`, `blit_24x24_tile_to_battle_grid_position`, `blit_scaled_chapter_pose`, `blit_scaled_tile_map_view`) | 12 |
-| `blitspr.c` | sprite/RLE/glyph/dialog/screen-block blit: indexed sprite (`blit_indexed_sprite*`, `blit_sheet_sprite_*`, `alloc_and_blit_indexed_sprite_chunk`), RLE (`rle_blit_*`), dialog sprite (`dialog_sprite_blit_*`, `decode_dialog_pixel_byte`), glyph (`blit_glyph_2bpp_with_outline`), raw/stride/scaled sprite (`blit_sprite_raw_*`, `blit_sprite_with_stride_*`, `blit_sprite_scaled_with_skip`), palette remap (`blit_palette_remap_with_sprite_mask`), screen block save/restore (`save/restore_screen_block_*`, `save/restore_block_loop`), scroll (`scroll_buffer_block_with_wrap`), 矩形/fill/money/per-row (`blit_rectangle`, `fill_screen_rect_with_byte`, `blit_money_digit_sprite`, `blit_buffer_with_per_row_offset`) | 26 |
-| `rndscene.c` | 戰鬥/野戰場景合成 + 戰鬥畫面/特效視覺 (`composite_battle_*`, `composite_all_chars_overlay`, `composite_chars_with_spell_effect_overlay`, `composite_then_animate_projectiles`, `paint_char_sprite_at_world_*`, `paint_chars_shadow_overlay`, `paint_cursor_overlay_pattern`, `paint_threat_overlay_for_team`, `render_combat_*`, `render_combatant_hp_bar_*`, `render_phase_banner_frame`, `render_circle_anim_row`, `render_filled_circle_band_anim`, `render_summon_aura_sprite_ring`) | 18 |
+| `blitspr.c` | sprite/RLE/glyph/dialog/screen-block blit: indexed sprite (`blit_indexed_sprite*`, `blit_sheet_sprite_*`, `alloc_and_blit_indexed_sprite_chunk`), RLE (`rle_blit_*`), dialog sprite (`dialog_sprite_blit_*`, `decode_dialog_pixel_byte`), glyph (`blit_glyph_1bpp_with_outline`), raw/stride/scaled sprite (`blit_sprite_raw_*`, `blit_sprite_with_stride_*`, `blit_sprite_scaled_with_skip`), palette remap (`blit_palette_remap_with_sprite_mask`), screen block save/restore (`save/restore_screen_block_*`, `save/restore_block_loop`), scroll (`scroll_buffer_block_with_wrap`), 矩形/fill/money/per-row (`blit_rectangle`, `fill_screen_rect_with_byte`, `blit_money_digit_sprite`, `blit_buffer_with_per_row_offset`) | 26 |
+| `rndscene.c` | 戰鬥/野戰場景合成 + 戰鬥畫面/特效視覺 (`composite_battle_*`, `composite_all_chars_overlay`, `composite_chars_with_spell_effect_overlay`, `composite_then_animate_projectiles`, `paint_char_sprite_at_world_*`, `redraw_terrain_tiles_under_chars`, `paint_cursor_overlay_pattern`, `paint_threat_overlay_for_team`, `render_combat_*`, `render_combatant_hp_bar_*`, `render_phase_banner_frame`, `render_circle_anim_row`, `render_filled_circle_band_anim`, `render_summon_aura_sprite_ring`) | 18 |
 | `rndstat.c` | 狀態/角色數值面板 (`render_status_screen_static_layout`, `render_full_char_stat_panel`, `render_inventory_item_grid`, `render_horizontal_bar_segments`, `render_hp_or_mp_bar_proportional`, `render_number_red_when_full`, `render_decimal_number_to_buffer`, `render_mini_char_status_panel`, `render_terrain_info_hud_panel`, `render_signed_modifier_with_icon`, `render_party_status_overview_content`, `render_chapter_status_panel_segments`, `paint_status_panel_layer_left/right`, `paint_portrait_to_dialog_area`) | 15 |
 | `rndmenu.c` | 選單格狀渲染 (`render_shop_item_grid`, `render_party_roster_grid`, `render_party_roster_with_item_stat_preview`, `render_save_slot_grid`, `render_promote_members/candidates_grid`, `render_recruitment_select_screen`, `render_chapter_intro_overlay/dialog_panels`, `render_battle_scene_with_portrait_grid_layout`) | 10 |
 | `palette.c` | VGA palette 直接操作 (`set_vga_palette_range`, `set_vga_palette_range_with_add`, `set_full_vga_palette_to_color`), fade in/out (`play_palette_fade_in`, `play_palette_fade_to_black`), over-bright pulse (`palette_overbright_settle_step_loop`), interpolation (`interpolate_palette_range_toward_color`), palette cycle (`update_palette_cycle_anim`, `tick_chapter_palette_animation`), palette remap (`apply_palette_remap_run`), blink pattern (`fill_palette_blink_pattern_6byte`) | 11 |
@@ -79,44 +79,44 @@
 
 | File | 包含的 function 類別 | fn |
 |------|---------------------|-----|
-| `aniwalk.c` | 角色移動動畫 (`walk_step_down/left/up/right`, `walk_path_animation_loop`), UI 面板滑入/滑出 (`slide_panel_*` 7 fn, `play_status_screen_outro_step`), tile event 動畫 (`tick_tile_event_animations`) | 14 |
+| `aniwalk.c` | 角色移動動畫 (`walk_step_down/left/up/right`, `walk_path_animation_loop`), UI 面板滑入/滑出 (`slide_panel_*` 7 fn, `render_status_screen_slide_frame`), tile event 動畫 (`tick_tile_event_animations`) | 14 |
 | `anicombt.c` | 戰鬥擊中/傷害/法術效果疊加動畫 (`animate_combat_hit_with_hp_drain`, `animate_attack_hit_sequence`, `animate_combat_speech_bubbles`, `show_damage_number`, `show_miss_indicator`, `animate_spell_impact_per_target`, `animate_spell_full_screen_flash`, `animate_spell_overlay_blink`, `animate_spell_projectile_paths`, `animate_status_effect_overlay_flicker`, `play_death_animation_and_mark_dead`, `animate_phase_banner_slide_in/out`) | 13 |
 | `anisummn.c` | 召喚法術動畫 tick 狀態機 (`tick_summon_spell_*`, `tick_summon_anim_variant_*`, `tick_sprite_animation_step`) | 10 |
 | `anicine.c` | 戰鬥/figani cinematics (`play_full_combat_cinematic`, `execute_combat_hit_cinematic`, `play_char_intro_zoom_anim`, `play_figani_char_intro_animation`, `play_figani_animation_loop`, `step_figani_pose_animation`, `animate_spell_hit_cinematic`, `display_cinematic_image_with_fade`) | 8 |
-| `anispell.c` | 施法 cinematic 序列 (`play_spell_cast_cinematic`, `play_spell_cast_sequence`, `cycle_sprite_anim_with_bg_frames`, `animate_bg_zoom_transition_in/out`, `play_ani_file_animation_sequence`) | 6 |
-| `aniend.c` | 結局/章節過場 (`play_ending_and_record_clear`, `play_game_ending_cinematic`, `play_final_chapter_30_ending`, `play_chapter_clear_fanfare`, `play_chapter_intro_sprite_slideshow`) | 5 |
-| `aniui.c` | UI/商店/金錢/教學動畫 (`animate_money_increment/decrement`, `animate_shop_transaction_feedback`, `animate_scroll_up/down_in_shop_dialog`, `animate_party_addition_with_appear_effect`, `animate_tutorial_dialog_intro_or_outro`, `tick_tutorial_progress_with_sfx`, `animate_screen_shake`, `animate_palette_flash_pulse_white`, `cinematic_warp_char_to_tile`) | 11 |
+| `anispell.c` | 施法 cinematic 序列 (`play_class_promotion_cinematic`, `play_spell_cast_sequence`, `cycle_sprite_anim_with_bg_frames`, `animate_bg_zoom_transition_in/out`, `play_ani_file_animation_sequence`) | 6 |
+| `aniend.c` | 結局/章節過場 (`title_attract_and_main_menu`, `play_game_ending_cinematic`, `play_final_chapter_30_ending`, `play_chapter_clear_fanfare`, `play_chapter_21_hidden_stage_unlock_cinematic`) | 5 |
+| `aniui.c` | UI/商店/金錢/教學動畫 (`animate_money_increment/decrement`, `animate_shop_transaction_feedback`, `animate_scroll_up/down_in_shop_dialog`, `animate_party_addition_with_appear_effect`, `animate_chapter_intro_dialog_wings`, `tick_walk_step_footstep_sfx`, `animate_screen_shake`, `animate_palette_flash_pulse_white`, `cinematic_warp_char_to_tile`) | 11 |
 | `anidec.c` | ANI.DAT frame decoder: palette chunk (`chunk_palette_fill_byte`, `chunk_palette_load_literal`, `chunk_palette_load_rle`, `chunk_palette_load_run_pairs`), row chunk (`chunk_row_fill_byte`, `chunk_row_copy_literal`, `chunk_row_decode_rle`), sparse chunk (`chunk_sparse_set_byte`, `chunk_sparse_set_run_byte`, `chunk_sparse_copy_literal`), target setup (`set_target_buffer`), frame dispatch (`decode_frame_bytes`) | 12 |
 
 ### `dialog/` — 對話系統
 
 | File | 包含的 function 類別 | fn |
 |------|---------------------|-----|
-| `dialog.c` | 對話場景 (`display_dialog_scene`, `text_dialog_typewriter_loop`, `assemble_dialog_frame_layered`), portrait (`portrait_blink_animation_step`, `play_dialog_open_animation`, `show_portrait_dialog_with_input`), cinematic text (`cinematic_scroll_text_up_for_special_scenes`, `scroll_text_screen_up_by_lines`), dialog 管理 (`cleanup_dialog_sprite_buffer`, `close_dialog_panels_then_slide_in_at`, `close_intro_dialog_with_slide_out`, `backup/restore_dialog_area_to/from_buffer`) | 14 |
+| `dialog.c` | 對話場景 (`display_dialog_scene`, `text_dialog_typewriter_loop`, `assemble_dialog_frame_layered`), portrait (`portrait_blink_animation_step`, `play_dialog_open_animation`, `show_portrait_dialog_with_input`), cinematic text (`scroll_portrait_dialog_text_up_one_line`, `scroll_text_screen_up_by_lines`), dialog 管理 (`cleanup_dialog_sprite_buffer`, `close_dialog_panels_then_slide_out_to_cursor`, `close_intro_dialog_with_slide_out`, `backup/restore_dialog_area_to/from_buffer`) | 14 |
 
 ### `audio/` — 音訊系統
 
 | File | 包含的 function 類別 | fn |
 |------|---------------------|-----|
-| `audio.c` | BGM 控制 (`set_bgm_track_with_fade`), SFX 播放 (`play_sfx_with_handle`, `play_sfx_sample_from_bank`), SFX 載入/釋放 (`load_status_effect_sfx`, `play_and_free_status_effect_sfx`, `load_figani_sfx_bank`) | 6 |
+| `audio.c` | BGM 控制 (`set_bgm_track_with_fade`), SFX 播放 (`play_sfx_with_handle`, `play_sfx_sample_from_bank`), SFX 載入/釋放 (`load_status_effect_sfx`, `stop_and_free_status_effect_sfx`, `load_figani_sfx_bank`) | 6 |
 
 ### `life/` — 遊戲生命週期
 
 | File | 包含的 function 類別 | fn |
 |------|---------------------|-----|
-| `main.c` | 程式進入點 (`main`), 主選單 (`main_menu_continue_dispatcher`), 讀檔初始化 (`load_save_and_init_engine`) | 3 |
+| `main.c` | 程式進入點 (`main`), 主選單 (`main_menu_dispatcher`), 讀檔初始化 (`load_save_and_init_engine`) | 3 |
 
 ### `save/` — 存檔系統
 
 | File | 包含的 function 類別 | fn |
 |------|---------------------|-----|
-| `save.c` | 存檔寫入 (`save_current_state_to_slot`, `save_runtime_char_to_template`), 讀檔 (`load_state_from_selected_slot`), 存檔 UI (`save_slot_selector_ui`), 加密/校驗 (`save_compute_checksum`, `save_crypt_buffer`), 戰場混淆 (`obfuscate_battle_tile_map`) | 7 |
+| `save.c` | 存檔寫入 (`save_current_state_to_slot`, `save_runtime_char_to_template`), 讀檔 (`load_state_from_selected_slot`), 存檔 UI (`save_slot_selector_ui`), 加密/校驗 (`save_compute_checksum`, `save_crypt_buffer`), 戰場混淆 (`battle_reset_tile_transient_state`) | 7 |
 
 ### `rsrc/` — 資源載入
 
 | File | 包含的 function 類別 | fn |
 |------|---------------------|-----|
-| `rsrc.c` | DAT 資源 (`load_dat_resource`), 章節資源 (`load_chapter_background_layers`, `load_chapter_battle_data`, `load_chapter_portraits_and_dump_tmp`, `load_chapter_portrait`, `load_chapter_party_roster`), portrait 快取 (`load_portrait_to_cache`, `restore_portrait_cache_from_tmp`), cinematic (`load_and_fade_in_cinematic_image`) | 9 |
+| `rsrc.c` | DAT 資源 (`load_dat_resource`), 章節資源 (`load_chapter_background_layers`, `load_chapter_battle_data`, `load_chapter_portraits_and_dump_tmp`, `dialog_open_speaker_portrait`, `load_chapter_shop_item_ids`), portrait 快取 (`load_portrait_to_cache`, `restore_portrait_cache_from_tmp`), cinematic (`load_and_fade_in_cinematic_image`) | 9 |
 
 ### `field/` — 章節系統
 
@@ -136,8 +136,8 @@
 |------|---------------------|-----|
 | `dpmi.c` | DPMI DOS 記憶體操作 (`dpmi_alloc/free_dos_memory`, `dpmi_lock/unlock_region`, `dpmi_lock/unlock_size`) | 6 |
 | `pathfnd.c` | 移動範圍洪水填充 (`init_movement_range_floodfill`, `flood_fill_movement_range_recursive`, `flood_fill_neighbor_step`), A* 路徑搜索 (`pathfind_to_destination`, `pathfind_recursive_with_direction`, `pathfind_neighbor_step_with_tiebreak`, `pathfind_record_destination_xy`, `pathfind_count_unique_directions`, `pathfind_check_destination_save_path`) | 9 |
-| `noop.c` | fall-through Pattern A 候選的 noop stub。`noop_stub_b43`/`c49`/`1011`/`1452`/`13994`/`15983` 已逐一確認為 DECOMPILER FRAGMENT（shared epilogue／return-tail），已改 `<fragment:inline-epilogue>` skip、不落在 noop.c。其餘 `noop_stub_4e915` 仍待各自 review 時逐一確認是否為 fragment（確認後比照前列改 skip） | 0 |
-| `misc.c` | Debug (`debug_print_ans_and_length`), 原子交換 (`set_word_global_52758/5275c`), 隊伍查詢 (`any_char_has_item`, `check_party_has_char_id`, `require_char_id_in_active_party`, `count_selected_chars`, `reorder_party_by_selection`, `pin_required_char_to_party_slot1`, `find_template_char_by_id`), delay (`delay_400ms_via_idle_thunk`) | 11 |
+| `noop.c` | fall-through Pattern A 候選的 noop stub。`noop_stub_b43`/`c49`/`1011`/`1452`/`13994`/`15983` 已逐一確認為 DECOMPILER FRAGMENT（shared epilogue／return-tail），已改 `<fragment:inline-epilogue>` skip、不落在 noop.c。其餘 `noop_ret_pad` 仍待各自 review 時逐一確認是否為 fragment（確認後比照前列改 skip） | 0 |
+| `misc.c` | Debug (`debug_print_ans_and_length`), 原子交換 (`ail_set_alloc_fnptr/5275c`), 隊伍查詢 (`any_char_has_item`, `check_party_has_char_id`, `require_char_id_in_active_party`, `count_selected_chars`, `reorder_party_by_selection`, `pin_required_char_to_party_slot1`, `find_template_char_by_id`), delay (`delay_400ms`) | 11 |
 
 ### `crt/` — CRT 等價函式
 
@@ -197,18 +197,18 @@ python -c "import json; d=json.load(open('tools/code_emit/data/routing.json')); 
    Plate 描述：per-frame game event handler，處理 keyboard dispatch + cursor + action menu + status screen。Plan 原本就把它歸在 menu_core。
 
 6. **`fd2_load_save_and_init_engine` → life/main.c**
-   主要 LOAD GAME 路徑，caller 是 main_menu_continue_dispatcher。屬 lifecycle entry point。
+   主要 LOAD GAME 路徑，caller 是 main_menu_dispatcher。屬 lifecycle entry point。
 
 7. **`fd2_slide_panel_*` (7 fn) → anim/aniwalk.c**
    Plate 確認：row-copy helper for UI panel slide animations。被 status screen / dialog 的 slide-in/out 動畫呼叫。歸類為 animation helper（anim 子檔切分後落在 aniwalk.c）。
 
-8. **`fd2_set_word_global_52758/5275c` → util/misc.c**
+8. **`fd2_ail_set_alloc_fnptr/5275c` → util/misc.c**
    0 callers，CRT-style atomic swap primitives。保留在 misc utilities。
 
-9. **`fd2_delay_400ms_via_idle_thunk` → util/misc.c**
+9. **`fd2_delay_400ms` → util/misc.c**
    Simple delay wrapper (PUSH 400, CALL __delay_thunk)。被 cinematic functions 呼叫。
 
-10. **`fd2_obfuscate_battle_tile_map` → save/save.c**
+10. **`fd2_battle_reset_tile_transient_state` → save/save.c**
     與 save_compute_checksum / save_crypt_buffer 同屬 save 資料處理 pipeline。
 
 11. **`fd2_play_palette_fade_in/to_black` → gfx/palette.c**
@@ -252,7 +252,7 @@ python -c "import json; d=json.load(open('tools/code_emit/data/routing.json')); 
 
 16. **`fd2_noop_stub_13994` (0x13994) → `<fragment:inline-epilogue>` (skip)**
     DECOMPILER FRAGMENT：純 caller-frame unwind（ADD ESP 0x5C / POP EBP/EDI/ESI/EBX / RET，locals=0x5C + 4 saved regs；
-    call_count=0、param_count=0、cyclomatic=1），僅被唯一 parent `fd2_play_ending_and_record_clear` (JMP @0x1ff74) 共用；
+    call_count=0、param_count=0、cyclomatic=1），僅被唯一 parent `fd2_title_attract_and_main_menu` (JMP @0x1ff74) 共用；
     該 JMP 為 parent 最後一條指令，其前一條 `MOV EAX,EBP` (@0x1ff72) 先把回傳值載入 EAX 再跳入 epilogue。
     site bytes @0x1ff72 = `89 e8 e9 1b 3a ff ff`：opcode `0xE9` 為 near JMP、非 `0xE8` CALL（Ghidra `get_xrefs_to` 標
     `UNCONDITIONAL_CALL` 是 display quirk，opcode 實為 JMP）。parent prologue `PUSH EBX/ESI/EDI/EBP` + `SUB ESP,0x5c`

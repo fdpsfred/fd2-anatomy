@@ -63,8 +63,8 @@ LLLLLL archive (詳 `overview.md`):
 | Callsite | 函式 | 條件 | 目標 buffer |
 |---|---|---|---|
 | `0x25D07` | `main` | 程式啟動 (一次性) | `all_game_text @ 0x53A7D` ← idx 0 |
-| `0x108B7` | `fd2_load_chapter_battle_data` | 每章開戰前 | `data_fd2_current_chapter_text @ 0x53A79` ← idx = chapter_id + 1 |
-| `0x101E9` | `fd2_load_save_and_init_engine` | save 載入 | `data_fd2_current_chapter_text` ← idx = chapter_id + 1 |
+| `0x108B7` | `fd2_load_chapter_battle_data` | 每章開戰前 | `data_fd2_current_chapter_text_ptr @ 0x53A79` ← idx = chapter_id + 1 |
+| `0x101E9` | `fd2_load_save_and_init_engine` | save 載入 | `data_fd2_current_chapter_text_ptr` ← idx = chapter_id + 1 |
 
 ## Entry payload layout
 
@@ -104,7 +104,7 @@ LLLLLL archive (詳 `overview.md`):
 | `0xFFEC` | `PORTRAIT_RIGHT_BY_CHAR` | 1 (runtime_char_array idx) | 右側 portrait (同上) |
 
 任何 < `0xFFEC` 的 u16 都被解讀為 `TEXT_CHARACTER`，直接傳入
-`fd2_blit_glyph_2bpp_with_outline(code = u16, atlas = chinese_font_sheet, ...)`
+`fd2_blit_glyph_1bpp_with_outline(code = u16, atlas = chinese_font_sheet, ...)`
 渲染一個字模。
 
 ### 控制碼出現次數 (across 1016 pages, 51155 glyphs)
@@ -146,9 +146,9 @@ glyph_id 渲染英文/數字/符號。`NUMBER` opcode 內部從 `0x5014C` 讀 sp
 - `fd2_play_dialog_open_animation` — 5-stage 對話框 slide-in
 - `fd2_paint_portrait_to_dialog_area` — speaker 切換 (mirrored vs normal blit)
 - `fd2_wait_for_input_dialog_with_blink` — ▼ 按鍵提示動畫
-- `fd2_blit_glyph_2bpp_with_outline` — 16×16 字模渲染 (含 outline)
-- `fd2_cinematic_scroll_text_up_for_special_scenes` — `LINE_ADVANCE` / `PAGE_BREAK` 在 portrait active 且 line_count==3 時觸發的 scroll-up
-- `fd2_close_dialog_panels_then_slide_in_at` — `END` 後 slide-out
+- `fd2_blit_glyph_1bpp_with_outline` — 16×16 字模渲染 (含 outline)
+- `fd2_scroll_portrait_dialog_text_up_one_line` — `LINE_ADVANCE` / `PAGE_BREAK` 在 portrait active 且 line_count==3 時觸發的 scroll-up
+- `fd2_close_dialog_panels_then_slide_out_to_cursor` — `END` 後 slide-out
 
 ## 內容 dump
 

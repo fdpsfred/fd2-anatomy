@@ -50,7 +50,7 @@ per pose entry:
 
 - `data_fd2_animation_spell_sprite_offset_table @ 0x51F33`
 - `data_fd2_animation_spell_frame_count_table @ 0x51F54`
-- `data_fd2_animation_spell_sfx_frame_table @ 0x51F75`
+- `data_fd2_animation_spell_sfx_id_table @ 0x51F75`
 
 ## Panel / Dialog slide 動畫
 
@@ -60,7 +60,7 @@ per pose entry:
 | `0x1839B` | `fd2_slide_panel_up_partial_step` | status screen 上升 (7 frame) |
 | `0x182AD` | `fd2_paint_status_panel_layer_left` | 86×86 row blit |
 | `0x18312` | `fd2_paint_status_panel_layer_right` | 86×223 row blit |
-| `0x18409` | `fd2_play_status_screen_outro_step` | 12-frame symmetric close |
+| `0x18409` | `fd2_render_status_screen_slide_frame` | 12-frame symmetric close |
 
 ## 死亡與爆炸動畫
 

@@ -62,7 +62,7 @@ Shared minimal init (同 ch19/20)：
 5. **if `iVar5 == 6`** (全 6 件物品都被某個 char 持有)：
    - 內層迴圈移除全部 6 件 item (`fd2_remove_inventory_slot_at`)
    - `fd2_give_item_to_first_player_char(100)` — **發放 item 100 = 天空之鑰**
-   - `fd2_display_dialog_scene(page=7)` + `fd2_cutscene_event_trigger(0x3F)` + `fd2_display_dialog_scene(page=8)` + `fd2_cutscene_event_trigger(0x40)` + `fd2_display_dialog_scene(page=9)` + `fd2_play_chapter_intro_sprite_slideshow(...)` (特殊 cinematic)
+   - `fd2_display_dialog_scene(page=7)` + `fd2_cutscene_event_trigger(0x3F)` + `fd2_display_dialog_scene(page=8)` + `fd2_cutscene_event_trigger(0x40)` + `fd2_display_dialog_scene(page=9)` + `fd2_play_chapter_21_hidden_stage_unlock_cinematic(...)` (特殊 cinematic)
    - 後續 dialog 設 typewriter_mode=0x4A、page=10 (與 std page 6 不同的 dialog 渲染)
 6. **Else** (沒收齊 6 件)：`fd2_display_dialog_scene(page=6)` (標準分支)
 7. (兩路徑合流) `fd2_display_dialog_scene` 用條件決定的 page (10 若收齊 / 6 若未收齊)

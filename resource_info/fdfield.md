@@ -122,7 +122,7 @@ endgame_ch32 的 char_spawn_count = 30 但實際 file payload 含 40 records (10
 額外 = 260 bytes)。
 
 **Loader 行為**：`fd2_load_chapter_portraits_and_dump_tmp @ 0x10b4e` 的核心 loop
-用 `portrait_cache_alloc_offset = char_spawn_count` (header byte +2) 當迭代
+用 `field_char_record_count = char_spawn_count` (header byte +2) 當迭代
 上限：
 
 ```

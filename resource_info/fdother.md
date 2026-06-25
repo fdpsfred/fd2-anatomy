@@ -15,8 +15,8 @@ sub-entries 各自獨立索引。
 
 | idx | 全域變數 | 用途 | 大小 |
 |---|---|---|---|
-| 0x01 | `runtime_battle_state_at_53a4d @ 0x53A4D` | battle tile sprite table | 33,415 |
-| 0x02 | `menu_dialog_state_handle @ 0x53A89` | menu dialog state | 37,680 |
+| 0x01 | `data_fd2_cursor_highlight_sprite_sheet_ptr @ 0x53A4D` | battle tile sprite table | 33,415 |
+| 0x02 | `data_fd2_menu_dialog_box_sprite_sheet_ptr @ 0x53A89` | menu dialog state | 37,680 |
 | 0x03 | `tile_anim_table_base @ 0x53A6D` | tile 動畫表 (LMI1 magic) | 5,990 |
 | **0x04** | `chinese_font_sheet @ 0x53A75` | **1bpp 中文字模 (1824 glyphs × 32 bytes)** | 58,368 |
 | 0x05 | `ui_and_anim_sprite_sheet @ 0x53A81` | UI / 動畫 sprite sheet (LMI1 magic) | 44,181 |
@@ -24,7 +24,7 @@ sub-entries 各自獨立索引。
 | **0x1F** | `data_fd2_audio_fdother_sfx_bank_buf_ptr @ 0x53EEC` | nested archive (13 sub-entries) UI sprite + sfx | 31,771 |
 
 `chinese_font_sheet` 是 **1bpp** (58368 ÷ 1824 ÷ 32 = 1.0)。
-`fd2_blit_glyph_2bpp_with_outline @ 0x4EA2A` 命名指 **output buffer** 是 2bpp
+`fd2_blit_glyph_1bpp_with_outline @ 0x4EA2A` 命名指 **output buffer** 是 2bpp
 (fill + outline 兩 channel)，input glyph 是 1bpp。
 
 ## 章節載入靜態 (chapter_id-dispatched)
@@ -33,9 +33,9 @@ sub-entries 各自獨立索引。
 |---|---|---|
 | 0x09 | `fd2_animate_party_addition_with_appear_effect` | 角色加入動畫 |
 | 0x0A | `fd2_chapter_transition_menu` | chapter_transition_menu_panel_buffer |
-| 0x0D | `fd2_chapter_transition_menu` / `fd2_main_menu_continue_dispatcher` / `fd2_run_chapter_intro_menu_typeB` | chapter intro sprite atlas |
+| 0x0D | `fd2_chapter_transition_menu` / `fd2_main_menu_dispatcher` / `fd2_run_chapter_intro_menu_typeB` | chapter intro sprite atlas |
 | 0x0E | `fd2_run_chapter_intro_menu_typeC` | chapter intro typeC sprites |
-| 0x22 | `fd2_play_chapter_intro_sprite_slideshow` | chapter intro slideshow |
+| 0x22 | `fd2_play_chapter_21_hidden_stage_unlock_cinematic` | chapter intro slideshow |
 | 0x2A | `fd2_load_chapter_background_layers` | chapter background |
 | 0x2D | `fd2_chapter_event_handler_3d__ch26_pickup` | ch26 pickup 動畫 |
 | 0x4F | `fd2_play_chapter_clear_fanfare` | chapter clear fanfare |
@@ -45,17 +45,17 @@ sub-entries 各自獨立索引。
 
 | idx | caller | 用途 |
 |---|---|---|
-| 0x07 | `fd2_play_ending_and_record_clear` | nested archive 7 sub-entries — ending sprite group |
-| 0x08 | `fd2_play_ending_and_record_clear` | ending sprite group |
+| 0x07 | `fd2_title_attract_and_main_menu` | nested archive 7 sub-entries — ending sprite group |
+| 0x08 | `fd2_title_attract_and_main_menu` | ending sprite group |
 | 0x36 | `fd2_play_game_ending_cinematic` | 263 KB RLE 320×200 cinematic image |
 | 0x38 | `fd2_play_final_chapter_30_ending` | final chapter 30 ending image |
 | 0x39, 0x3A, 0x3B, 0x3C | `fd2_play_game_ending_cinematic` | game ending cinematic 4 連續 idx |
-| 0x4A, 0x4C | `fd2_play_ending_and_record_clear` | ending sequence images |
-| 0x4D | `fd2_play_ending_and_record_clear` | nested archive 4 sub-entries — ending image bank |
+| 0x4A, 0x4C | `fd2_title_attract_and_main_menu` | ending sequence images |
+| 0x4D | `fd2_title_attract_and_main_menu` | nested archive 4 sub-entries — ending image bank |
 | 0x4E | `fd2_play_ani_file_animation_sequence` | nested archive 1 sub-entry — ANI 配套 SFX |
-| 0x63 | `fd2_play_ending_and_record_clear` | ending text/banner image |
-| **0x65** | `fd2_display_cinematic_image_with_fade` (×4) + `fd2_play_ending_and_record_clear` | VGA palette (768 bytes = 256 × 3 RGB DAC) |
-| 0x66 | `fd2_play_ending_and_record_clear` | ending image |
+| 0x63 | `fd2_title_attract_and_main_menu` | ending text/banner image |
+| **0x65** | `fd2_display_cinematic_image_with_fade` (×4) + `fd2_title_attract_and_main_menu` | VGA palette (768 bytes = 256 × 3 RGB DAC) |
+| 0x66 | `fd2_title_attract_and_main_menu` | ending image |
 
 ## SFX / Animation 群組靜態
 
@@ -87,7 +87,7 @@ FDOTHER bg image idx：
 `fd2_load_dat_resource(... "FDOTHER.DAT", NULL, spell_id + 0x21)` 對 summon spells
 spell_id ∈ {0x20, 0x21, 0x22, 0x23} → FDOTHER idx **0x41 / 0x42 / 0x43 / 0x44**。
 
-### main_iter loop (`fd2_play_ending_and_record_clear`)
+### main_iter loop (`fd2_title_attract_and_main_menu`)
 
 ending 序列 loop `for(main_iter=0..8) load("FDOTHER", main_iter+0x45)` →
 FDOTHER idx **0x45..0x4D** (9 entries 連續 image sequence)。
@@ -137,7 +137,7 @@ instruction 範圍內：
 
 | outer idx | size (bytes) | sub-entries | 用途 |
 |---|---|---|---|
-| 0x07 | 23377 | 7 | ending sprite (`fd2_play_ending_and_record_clear`) |
+| 0x07 | 23377 | 7 | ending sprite (`fd2_title_attract_and_main_menu`) |
 | 0x0C | 51759 | 28 | dynamic |
 | 0x1F | 31771 | 13 | UI sprite + sfx (`main` 啟動) |
 | 0x30 | 24183 | 6 | dynamic |

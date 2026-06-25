@@ -19,7 +19,7 @@ offset  size  field             意義
                                  (0x5412B)；hotkey 命中後該 state 跳為 5
 +2      1     bHotkey_scancode  特殊 commit hotkey 的鍵盤 scancode
 +3      12    bWeapons[12]      武器店 item IDs (0xFF = 空 slot)
-                                 對應 fd2_load_chapter_party_roster 的 state==1 路徑
+                                 對應 fd2_load_chapter_shop_item_ids 的 state==1 路徑
                                  (cap 12, src_offset 0x03)
 +15     8     bItems[8]         道具店 item IDs (0xFF = 空)
                                  state==3 (cap 8, src_offset 0x0F)

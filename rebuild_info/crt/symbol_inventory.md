@@ -66,9 +66,9 @@ dpmi / init / time / errno / signal / stream I/O / math 等）皆已歸 lookup
 - `crt_equivalent_get_eflags_thunk @ 0x37F86`
 
 **LX module loader chain (3)** — Watcom CRT 帶入但 FD2 從未呼叫的 dead loader code (LX format magic "LX\0\0" at [0x502f0])：
-- `crt_equivalent_lx_chunk_read_36107 @ 0x36107` — 87B chunk reader, dual-source dispatch (memcpy 或 lseek+read)
-- `crt_equivalent_lx_header_reader_36344 @ 0x36344` — 311B LX header reader (open + 0x40-byte MZ + 4-byte LX magic + 0xac LX header + 0x18-byte object table)
-- `crt_equivalent_lx_module_loader_3647b @ 0x3647B` — 1151B 完整 LX loader (header + page table + fixup application + buffer alloc via [0x52758])
+- `crt_equivalent_lx_chunk_read @ 0x36107` — 87B chunk reader, dual-source dispatch (memcpy 或 lseek+read)
+- `crt_equivalent_lx_header_reader @ 0x36344` — 311B LX header reader (open + 0x40-byte MZ + 4-byte LX magic + 0xac LX header + 0x18-byte object table)
+- `crt_equivalent_lx_module_loader @ 0x3647B` — 1151B 完整 LX loader (header + page table + fixup application + buffer alloc via [0x52758])
 
 註：原列入此段的 `softfp_tan_worker_4c630 @ 0x4C630` 已重分類為
 `crt_emu387_int7_fptan_opcode_worker_4c630`，**不再屬 `crt_equivalent_*`**，emit_action
@@ -86,11 +86,11 @@ link_vendor_lib function）。
 @ 0x4DA53 / `L_Bin2String_alt_127_getip_landing` @ 0x4DB08），歸 lookup 真名，不再屬 crt_equivalent。
 
 **FPE / matherr / linker padding stub (5)**：
-- `crt_equivalent_exit_chain_stub_36de3 @ 0x36DE3` — Watcom CRT atexit chain 1B RET
-- `crt_equivalent_fpe_default_handler_3d26e @ 0x3D26E` — FPE exception default 1B RET
+- `crt_equivalent_atexit_default_stub @ 0x36DE3` — Watcom CRT atexit chain 1B RET
+- `crt_equivalent_fpe_default_handler @ 0x3D26E` — FPE exception default 1B RET
 - `crt_equivalent_linker_padding_4cbce @ 0x4CBCE` — linker leftover, zero xref
-- `crt_equivalent_matherr_default_thunk_4d340 @ 0x4D340` — 5B JMP thunk to matherr_default_return_zero
-- `crt_equivalent_matherr_default_return_zero_4d8ea @ 0x4D8EA` — `_matherr` default "ignore" path
+- `crt_equivalent_matherr_default_thunk @ 0x4D340` — 5B JMP thunk to matherr_default_return_zero
+- `crt_equivalent_matherr_default_return_zero @ 0x4D8EA` — `_matherr` default "ignore" path
 
 ### 8 個 `fd2_*` CRT-style primitive
 
@@ -103,8 +103,8 @@ link_vendor_lib function）。
 - `fd2_dpmi_unlock_size @ 0x3632D`
 
 **FD2 global accessors (2)**：
-- `fd2_set_word_global_52758 @ 0x3615E`
-- `fd2_set_word_global_5275c @ 0x3616E`
+- `fd2_ail_set_alloc_fnptr @ 0x3615E`
+- `fd2_ail_set_free_fnptr @ 0x3616E`
 
 註：原 `fd2_filesize_path @ 0x36900` 與 `fd2_get_word_global_52754 @ 0x368FA`
 已 reclassify 為 AIL pool（`AIL_internal_filesize_path` / `AIL_get_last_error_code`），

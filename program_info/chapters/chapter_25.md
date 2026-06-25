@@ -26,7 +26,7 @@
    - 第 1、2、3 次：strength = 0x14
    - 第 4 次：strength = 0x3C (3 倍長度 climax)
 8. `fd2_display_dialog_scene(page=2)`
-9. `fd2_pan_cursor_to_char(0)` + `fd2_play_and_free_status_effect_sfx`
+9. `fd2_pan_cursor_to_char(0)` + `fd2_stop_and_free_status_effect_sfx`
 
 Page 0 在此 init 路徑未被引用，可能保留給 alternate dialog beat。
 

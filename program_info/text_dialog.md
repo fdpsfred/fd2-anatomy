@@ -7,9 +7,9 @@
 
 ```
 fd2_display_dialog_scene(text_resource, page_id, font_sheet, ...)
-  ├─ fd2_load_chapter_portrait        ← 載入講者 DATO.DAT 資料
+  ├─ fd2_dialog_open_speaker_portrait        ← 載入講者 DATO.DAT 資料
   ├─ fd2_play_dialog_open_animation   ← 5-stage 對話框組裝 (含 cursor→origin 插值)
-  ├─ fd2_blit_glyph_2bpp_with_outline ← 逐字繪製 (中文 + ASCII)
+  ├─ fd2_blit_glyph_1bpp_with_outline ← 逐字繪製 (中文 + ASCII)
   ├─ fd2_paint_portrait_to_dialog_area ← 切換講者時的肖像
   └─ fd2_wait_for_input_dialog_with_blink ← ▼ 按任意鍵繼續 (18.2Hz 動畫提示)
 ```
@@ -23,8 +23,8 @@ fd2_display_dialog_scene(text_resource, page_id, font_sheet, ...)
 | `0x165AC` | `fd2_play_dialog_open_animation` | 5-stage 對話框組裝動畫 |
 | `0x16559` | `fd2_paint_portrait_to_dialog_area` | speaker 切換 blit |
 | `0x16C57` | `fd2_wait_for_input_dialog_with_blink` | ▼ 按鍵提示動畫 |
-| `0x1956B` | `fd2_load_chapter_portrait` | DATO.DAT 載入 + slide-down |
-| `0x4EA2A` | `fd2_blit_glyph_2bpp_with_outline` | 16×16 字模渲染含 outline |
+| `0x1956B` | `fd2_dialog_open_speaker_portrait` | DATO.DAT 載入 + slide-down |
+| `0x4EA2A` | `fd2_blit_glyph_1bpp_with_outline` | 16×16 字模渲染含 outline |
 | `0x168B6` | `fd2_assemble_dialog_frame_layered` | 17-tile 9-slice 對話框組裝 |
 | `0x1366A` | `fd2_cutscene_event_trigger` | 按章節小整數觸發音樂/動畫/事件 milestone |
 
@@ -38,7 +38,7 @@ fd2_display_dialog_scene(text_resource, page_id, font_sheet, ...)
 - `0xFFFD` PAGE_BREAK：推進到下一行後 paint portrait 並等使用者按鍵後繼續
 - `0xFFFC..0xFFFA` 系列 / `0xFFEC..0xFFEF` 系列：sub-dialog 遞迴、數字代入、portrait swap 等
 - 任何 < 0xFFEC 的 u16 = 直接的 glyph_id，索引 `chinese_font_sheet`
-  (FDOTHER.DAT[4]) 中對應字模，呼 `fd2_blit_glyph_2bpp_with_outline` 渲染
+  (FDOTHER.DAT[4]) 中對應字模，呼 `fd2_blit_glyph_1bpp_with_outline` 渲染
 
 完整 opcode 清單與每個 opcode 的語意見 `resource_info/fdtxt.md`。
 
@@ -60,7 +60,7 @@ DAT_00053B17[N]     = 第 N 個 cached portrait_id (線性比對用)
 
 ## 字模渲染
 
-`fd2_blit_glyph_2bpp_with_outline` 接 16×16 字模，從 packed 2bpp 格式渲染：
+`fd2_blit_glyph_1bpp_with_outline` 接 16×16 字模，從 packed 2bpp 格式渲染：
 1. 第 1 階段：可選背景色填 16×16 矩形
 2. 第 2 階段：scan 16 rows × 16 bits；每 set bit 寫 `fill_color`，並在右下角加
    `outline_color` 像素 (產生 1-pixel outline 立體效果)
@@ -82,7 +82,7 @@ DAT_00053B17[N]     = 第 N 個 cached portrait_id (線性比對用)
 ## Speaker 切換
 
 `fd2_paint_portrait_to_dialog_area(portrait_idx)`：
-- 從 `portrait_sprite_buffer @ 0x53A85` 抽 sprite
+- 從 `portrait_sprite_buf_ptr @ 0x53A85` 抽 sprite
 - 依 `dialog_portrait_mode @ 0x53C67` 決定目標位置：
   - `0x9017` (友方) → mirror blit (`fd2_dialog_sprite_blit_mirrored`，向左面向)
   - 其他 → normal blit (`fd2_dialog_sprite_blit_normal`，向右面向)
@@ -108,14 +108,14 @@ DAT_00053B17[N]     = 第 N 個 cached portrait_id (線性比對用)
 | `0x53C57` | `current_menu_cursor_idx` (modal 共用) |
 
 各章節有 5 個專屬 portrait 位置 (kind 0x80-0x84) 對應 boss 等特殊角色，見
-`fd2_load_chapter_portrait` 的 switch。
+`fd2_dialog_open_speaker_portrait` 的 switch。
 
 ## 文字資源 globals
 
 | 位址 | 名稱 |
 |---|---|
 | `0x53A7D` | `all_game_text` (main 載入的全文字 buffer，FDTXT idx 0，661 pages 全遊戲共用) |
-| `0x53A79` | `data_fd2_current_chapter_text` (每章自己的文字資源，FDTXT idx = chapter_id+1) |
+| `0x53A79` | `data_fd2_current_chapter_text_ptr` (每章自己的文字資源，FDTXT idx = chapter_id+1) |
 
 `fd2_display_dialog_scene` 第 5 個參數 = `page_id`，索引到對應 chapter_text 中的對話頁。
 

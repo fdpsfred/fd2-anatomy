@@ -43,7 +43,7 @@ crt_entry_start (0x3C964)
          ├─ malloc 大型 buffer (game state 152 KB 等)
          └─ outer loop:
              ├─ draw_main_menu
-             ├─ main_menu_continue_dispatcher (NEW GAME / CONTINUE)
+             ├─ main_menu_dispatcher (NEW GAME / CONTINUE)
              ├─ if entered game:
              │   ├─ chapter_init_jump_table[chapter_id]() — 30 章 init
              │   └─ inner per-chapter loop:
@@ -77,7 +77,7 @@ crt_entry_start (0x3C964)
 | **field_map** | 60 個 chapter init/end handlers, fd2_chapter_transition_menu | jump tables |
 | **battle** | fd2_attack_action_dispatch (AI 三路 score), 12-class enemy AI dispatcher | fd2_enemy_turn_phase_team0 |
 | **ui_menu** | fd2_game_main_loop, cursor moves, fd2_player_action_menu_loop, fd2_field_command_menu_loop | scancode dispatch |
-| **text_dialog** | fd2_display_dialog_scene, fd2_blit_glyph_2bpp_with_outline, portrait cache | fd2_display_dialog_scene |
+| **text_dialog** | fd2_display_dialog_scene, fd2_blit_glyph_1bpp_with_outline, portrait cache | fd2_display_dialog_scene |
 | **animation** | fd2_play_figani_animation_loop, slide animations | spell/cinematic 執行 |
 | **graphics** | fd2_rle_blit_sprite, fd2_blit_rectangle, fd2_composite_battle_tile_map | fd2_composite_battle_frame |
 | **audio** | AIL wrappers + fd2_play_sfx_with_handle | per-event |

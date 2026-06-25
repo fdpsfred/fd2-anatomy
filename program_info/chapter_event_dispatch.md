@@ -188,7 +188,7 @@ ch27 / 28 / 29 / 30 的「turn=0xFF 但 event_code 非 0xFF」entries 是動態�
 | 0x3C | `0x00035675` | `fd2_chapter_event_handler_3c__ch26_ai_ctrl` | ai_setup | ch26 | 1 |
 | 0x3D | `0x000356B7` | `fd2_chapter_event_handler_3d__ch26_pickup` | item_pickup | ch26 | 1 |
 | 0x3E | `0x00035898` | `fd2_chapter_event_handler_3e__ch27_dyn_turn_event` | state_machine_mutator | ch27 | 1 |
-| 0x3F | `0x000358C7` | `fd2_chapter_event_handler_3f__ch27_ai_ctrl` | ai_setup | ch27 | 1 |
+| 0x3F | `0x000358C7` | `fd2_chapter_event_handler_3f__ch27_cinematic` | ai_setup | ch27 | 1 |
 | 0x40 | `0x000358EA` | `fd2_chapter_event_handler_40__unref_dyn_turn_event` | state_machine_mutator | - | 0 |
 | 0x41 | `0x0003599B` | `fd2_chapter_event_handler_41__shared_dyn_turn_event` | state_machine_mutator | ch27, ch28 | 2 |
 | 0x42 | `0x000359C8` | `fd2_chapter_event_handler_42__ch28_dialog_with_state` | dialog_with_state | ch28 | 1 |
@@ -197,7 +197,7 @@ ch27 / 28 / 29 / 30 的「turn=0xFF 但 event_code 非 0xFF」entries 是動態�
 | 0x45 | `0x00035AB8` | `fd2_chapter_event_handler_45__ch28_dyn_turn_event` | state_machine_mutator | ch28 | 1 |
 | 0x46 | `0x00035B05` | `fd2_chapter_event_handler_46__ch28_dialog_with_state` | dialog_with_state | ch28 | 1 |
 | 0x47 | `0x00035B6B` | `fd2_chapter_event_handler_47__unref_dyn_turn_event` | state_machine_mutator | - | 0 |
-| 0x48 | `0x00035BF2` | `fd2_chapter_event_handler_48__unref_ai_ctrl` | ai_setup | - | 0 |
+| 0x48 | `0x00035BF2` | `fd2_chapter_event_handler_48__unref_portrait_cinematic_pair` | ai_setup | - | 0 |
 | 0x49 | `0x00035C23` | `fd2_chapter_event_handler_49__unref_sentinel` | sentinel | - | 0 |
 | 0x4A | `0x00035C32` | `fd2_chapter_event_handler_4a__ch29_dyn_turn_event` | state_machine_mutator | ch29 | 1 |
 | 0x4B | `0x00035C79` | `fd2_chapter_event_handler_4b__ch29_major_cinematic` | major_endgame_cinematic | ch29 | 1 |
@@ -218,8 +218,8 @@ ch27 / 28 / 29 / 30 的「turn=0xFF 但 event_code 非 0xFF」entries 是動態�
 
 ## Handler 重要結構性發現
 
-1. **53 / 90 handler 用 `data_fd2_current_chapter_text`**：呼
-   `fd2_display_dialog_scene(data_fd2_current_chapter_text, page_id)`，FDTXT 入口 idx 在
+1. **53 / 90 handler 用 `data_fd2_current_chapter_text_ptr`**：呼
+   `fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, page_id)`，FDTXT 入口 idx 在
    chapter init 時設定。同一 handler 若被 N 個 chapter 用，產生 N 個 page→scene
    mapping。
 2. **idx 0x3A 例外用 `all_game_text`**：唯一的 pickup 處理 handler，呼

@@ -87,7 +87,7 @@ modal UI 含 spell list overlay。3-buffer slide-in 動畫：
 4. 若有 spell：7-frame slide-in (`paint_status_panel_layer_left/right` 階段
    + `FUN_0001839B` slide step) → `fd2_draw_spell_selection_list` 唯讀顯示 → 7-frame
    slide-out
-5. 12-frame outro 透過 `fd2_play_status_screen_outro_step`
+5. 12-frame outro 透過 `fd2_render_status_screen_slide_frame`
 
 ## 輸入等待
 

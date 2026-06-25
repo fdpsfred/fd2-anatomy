@@ -71,7 +71,7 @@ A0 3D 00 00  pose_offset[3] = 0x3DA0 (15776)
 |---|---|---|
 | `data_fd2_animation_spell_sprite_offset_table` | 0x51F33 | sprite frame 偏移 |
 | `data_fd2_animation_spell_frame_count_table` | 0x51F54 | frame count |
-| `data_fd2_animation_spell_sfx_frame_table` | 0x51F75 | SFX 觸發 frame index |
+| `data_fd2_animation_spell_sfx_id_table` | 0x51F75 | SFX 觸發 frame index |
 
 這三張 table 並非直接 index FIGANI，而是控制 `animate_spell_impact_per_target`
 內 per-spell sprite frame loop 的參數（FIGANI 載入由 `fd2_play_spell_cast_sequence`
@@ -85,7 +85,7 @@ A0 3D 00 00  pose_offset[3] = 0x3DA0 (15776)
 | `fd2_execute_summon_spell_cast` | caster_portrait × 3 (basic) + spell_id-derived |
 | `fd2_play_full_combat_cinematic` | defender_portrait × 3, attacker_portrait × 3 |
 | `fd2_play_spell_cast_sequence` | char_portrait × 3 (caster), char_portrait × 3 + 2 (alt) |
-| `fd2_play_spell_cast_cinematic` | spell_id × 3 |
+| `fd2_play_class_promotion_cinematic` | spell_id × 3 |
 | `fd2_play_figani_char_intro_animation` | figani_idx (caller-passed) |
 | `fd2_play_final_chapter_30_ending` | iVar6 (loop-based portrait sequence) |
 

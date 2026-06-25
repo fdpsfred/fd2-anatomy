@@ -289,7 +289,7 @@ handler，但機制完全不同：
    - `1` = GOLD：dialog 0x1B3 / `party_total_gold += amount`
    - `2` = BATTLE EVENT CONSEQUENCE：**直接** `(*data_fd2_battle_ai_post_action_consequence_table[ushort_value])()`
      呼叫 handler，**不**寫入 `data_fd2_battle_ai_post_action_consequence_idx` global
-   - `3` = SCRIPTED DIALOG：`fd2_display_dialog_scene(data_fd2_current_chapter_text, page=ushort_value, ...)`
+   - `3` = SCRIPTED DIALOG：`fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, page=ushort_value, ...)`
 
 ### 為什麼 type 2 不走 Path 1？
 

@@ -23,7 +23,7 @@ ASCII (`0x20..0x7E`) 在 atlas 中對應 ASCII 字模，可直接用 ASCII 碼�
 
 ## 字模渲染
 
-由 `fd2_blit_glyph_2bpp_with_outline @ 0x4EA2A` 渲染。命名「2bpp_with_outline」指
+由 `fd2_blit_glyph_1bpp_with_outline @ 0x4EA2A` 渲染。命名「2bpp_with_outline」指
 output buffer 是 2bpp (fill + outline 兩 channel)，**input glyph 本身是 1bpp**
 (58368 ÷ 1824 ÷ 32 = 1.0)。
 
