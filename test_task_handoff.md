@@ -1,7 +1,8 @@
 # FD2 測試重寫 — 交接文件
 
 `tests/` 從「1758 個 per-function spy 單元測試」完全重寫成「決定論 playthrough 整合測試系統」。
-本檔讓新 session 零 context 接續。**最新測試里程碑 commit:`9dc4dc3`(P3-E 戰鬥傷害 oracle)**。
+舊 per-function spy 套件已退役到 `legacy/tests_unit_spy/`,只保留一層凍結 logic net(見 §5)。
+本檔讓新 session 零 context 接續。**最新測試里程碑 commit:`41e8d64e`(spy 退役 + logic net,接 P3-E oracle `9dc4dc3`)**。
 未追蹤檔 `.claude/skills/anthropic_agent_sdk/` 與本任務無關,別提交。
 
 ---
@@ -76,6 +77,9 @@ python tools/fd2_play/compare.py --scenario <name> --out A --against <full path 
 # 跑整個 regression 套件(只跑有 golden 者)
 python tools/fd2_play/run_all.py
 
+# 跑凍結 logic net 單元測試(rng/checksum/crypt/表 accessor,前景跑;末行應 Results: N passed, 0 failed)
+python tools/code_emit/build_test.py
+
 # 編正式遊戲(不帶測試開關;驗證生產純度)
 python tools/fd2_build/build_fd2.py
 ```
@@ -126,6 +130,22 @@ python tools/fd2_build/build_fd2.py
 ---
 
 ## 5. Code 現況
+
+測試分兩層:(一) 決定論 playthrough 整合測試(主力,本節以下全是這層);(二) 凍結 logic
+regression net(純計算地基)。舊 per-function spy 單元套件已退役到 `legacy/tests_unit_spy/`
+(gitignored 本地凍結;git 歷史可還原)。結構總覽見 `tests/_index.md`。
+
+### 凍結 logic net(單元層)
+只保留 callee≤2、純函數、無 spy、不碰 `0xA0000`/AIL/BIOS 的 leaf,當 determinism/存檔/查表的
+回歸防線,不再隨新 function 擴充:
+- `tests/battle/btlrng.c` — `fd2_advance_rng_state`(LFSR 決定論,`expect.py` 預算的根)
+- `tests/save/savecsum.c` — `fd2_save_compute_checksum` + `fd2_save_crypt_buffer`(byte-sum + involution)
+- `tests/table/table.c` — item/spell/enemy/char/job/movement 等表 accessor(含越界)
+
+跑 `python tools/code_emit/build_test.py`(目前 29/29 PASS)。退役主因:spy 靠 `testglob.c` 的
+link-time stub 覆蓋真函數,function 全 emit 後形成 Watcom W1027 redefinition、stub 回 0 →
+依賴它的測試集體失敗(coordinated-landing,open_issues #32/#33);整合測試取代其覆蓋。
+`testglob.c` 仍含退役套件的 stub(無害),logic net leaf 不依賴它們。
 
 ### 開關
 測試碼全部由編譯參數 **`-DFD2_REPLAY`** 控制。`build_fd2.py`(正式)不帶 → 測試碼全消失,
@@ -200,3 +220,4 @@ python tools/fd2_build/build_fd2.py
 | `fe72d84` | P3 戰鬥操作 + P4 存檔載入(continue_load / combat_move) |
 | `86815a2` | P2 save-jump + 30 章 sweep(28/30)+ gen_scenario + open_issues |
 | `9dc4dc3` | P3-E 戰鬥傷害 oracle(combat_attack + expect.py LFSR/公式斷言 + st_dump) |
+| `41e8d64e` | P6 spy 套件(70 檔)退役 legacy + 凍結 logic net(btlrng/savecsum/table 29/29)+ tests/ rename 同步 + struct 欄位修正 + `_index.md` 重寫兩層 |
