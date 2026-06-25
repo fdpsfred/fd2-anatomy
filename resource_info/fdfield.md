@@ -1,6 +1,6 @@
 # FDFIELD.DAT — 章節地圖 + tile event + char spawn
 
-每章地圖、tile event 表、char spawn 與 portrait list 都在這。
+每章地圖、tile event 表（含 char spawn 記錄）與 char spawn 位置表都在這。
 file size 243,169 bytes，99 entries (idx 0..98)。
 
 ## 檔案格式
@@ -12,13 +12,13 @@ LLLLLL archive (詳 `overview.md`)。
 ```
 chapter_id × 3 + 0  →  tile_map               (battle_tile_map: map dimensions + tile data)
 chapter_id × 3 + 1  →  tile_event             (tile_event_data_table: shap_id + event hooks + char spawns)
-chapter_id × 3 + 2  →  portrait_load_buffer   (data_fd2_chapter_portrait_load_buffer: portrait sprite list)
+chapter_id × 3 + 2  →  char_spawn_pos_table   (data_fd2_chapter_char_spawn_pos_table: 每 char 戰場 spawn 位置表，讀 +2 desired_x / +4 desired_y；+0 sprite ref 未被讀取)
 ```
 
 `chapter_id` 是 0-indexed (ch1 = 0, ch30 = 29)。30 章 × 3 = 90 entries 對應正章。
 另外 9 個 idx (90..98) 是 endgame cinematic：
 
-| chapter_id | FDFIELD idx | tile_map | tile_event | portrait | 用途 |
+| chapter_id | FDFIELD idx | tile_map | tile_event | spawn_pos | 用途 |
 |---|---|---|---|---|---|
 | 30 (extra) | 90/91/92 | 6304 B | 157 B | 194 B | endgame cinematic map 1 |
 | 31 (extra) | 93/94/95 | 4004 B | 937 B | 182 B | epilogue map (`ch30_end fd2_load_chapter_battle_data(31)` staff roll) |
@@ -26,7 +26,7 @@ chapter_id × 3 + 2  →  portrait_load_buffer   (data_fd2_chapter_portrait_load
 
 ## 30 章 idx 對照表
 
-| Chapter | binary id | tile_map | tile_event | portrait |
+| Chapter | binary id | tile_map | tile_event | spawn_pos |
 |---|---|---|---|---|
 | ch1  | 0  | 0  | 1  | 2  |
 | ch2  | 1  | 3  | 4  | 5  |
