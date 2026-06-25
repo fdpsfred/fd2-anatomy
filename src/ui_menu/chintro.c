@@ -212,9 +212,9 @@ uint32 fd2_run_chapter_intro_menu_main(uint32 pose_bitmap)
         table_off = (int)data_fd2_chapter_intro_menu_cursor_state +
                     (int)chapter_meta_byte * 6;
         fd2_blit_scaled_chapter_pose(
-            (uint32)((((int)data_fd2_chapter_intro_portrait_pose_y_row_table[
-                          table_off] - 0x96) * iVar5 / 10) * 0x80 + 0x5000),
             (uint32)((((int)data_fd2_chapter_intro_portrait_pose_x_column_table[
+                          table_off] - 0x96) * iVar5 / 10) * 0x80 + 0x5000),
+            (uint32)((((int)data_fd2_chapter_intro_portrait_pose_y_row_table[
                           table_off] - 100) * iVar5 / 10) * 0x80 + 0x3200),
             pose_bitmap, iVar5 * -9 + 0x80);
         memmove((void *)0xa0000,
@@ -357,9 +357,9 @@ uint32 fd2_run_chapter_intro_menu_typeB(uint32 snapshot_buf)
         table_off = (int)data_fd2_chapter_intro_menu_cursor_state +
                     (int)chapter_meta_byte * 6;
         fd2_blit_scaled_chapter_pose(
-            (uint32)((((int)data_fd2_chapter_intro_portrait_pose_y_row_table[
-                          table_off] - 0x96) * iVar5 / 10) * 0x80 + 0x5000),
             (uint32)((((int)data_fd2_chapter_intro_portrait_pose_x_column_table[
+                          table_off] - 0x96) * iVar5 / 10) * 0x80 + 0x5000),
+            (uint32)((((int)data_fd2_chapter_intro_portrait_pose_y_row_table[
                           table_off] - 100) * iVar5 / 10) * 0x80 + 0x3200),
             snapshot_buf, iVar5 * -9 + 0x80);
         memmove((void *)0xa0000,
@@ -507,9 +507,9 @@ uint32 fd2_run_chapter_intro_menu_typeC(uint32 pose_bitmap)
         table_off = (int)data_fd2_chapter_intro_menu_cursor_state +
                     (int)chapter_meta_byte * 6;
         fd2_blit_scaled_chapter_pose(
-            (uint32)((((int)data_fd2_chapter_intro_portrait_pose_y_row_table[
-                          table_off] - 0x96) * iVar5 / 10) * 0x80 + 0x5000),
             (uint32)((((int)data_fd2_chapter_intro_portrait_pose_x_column_table[
+                          table_off] - 0x96) * iVar5 / 10) * 0x80 + 0x5000),
+            (uint32)((((int)data_fd2_chapter_intro_portrait_pose_y_row_table[
                           table_off] - 100) * iVar5 / 10) * 0x80 + 0x3200),
             pose_bitmap, iVar5 * -9 + 0x80);
         memmove((void *)0xa0000,

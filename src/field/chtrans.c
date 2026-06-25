@@ -534,10 +534,10 @@ int fd2_chapter_transition_with_intro(void)
         table_off = data_fd2_chapter_intro_menu_cursor_state
                   + (uint32)chapter_meta_byte * 6;
         fd2_blit_scaled_chapter_pose(
-            (uint32)(((int)(data_fd2_chapter_intro_portrait_pose_y_row_table[
+            (uint32)(((int)(data_fd2_chapter_intro_portrait_pose_x_column_table[
                                 table_off] - 0x96) * iVar2 / 10) * 0x80
                      + 0x5000),
-            (uint32)(((int)(data_fd2_chapter_intro_portrait_pose_x_column_table[
+            (uint32)(((int)(data_fd2_chapter_intro_portrait_pose_y_row_table[
                                 table_off] - 0x64) * iVar2 / 10) * 0x80
                      + 0x3200),
             pose_bitmap,

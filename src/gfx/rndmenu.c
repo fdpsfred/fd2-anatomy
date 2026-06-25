@@ -31,11 +31,10 @@
  *      frame index is remapped 3 -> 1; the destination is keyed off two
  *      per-chapter pose-byte tables indexed by
  *      chapter_category * 6 + chapter_intro_menu_cursor_state. One table
- *      (data_fd2_chapter_intro_portrait_pose_x_column_table) is multiplied
+ *      (data_fd2_chapter_intro_portrait_pose_y_row_table) is multiplied
  *      by the 0x1C8 row pitch -> the row (Y) contribution; the other
- *      (data_fd2_chapter_intro_portrait_pose_y_row_table) is added
- *      directly -> the within-row (X) contribution. NOTE the two global
- *      names read inverted vs this behaviour (see issues).
+ *      (data_fd2_chapter_intro_portrait_pose_x_column_table) is added
+ *      directly -> the within-row (X) contribution.
  *   6. Commit the visible 312x192 region from working-surface +0x8088
  *      to the VGA primary at 0xA0504.
  *
@@ -206,8 +205,8 @@ void fd2_render_chapter_intro_overlay(void)
     fd2_tile_blit_24x24_passthrough(
         *(int32 *)(data_fd2_portrait_sprite_cache + frame_idx * 4) + data_fd2_portrait_sprite_cache,
         data_fd2_large_game_state_buffer_ptr
-            + (uint32)data_fd2_chapter_intro_portrait_pose_x_column_table[table_off] * 0x1c8
-            + data_fd2_chapter_intro_portrait_pose_y_row_table[table_off] + 0x8088,
+            + (uint32)data_fd2_chapter_intro_portrait_pose_y_row_table[table_off] * 0x1c8
+            + data_fd2_chapter_intro_portrait_pose_x_column_table[table_off] + 0x8088,
         0x1c8);
 
     fd2_blit_rectangle(0xa0504, 0x140,

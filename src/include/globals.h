@@ -301,8 +301,8 @@ extern const uint8  data_fd2_chapter_intro_panel_resource_idx_per_metadata_categ
  * blit's X arg (-0x96, *0x80, +0x5000); the "x_column" table feeds the Y
  * arg (-0x64, *0x80, +0x3200) -- the column/row naming is the world-grid
  * axis the byte selects, not the screen axis it scales into. */
-extern const uint8 data_fd2_chapter_intro_portrait_pose_y_row_table[18];     /* 0x52635 */
-extern const uint8 data_fd2_chapter_intro_portrait_pose_x_column_table[18];  /* 0x52647 */
+extern const uint8 data_fd2_chapter_intro_portrait_pose_x_column_table[18];     /* 0x52635 */
+extern const uint8 data_fd2_chapter_intro_portrait_pose_y_row_table[18];  /* 0x52647 */
 
 /* ---- recruitment screen ---- */
 extern uint32 data_fd2_ui_recruitment_screen_repaint_tick_latch;         /* 0x54127 */

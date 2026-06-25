@@ -280,7 +280,7 @@ const uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
 };
 
 /* ----------------------------------------------------------------
- * data_fd2_chapter_intro_portrait_pose_y_row_table @ 0x52635  (18 bytes)
+ * data_fd2_chapter_intro_portrait_pose_x_column_table @ 0x52635  (18 bytes)
  *
  * One member of the (X,Y) coordinate pair for the chapter-intro portrait pose
  * zoom-in/zoom-out animation. Indexed flat as
@@ -290,9 +290,7 @@ const uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
  * chapter_transition_state (0..5) is the intro variant, giving a logical
  * [3][6] grid laid out as a flat uint8[18] (stride 6).
  *
- * NOTE: the symbol name "pose_y_row_table" is a known misnomer (inverted vs the
- * actual blit math) and is queued for a paired rename with the companion at
- * 0x52647. The compositor disassembly is the ground truth: this table @ 0x52635
+ * Role (compositor disassembly is the ground truth): this table @ 0x52635
  * supplies the WITHIN-ROW (X/column) contribution -- it is ADDED DIRECTLY to the
  * destination address -- while the companion @ 0x52647 supplies the ROW (Y)
  * contribution (multiplied by the 0x1C8 working-buffer row pitch). See the
@@ -317,16 +315,16 @@ const uint8 data_fd2_chapter_ending_credit_roll_scripted_outcome_table[20] = {
  * exceeding signed-byte range. The companion table follows at 0x52647, bounding
  * this table at 18 bytes.
  * ---------------------------------------------------------------- */
-const uint8 data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {
+const uint8 data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {
     29,  41,  59, 154, 182,  10,
     90,  33,  53, 148, 222, 196,
     59,  10,  59, 130, 242, 136
 };
 
 /* ----------------------------------------------------------------
- * data_fd2_chapter_intro_portrait_pose_x_column_table @ 0x52647  (18 bytes)
+ * data_fd2_chapter_intro_portrait_pose_y_row_table @ 0x52647  (18 bytes)
  *
- * Companion to the pose_y_row_table above; together they form the (X,Y)
+ * Companion to the pose_x_column_table above; together they form the (X,Y)
  * coordinate pair for the chapter-intro portrait pose zoom-in/zoom-out
  * animation. Indexed flat with the same key as the companion:
  *   table[chapter_meta_byte * 6 + chapter_transition_state]
@@ -334,9 +332,7 @@ const uint8 data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {
  * metadata entry and chapter_transition_state (0..5) is the intro variant,
  * giving a logical [3][6] grid laid out as a flat uint8[18] (stride 6).
  *
- * NOTE: the symbol name "pose_x_column_table" is a known misnomer (inverted vs
- * the actual blit math) and is queued for a paired swap with the companion at
- * 0x52635. The compositor disassembly is the ground truth: this table @ 0x52647
+ * Role (compositor disassembly is the ground truth): this table @ 0x52647
  * supplies the ROW (Y) contribution -- it is MULTIPLIED by the 0x1C8
  * working-buffer row pitch -- while the companion @ 0x52635 supplies the
  * WITHIN-ROW (X/column) contribution (added directly). See the 0x2D031/0x2D046
@@ -361,7 +357,7 @@ const uint8 data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {
  * exceeding signed-byte range. Bounded at 18 bytes by the next table at
  * 0x52659.
  * ---------------------------------------------------------------- */
-const uint8 data_fd2_chapter_intro_portrait_pose_x_column_table[18] = {
+const uint8 data_fd2_chapter_intro_portrait_pose_y_row_table[18] = {
      46, 109, 163, 139,  65,  10,
      30, 105, 163, 139,  85,   8,
      26, 144, 163, 150,  31,  20
