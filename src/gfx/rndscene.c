@@ -301,7 +301,7 @@ void fd2_paint_char_sprite_at_world_pos(uint32 char_idx)
                   (pos_y - (int32)data_fd2_battle_view_window_origin_y) * 0x2ac0 +
                   (pos_x - (int32)data_fd2_battle_view_window_origin_x) * 0x18;
 
-    if (pchar->status_sleep_flag != 0) {
+    if (pchar->status_paralysis_flag != 0) {
         blit_offset += data_fd2_graphics_char_sprite_shake_jitter_bit;
     }
 
@@ -313,7 +313,7 @@ void fd2_paint_char_sprite_at_world_pos(uint32 char_idx)
     if (palette_idx == 3) {
         palette_idx = 1;
     }
-    if (pchar->status_sleep_flag != 0) {
+    if (pchar->status_paralysis_flag != 0) {
         palette_idx = 0;
     }
 

@@ -10,7 +10,8 @@
     "title": "runtime_char field bStatus_sleep_flag (offset 0x26) is a misnomer -- it is paralysis (麻痹), not sleep",
     "description": "The runtime_char struct field at offset 0x26 is named bStatus_sleep_flag in Ghidra, but FD2 has no sleep ailment. Per fd2-knowledge (memory_hack.htm layout, which has a +8 header offset vs the Ghidra struct: KB 0x2E == Ghidra 0x26), offset 0x2E is 麻痹狀態 = paralysis status (set by 麻痹術 / Paralyze spell). A future Stage-2 struct cleanup should rename this field to e.g. bStatus_paralysis_flag and update all readers. Out of scope for this single-symbol refine (struct field, not the assigned function); recorded for follow-up. This refine corrected the src comment + plate annotation to say 'paralysis' without renaming the field.",
     "evidence": "fd2-knowledge: query.py struct -> '0x2E XA: 麻痹狀態' (KB layout); KB-to-Ghidra +8 offset confirmed via team/job/HP fields; query.py grep '睡眠'/'沉睡' -> 'No match'; query.py grep '麻痹' -> 麻痹術 spell '2-4回合使敵人麻痹', 祛麻術 '解麻痹'. Ghidra get_struct_layout runtime_char: offset 38 (0x26) bStatus_sleep_flag, offset 33 (0x21) pStatus_flags_block[5].",
-    "status": "open"
+    "resolution": "RESOLVED (closeout). Verified via fd2-knowledge (no 睡眠/沉睡 ailment; memory_hack 0x2E=麻痹狀態; +8 KB->Ghidra offset confirmed by poison 0x2D->0x25, paralysis 0x2E->0x26, silence 0x2F->0x27) and in-code semantics (battle.c counter-attack gate, chinit.c ch10 sets char 0x32/0x33=100, chend1.c clears, rndscene.c shake/palette). Renamed src field status_sleep_flag -> status_paralysis_flag across types.h + 8 .c (incl. awake/asleep/sleep-counter prose) and Ghidra runtime_char field bStatus_sleep_flag -> bStatus_paralysis_flag (offset 0x26); home plate 0x13fd4 de-misnomered. btl_aitg.c uses raw pChar[0x26] (already paralysis-commented), no change. Build PASS[RELOC] (field rename not emitted -> zero new binary delta).",
+    "status": "resolved"
   },
   "ISS-0002": {
     "id": "ISS-0002",

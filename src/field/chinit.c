@@ -610,14 +610,14 @@ void fd2_chapter_09_init(void)
  *
  * Chapter 10「洞窟中的激戰」init handler. The first chapter init to
  * seed per-unit status: it re-inits battle state, pans the camera,
- * puts two NPC units to sleep at full sleep-counter, plays one dialog
+ * sets two NPC units to the paralysis state (0x26), plays one dialog
  * page (page 0), and pans the camera to char 0. There is NO cutscene,
  * NO portrait load, and NO char init — chapter 10 carries the party
  * over from chapter 9.
  *
- * The two sleep writes set runtime_char[0x32] (索菲亞 / Sophia) and
- * runtime_char[0x33] (卡納恩三世 / Kanaan III) status_sleep_flag
- * (struct offset +0x26) = 100 — both NPCs start the battle asleep.
+ * The two paralysis writes set runtime_char[0x32] (索菲亞 / Sophia) and
+ * runtime_char[0x33] (卡納恩三世 / Kanaan III) status_paralysis_flag
+ * (struct offset +0x26) = 100 — both NPCs start the battle paralyzed.
  * In the disassembly each write is base[0x53A45] + idx*0x50 + 0x26
  * (0xFA0 = 0x32*0x50, 0xFF0 = 0x33*0x50). There is no
  * data_fd2_battle_anim_phase reset on the code path and no
@@ -648,8 +648,8 @@ void fd2_chapter_10_init(void)
 {
     fd2_init_battle_state_for_chapter();
     fd2_pan_cursor_and_window(0xa, 0);
-    data_fd2_battle_runtime_char_array_ptr[0x32].status_sleep_flag = 100;
-    data_fd2_battle_runtime_char_array_ptr[0x33].status_sleep_flag = 100;
+    data_fd2_battle_runtime_char_array_ptr[0x32].status_paralysis_flag = 100;
+    data_fd2_battle_runtime_char_array_ptr[0x33].status_paralysis_flag = 100;
     fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 0, 0xa0000, 0x140,
                              0xcd, 0x4c, 0x4a, 0x13, 1);
     fd2_pan_cursor_to_char(0);

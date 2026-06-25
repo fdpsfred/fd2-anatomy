@@ -1044,7 +1044,7 @@ void fd2_cast_status_inflict_spell_wrapper(int caster_idx,
  * non-zero.
  *
  * The status byte is addressed by the raw struct byte offset
- * status_byte_offset (callers pass 0x26 = status_sleep_flag for spell
+ * status_byte_offset (callers pass 0x26 = status_paralysis_flag for spell
  * 0x1B / 麻痺術, and 0x27 = combat_aux_block[0] for spell 0x16 / 封咒術),
  * so it is read and written as ((uint8 *)target_rc)[status_byte_offset],
  * matching the asm byte ptr [target_rc + status_byte_offset] (Ghidra

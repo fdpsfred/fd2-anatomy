@@ -206,7 +206,7 @@ void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buff
  *     +0x25E5  team flag: sprite 0x36 when team == 0 (enemy), else 0x35
  *     +0x55C2 + i*0x23 (i=0..2): status-icon slot -- sprite 0x37+i when the
  *              byte at struct offset 0x25+i is non-zero. Offsets 0x25/0x26/0x27
- *              are status_flags_block[4], status_sleep_flag and
+ *              are status_flags_block[4], status_paralysis_flag and
  *              combat_aux_block[0]; the binary reads them as a flat
  *              status_flags_block[4..6] overrun (intentional vendor layout),
  *              so this code walks the raw bytes via a cursor to stay exact.

@@ -230,7 +230,7 @@ int fd2_game_main_loop(void)
             if ((data_fd2_battle_runtime_char_array_ptr[sel].team == 2)
                 && ((data_fd2_battle_runtime_char_array_ptr[sel].flags & 0x80)
                         == 0)
-                && (data_fd2_battle_runtime_char_array_ptr[sel].status_sleep_flag
+                && (data_fd2_battle_runtime_char_array_ptr[sel].status_paralysis_flag
                         == 0)) {
                 fd2_play_sfx_with_handle(
                     data_fd2_audio_fdother_sfx_bank_buf_ptr, 7, 1);

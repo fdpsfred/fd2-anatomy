@@ -437,7 +437,7 @@ int fd2_collect_pending_death_drops(uint32 out_buffer)
  * shared epilogue 0x10B46 (== plain return here).
  *
  * Heal qualifier (both passes): team==2, (flags & 0x81)==0,
- * status_flags_block[4]==0, status_sleep_flag==0, hp_current != hp_max.
+ * status_flags_block[4]==0, status_paralysis_flag==0, hp_current != hp_max.
  *
  * NOTE (Ghidra EAX-tracking bug): in both reveal loops the decompiler
  * rendered fd2_cleanup_dialog_sprite_buffer's first arg as the sprite
@@ -468,7 +468,7 @@ void fd2_run_full_turn_cycle(void)
         if (pc->team == 2 &&
             (pc->flags & 0x81) == 0 &&
             pc->status_flags_block[4] == 0 &&
-            pc->status_sleep_flag == 0 &&
+            pc->status_paralysis_flag == 0 &&
             (uint32)pc->hp_current != hp_max) {
             fd2_paint_char_sprite_at_world_with_mode(
                 data_fd2_large_game_state_buffer_ptr + 0x8088,
@@ -492,7 +492,7 @@ void fd2_run_full_turn_cycle(void)
         if (pc->team == 2 &&
             (pc->flags & 0x81) == 0 &&
             pc->status_flags_block[4] == 0 &&
-            pc->status_sleep_flag == 0 &&
+            pc->status_paralysis_flag == 0 &&
             (uint32)pc->hp_current != hp_max) {
             hp_after = (uint32)pc->hp_current + hp_max / 5;
             if (hp_max < hp_after) {

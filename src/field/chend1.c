@@ -462,10 +462,10 @@ void fd2_chapter_10_end(void)
 
     data_fd2_battle_runtime_char_array_ptr[0x32].pos_x = 0xf;
     data_fd2_battle_runtime_char_array_ptr[0x32].pos_y = 0x23;
-    data_fd2_battle_runtime_char_array_ptr[0x32].status_sleep_flag = 0;
+    data_fd2_battle_runtime_char_array_ptr[0x32].status_paralysis_flag = 0;
     data_fd2_battle_runtime_char_array_ptr[0x33].pos_x = 0xe;
     data_fd2_battle_runtime_char_array_ptr[0x33].pos_y = 0x23;
-    data_fd2_battle_runtime_char_array_ptr[0x33].status_sleep_flag = 0;
+    data_fd2_battle_runtime_char_array_ptr[0x33].status_paralysis_flag = 0;
     data_fd2_battle_runtime_char_array_ptr[0x34].pos_x = 0x10;
     data_fd2_battle_runtime_char_array_ptr[0x34].pos_y = 0x23;
     data_fd2_battle_runtime_char_array_ptr[0x34].flags = 0;

@@ -703,7 +703,7 @@ void fd2_recalculate_combat_stats(uint32 char_idx)
  * Can `defender_idx` counter-attack `attacker_idx`? Returns 1 if yes,
  * -1 on any failure.
  *
- * The defender can counter only when: it is awake (status_sleep_flag
+ * The defender can counter only when: it is not paralyzed (status_paralysis_flag
  * == 0); the attacker is orthogonally adjacent (Manhattan distance of
  * their tiles == 1); it has an equipped weapon (kind 0 = physical);
  * and that weapon's min attack range (item_entry[0xB] = R1) is exactly
@@ -726,7 +726,7 @@ int fd2_check_can_counter_attack(uint32 attacker_idx, uint32 defender_idx)
 
     attacker = &data_fd2_battle_runtime_char_array_ptr[attacker_idx];
     defender = &data_fd2_battle_runtime_char_array_ptr[defender_idx];
-    if (defender->status_sleep_flag != 0) {
+    if (defender->status_paralysis_flag != 0) {
         return -1;
     }
     dx_dist = abs((int)(uint32)attacker->pos_x
@@ -754,7 +754,7 @@ int fd2_check_can_counter_attack(uint32 attacker_idx, uint32 defender_idx)
  * Precheck: can runtime char `char_idx` make a default (melee) attack
  * on tile (tile_x, tile_y)? Returns 1 if yes, -1 on any failure.
  *
- * Excluded when: char is asleep (status_sleep_flag); tile is not
+ * Excluded when: char is paralyzed (status_paralysis_flag); tile is not
  * orthogonally adjacent (Manhattan distance != 1); char has no equipped
  * weapon (kind 0 = physical); or the weapon's min attack range
  * (item_entry[0xB] = R1) > 1, i.e. a bow/staff that cannot melee.
@@ -774,7 +774,7 @@ int fd2_check_can_default_attack_target(uint32 char_idx,
     uint8 *weapon_entry;
 
     rc = &data_fd2_battle_runtime_char_array_ptr[char_idx];
-    if (rc->status_sleep_flag != 0) {
+    if (rc->status_paralysis_flag != 0) {
         return -1;
     }
     dx_dist = abs((int)tile_x - (int)(uint32)rc->pos_x);
