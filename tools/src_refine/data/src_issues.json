@@ -150,7 +150,8 @@
     "title": "char_id 6 mis-attributed to 沃斯 (corrected to 鐵諾)",
     "description": "Both the src comment block and the Ghidra plate named runtime char #6 as '沃斯', an unverified name absent from the KB 32-char roster. Cross-checking fd2-knowledge (chapter 3 events/recruitment, portraits 02h, code_hacks '22 = 劍聖鐵諾') and the sibling fd2_chapter_03_end handler (chend1.c, same fd2_check_char_is_dead(6) gate -> recruits char #2 劍士鐵諾) establishes char #6 as the in-battle ally swordsman 鐵諾. Fixed in this refine (src comment + plate). This is a comment/attribution correction only; no game logic changed (the code uses literal index 6, which is correct).",
     "evidence": "KB chapter 3: '加入：劍士鐵諾若未死時加入' and '索爾及亞雷斯前去幫助鐵諾'; KB portraits 02h=鐵諾, code_hacks '22 = 劍聖鐵諾'; chend1.c fd2_chapter_03_end @0x230F2 gates on fd2_check_char_is_dead(6)==0 then fd2_init_runtime_char_from_base_growth(2) recruiting 劍士鐵諾; '沃斯' has zero matches in the KB (query.py grep).",
-    "status": "open"
+    "resolution": "RESOLVED (closeout, verify-only). Both the src comment (chevt1.c:453-460) and Ghidra plate (0x344c2) now correctly attribute runtime char #6 to the ch3 ally swordsman 鐵諾 (plate explicitly flags 沃斯 as unverified / not in the roster). KB re-check: grep 沃斯 = No match (non-existent); 鐵諾 = real char (劍士/劍聖 data rows present); surviving char #6 is recruited as permanent party char #2 (劍士鐵諾), gated on the same fd2_check_char_is_dead(6). The separate 萊汀 'char_id 6' in another handler is the char_id VALUE (identity), not the runtime ARRAY index 6 -- no conflict. No change needed.",
+    "status": "resolved"
   },
   "ISS-0012": {
     "id": "ISS-0012",
