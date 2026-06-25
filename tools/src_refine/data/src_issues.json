@@ -192,7 +192,8 @@
     "title": "Dispatch table indexed by full byte (0-255) but emitted as a 10-entry array",
     "description": "chunk_type is a uint8 (0-255) used to index data_fd2_animation_ani_decoder_frame_dispatch_table, which the Layer-2 port declares as [10] (src/table/anitab.c, src/include/globals.h). The original binary's table at 0x5276A is also exactly 10 pointers (verified: the 10th pointer ends at 0x52792, followed by 4 zero bytes then the 'Stack Overflow!' literal -- not an 11th entry). So both binary and port assume well-formed ANI.DAT streams emit only opcodes 0-9; a malformed byte >= 10 would read past the array in both. This is faithful to the original (not a port-introduced regression) and ANI.DAT is a trusted bundled asset, so it is informational only -- no change in this stage.",
     "evidence": "Decoder: src/anim/anidec.c L74-77 indexes table[chunk_type] with chunk_type from *g_ani_cursor++. Table decl: src/include/globals.h L527 'extern void (*...frame_dispatch_table[10])(void);' and src/table/anitab.c L480. Binary extent: read_memory(0x52792,48) = 00 00 00 00 'Stack Overflow!\\r\\n' confirming exactly 10 entries; first entries 0x36AE7,0x36B01,... match handler addresses.",
-    "status": "open"
+    "resolution": "RESOLVED (closeout; faithful-to-binary, info-only, no fix). read_memory(0x5276a,48) re-verified: exactly 10 LE dword pointers (0x36AE7/0x36B01/0x36B0F/0x36B51/0x36B8A/0x36BB2/0x36BCE/0x36C13/0x36C2C/0x36C56) spanning 0x5276a..0x52791, then 4 zero bytes at 0x52792 + 'Stack Overflow!' literal -> no 11th entry. src declares [10] (globals.h:527, anitab.c:481). Decoder indexes table[chunk_type] by a full byte; both binary and port assume ANI.DAT emits only opcodes 0-9 (trusted bundled asset), so a >=10 byte over-reads in both -> faithful, not a port regression. No fix.",
+    "status": "resolved"
   },
   "ISS-0015": {
     "id": "ISS-0015",
