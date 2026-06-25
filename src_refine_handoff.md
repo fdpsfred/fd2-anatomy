@@ -1,20 +1,17 @@
 # src_refine 交接文件（新 session 接續用）
 
 對 `src/` 內每個 symbol 逐一 refine 名稱/參數名/註解並同步 Ghidra（**只改名稱與註解，遊戲邏輯不動**）。
-**Stage 2 rename + 23 個 closeout logic issue 皆已完成**；Phase 2（plate 重建）已驗證為 moot 並關閉（0 plate 遺失，詳見 0a）；零星項 n=181/164/173 已完成（詳見 0b）；剩 item-1 次級引用同步 + 環境清理。
+**Stage 2 rename + 23 個 closeout logic issue 皆已完成**；Phase 2（plate 重建）已驗證為 moot 並關閉（0 plate 遺失，詳見 0a）；零星項 n=181/164/173 + n=132/133 動詞統一已完成（0b）；item-1 的 **emit configs + KB docs 次級引用同步已完成**、環境清理已完成；**唯一剩餘 = item-1 的 tests/ 同步**。
 完整工具說明見 `tools/src_refine/_index.md`（本檔不重複，只給接續所需）。
 
 ## 0. 剩餘工作（phase-tagged，最重要）
 
-> Phase 2 已關閉（0a）；零星項 n=181/164/173 已 2026-06-25 完成（0b）。以下仍「勿自行開工，等指示」。
+> 只剩 item-1 的 **tests/ 同步**一項；emit/KB 同步、環境清理、n=132/133 動詞統一皆已 2026-06-25 完成（見 0b）。此項仍「勿自行開工，等指示」。
 
-1. **[CLOSEOUT] 次級引用一次性同步**（使用者已批准、時機待定）：用 ledger old→new 映射一次性同步**所有被改符號**的引用並驗證。實際待同步處（item 2/3/4 audit 查出）：
-   - emit：`tools/code_emit/data/routing.json`、`tools/data_emit/data/data_routing.json`、`emit_issues.json`
-   - KB：`resource_info/overview.md`（line 54 `portrait_load_buffer`=n=173 舊名、line 55 `battle_scene_snapshot`=n=174 舊名）、`resource_info/fdfield.md`（line 125 `portrait_cache_alloc_offset`=n=182 舊名）等
-   - **tests/**：~15 檔（`fieldfix.h`、`chevt*.c`、`rsrc.c`…）引用已死舊 global `data_fd2_chapter_portrait_load_buffer`（n=173 漏同步到 tests；**已靜態驗證**：globals.h:188 只剩新名 `data_fd2_chapter_char_spawn_pos_table`、tests 無 shim/decl → 必編不過）；同類 ISS-0018 gap（`tests/ui_menu/menucfg.c`）已於 item 2 順手修
-   - 注意：name-sweep 只抓完整符號名，無前綴簡寫 prose（上述 KB 例）抓不到須逐一查；歷史 shards + 衍生 `src_info*.json` 不動。
-
-2. **[CLOSEOUT] 環境清理**：`git worktree remove` rp1-4（`C:/Users/fdpsf/Documents/fd2-wt/rp1..rp4`，branch refine-p1..4）、刪 `workspace/src_refine/`；未追蹤的 `tools/src_refine/plate_rebuild_scope.py`（Phase2 prep，已 moot）建議刪。
+1. **[CLOSEOUT] tests/ 次級引用同步**（item-1 餘項；使用者已批准、時機待定）：`tests/` 約 40+ 檔（`fieldfix.h`/`battlfix.h`/`chevt*.c`/`rsrc.c`/`promote.c`/`menufld.c`/`rndstat.c`…）仍引用已死的舊 symbol 名，對現行 `src/include/globals.h`/`protos.h` **必編不過**（例：n=173 舊 global `data_fd2_chapter_portrait_load_buffer` 約 71 處跨 16 檔）。
+   - **old→new 對照直接用 `tools/src_refine/data/rename_old2new.json`**（closeout 以 live Ghidra 校準，已含所有 closeout 修正）：`symbols`=全名映射（tests 主要用這個）、`prefixless_functions`/`kb_prose_shorthands`=簡寫變體。**`_doc` 內註明排除 0x53A8D/0x53A8E 的 macro alias `data_fd2_input_last_key_pressed`/`_key_input_mode`——那是有效 src macro，勿替換。**
+   - 套用後 `tests/` 須能對現行 `src/include/` 編譯通過（走 test build gate 驗證）。
+   - 歷史 shards + 衍生 `src_info*.json` 不動。
 
 ## 0a. Phase 2 已關閉（moot — 已驗證 0 plate 遺失）
 
@@ -35,8 +32,9 @@
   - Ghidra 標註：6（param origin_x→sprite_atlas）、23（type spell_entry→spell_effect）。
 - **const（ISS-19/20）+ baseline 推進**：5 個 `data_fd2_ui_*_menu_state_template`（0x53EF2/F02/F12/F22/F32）經 write-xref 證明真唯讀，已改 const；使用者批准把 eqcheck baseline 推進到 const build → `baseline_eq.json`/`baseline_hash.txt` 現 = **const build `2f2e12da`**（原版等價 build 為 `ab5f110a`/commit f83ec3c9）、eqcheck 重回 **PASS[STRICT]**。理由：memory `feedback_semantic_correctness_over_eqcheck` + `baseline_eq.json` 的 `_advance_note`。
 - **Final review 結論**：整個 closeout 僅 const family 一處屬「為等價犧牲語意」、已糾正；忠實還原 binary 的案例不算犧牲（重現原版是目標）。
-- **零星 closeout（2026-06-25）n=181/164/173 done**：n=181 function `_overlay→_sfx_bank` 改名（src 4 檔 + tests 2 檔 + Ghidra 2 fn/6 plate/label + KB fdother.md + ledger；eqcheck PASS[STRICT]；順手修 `tests/ui_menu/menucfg.c` 的 ISS-0018 global gap）；n=164 修 0x51F75 plate（舊名→`_sfx_id_table`、清掉錯誤的 PRE「SFX trigger frame index」層）；n=173 修 `fdfield.md` idx-2 用詞（portrait→char_spawn_pos，4 處）。commit `3c71ecfd`/`5ea889f9`。audit 另查出 overview.md + ~15 tests/ 檔 + fdfield.md:125 的舊名殘留 → 歸 item-1（見 0.1）。
-- 現況：0 error bookmark、build 0 undefined、eqcheck PASS[STRICT]、working tree clean（除上述未追蹤 prep script）。
+- **零星 closeout（2026-06-25）n=181/164/173 done**：n=181 function `_overlay→_sfx_bank` 改名（src 4 檔 + tests 2 檔 + Ghidra 2 fn/6 plate/label + KB fdother.md + ledger；eqcheck PASS[STRICT]；順手修 `tests/ui_menu/menucfg.c` 的 ISS-0018 global gap）；n=164 修 0x51F75 plate（舊名→`_sfx_id_table`、清掉錯誤的 PRE「SFX trigger frame index」層）；n=173 修 `fdfield.md` idx-2 用詞（portrait→char_spawn_pos，4 處）。commit `3c71ecfd`/`5ea889f9`。audit 另查出 overview.md + ~15 tests/ 檔 + fdfield.md:125 的舊名殘留 → 歸 item-1。
+- **本次 closeout（2026-06-25）**：(1) **n=132/133 動詞統一** `fd2_ail_install_free_fnptr`→`fd2_ail_set_free_fnptr`（與 `set_alloc` 對稱的雙生 get-and-set；src misc.c/protos.h + Ghidra；eqcheck PASS[STRICT]；commit `80c98476`）。(2) **item-1 的 emit configs + KB docs 同步完成**：用 live-Ghidra 校準的 `tools/src_refine/data/rename_old2new.json` 套 routing.json/emit_issues.json/routing.md/data_routing.json + ~25 KB `.md`，計 135 全名 + 24 前綴簡寫 + 5 KB shorthand；pose 對（n=168/169）用單趟原子替換處理；0 殘留、3 JSON 重 parse 過（commit `f931d646`）。(3) **環境清理**：rp1-4 worktree + refine-p1..4 branch 移除、`workspace/src_refine/` 與 `plate_rebuild_scope.py` 已刪。out-of-scope 標記：`open_issues.md:303` 仍是 n=184 舊名（root tracking doc、非 b/c）。
+- 現況：0 error bookmark、build 0 undefined、eqcheck PASS[STRICT]、**working tree clean**；emit/KB 同步與環境清理已完成，唯剩 item-1 的 tests/ 同步。
 
 ## 1. 必讀文件（依序）
 
@@ -80,7 +78,7 @@ Ghidra MCP 已開 FD2.LE；DOSBox-X 在 PATH（silent mode）；Watcom 9.5a 在 
 
 ## 7. 關鍵路徑
 
-- 工具 + 用法：`tools/src_refine/_index.md`；closeout 新增 `dedup_protos.py`（protos 去重）；`plate_rebuild_scope.py`（Phase2 plate 目標收集，Phase 2 已 moot，見 0.2 建議刪）。
-- 耐久資料（tracked）：`tools/src_refine/data/`（baseline_hash.txt、baseline_eq.json、stage2_progress.json、shards/rpN/、src_info*.json、src_issues.json、eqcheck.py、stage2_reconcile.py）。
+- 工具 + 用法：`tools/src_refine/_index.md`；closeout 新增 `dedup_protos.py`（protos 去重）。（`plate_rebuild_scope.py` 為 Phase 2 prep，Phase 2 判 moot 後已於本次 closeout 刪除。）
+- 耐久資料（tracked）：`tools/src_refine/data/`（baseline_hash.txt、baseline_eq.json、stage2_progress.json、shards/rpN/、src_info*.json、src_issues.json、eqcheck.py、stage2_reconcile.py、**rename_old2new.json**=live-Ghidra 校準的 old→new 映射）。
 - 可重生 scratch（gitignored）：`workspace/src_refine/`（plate_targets.txt、ghidra dump、worklist 等）。
-- 4 worktree：`C:/Users/fdpsf/Documents/fd2-wt/rp1..rp4`（branch refine-p1..4，收尾時 remove）。
+- 4 worktree `fd2-wt/rp1..rp4`（branch refine-p1..4）已於本次 closeout 移除。
