@@ -201,7 +201,7 @@ const int32 data_fd2_ui_chapter_intro_dialog_corner_offset_table_b[4] = { -39, -
  * int32[4] matches the dword copy stride and the sibling *_menu_state_template
  * family (e.g. data_fd2_ui_save_load_menu_state_template @ 0x53F22).
  */
-int32 data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
+const int32 data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
 
 /* ----------------------------------------------------------------
  * data_fd2_ui_game_options_menu_state_template @ 0x53F02  (16 bytes)
@@ -219,7 +219,7 @@ int32 data_fd2_ui_field_command_menu_state_template[4] = { 0, 0, 0, 0 };
  * int32[4] matches the dword copy stride and the sibling *_menu_state_template
  * family (e.g. data_fd2_ui_field_command_menu_state_template @ 0x53EF2).
  */
-int32 data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
+const int32 data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
 
 /* ----------------------------------------------------------------
  * data_fd2_ui_player_action_menu_state_template @ 0x53F12  (16 bytes)
@@ -241,7 +241,7 @@ int32 data_fd2_ui_game_options_menu_state_template[4] = { 0, 0, 0, 0 };
  * indexing, and matches the sibling *_menu_state_template family (e.g.
  * data_fd2_ui_game_options_menu_state_template @ 0x53F02).
  */
-int32 data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
+const int32 data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
 
 /* ----------------------------------------------------------------
  * data_fd2_ui_save_load_menu_state_template @ 0x53F22  (16 bytes)
@@ -261,7 +261,7 @@ int32 data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
  * int32[4] matches the dword copy stride and the sibling *_menu_state_template
  * family (e.g. data_fd2_ui_player_action_menu_state_template @ 0x53F12).
  */
-int32 data_fd2_ui_save_load_menu_state_template[4] = { 0, 0, 0, 0 };
+const int32 data_fd2_ui_save_load_menu_state_template[4] = { 0, 0, 0, 0 };
 
 /* ----------------------------------------------------------------
  * data_fd2_ui_item_command_menu_state_template @ 0x53F32  (16 bytes)
@@ -283,4 +283,4 @@ int32 data_fd2_ui_save_load_menu_state_template[4] = { 0, 0, 0, 0 };
  * the sibling *_menu_state_template family (e.g.
  * data_fd2_ui_save_load_menu_state_template @ 0x53F22).
  */
-int32 data_fd2_ui_item_command_menu_state_template[4] = { 0, 0, 0, 0 };
+const int32 data_fd2_ui_item_command_menu_state_template[4] = { 0, 0, 0, 0 };
