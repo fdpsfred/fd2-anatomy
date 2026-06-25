@@ -570,7 +570,7 @@ extern uint32 data_fd2_battle_pathfind_tile_cost_table_ptr;               /* 0x6
 extern uint32 data_fd2_battle_pathfind_battle_tile_map_ptr;              /* 0x60064 */
 extern uint8  data_fd2_battle_pathfind_map_width;                        /* 0x60068 */
 extern uint8  data_fd2_battle_pathfind_map_height;                       /* 0x60069 */
-extern uint32 data_fd2_battle_pathfind_caller_context;                   /* 0x6006A */
+extern uint32 data_fd2_battle_pathfind_move_cost_table_ptr;                   /* 0x6006A */
 extern uint8  data_fd2_battle_pathfind_floodfill_seed_x;                 /* 0x6006E */
 extern uint8  data_fd2_battle_pathfind_floodfill_seed_y;                 /* 0x6006F */
 extern uint8  data_fd2_battle_pathfind_floodfill_max_steps;              /* 0x60070 */

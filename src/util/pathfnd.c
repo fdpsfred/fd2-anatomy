@@ -144,7 +144,7 @@ void fd2_flood_fill_movement_range_recursive(uint8 x, uint8 y, uint8 cost,
  * becomes the int return value (non-zero == binary CLC) and the updated residual
  * is handed back through new_cost_out, which is how the caller obtains the value
  * (CL) it feeds into the recursive descent. The ESI cost-table base is read from
- * data_fd2_battle_pathfind_caller_context, the global the orchestrator writes ESI
+ * data_fd2_battle_pathfind_move_cost_table_ptr, the global the orchestrator writes ESI
  * into at entry (0x4E047), so the value is identical to the inherited register.
  *
  *   remaining_cost : residual movement budget at the source tile (CL).
@@ -177,7 +177,7 @@ int fd2_flood_fill_neighbor_step(uint8 remaining_cost, uint8 *btm_attr_ptr,
     attr_word = *(uint16 *)(btm_attr_ptr - 3);
     cost_idx = *(uint8 *)(data_fd2_battle_pathfind_tile_cost_table_ptr
         + (uint16)((attr_word & 0x3FF) << 2) + 1);
-    tile_cost = *(uint8 *)(data_fd2_battle_pathfind_caller_context
+    tile_cost = *(uint8 *)(data_fd2_battle_pathfind_move_cost_table_ptr
         + (uint32)cost_idx);
 
     new_cost = (uint8)(remaining_cost - tile_cost);
@@ -335,7 +335,7 @@ void fd2_pathfind_recursive_with_direction(uint8 x, uint8 y, uint8 cost,
  * can read them. This emit is Layer-2 equivalent: the carry result becomes the int
  * return (non-zero == binary CLC), the residual handed to the recursion (CL) is
  * returned through new_cost_out, the ESI base is read from
- * data_fd2_battle_pathfind_caller_context (the global the orchestrator writes ESI
+ * data_fd2_battle_pathfind_move_cost_table_ptr (the global the orchestrator writes ESI
  * into at entry), and x/y are passed explicitly so the helpers receive them.
  *
  *   x, y           : neighbour tile coordinates (DL/DH; pass-through to helpers).
@@ -383,7 +383,7 @@ int fd2_pathfind_neighbor_step_with_tiebreak(uint8 x, uint8 y, uint8 remaining_c
     attr_word = *(uint16 *)(btm_attr_ptr - 3);
     cost_idx = *(uint8 *)(data_fd2_battle_pathfind_tile_cost_table_ptr
         + (uint16)((attr_word & 0x3FF) << 2) + 1);
-    tile_cost = *(uint8 *)(data_fd2_battle_pathfind_caller_context
+    tile_cost = *(uint8 *)(data_fd2_battle_pathfind_move_cost_table_ptr
         + (uint32)cost_idx);
 
     /* tile too costly (binary SUB CL,cost -> carry / JC): skip, do not recurse. */
@@ -551,7 +551,7 @@ void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y)
  * budget there, then hands DL/DH/CL/EBX (= seed_x / seed_y / max_steps /
  * origin marker pointer) to the recursive expander, which inherits the
  * secondary cost-table base through ESI (captured into
- * data_fd2_battle_pathfind_caller_context) and the map_width*4 row stride
+ * data_fd2_battle_pathfind_move_cost_table_ptr) and the map_width*4 row stride
  * through EBP (recomputed inside the recursive helper from the map_width
  * global). This emit is Layer-2 equivalent: the global spills are the same
  * writes, the origin pointer / marker write are identical, and the no-argument
@@ -562,7 +562,7 @@ void fd2_pathfind_check_destination_save_path(uint8 x, uint8 y)
  *
  *   ct  : secondary cost-table base (the per-job movement-cost table the caller
  *         obtained from fd2_get_movement_cost_table_for_job); stored 32-bit into
- *         data_fd2_battle_pathfind_caller_context (the binary's ESI capture),
+ *         data_fd2_battle_pathfind_move_cost_table_ptr (the binary's ESI capture),
  *         where the leaf step reads it back as the cost table indexed by the
  *         primary table's secondary index.
  *   x   : origin tile X (source column); truncated to its low byte into seed_x.
@@ -589,7 +589,7 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
 
     /* Spill the six arguments into the pathfind state globals (same order /
      * widths as the binary's MOV stores at 0x4E044..0x4E081). */
-    data_fd2_battle_pathfind_caller_context = ct;
+    data_fd2_battle_pathfind_move_cost_table_ptr = ct;
     data_fd2_battle_pathfind_floodfill_seed_x = (uint8)x;
     data_fd2_battle_pathfind_floodfill_seed_y = (uint8)y;
     data_fd2_battle_pathfind_floodfill_max_steps = (uint8)rng;
@@ -645,7 +645,7 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
  * the position from DL/DH) and fd2_pathfind_recursive_with_direction (the
  * directional DFS, which reloads seed_x/seed_y/max_steps/origin_ptr from those
  * same registers). The secondary cost-table base is captured into
- * data_fd2_battle_pathfind_caller_context (the binary's ESI spill, the FIRST
+ * data_fd2_battle_pathfind_move_cost_table_ptr (the binary's ESI spill, the FIRST
  * store) so the recursion leaves read it back from there. This emit is Layer-2
  * equivalent: the global spills are the same writes (same order / widths), the
  * origin pointer / marker write are identical, and the two no-argument binary
@@ -657,7 +657,7 @@ void fd2_init_movement_range_floodfill(uint32 ct, uint32 x, uint32 y,
  * Ghidra EAX-tracking artifact does not apply here.
  *
  *   ct  : caller context / secondary cost-table base (the binary's ESI spill,
- *         stored 32-bit into data_fd2_battle_pathfind_caller_context, where the
+ *         stored 32-bit into data_fd2_battle_pathfind_move_cost_table_ptr, where the
  *         leaf step reads it back as the cost table indexed by the primary
  *         table's secondary index).
  *   sx  : origin tile X (source column); truncated to its low byte into seed_x.
@@ -693,7 +693,7 @@ uint8 fd2_pathfind_to_destination(uint32 ct, uint32 sx, uint32 sy, uint32 ms,
      * (the binary's ESI) is written first, then the seed block, output buffer,
      * destination coords, mode, tile map, and primary cost table -- same order /
      * widths as the binary's MOV stores at 0x4E1AD..0x4E207. */
-    data_fd2_battle_pathfind_caller_context = ct;
+    data_fd2_battle_pathfind_move_cost_table_ptr = ct;
     data_fd2_battle_pathfind_floodfill_seed_x = (uint8)sx;
     data_fd2_battle_pathfind_floodfill_seed_y = (uint8)sy;
     data_fd2_battle_pathfind_floodfill_max_steps = (uint8)ms;
@@ -757,7 +757,7 @@ uint8 fd2_pathfind_to_destination(uint32 ct, uint32 sx, uint32 sy, uint32 ms,
  * and index it at [(attr & 0x3FF) * 4 + 1] to fetch a secondary-table index
  * byte (binary: AND AH,3; SHL AX,2; ADD EAX,[0x60060]; INC EAX; MOV CH,[EAX]).
  * That index then selects the tile's movement cost from the SEPARATE secondary
- * cost table whose base lives in data_fd2_battle_pathfind_caller_context.
+ * cost table whose base lives in data_fd2_battle_pathfind_move_cost_table_ptr.
  * Written (never read) by the game -> non-const runtime state. Zero at load
  * (BSS); set at runtime by both pathfind orchestrators before any reader runs.
  */
@@ -801,8 +801,8 @@ uint8 data_fd2_battle_pathfind_map_height;
  * Holds the orchestrators' FIRST argument: the 20-byte per-tile-type movement
  * cost row for the acting unit's job class, i.e. the return value of
  * fd2_get_movement_cost_table_for_job(class) =
- * data_fd2_battle_movement_cost_table + class * 0x14. (Not a "caller context":
- * it is purely a table base pointer.) Both orchestrators write the full 32-bit
+ * data_fd2_battle_movement_cost_table + class * 0x14 -- purely a table base
+ * pointer. Both orchestrators write the full 32-bit
  * value at entry as the FIRST store of the pathfind setup (MOV ESI,[EBP+8];
  * MOV dword ptr [0x6006A],ESI at 0x4E047 and 0x4E1AD). In the original binary
  * the recursion leaves inherit that value through the live ESI register, so
@@ -814,7 +814,7 @@ uint8 data_fd2_battle_pathfind_map_height;
  * tile_cost = *(uint8 *)(this_ptr + cost_idx). Stored 32-bit (used as an
  * address); zero at load, set at runtime by both pathfind orchestrators.
  */
-uint32 data_fd2_battle_pathfind_caller_context;
+uint32 data_fd2_battle_pathfind_move_cost_table_ptr;
 
 /*
  * flood-fill / pathfind origin tile X (source column) @ 0x6006E.
