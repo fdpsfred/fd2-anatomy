@@ -81,10 +81,10 @@ void main(void)
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdother_dat,
             data_fd2_cursor_highlight_sprite_sheet_ptr, 1);
-    data_fd2_menu_dialog_state_handle =
+    data_fd2_menu_dialog_box_sprite_sheet_ptr =
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdother_dat,
-            data_fd2_menu_dialog_state_handle, 2);
+            data_fd2_menu_dialog_box_sprite_sheet_ptr, 2);
     data_fd2_tile_anim_table_base =
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdother_dat,
@@ -1155,23 +1155,23 @@ uint32 data_fd2_all_game_text_ptr;
 uint32 data_fd2_ui_anim_sprite_sheet_ptr;
 
 /*
- * data_fd2_menu_dialog_state_handle @ 0x53A89 -- base pointer of the dialog/menu
+ * data_fd2_menu_dialog_box_sprite_sheet_ptr @ 0x53A89 -- base pointer of the dialog/menu
  * box sprite sheet (FDOTHER.DAT resource index 2), a sibling resource pointer of
  * data_fd2_ui_anim_sprite_sheet_ptr in the same main load block. uint32 address
  * slot; zero-init (BSS), filled once by the sole writer main @ 0x25BF4:
- *   data_fd2_menu_dialog_state_handle =
+ *   data_fd2_menu_dialog_box_sprite_sheet_ptr =
  *       fd2_load_dat_resource(<FDOTHER.DAT name>,
- *                             data_fd2_menu_dialog_state_handle, 2);
+ *                             data_fd2_menu_dialog_box_sprite_sheet_ptr, 2);
  * (the prior value is passed so the loader frees-then-reloads). The buffer begins
  * with an int32 offset table; a sprite's pixel data is
- *   data_fd2_menu_dialog_state_handle
- *     + *(int32 *)(data_fd2_menu_dialog_state_handle + index * stride)
+ *   data_fd2_menu_dialog_box_sprite_sheet_ptr
+ *     + *(int32 *)(data_fd2_menu_dialog_box_sprite_sheet_ptr + index * stride)
  * where readers use stride 4 (index*4: settings-panel 4-corner blit in
  * fd2_open/close_settings_dialog_with_slide) or 0xC (3 ints/entry: the 2 Yes/No
  * box corners in the page-advance / typewriter dialog). The sheet supplies the
  * dialog/menu box corner+border sprites.
  */
-uint32 data_fd2_menu_dialog_state_handle;
+uint32 data_fd2_menu_dialog_box_sprite_sheet_ptr;
 
 /*
  * data_fd2_input_int16_regs @ 0x53A8D -- the shared 28-byte union REGS scratch

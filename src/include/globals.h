@@ -369,7 +369,7 @@ extern uint32 data_fd2_ui_anim_sprite_sheet_ptr;                        /* 0x53A
 
 /* ---- resource buffers (loaded from DAT files) ---- */
 extern uint8 *data_fd2_portrait_sprite_buf_ptr;                          /* 0x53A85 */
-extern uint32 data_fd2_menu_dialog_state_handle;                        /* 0x53A89 */
+extern uint32 data_fd2_menu_dialog_box_sprite_sheet_ptr;                        /* 0x53A89 */
 extern uint32 data_fd2_tile_anim_table_base;                            /* 0x53A6D */
 extern uint32 data_fd2_chinese_font_sheet;                              /* 0x53A75 */
 

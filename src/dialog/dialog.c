@@ -861,9 +861,9 @@ void fd2_animate_dialog_page_advance_collapse(void)
 
         for (i = 0; i < 2; i++) {
             selector    = corner_state[i];
-            sprite_addr = *(uint32 *)(data_fd2_menu_dialog_state_handle
+            sprite_addr = *(uint32 *)(data_fd2_menu_dialog_box_sprite_sheet_ptr
                                       + selector * 0xC)
-                          + data_fd2_menu_dialog_state_handle;
+                          + data_fd2_menu_dialog_box_sprite_sheet_ptr;
             fd2_blit_sprite_with_stride_setup(
                 corner_state[i + 2] + yes_no_box_addr, sprite_addr, 0x1C8);
         }
@@ -983,9 +983,9 @@ int fd2_text_dialog_typewriter_loop(void)
         for (i = 0; i < 2; i++) {
             fd2_blit_sprite_with_stride_setup(
                 (uint32)corner_state[i + 2] + yes_no_box_addr,
-                *(uint32 *)(data_fd2_menu_dialog_state_handle
+                *(uint32 *)(data_fd2_menu_dialog_box_sprite_sheet_ptr
                             + (uint32)corner_state[i] * 0xC)
-                    + data_fd2_menu_dialog_state_handle,
+                    + data_fd2_menu_dialog_box_sprite_sheet_ptr,
                 0x1C8);
         }
 
@@ -1076,9 +1076,9 @@ int fd2_text_dialog_typewriter_loop(void)
                 }
                 fd2_blit_sprite_with_stride_setup(
                     (uint32)corner_state[i + 2] + yes_no_box_addr,
-                    *(uint32 *)(data_fd2_menu_dialog_state_handle
+                    *(uint32 *)(data_fd2_menu_dialog_box_sprite_sheet_ptr
                                 + (uint32)selector * 4)
-                        + data_fd2_menu_dialog_state_handle,
+                        + data_fd2_menu_dialog_box_sprite_sheet_ptr,
                     0x1C8);
             }
 

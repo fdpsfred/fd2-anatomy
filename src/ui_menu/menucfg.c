@@ -159,8 +159,8 @@ void fd2_open_settings_dialog_with_slide(int32 *menu_options, int32 *menu_state)
         for (corner_iter = 0; corner_iter < 4; corner_iter++) {
             sprite_id = menu_options[corner_iter] * 3 +
                         menu_state[corner_iter] * 2;
-            sprite_addr = data_fd2_menu_dialog_state_handle +
-                *(int32 *)(data_fd2_menu_dialog_state_handle + sprite_id * 4);
+            sprite_addr = data_fd2_menu_dialog_box_sprite_sheet_ptr +
+                *(int32 *)(data_fd2_menu_dialog_box_sprite_sheet_ptr + sprite_id * 4);
             fd2_blit_sprite_with_stride_setup(
                 panel_anchor + corner_offsets[corner_iter], sprite_addr, 0x1C8);
         }
@@ -232,8 +232,8 @@ void fd2_close_settings_dialog_with_slide(int32 *menu_options, int32 *menu_state
         for (corner_iter = 0; corner_iter < 4; corner_iter++) {
             sprite_id = menu_options[corner_iter] * 3 +
                         menu_state[corner_iter] * 2;
-            sprite_addr = data_fd2_menu_dialog_state_handle +
-                *(int32 *)(data_fd2_menu_dialog_state_handle + sprite_id * 4);
+            sprite_addr = data_fd2_menu_dialog_box_sprite_sheet_ptr +
+                *(int32 *)(data_fd2_menu_dialog_box_sprite_sheet_ptr + sprite_id * 4);
             fd2_blit_sprite_with_stride_setup(
                 panel_anchor + corner_offsets[corner_iter], sprite_addr, 0x1C8);
         }
@@ -381,8 +381,8 @@ void fd2_repaint_settings_dialog_borders(uint32 menu_options, uint32 menu_state)
         if ((uint32)corner_iter == data_fd2_ui_menu_cursor_idx) {
             sprite_id += data_fd2_dialog_blink_phase_oscillator;
         }
-        sprite_addr = data_fd2_menu_dialog_state_handle +
-            *(int32 *)(data_fd2_menu_dialog_state_handle + sprite_id * 4);
+        sprite_addr = data_fd2_menu_dialog_box_sprite_sheet_ptr +
+            *(int32 *)(data_fd2_menu_dialog_box_sprite_sheet_ptr + sprite_id * 4);
         fd2_blit_sprite_with_stride_setup(
             panel_anchor + corner_offsets[corner_iter], sprite_addr, 0x1C8);
     }
