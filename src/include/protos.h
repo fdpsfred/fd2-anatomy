@@ -751,7 +751,7 @@ int fd2_promote_member_select_loop(int char_count, void *char_list_ptr, void *ta
 /* ---- util / misc ---- */
 void fd2_debug_print_ans_and_length(int value);
 uint32 fd2_ail_set_alloc_fnptr(uint32 new_fnptr);
-uint32 fd2_ail_install_free_fnptr(uint32 new_free_fnptr);
+uint32 fd2_ail_set_free_fnptr(uint32 new_free_fnptr);
 void fd2_noop_ret_pad(void);
 void fd2_delay_400ms(void);
 
