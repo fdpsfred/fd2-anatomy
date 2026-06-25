@@ -206,7 +206,8 @@
     "title": "Run-length prose was off by one and used a byte-overflowing expression (now corrected)",
     "description": "Both the src comment and the Ghidra plate previously described the 0xC1..0xFF run marker as producing '(b - 0xC1) + 2 pixels total' / 'Run length = (byte + 0x3F) + 1 = 257..319 pixels'. The binary computes run_remain via SUB AH,0xC1 on an 8-bit register, giving (b - 0xC1) in 0..0x3E = the number of ADDITIONAL pixels beyond the one painted at marker time. Total pixels painted of that value = (b - 0xC1) + 1 = 1..63. This was a comment/documentation inaccuracy only; the C statement '((b - 0xC1) << 8) | next' is correct and was not changed. Both the src comment and the Ghidra plate have been corrected during this refine.",
     "evidence": "Disassembly @ 0x4E925-0x4E92B: MOV AH,AL; SUB AH,0xC1; LODSB ESI; RET (AH is 8-bit, result 0..0x3E for b=0xC1..0xFF). State-machine trace: marker call writes 1 pixel and sets run_remain=(b-0xC1); each subsequent call with run_remain!=0 writes 1 pixel and decrements, giving (b-0xC1) further writes; total = (b-0xC1)+1. For b=0xC1 -> run_remain=0 -> exactly 1 pixel.",
-    "status": "open"
+    "resolution": "RESOLVED (closeout, verify-only). Disasm re-confirmed: 0x4e927 SUB AH,0xc1 on 8-bit AH (0..0x3E), 0x4e916 OR AH,AH/JZ run-continuation. Both the Ghidra plate (0x4e916) and src comment (blitspr.c:759-768) now state corrected semantics: run_remain=(b-0xC1)=additional pixels, total painted=(b-0xC1)+1=1..63, via SUB AH,0xC1 on 8-bit (no byte overflow). C statement blitspr.c:796 (((b-0xC1)<<8)|next) correct and unchanged. Plate survived the wedge. No change needed.",
+    "status": "resolved"
   },
   "ISS-0016": {
     "id": "ISS-0016",
