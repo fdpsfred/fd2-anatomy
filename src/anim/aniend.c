@@ -871,9 +871,9 @@ void fd2_play_final_chapter_30_ending(void)
         }
 
         memmove(scratch, bg_buf, 64000);
-        data_fd2_portrait_sprite_buffer = (uint8 *)fd2_load_dat_resource(
+        data_fd2_portrait_sprite_buf_ptr = (uint8 *)fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_dato_dat,
-            (uint32)data_fd2_portrait_sprite_buffer, (uint32)portrait_id);
+            (uint32)data_fd2_portrait_sprite_buf_ptr, (uint32)portrait_id);
         fd2_assemble_dialog_frame_layered((uint32)scratch, 0x140, 5, 7, 5, 5);
 
         /* last character (char_idx 0) gets the long monologue */
@@ -901,8 +901,8 @@ void fd2_play_final_chapter_30_ending(void)
             }
             fd2_dialog_sprite_blit_normal(
                 data_fd2_dialog_active_portrait_blit_offset + (uint32)workspace,
-                (uint32)data_fd2_portrait_sprite_buffer
-                    + *(int32 *)(data_fd2_portrait_sprite_buffer + frame_offset),
+                (uint32)data_fd2_portrait_sprite_buf_ptr
+                    + *(int32 *)(data_fd2_portrait_sprite_buf_ptr + frame_offset),
                 0x140);
             fd2_step_figani_pose_animation(sprite_sheet, 0xFFFFFFFF,
                                            (uint32)workspace, 0x140);

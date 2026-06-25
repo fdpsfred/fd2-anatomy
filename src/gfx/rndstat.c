@@ -18,7 +18,7 @@
  * portrait slot offset (data_fd2_dialog_active_portrait_blit_offset).
  *
  * The portrait sprite source is the active DATO.DAT entry stored in
- * data_fd2_portrait_sprite_buffer. The first ints at the buffer head
+ * data_fd2_portrait_sprite_buf_ptr. The first ints at the buffer head
  * form a per-frame sprite-offset table (mouth-open/close cycle); the
  * chosen frame's sprite payload is at buffer + offset_table[frame].
  *
@@ -33,8 +33,8 @@ void fd2_paint_portrait_to_dialog_area(uint32 frame)
 {
     uint32 sprite_addr;
 
-    sprite_addr = *(int32 *)(data_fd2_portrait_sprite_buffer + frame * 4)
-                  + (uint32)data_fd2_portrait_sprite_buffer;
+    sprite_addr = *(int32 *)(data_fd2_portrait_sprite_buf_ptr + frame * 4)
+                  + (uint32)data_fd2_portrait_sprite_buf_ptr;
 
     if (data_fd2_dialog_active_portrait_blit_offset != 0x9017) {
         fd2_dialog_sprite_blit_normal(
@@ -137,14 +137,14 @@ void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buff
     uint32 portrait_pixels;
 
     data_fd2_dialog_active_portrait_blit_offset = 0xc88;
-    data_fd2_portrait_sprite_buffer =
+    data_fd2_portrait_sprite_buf_ptr =
         (uint8 *)fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_dato_dat,
-            (uint32)data_fd2_portrait_sprite_buffer,
+            (uint32)data_fd2_portrait_sprite_buf_ptr,
             (uint32)data_fd2_battle_runtime_char_array_ptr[char_idx].portrait_id);
 
-    portrait_pixels = (uint32)*data_fd2_portrait_sprite_buffer
-                      + (uint32)data_fd2_portrait_sprite_buffer;
+    portrait_pixels = (uint32)*data_fd2_portrait_sprite_buf_ptr
+                      + (uint32)data_fd2_portrait_sprite_buf_ptr;
 
     fd2_assemble_dialog_frame_layered(overlay_buffer, 0x140, 5, 7, 5, 5);
 

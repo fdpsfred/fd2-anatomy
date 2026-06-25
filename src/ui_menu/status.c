@@ -1132,7 +1132,7 @@ void fd2_give_item_to_first_player_char(uint32 item_id)
  * infinite loop with an Esc break. EDI saves dialog_portrait_mode
  * across the status submenu; it is restored only on the non-Esc path.
  * The CALL fd2_load_dat_resource return value is stored back into
- * data_fd2_portrait_sprite_buffer (genuine return use).
+ * data_fd2_portrait_sprite_buf_ptr (genuine return use).
  * ---------------------------------------------------------------- */
 void fd2_run_status_screen_member_menu(void)
 {
@@ -1149,9 +1149,9 @@ void fd2_run_status_screen_member_menu(void)
         }
         fd2_open_char_status_screen(data_fd2_ui_menu_cursor_idx);
         data_fd2_dialog_active_portrait_blit_offset = saved_portrait_mode;
-        data_fd2_portrait_sprite_buffer = (uint8 *)fd2_load_dat_resource(
+        data_fd2_portrait_sprite_buf_ptr = (uint8 *)fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_dato_dat,
-            (uint32)data_fd2_portrait_sprite_buffer,
+            (uint32)data_fd2_portrait_sprite_buf_ptr,
             (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
     }
 }

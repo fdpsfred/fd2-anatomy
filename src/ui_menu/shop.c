@@ -600,7 +600,7 @@ void fd2_run_sell_item_menu(void)
  *      per-member equip UI for the member left in the cursor global.
  *   6. Restore data_fd2_dialog_active_portrait_blit_offset.
  *   7. Reload the chapter speaker portrait sprite from DATO.DAT (path string
- *      0x51A70, the 80x80 portrait archive) into data_fd2_portrait_sprite_buffer,
+ *      0x51A70, the 80x80 portrait archive) into data_fd2_portrait_sprite_buf_ptr,
  *      indexed by
  *      data_fd2_chapter_intro_menu_speaker_portrait_id_table[
  *      data_fd2_chapter_intro_menu_cursor_state].
@@ -634,10 +634,10 @@ void fd2_run_equip_member_menu(void)
         fd2_equip_unequip_inventory_menu(data_fd2_ui_menu_cursor_idx);
         data_fd2_dialog_active_portrait_blit_offset = saved_blit_offset;
 
-        data_fd2_portrait_sprite_buffer =
+        data_fd2_portrait_sprite_buf_ptr =
             (uint8 *)fd2_load_dat_resource(
                 (uint32)data_fd2_string_resource_filename_dato_dat,
-                (uint32)data_fd2_portrait_sprite_buffer,
+                (uint32)data_fd2_portrait_sprite_buf_ptr,
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[
                     data_fd2_chapter_intro_menu_cursor_state]);
     }

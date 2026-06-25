@@ -185,15 +185,15 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
                 portrait_target = (uint32)speaker_global->portrait_id;
                 pSpeaker = speaker_global;
             }
-            data_fd2_portrait_sprite_buffer =
+            data_fd2_portrait_sprite_buf_ptr =
                 (uint8 *)fd2_load_dat_resource(
                                       (uint32)data_fd2_string_resource_filename_dato_dat,
-                                      (uint32)data_fd2_portrait_sprite_buffer,
+                                      (uint32)data_fd2_portrait_sprite_buf_ptr,
                                       portrait_target);
             portrait_anim = fd2_play_dialog_open_animation(
                                 (uint32)pSpeaker->pos_x,
                                 (uint32)pSpeaker->pos_y, portrait_flip);
-            sprite = (uint8 *)data_fd2_portrait_sprite_buffer;
+            sprite = (uint8 *)data_fd2_portrait_sprite_buf_ptr;
             sprite = sprite + *sprite;
             fd2_dialog_sprite_blit_normal(
                 data_fd2_dialog_active_portrait_blit_offset + 0xa0000,
@@ -218,15 +218,15 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             found = fd2_find_char_by_id_or_template(portrait_target);
             portrait_flip = (found == -1) ? 0 : 0x70;
             pAlly = (runtime_char *)data_fd2_dialog_current_speaker_char_ptr;
-            data_fd2_portrait_sprite_buffer =
+            data_fd2_portrait_sprite_buf_ptr =
                 (uint8 *)fd2_load_dat_resource(
                                       (uint32)data_fd2_string_resource_filename_dato_dat,
-                                      (uint32)data_fd2_portrait_sprite_buffer,
+                                      (uint32)data_fd2_portrait_sprite_buf_ptr,
                                       (uint32)pAlly->portrait_id);
             portrait_anim = fd2_play_dialog_open_animation(
                                 (uint32)pAlly->pos_x,
                                 (uint32)pAlly->pos_y, portrait_flip);
-            sprite = (uint8 *)data_fd2_portrait_sprite_buffer;
+            sprite = (uint8 *)data_fd2_portrait_sprite_buf_ptr;
             sprite = sprite + *sprite;
             fd2_dialog_sprite_blit_mirrored(
                 data_fd2_dialog_active_portrait_blit_offset + 0xa0000,
@@ -251,15 +251,15 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
                        + *(uint16 *)(cur_op + 2);
             portrait_flip   = 2;
             portrait_target = (uint32)pSpeaker->portrait_id;
-            data_fd2_portrait_sprite_buffer =
+            data_fd2_portrait_sprite_buf_ptr =
                 (uint8 *)fd2_load_dat_resource(
                                       (uint32)data_fd2_string_resource_filename_dato_dat,
-                                      (uint32)data_fd2_portrait_sprite_buffer,
+                                      (uint32)data_fd2_portrait_sprite_buf_ptr,
                                       portrait_target);
             portrait_anim = fd2_play_dialog_open_animation(
                                 (uint32)pSpeaker->pos_x,
                                 (uint32)pSpeaker->pos_y, portrait_flip);
-            sprite = (uint8 *)data_fd2_portrait_sprite_buffer;
+            sprite = (uint8 *)data_fd2_portrait_sprite_buf_ptr;
             sprite = sprite + *sprite;
             fd2_dialog_sprite_blit_normal(
                 data_fd2_dialog_active_portrait_blit_offset + 0xa0000,
@@ -283,15 +283,15 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             pAlly = data_fd2_battle_runtime_char_array_ptr
                     + *(uint16 *)(cur_op + 2);
             portrait_flip = 0x70;
-            data_fd2_portrait_sprite_buffer =
+            data_fd2_portrait_sprite_buf_ptr =
                 (uint8 *)fd2_load_dat_resource(
                                       (uint32)data_fd2_string_resource_filename_dato_dat,
-                                      (uint32)data_fd2_portrait_sprite_buffer,
+                                      (uint32)data_fd2_portrait_sprite_buf_ptr,
                                       (uint32)pAlly->portrait_id);
             portrait_anim = fd2_play_dialog_open_animation(
                                 (uint32)pAlly->pos_x,
                                 (uint32)pAlly->pos_y, portrait_flip);
-            sprite = (uint8 *)data_fd2_portrait_sprite_buffer;
+            sprite = (uint8 *)data_fd2_portrait_sprite_buf_ptr;
             sprite = sprite + *sprite;
             fd2_dialog_sprite_blit_mirrored(
                 data_fd2_dialog_active_portrait_blit_offset + 0xa0000,
@@ -1021,8 +1021,8 @@ int fd2_text_dialog_typewriter_loop(void)
             }
 
             if (char_phase != 0) {
-                glyph_src = data_fd2_portrait_sprite_buffer
-                          + *data_fd2_portrait_sprite_buffer;
+                glyph_src = data_fd2_portrait_sprite_buf_ptr
+                          + *data_fd2_portrait_sprite_buf_ptr;
                 dst = (uint32)data_fd2_ui_slide_composed_target_buf_ptr
                     + data_fd2_dialog_active_portrait_blit_offset;
                 if (data_fd2_battle_tile_map_ptr == 0) {
@@ -1035,8 +1035,8 @@ int fd2_text_dialog_typewriter_loop(void)
                 char_phase = 0;
             } else {
                 if (pace_counter == 0) {
-                    glyph_src = data_fd2_portrait_sprite_buffer
-                              + *(int *)(data_fd2_portrait_sprite_buffer + 0xC);
+                    glyph_src = data_fd2_portrait_sprite_buf_ptr
+                              + *(int *)(data_fd2_portrait_sprite_buf_ptr + 0xC);
                     dst = (uint32)data_fd2_ui_slide_composed_target_buf_ptr
                         + data_fd2_dialog_active_portrait_blit_offset;
                     if (data_fd2_battle_tile_map_ptr == 0) {
@@ -1320,20 +1320,20 @@ void *data_fd2_dialog_frame_layer_save_buffer_ptrs[5];
 void *data_fd2_dialog_area_backup_buffer;
 
 /* ----------------------------------------------------------------
- * data_fd2_portrait_sprite_buffer @ 0x53A85
+ * data_fd2_portrait_sprite_buf_ptr @ 0x53A85
  *
  * Single heap pointer (uint8 *) to the currently loaded portrait
  * sprite blob (a DATO.DAT resource). The dialog/status-screen open
  * paths reload it with the running pattern
- *   data_fd2_portrait_sprite_buffer =
+ *   data_fd2_portrait_sprite_buf_ptr =
  *       fd2_load_dat_resource("DATO.DAT",
- *                             (uint32)data_fd2_portrait_sprite_buffer,
+ *                             (uint32)data_fd2_portrait_sprite_buf_ptr,
  *                             portrait_id);
  * i.e. the prior pointer is handed back to the loader as the reusable
  * buffer and the fresh pointer is stored. Consumers then dereference
  * it as a byte buffer whose first byte is the header-size offset:
- * sprite_pixels = data_fd2_portrait_sprite_buffer +
- *                 *data_fd2_portrait_sprite_buffer (skip header).
+ * sprite_pixels = data_fd2_portrait_sprite_buf_ptr +
+ *                 *data_fd2_portrait_sprite_buf_ptr (skip header).
  * Accessed exclusively as dword ptr (asm: MOV [0x53A85],EAX from the
  * loader return; PUSH dword ptr [0x53A85] back into the loader; MOVZX
  * EBX,byte ptr [EAX] to read the header offset) -> a 4-byte pointer.
@@ -1343,7 +1343,7 @@ void *data_fd2_dialog_area_backup_buffer;
  * Pure runtime state: first use is the loader-return write, so it
  * relies on zero-initialization at startup; no static initializer.
  * ---------------------------------------------------------------- */
-uint8 *data_fd2_portrait_sprite_buffer;
+uint8 *data_fd2_portrait_sprite_buf_ptr;
 
 /* ----------------------------------------------------------------
  * data_fd2_dialog_active_portrait_blit_offset @ 0x53C67

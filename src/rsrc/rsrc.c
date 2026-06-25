@@ -540,15 +540,15 @@ void fd2_dialog_open_speaker_portrait(uint32 portrait_id)
         data_fd2_dialog_active_portrait_blit_offset = 0x9017;
     }
 
-    data_fd2_portrait_sprite_buffer = (uint8 *)fd2_load_dat_resource(
+    data_fd2_portrait_sprite_buf_ptr = (uint8 *)fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_dato_dat,
-        (uint32)data_fd2_portrait_sprite_buffer, portrait_id);
+        (uint32)data_fd2_portrait_sprite_buf_ptr, portrait_id);
 
     fd2_dialog_sprite_blit_mirrored(
         data_fd2_ui_slide_composed_target_buf_ptr
             + data_fd2_dialog_active_portrait_blit_offset,
-        (uint32)(data_fd2_portrait_sprite_buffer
-                 + *data_fd2_portrait_sprite_buffer),
+        (uint32)(data_fd2_portrait_sprite_buf_ptr
+                 + *data_fd2_portrait_sprite_buf_ptr),
         0x140);
 
     for (frame_iter = 5; -1 < (int)frame_iter; frame_iter--) {
