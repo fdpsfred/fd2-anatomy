@@ -161,7 +161,7 @@ void fd2_animate_spell_impact_per_target(uint32 caster_idx, uint32 spell_id,
     /* snapshot the three per-spell tables (8 dwords + 1 byte = 33B each) */
     memcpy(sprite_off_tbl, data_fd2_animation_spell_sprite_offset_table, 33);
     memcpy(frame_count_tbl, data_fd2_animation_spell_frame_count_table, 33);
-    memcpy(sfx_frame_tbl, data_fd2_animation_spell_sfx_frame_table, 33);
+    memcpy(sfx_frame_tbl, data_fd2_animation_spell_sfx_id_table, 33);
 
     fd2_composite_battle_frame(0);
 

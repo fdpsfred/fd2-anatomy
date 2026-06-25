@@ -120,7 +120,7 @@ const uint8 data_fd2_animation_status_overlay_flicker_color_template[30] = {
  * portrait sheet. First of three parallel 33-byte byte tables:
  *   data_fd2_animation_spell_sprite_offset_table @ 0x51F33 (sprite-base offset)
  *   data_fd2_animation_spell_frame_count_table   @ 0x51F54 (total frame count)
- *   data_fd2_animation_spell_sfx_frame_table     @ 0x51F75 (SFX trigger frame)
+ *   data_fd2_animation_spell_sfx_id_table     @ 0x51F75 (SFX id)
  *
  * Sole reader fd2_animate_spell_impact_per_target (@ 0x1C4CC) copies the
  * table into a stack scratch and indexes it by spell_id:
@@ -157,7 +157,7 @@ const uint8 data_fd2_animation_spell_sprite_offset_table[33] = {
  * byte tables:
  *   data_fd2_animation_spell_sprite_offset_table @ 0x51F33 (sprite-base offset)
  *   data_fd2_animation_spell_frame_count_table   @ 0x51F54 (total frame count)
- *   data_fd2_animation_spell_sfx_frame_table     @ 0x51F75 (SFX trigger frame)
+ *   data_fd2_animation_spell_sfx_id_table     @ 0x51F75 (SFX id)
  *
  * Sole reader fd2_animate_spell_impact_per_target (@ 0x1C4CC) copies the
  * table into a stack scratch and indexes it by spell_id:
@@ -172,7 +172,7 @@ const uint8 data_fd2_animation_spell_sprite_offset_table[33] = {
  * The 33-byte REP MOVSD+MOVSB copy width fixes the extent; the MOVZX byte
  * load (stride 1, zero-extended) fixes the element type as unsigned uint8.
  * The DWORD copy granularity is a memcpy optimisation, NOT a 4-byte stride.
- * The next table (data_fd2_animation_spell_sfx_frame_table) begins exactly
+ * The next table (data_fd2_animation_spell_sfx_id_table) begins exactly
  * at +33 (0x51F75), confirming the 33-byte boundary.
  *
  * Read-only (single READ xref, no writers); compiler rodata table.
@@ -183,7 +183,7 @@ const uint8 data_fd2_animation_spell_frame_count_table[33] = {
 };
 
 /* ----------------------------------------------------------------
- * data_fd2_animation_spell_sfx_frame_table @ 0x51F75  (33 bytes, uint8[33])
+ * data_fd2_animation_spell_sfx_id_table @ 0x51F75  (33 bytes, uint8[33])
  *
  * Per-spell primary SFX trigger value for the per-target spell-impact
  * animation. One byte per spell_id; the value is the sound-effect id played
@@ -191,7 +191,7 @@ const uint8 data_fd2_animation_spell_frame_count_table[33] = {
  * byte tables:
  *   data_fd2_animation_spell_sprite_offset_table @ 0x51F33 (sprite-base offset)
  *   data_fd2_animation_spell_frame_count_table   @ 0x51F54 (total frame count)
- *   data_fd2_animation_spell_sfx_frame_table     @ 0x51F75 (SFX trigger value)
+ *   data_fd2_animation_spell_sfx_id_table     @ 0x51F75 (SFX id)
  *
  * Sole reader fd2_animate_spell_impact_per_target (@ 0x1C4CC) copies the
  * table into a stack scratch and indexes it by spell_id:
@@ -218,7 +218,7 @@ const uint8 data_fd2_animation_spell_frame_count_table[33] = {
  * Read-only (single READ xref + the base-address DATA xref, no writers);
  * compiler rodata table.
  */
-const uint8 data_fd2_animation_spell_sfx_frame_table[33] = {
+const uint8 data_fd2_animation_spell_sfx_id_table[33] = {
     6,6,6,6,9,9,9,9,10,14,0,0,0,12,12,12,12,6,7,8,4,4,
     3,0,0,5,3,2,0,0,0,0,9
 };

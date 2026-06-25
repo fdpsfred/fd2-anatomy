@@ -448,7 +448,7 @@ extern const uint8 data_fd2_animation_status_overlay_flicker_color_template[30];
 extern const uint8 data_fd2_animation_spell_palette_flash_table[108];   /* 0x51AAD  36*3 RGB planes R/G/B */
 extern const uint8 data_fd2_animation_spell_sprite_offset_table[33];    /* 0x51F33 */
 extern const uint8 data_fd2_animation_spell_frame_count_table[33];      /* 0x51F54 */
-extern const uint8 data_fd2_animation_spell_sfx_frame_table[33];        /* 0x51F75 */
+extern const uint8 data_fd2_animation_spell_sfx_id_table[33];        /* 0x51F75 */
 extern const uint8 data_fd2_animation_spell_overlay_blink_mask_table[30]; /* 0x52006 */
 extern const uint8 data_fd2_animation_spell_projectile_y_offset_table[25]; /* 0x5202C */
 extern uint8  data_fd2_battle_summon_minor_anim_state5_frame_counter;    /* 0x540FA */
