@@ -178,7 +178,8 @@
     "title": "Unconditional close(handle) on LX magic mismatch ignores mode bit0",
     "description": "On LX magic mismatch the function calls close(handle) without testing mode_byte&1. When called in in-memory mode (bit0==1), arg0 is a base address rather than a real file descriptor, so close() is invoked on a non-handle value. This is faithfully reproduced from the original binary (disassembly 0x363ea: PUSH EBP; CALL close at 0x3d01c is unconditional) and MUST NOT be changed -- the CRT-equivalent logic is verified to match FD2.LE. Recorded for awareness only. Practically unreachable: the sole (itself-dead) caller crt_equivalent_lx_module_loader_3647b only loads a valid LE image. The success-path close() at the end is correctly gated by bit0; only the mismatch error path is not.",
     "evidence": "disassemble_function 0x00036344: at 0x363e8 JZ skips to 0x363f5 (match path); fall-through 0x363ea PUSH EBP / 0x363eb CALL 0x0003d01c (close) then JMP 0x3638a (return 0), with no TEST of [ESP+0xe0]&1 guarding it -- contrast the success-path close at 0x36451 TEST byte ptr [ESP+0xe0],0x1 / JNZ 0x36464.",
-    "status": "open"
+    "resolution": "RESOLVED (closeout; faithful-to-binary CRT-equivalent, MUST NOT change). Disasm re-verified: mismatch path 0x363e8 JZ 0x363f5 else fall-through 0x363ea PUSH EBP / 0x363eb CALL 0x3d01c (close) is UNCONDITIONAL (no mode-bit0 test) then JMP return 0; success-path close at 0x36451 IS gated (TEST [ESP+0xe0],0x1 / JNZ 0x36464). Entry 0x3635b tests bit0 -> in-memory mode (bit0=1) makes EBP a base address not a handle. Exactly matches FD2.LE; intentionally preserved (Layer-2 equivalence). Reachability: sole caller crt_equivalent_lx_module_loader @ 0x3647b has 0 callers (dead) and only loads valid LE images, so the mismatch path never triggers. No fix.",
+    "status": "resolved"
   },
   "ISS-0014": {
     "id": "ISS-0014",
