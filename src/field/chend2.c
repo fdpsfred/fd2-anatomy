@@ -684,7 +684,7 @@ const uint8 data_fd2_chapter_ch27_end_scene_char_pos_y_table[16] = {
     0x0D, 0x0B, 0x0C, 0x0C, 0x0C, 0x0C, 0x0D, 0x0D,
     0x0D, 0x0D, 0x0E, 0x0E, 0x0E, 0x0F, 0x0F, 0x0F
 };
-const uint8 data_fd2_chapter_ch27_end_scene_vestigial_byte = 0x01;
+const uint8 data_fd2_chapter_ch27_end_scene_bad_path_status_flicker_char_idx = 0x01;
 
 /* ----------------------------------------------------------------
  * fd2_chapter_27_end @ 0x250CC  — Chapter 27「命運的交會點」end handler
@@ -726,14 +726,15 @@ void fd2_chapter_27_end(void)
 {
     uint8 pos_x[16];
     uint8 pos_y[16];
-    uint8 vestigial;
+    uint8 status_flicker_char_idx;
     int i;
 
     for (i = 0; i < 16; i++) {
         pos_x[i] = data_fd2_chapter_ch27_end_scene_char_pos_x_table[i];
         pos_y[i] = data_fd2_chapter_ch27_end_scene_char_pos_y_table[i];
     }
-    vestigial = data_fd2_chapter_ch27_end_scene_vestigial_byte;
+    status_flicker_char_idx =
+        data_fd2_chapter_ch27_end_scene_bad_path_status_flicker_char_idx;
 
     for (i = 0; i < 16; i++) {
         data_fd2_battle_runtime_char_array_ptr[i].flags = 0;
@@ -794,7 +795,8 @@ void fd2_chapter_27_end(void)
     fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xF, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
-    fd2_animate_status_effect_overlay_flicker(0, 0x13, 1, (uint32)&vestigial);
+    fd2_animate_status_effect_overlay_flicker(0, 0x13, 1,
+                                              (uint32)&status_flicker_char_idx);
     fd2_animate_warp_teleport_char(
         1, 0xFF, 0xFF,
         (uint32)data_fd2_battle_runtime_char_array_ptr[1].pos_x,
