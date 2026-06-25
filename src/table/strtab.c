@@ -92,7 +92,7 @@ const char data_fd2_string_resource_filename_fdother_dat[12] = {
  * battlefield. The address is taken (array decays) and consumed as a char*
  * path; never written. Immediately follows the "FDOTHER.DAT" string at
  * 0x51A4D. */
-const char data_fd2_string_resource_filename_fdfield_dat_51a59[12] = {
+const char data_fd2_string_resource_filename_fdfield_dat[12] = {
     0x46, 0x44, 0x46, 0x49, 0x45, 0x4c, 0x44, 0x2e, 0x44, 0x41,
     0x54, 0x00
 };

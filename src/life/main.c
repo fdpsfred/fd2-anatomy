@@ -362,7 +362,7 @@ void fd2_load_save_and_init_engine(void)
     data_fd2_chapter_current_chapter_id = (uint32)pBuf[0x30C5];
     data_fd2_chapter_portrait_load_buffer =
         fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_fdfield_dat_51a59,
+            (uint32)data_fd2_string_resource_filename_fdfield_dat,
             data_fd2_chapter_portrait_load_buffer,
             data_fd2_chapter_current_chapter_id * 3 + 2);
 
@@ -387,7 +387,7 @@ void fd2_load_save_and_init_engine(void)
             data_fd2_chapter_current_chapter_id + 1);
     data_fd2_battle_tile_map_ptr =
         fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_fdfield_dat_51a59,
+            (uint32)data_fd2_string_resource_filename_fdfield_dat,
             data_fd2_battle_tile_map_ptr,
             data_fd2_chapter_current_chapter_id * 3);
     data_fd2_battle_map_width_tiles =
