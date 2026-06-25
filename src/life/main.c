@@ -407,7 +407,7 @@ void fd2_load_save_and_init_engine(void)
     fd2_battle_reset_tile_transient_state(data_fd2_battle_tile_map_ptr);
     pTileEvent = (uint8 *)data_fd2_tile_event_data_table_ptr;
     data_fd2_resource_portrait_cache_total_size = (uint32)pTileEvent[1];
-    data_fd2_resource_portrait_cache_alloc_offset = (uint32)pTileEvent[2];
+    data_fd2_resource_field_char_record_count = (uint32)pTileEvent[2];
     data_fd2_battle_party_member_count = (uint32)pBuf[0x30C4];
 
     if (data_fd2_battle_runtime_char_array_ptr != NULL)
@@ -604,17 +604,17 @@ uint32 data_fd2_field_map_tile_event_consumed_flags_ptr;
 uint8 data_fd2_ui_game_speed_flag;
 
 /*
- * data_fd2_resource_portrait_cache_alloc_offset @ 0x53BE3 -- per-chapter count of
+ * data_fd2_resource_field_char_record_count @ 0x53BE3 -- per-chapter count of
  * field-character spawn records (the chapter's NPC/enemy definitions). Taken from
  * the third byte of the loaded FDFIELD.DAT tile-event table (tile_event_data_table[2]).
- * Despite the legacy name, this is NOT the portrait sprite cache size: the actual
- * portrait-cache fill counter is the separate sibling
- * data_fd2_resource_portrait_cache_count @ 0x53BDF (driven by fd2_load_portrait_to_cache).
+ * Distinct from the portrait sprite cache: the actual portrait-cache fill
+ * counter is the separate sibling data_fd2_resource_portrait_cache_count
+ * @ 0x53BDF (driven by fd2_load_portrait_to_cache).
  * Stored as a 32-bit scalar (uint32). Both writers widen a zero-extended byte into
  * the full dword slot:
  *   fd2_load_chapter_battle_data @ 0x10991  MOVZX EAX,byte ptr [EAX+2]; MOV [0x53BE3],EAX
  *   fd2_load_save_and_init_engine @ 0x10291 (same MOVZX byte -> MOV dword) i.e.
- *   data_fd2_resource_portrait_cache_alloc_offset = (uint32)tile_event_data_table[2];
+ *   data_fd2_resource_field_char_record_count = (uint32)tile_event_data_table[2];
  * so the value is an unsigned record count. It is consumed at 32-bit width in two
  * dual roles:
  *   - As a loop bound: fd2_load_chapter_portraits_and_dump_tmp @ 0x10BCC scans the
@@ -622,13 +622,13 @@ uint8 data_fd2_ui_game_speed_flag;
  *     spawns each matching-race entry via fd2_init_runtime_char_for_battle.
  *   - As a position-table index base: fd2_load_chapter_battle_data @ 0x10A5B does
  *     IMUL EAX,dword ptr [0x53BE3],0x6 to seed the field-position pointer
- *     (chapter_portrait_load_buffer + count*6 + 2); player-party positions begin
+ *     (char_spawn_pos_table + count*6 + 2); player-party positions begin
  *     after these N field-character position records.
  * Every access is a full dword load/store of a small positive count. Zero-initialized
  * in the image; the first use on every path is the load-time write, so this is a
  * zero-init (BSS) scalar.
  */
-uint32 data_fd2_resource_portrait_cache_alloc_offset;
+uint32 data_fd2_resource_field_char_record_count;
 
 /*
  * data_fd2_resource_portrait_cache_total_size @ 0x53BE7 -- per-chapter active
@@ -637,7 +637,7 @@ uint32 data_fd2_resource_portrait_cache_alloc_offset;
  * name, this is NOT a portrait sprite-cache size: it is the chapter roster slot count
  * that bounds the runtime_char fill loop. The actual portrait-cache fill counter is the
  * separate sibling data_fd2_resource_portrait_cache_count @ 0x53BDF. Sibling also of
- * data_fd2_resource_portrait_cache_alloc_offset @ 0x53BE3 in the same load block; both
+ * data_fd2_resource_field_char_record_count @ 0x53BE3 in the same load block; both
  * writers widen a zero-extended byte into the full dword slot:
  *   fd2_load_chapter_battle_data    @ 0x10987 MOVZX EDX,byte ptr [EAX+1]
  *                                   @ 0x1098B MOV dword ptr [0x53BE7],EDX

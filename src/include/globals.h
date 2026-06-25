@@ -399,7 +399,7 @@ extern const char data_fd2_string_field_map_fdicon_not_found_err[35];    /* 0x50
 extern uint32 data_fd2_resource_portrait_cache_buffer_used;             /* 0x539EC */
 extern uint32 data_fd2_resource_portrait_sheet_ptr;                     /* 0x53AD1 */
 extern uint32 data_fd2_resource_portrait_cache_count;                   /* 0x53BDF */
-extern uint32 data_fd2_resource_portrait_cache_alloc_offset;            /* 0x53BE3 */
+extern uint32 data_fd2_resource_field_char_record_count;            /* 0x53BE3 */
 extern uint32 data_fd2_resource_portrait_cache_total_size;              /* 0x53BE7 */
 extern uint32 data_fd2_portrait_sprite_cache;                                    /* 0x53A61 */
 extern uint8  data_fd2_resource_portrait_cache_id_list_base[160];       /* 0x53B17 */

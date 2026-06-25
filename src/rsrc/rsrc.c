@@ -340,7 +340,7 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
 
     data_fd2_resource_portrait_cache_total_size =
         (uint32)((uint8 *)data_fd2_tile_event_data_table_ptr)[1];
-    data_fd2_resource_portrait_cache_alloc_offset =
+    data_fd2_resource_field_char_record_count =
         (uint32)((uint8 *)data_fd2_tile_event_data_table_ptr)[2];
     data_fd2_battle_party_member_count =
         data_fd2_resource_portrait_cache_total_size;
@@ -371,7 +371,7 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     }
 
     field_pos = (uint8 *)(data_fd2_chapter_char_spawn_pos_table
-        + data_fd2_resource_portrait_cache_alloc_offset * 6 + 2);
+        + data_fd2_resource_field_char_record_count * 6 + 2);
     template_ptr = (uint8 *)data_fd2_shared_menu_party_roster_buffer_ptr;
 
     for (char_iter = 0;
@@ -457,7 +457,7 @@ void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
         data_fd2_chapter_current_chapter_id * 3 + 2);
 
     for (iter = 0;
-         (int)iter < (int)data_fd2_resource_portrait_cache_alloc_offset;
+         (int)iter < (int)data_fd2_resource_field_char_record_count;
          iter++) {
         char_race = (uint32)*(uint8 *)(data_fd2_tile_event_data_table_ptr
                                        + iter * 0x1a + 0x98);
