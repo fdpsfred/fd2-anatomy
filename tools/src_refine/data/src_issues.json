@@ -80,7 +80,8 @@
     "title": "Ghidra param 2 mislabeled origin_x (is the sprite atlas)",
     "description": "The live Ghidra signature/plate names param 2 'origin_x', but the disassembly shows Stack[0x8] is pushed as the sheet_ptr (first) argument of fd2_blit_indexed_sprite, i.e. it is the sprite-sheet/atlas pointer, not an x-coordinate. The src already names it 'sprite_atlas' correctly. Recorded for Stage 2 to rename the Ghidra param (param-name only; not a symbol rename). No code/logic change.",
     "evidence": "disasm @ 0x27632 PUSH dword ptr [ESP+0x18] (= original Stack[0x8] after 4 pushes) is blit arg0=sheet_ptr; protos.h:455 fd2_blit_indexed_sprite(uint32 sheet_ptr, uint32 sprite_idx, uint32 dst_buf, ...). The old plate body even passed 'sprite_handle' as the blit's first arg, which was internally inconsistent; corrected in the updated plate.",
-    "status": "open"
+    "resolution": "RESOLVED (closeout). get_function_variables(0x275d6) confirmed Ghidra param ordinal 1 was still 'origin_x' (ordinals 0/2/3/4 sprite_handle/origin_y/row_stride/state_code already matched src). Renamed ordinal 1 origin_x -> sprite_atlas (rename_variables), matching anisummn.c:71 def where param 2 is the sprite-sheet/atlas pushed as fd2_blit_indexed_sprite arg0=sheet_ptr. Ghidra-only param rename; no src/binary change.",
+    "status": "resolved"
   },
   "ISS-0007": {
     "id": "ISS-0007",
