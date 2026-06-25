@@ -45,7 +45,7 @@ void fd2_init_battle_state_for_chapter(void)
  * char_field_idx selects the per-char field record; fdicon_fp is the
  * open FDICON.B24 handle passed to the portrait loader.
  *
- * 1. Desired spawn position from data_fd2_chapter_portrait_load_buffer
+ * 1. Desired spawn position from data_fd2_chapter_char_spawn_pos_table
  *    + char_field_idx*6 : byte +2 = desired_x, byte +4 = desired_y.
  * 2. Repaint threat overlay (clear team 0/1 paint).
  * 3. If chapter_init_phase_flag == 0: scan the tile map for the
@@ -89,7 +89,7 @@ void fd2_init_runtime_char_for_battle(uint32 char_field_idx, uint32 fdicon_fp)
     pSlot = (uint8 *)data_fd2_battle_runtime_char_array_ptr
           + data_fd2_battle_party_member_count * RUNTIME_CHAR_SIZE;
 
-    pField = (uint8 *)(data_fd2_chapter_portrait_load_buffer + char_field_idx * 6);
+    pField = (uint8 *)(data_fd2_chapter_char_spawn_pos_table + char_field_idx * 6);
     desired_x = (uint32)pField[2];
     desired_y = (uint32)pField[4];
 

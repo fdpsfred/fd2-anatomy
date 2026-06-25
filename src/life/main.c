@@ -360,10 +360,10 @@ void fd2_load_save_and_init_engine(void)
             (uint32)data_fd2_string_resource_filename_fdother_dat,
             data_fd2_vga_palette_data_ptr, 0);
     data_fd2_chapter_current_chapter_id = (uint32)pBuf[0x30C5];
-    data_fd2_chapter_portrait_load_buffer =
+    data_fd2_chapter_char_spawn_pos_table =
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdfield_dat,
-            data_fd2_chapter_portrait_load_buffer,
+            data_fd2_chapter_char_spawn_pos_table,
             data_fd2_chapter_current_chapter_id * 3 + 2);
 
     if (data_fd2_tile_event_data_table_ptr != 0)
@@ -461,8 +461,8 @@ void fd2_load_save_and_init_engine(void)
     data_fd2_audio_sfx_enabled_flag = pBuf[0x30D4];
 
     free(pBuf);
-    free((void *)data_fd2_chapter_portrait_load_buffer);
-    data_fd2_chapter_portrait_load_buffer = 0;
+    free((void *)data_fd2_chapter_char_spawn_pos_table);
+    data_fd2_chapter_char_spawn_pos_table = 0;
 
     fd2_set_bgm_track_with_fade(
         (uint32)data_fd2_audio_per_chapter_player_turn_bgm_track

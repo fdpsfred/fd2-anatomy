@@ -272,7 +272,7 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
  * Pipeline:
  *   1. fd2_load_chapter_background_layers()
  *   2. FDTXT.DAT[chapter+1] -> data_fd2_current_chapter_text
- *   3. FDFIELD.DAT[chapter*3 + 2/1/0] -> data_fd2_chapter_portrait_load_buffer /
+ *   3. FDFIELD.DAT[chapter*3 + 2/1/0] -> data_fd2_chapter_char_spawn_pos_table /
  *      tile_event_data_table / battle_tile_map
  *   4. map width/height = tile_map[0]/[2] (16-bit)
  *   5. FDSHAP.DAT[tile_event[0]*2 (+1)] -> data_fd2_battle_scene_snapshot /
@@ -285,7 +285,7 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
  *  10. fopen("FDICON.B24","rb")
  *  11. per slot (0..cache_total_size): build active player units from the
  *      shared menu party roster template, or zero+mark dead for empty slots
- *  12. fclose; free data_fd2_chapter_portrait_load_buffer
+ *  12. fclose; free data_fd2_chapter_char_spawn_pos_table
  *  13. fd2_load_chapter_portraits_and_dump_tmp(0)
  *
  * malloc/fopen failure -> INT 10h text-mode reset + printf + exit.
@@ -313,9 +313,9 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
         data_fd2_current_chapter_text, chapter_id + 1);
 
     fdfield_x3 = chapter_id * 3;
-    data_fd2_chapter_portrait_load_buffer = fd2_load_dat_resource(
+    data_fd2_chapter_char_spawn_pos_table = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdfield_dat,
-        data_fd2_chapter_portrait_load_buffer, fdfield_x3 + 2);
+        data_fd2_chapter_char_spawn_pos_table, fdfield_x3 + 2);
     data_fd2_tile_event_data_table_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdfield_dat,
         data_fd2_tile_event_data_table_ptr, fdfield_x3 + 1);
@@ -370,7 +370,7 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
         exit(1);
     }
 
-    field_pos = (uint8 *)(data_fd2_chapter_portrait_load_buffer
+    field_pos = (uint8 *)(data_fd2_chapter_char_spawn_pos_table
         + data_fd2_resource_portrait_cache_alloc_offset * 6 + 2);
     template_ptr = (uint8 *)data_fd2_shared_menu_party_roster_buffer_ptr;
 
@@ -406,8 +406,8 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     }
 
     fclose(fp);
-    free((void *)data_fd2_chapter_portrait_load_buffer);
-    data_fd2_chapter_portrait_load_buffer = 0;
+    free((void *)data_fd2_chapter_char_spawn_pos_table);
+    data_fd2_chapter_char_spawn_pos_table = 0;
     fd2_load_chapter_portraits_and_dump_tmp(0);
 }
 
@@ -421,13 +421,13 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
  *   1. fopen("FDICON.B24", "rb"); if NULL -> INT 10h text-mode reset +
  *      printf("File 'FDICON.B24' error !!\n") + exit.
  *   2. Re-read FDFIELD.DAT[current_chapter_id*3 + 2] into
- *      data_fd2_chapter_portrait_load_buffer (the buffer was freed by
+ *      data_fd2_chapter_char_spawn_pos_table (the buffer was freed by
  *      fd2_load_chapter_battle_data after its own load).
  *   3. For each entry in the tile-event table (count =
  *      portrait_cache_alloc_offset, stride 0x1A, race byte at +0x98):
  *      if race == target_race_id, call fd2_init_runtime_char_for_battle
  *      to populate a runtime_char + load its portrait from FDICON.B24.
- *   4. fclose(FDICON); free + null data_fd2_chapter_portrait_load_buffer.
+ *   4. fclose(FDICON); free + null data_fd2_chapter_char_spawn_pos_table.
  *   5. fopen("FD2.TMP", "wb"); fwrite(data_fd2_portrait_sprite_cache, 1, 0x32A00);
  *      fclose. FD2.TMP is the cross-chapter sprite swap file, refreshed
  *      (truncated + rewritten) after each portrait load.
@@ -451,9 +451,9 @@ void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
         exit(1);
     }
 
-    data_fd2_chapter_portrait_load_buffer = fd2_load_dat_resource(
+    data_fd2_chapter_char_spawn_pos_table = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdfield_dat,
-        data_fd2_chapter_portrait_load_buffer,
+        data_fd2_chapter_char_spawn_pos_table,
         data_fd2_chapter_current_chapter_id * 3 + 2);
 
     for (iter = 0;
@@ -467,8 +467,8 @@ void fd2_load_chapter_portraits_and_dump_tmp(uint32 target_race_id)
     }
 
     fclose(fp);
-    free((void *)data_fd2_chapter_portrait_load_buffer);
-    data_fd2_chapter_portrait_load_buffer = 0;
+    free((void *)data_fd2_chapter_char_spawn_pos_table);
+    data_fd2_chapter_char_spawn_pos_table = 0;
 
     fp = fopen("FD2.TMP", "wb");
     fwrite((void *)data_fd2_portrait_sprite_cache, 1, 0x32a00, fp);
@@ -692,7 +692,7 @@ int fd2_load_chapter_shop_item_ids(uint8 *out_buf)
 }
 
 /* ----------------------------------------------------------------
- * data_fd2_chapter_portrait_load_buffer @ 0x53A59 (zero-init BSS)
+ * data_fd2_chapter_char_spawn_pos_table @ 0x53A59 (zero-init BSS)
  *
  * Pointer to the per-chapter FDFIELD char-placement table loaded by
  * fd2_load_dat_resource(FDFIELD.DAT[chapter_id*3 + 2]). Holds a 6-byte
@@ -700,16 +700,16 @@ int fd2_load_chapter_shop_item_ids(uint8 *out_buf)
  * fields: +0 = sprite/portrait reference, +2 = desired_x, +4 = desired_y.
  * Only the +2/+4 spawn coordinates are read (as bytes), by
  * fd2_init_runtime_char_for_battle and fd2_load_chapter_battle_data.
- * The "portrait" in the symbol name is a misnomer carried over from the
- * +0 field -- the table's actual job is supplying spawn coordinates, not
- * portrait pixels (those live in data_fd2_portrait_sprite_cache @ 0x53A61).
+ * The table's job is supplying spawn coordinates, not portrait pixels
+ * (those live in data_fd2_portrait_sprite_cache @ 0x53A61); the +0
+ * sprite/portrait reference field is never read here.
  * Lifecycle is transient: NULL at startup, reassigned from the loader,
  * then free()'d and reset to 0 once the chapter's units are placed.
  * Stored/loaded as a full 32-bit dword everywhere (callers cast to uint8*
  * for the +idx*6 byte arithmetic); cleared to 0 by the CRT BSS-zero loop
  * at startup. (sublabel @ .object2, 4 bytes.)
  * ---------------------------------------------------------------- */
-uint32 data_fd2_chapter_portrait_load_buffer;
+uint32 data_fd2_chapter_char_spawn_pos_table;
 
 /* ----------------------------------------------------------------
  * data_fd2_portrait_sprite_cache @ 0x53A61 (zero-init BSS)
