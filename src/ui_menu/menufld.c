@@ -203,7 +203,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
  * (Status / Save / Load / Quit) and dispatches the chosen option.
  *
  * Setup:
- *   menu_options[0..3] = data_fd2_ui_save_load_newgame_menu_template (0x51EF5)
+ *   menu_options[0..3] = data_fd2_ui_field_status_save_load_quit_menu_template (0x51EF5)
  *   menu_state[0..3]   = data_fd2_ui_save_load_menu_state_template    (0x53F22, all 0)
  *   Probe FD2.SAV ("rb"): if it does NOT open, gray the Load option
  *     (menu_state[2] = 1); if it does open, malloc+fread+free (probe only).
@@ -250,10 +250,10 @@ int fd2_field_menu_status_save_load_quit_dispatch(void)
     uint32  checksum;
     uint32  result_text_id;
 
-    menu_options[0] = data_fd2_ui_save_load_newgame_menu_template[0];
-    menu_options[1] = data_fd2_ui_save_load_newgame_menu_template[1];
-    menu_options[2] = data_fd2_ui_save_load_newgame_menu_template[2];
-    menu_options[3] = data_fd2_ui_save_load_newgame_menu_template[3];
+    menu_options[0] = data_fd2_ui_field_status_save_load_quit_menu_template[0];
+    menu_options[1] = data_fd2_ui_field_status_save_load_quit_menu_template[1];
+    menu_options[2] = data_fd2_ui_field_status_save_load_quit_menu_template[2];
+    menu_options[3] = data_fd2_ui_field_status_save_load_quit_menu_template[3];
 
     menu_state[0] = data_fd2_ui_save_load_menu_state_template[0];
     menu_state[1] = data_fd2_ui_save_load_menu_state_template[1];

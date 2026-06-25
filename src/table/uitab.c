@@ -48,7 +48,7 @@ const int32 data_fd2_ui_game_options_menu_slots_template[4] = { 0x12, 0x14, 0x16
 const int32 data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };
 
 /* ----------------------------------------------------------------
- * data_fd2_ui_save_load_newgame_menu_template @ 0x51EF5  (16 bytes)
+ * data_fd2_ui_field_status_save_load_quit_menu_template @ 0x51EF5  (16 bytes)
  *
  * Field status/save/load/quit submenu option list: 4 x int32 entries
  * { 12, 13, 14, 15 } (Status / Save / Load / Quit). The sole reader
@@ -59,7 +59,7 @@ const int32 data_fd2_ui_inline_action_menu_template[4] = { 0, 1, 2, 3 };
  * consumed (paired with data_fd2_ui_save_load_menu_state_template @ 0x53F22,
  * which holds the per-option enable/disable flags mutated on the stack).
  */
-const int32 data_fd2_ui_save_load_newgame_menu_template[4] = { 12, 13, 14, 15 };
+const int32 data_fd2_ui_field_status_save_load_quit_menu_template[4] = { 12, 13, 14, 15 };
 
 /* ----------------------------------------------------------------
  * data_fd2_ui_item_command_menu_template @ 0x51F05  (16 bytes)
@@ -247,7 +247,7 @@ int32 data_fd2_ui_player_action_menu_state_template[4] = { 0, 0, 0, 0 };
  * data_fd2_ui_save_load_menu_state_template @ 0x53F22  (16 bytes)
  *
  * Per-option enable/disable flag state for the field status/save/load/quit
- * submenu, paired with data_fd2_ui_save_load_newgame_menu_template @ 0x51EF5.
+ * submenu, paired with data_fd2_ui_field_status_save_load_quit_menu_template @ 0x51EF5.
  * 4 x int32 entries, all 0 at rest. The sole reader
  * fd2_field_menu_status_save_load_quit_dispatch (@ 0x19DF7) copies all four
  * 32-bit words into a local menu_state[16] buffer with a count-4 REP MOVSD
