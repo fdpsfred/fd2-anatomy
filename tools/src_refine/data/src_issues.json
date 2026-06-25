@@ -38,7 +38,8 @@
     "title": "Stale plate note about an 'alt-entry' / extra callers corrected (not a logic bug)",
     "description": "The prior Ghidra plate described an 'Alt-entry at +0x2b4 labelled L_execute_ai_item_use_alt_2b4: 2 callers (display_dialog_scene, draw_spell_selection_list)'. Verified that +0x2b4 (0x15309) is this function's epilogue (ADD ESP,0x24; POP EBP/EDI/ESI/EBX; RET). fd2_display_dialog_scene (JMP @0x164e3) and fd2_draw_spell_selection_list (Jcc @0x1cfa8) only branch into that shared return sequence (Watcom tail-merged epilogue); they are not callers or an alternate entry of the item-use logic. Plate corrected. No source/logic impact (Layer-2 rebuild does not replicate byte-level epilogue merging).",
     "evidence": "read_memory(0x15309)=83 c4 24 5d 5f 5e 5b c3; get_xrefs_to(0x15309)=JMP from 0x164e3 (fd2_display_dialog_scene, body 0x15f84-0x164e7) and Jcc from 0x1cfa8 (fd2_draw_spell_selection_list, body 0x1ceed-0x1cfef); both function bodies end before 0x15309. fd2_execute_ai_item_use body = 0x15055-0x15310, single entry, single RET.",
-    "status": "open"
+    "resolution": "RESOLVED (closeout, verify-only). read_memory(0x15309)=83 c4 24 5d 5f 5e 5b c3 (ADD ESP,0x24; POP EBP/EDI/ESI/EBX; RET) = this function's epilogue. get_xrefs_to(0x15309) returns only two JUMPs (not calls): UNCONDITIONAL_JUMP from 0x164e3 (fd2_display_dialog_scene) + CONDITIONAL_JUMP from 0x1cfa8 (fd2_draw_spell_selection_list) = Watcom tail-merged epilogue sharing. Live plate already documents this in its 'Epilogue note' (NOT callers, NOT an alt-entry); no change needed. Layer-2 rebuild does not replicate byte-level epilogue merging.",
+    "status": "resolved"
   },
   "ISS-0004": {
     "id": "ISS-0004",
