@@ -439,10 +439,10 @@ void fd2_set_battle_anim_phase_to_1(void)
 /* ----------------------------------------------------------------
  * fd2_convert_battle_tiles_to_24px @ 0x1399C  (2 callers)
  *
- * Convert data_fd2_battle_scene_snapshot's encoded tile data into a packed
+ * Convert data_fd2_battle_scene_tile_gfx_ptr's encoded tile data into a packed
  * 24x24 8bpp tile bank, returning the freshly allocated buffer.
  *
- * Layout of data_fd2_battle_scene_snapshot consumed here:
+ * Layout of data_fd2_battle_scene_tile_gfx_ptr consumed here:
  *   +4  : uint16 tile_count
  *   +6  : int32[tile_count] offset table (each entry is a byte offset
  *         from snapshot base to that tile's RLE stream)
@@ -469,7 +469,7 @@ void *fd2_convert_battle_tiles_to_24px(void)
     uint8  *bank;
     int     i;
 
-    tile_count = *(uint16 *)(data_fd2_battle_scene_snapshot + 4);
+    tile_count = *(uint16 *)(data_fd2_battle_scene_tile_gfx_ptr + 4);
     bank = (uint8 *)malloc(tile_count * 0x240 + 6);
     if (bank == (uint8 *)0) {
         printf("Out of memory at rease shape !!!\n");
@@ -483,8 +483,8 @@ void *fd2_convert_battle_tiles_to_24px(void)
 
     for (i = 0; i < (int)tile_count; i = i + 1) {
         fd2_tile_blit_24x24_passthrough(
-            (uint32)(*(int32 *)(data_fd2_battle_scene_snapshot + 6 + i * 4)
-                     + data_fd2_battle_scene_snapshot),
+            (uint32)(*(int32 *)(data_fd2_battle_scene_tile_gfx_ptr + 6 + i * 4)
+                     + data_fd2_battle_scene_tile_gfx_ptr),
             (uint32)(bank + i * 0x240 + 6),
             0x18);
     }

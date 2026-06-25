@@ -1551,9 +1551,9 @@ tile_pass:
             }
 
             pTile_sprite =
-                (uint32)*(int32 *)(data_fd2_battle_scene_snapshot + 6 +
+                (uint32)*(int32 *)(data_fd2_battle_scene_tile_gfx_ptr + 6 +
                                    tile_id * 4) +
-                data_fd2_battle_scene_snapshot;
+                data_fd2_battle_scene_tile_gfx_ptr;
 
             if (*(int8 *)(pTile_meta + 3) == -1) {
                 fd2_tile_blit_24x24_passthrough(pTile_sprite, pDst_row,

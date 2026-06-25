@@ -275,7 +275,7 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
  *   3. FDFIELD.DAT[chapter*3 + 2/1/0] -> data_fd2_chapter_char_spawn_pos_table /
  *      tile_event_data_table / battle_tile_map
  *   4. map width/height = tile_map[0]/[2] (16-bit)
- *   5. FDSHAP.DAT[tile_event[0]*2 (+1)] -> data_fd2_battle_scene_snapshot /
+ *   5. FDSHAP.DAT[tile_event[0]*2 (+1)] -> data_fd2_battle_scene_tile_gfx_ptr /
  *      tile_attribute_flags_buffer
  *   6. fd2_battle_reset_tile_transient_state(battle_tile_map)
  *   7. cache_total_size=tile_event[1], cache_alloc_offset=tile_event[2],
@@ -329,9 +329,9 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
         (int)*(int16 *)(data_fd2_battle_tile_map_ptr + 2);
 
     scene_id = *(uint8 *)data_fd2_tile_event_data_table_ptr;
-    data_fd2_battle_scene_snapshot = fd2_load_dat_resource(
+    data_fd2_battle_scene_tile_gfx_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdshap_dat,
-        data_fd2_battle_scene_snapshot, (uint32)scene_id * 2);
+        data_fd2_battle_scene_tile_gfx_ptr, (uint32)scene_id * 2);
     data_fd2_tile_attribute_flags_buffer_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdshap_dat,
         data_fd2_tile_attribute_flags_buffer_ptr, (uint32)scene_id * 2 + 1);

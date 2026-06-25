@@ -186,7 +186,7 @@ void fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx
  * the caster's spotlight pose shown just before a long-range item/spell
  * strike (char_idx is the caster).
  *
- * Setup: free large_game_state_buffer + data_fd2_battle_scene_snapshot, allocate
+ * Setup: free large_game_state_buffer + data_fd2_battle_scene_tile_gfx_ptr, allocate
  * a 64000-byte mode-13h framebuffer scratch (dst) and a 0x1F400 work
  * buffer (ptr), memset dst, read the tile attribute under the char's
  * grid position, then load four resources via fd2_load_dat_resource:
@@ -206,7 +206,7 @@ void fd2_display_cinematic_image_with_fade(uint32 image1_idx, uint32 palette_idx
  * hold for metadata[+6] BIOS ticks.
  *
  * Cleanup: free all scratch buffers + the loaded resources, reallocate
- * large_game_state_buffer (0x25680) and reload data_fd2_battle_scene_snapshot
+ * large_game_state_buffer (0x25680) and reload data_fd2_battle_scene_tile_gfx_ptr
  * from FDSHAP.DAT, settle 6 ticks, fade to black, clear VGA, recomposite
  * the battle frame, stop all FIGANI SFX, free the SFX bank, fade in.
  *
@@ -230,8 +230,8 @@ void fd2_play_figani_char_intro_animation(uint32 char_idx)
     rt_char = &data_fd2_battle_runtime_char_array_ptr[char_idx];
     portrait_id = rt_char->portrait_id;
     free((void *)data_fd2_large_game_state_buffer_ptr);
-    free((void *)data_fd2_battle_scene_snapshot);
-    data_fd2_battle_scene_snapshot = 0;
+    free((void *)data_fd2_battle_scene_tile_gfx_ptr);
+    data_fd2_battle_scene_tile_gfx_ptr = 0;
     dst = malloc(64000);
     ptr = malloc(0x1F400);
     memset(dst, 0, 64000);
@@ -278,10 +278,10 @@ void fd2_play_figani_char_intro_animation(uint32 char_idx)
     free((void *)data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr);
     free((void *)ptr_00);
     data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
-    data_fd2_battle_scene_snapshot =
+    data_fd2_battle_scene_tile_gfx_ptr =
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdshap_dat,
-            data_fd2_battle_scene_snapshot,
+            data_fd2_battle_scene_tile_gfx_ptr,
             (uint32) * (uint8 *)data_fd2_tile_event_data_table_ptr * 2);
     fd2_wait_n_bios_ticks(6);
     fd2_play_palette_fade_to_black();
@@ -379,8 +379,8 @@ void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx)
     if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx == 0) {
         free((void *)data_fd2_portrait_sprite_cache);
         free((void *)data_fd2_large_game_state_buffer_ptr);
-        free((void *)data_fd2_battle_scene_snapshot);
-        data_fd2_battle_scene_snapshot = 0;
+        free((void *)data_fd2_battle_scene_tile_gfx_ptr);
+        data_fd2_battle_scene_tile_gfx_ptr = 0;
     }
     dst = malloc(64000);
     workbuf = malloc(0x1F400);
@@ -571,10 +571,10 @@ void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx)
 
     if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx == 0) {
         data_fd2_large_game_state_buffer_ptr = (uint32)malloc(0x25680);
-        data_fd2_battle_scene_snapshot =
+        data_fd2_battle_scene_tile_gfx_ptr =
             fd2_load_dat_resource(
                 (uint32)data_fd2_string_resource_filename_fdshap_dat,
-                data_fd2_battle_scene_snapshot,
+                data_fd2_battle_scene_tile_gfx_ptr,
                 (uint32) * (uint8 *)data_fd2_tile_event_data_table_ptr * 2);
         fd2_restore_portrait_cache_from_tmp();
         fd2_wait_n_bios_ticks(6);

@@ -463,9 +463,9 @@ void fd2_chapter_23_end(void)
     data_fd2_battle_tile_map_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdfield_dat,
         data_fd2_battle_tile_map_ptr, 0x45);
-    data_fd2_battle_scene_snapshot = fd2_load_dat_resource(
+    data_fd2_battle_scene_tile_gfx_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdshap_dat,
-        data_fd2_battle_scene_snapshot, 0x2E);
+        data_fd2_battle_scene_tile_gfx_ptr, 0x2E);
     data_fd2_tile_attribute_flags_buffer_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdshap_dat,
         data_fd2_tile_attribute_flags_buffer_ptr, 0x2F);

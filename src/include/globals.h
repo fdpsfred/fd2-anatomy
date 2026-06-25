@@ -186,7 +186,7 @@ extern int32 data_fd2_battle_ai_best_physical_score;                    /* 0x53C
 extern uint32 data_fd2_battle_tile_map_ptr;                             /* 0x53A51 */
 extern uint32 data_fd2_tile_event_data_table_ptr;                       /* 0x53A55 */
 extern uint32 data_fd2_chapter_char_spawn_pos_table;                             /* 0x53A59 */
-extern uint32 data_fd2_battle_scene_snapshot;                                    /* 0x53A5D */
+extern uint32 data_fd2_battle_scene_tile_gfx_ptr;                                    /* 0x53A5D */
 extern uint32 data_fd2_tile_attribute_flags_buffer_ptr;                 /* 0x53A69 */
 extern uint32 data_fd2_current_chapter_text;                                     /* 0x53A79 */
 

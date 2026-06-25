@@ -183,7 +183,7 @@ void fd2_render_chapter_intro_overlay(void)
     chapter_meta_byte = *chapter_meta;
 
     memmove((void *)data_fd2_large_game_state_buffer_ptr,
-            (void *)data_fd2_battle_scene_snapshot, 0x25680);
+            (void *)data_fd2_battle_scene_tile_gfx_ptr, 0x25680);
 
     fd2_dialog_sprite_blit_normal(data_fd2_large_game_state_buffer_ptr + 0x1a20c,
                                   data_fd2_chapter_intro_menu_overlay_buf_ptr,

@@ -111,8 +111,8 @@ void fd2_blit_animated_tile_at_pos(uint32 buf, int32 tile_x, int32 tile_y)
         }
 
         if ((tile_attr_flags & 0x80) != 0) {
-            sprite_src = data_fd2_battle_scene_snapshot +
-                *(int *)(data_fd2_battle_scene_snapshot + 10 + tile_id * 4);
+            sprite_src = data_fd2_battle_scene_tile_gfx_ptr +
+                *(int *)(data_fd2_battle_scene_tile_gfx_ptr + 10 + tile_id * 4);
 
             dst = buf + 0x8088 +
                 (tile_y - (int)data_fd2_battle_view_window_origin_y) * 0x2AC0 +
