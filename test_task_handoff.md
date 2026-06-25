@@ -118,7 +118,7 @@ python tools/fd2_build/build_fd2.py
 | P3-E 其餘(12 class AI / 法術傷害 / 命中 / 狀態) | ⬜ | 依 `combat_attack` 範式擴充 |
 | P4 招募/兌換/結局/商店/options | ⬜ | 需到達章節點 + 狀態斷言 |
 | P5 cinematic golden + 原版差分背書 | ⬜ | dialog/FIGANI/spell/ending;`diff_original.py` 未建 |
-| P6 舊 spy 測試退役 + 文件收斂 | ⬜ | 判準見計畫第三部分 |
+| P6 舊 spy 測試退役 + 文件收斂 | ✅ 退役 | per-function spy suite(70 檔)搬 `legacy/tests_unit_spy/`(gitignored 凍結副本);保留凍結 logic net `battle/btlrng.c`(rng)/`save/savecsum.c`(checksum+crypt)/`table/table.c`(accessor),`build_test` 29/29;`tests/_index.md` 重寫成兩層。spy 失效根因=coordinated-landing(#32/#33),整合測試取代覆蓋 |
 
 `run_all` 目前 **5/5 PASS**(boot、ch01_intro、combat_move、continue_load、combat_attack
 [含 oracle]),連跑穩定。
