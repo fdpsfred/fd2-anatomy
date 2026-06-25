@@ -61,7 +61,7 @@ sub-entries 各自獨立索引。
 
 | idx | caller | 用途 |
 |---|---|---|
-| 0x40 | `fd2_maybe_load_speed_mode_overlay` | nested archive 6 sub-entries — speed mode overlay |
+| 0x40 | `fd2_maybe_load_speed_mode_sfx_bank` | nested archive 6 sub-entries — speed-mode attack-hit SFX bank |
 | 0x50 | `fd2_load_status_effect_sfx` | nested archive 16 sub-entries — status effect SFX bank |
 | 0x51 | `fd2_animate_warp_teleport_char` | nested archive 2 sub-entries — warp teleport 動畫 |
 | 0x5F | `fd2_animate_party_addition_with_appear_effect` | nested archive 1 sub-entry |

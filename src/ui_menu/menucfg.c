@@ -393,7 +393,7 @@ void fd2_repaint_settings_dialog_borders(uint32 menu_options, uint32 menu_state)
 }
 
 /* ----------------------------------------------------------------
- * fd2_maybe_load_speed_mode_overlay @ 0x1A7BD  (1 caller:
+ * fd2_maybe_load_speed_mode_sfx_bank @ 0x1A7BD  (1 caller:
  *   fd2_run_full_turn_cycle)
  *
  * Fast-mode gate: load the speed-mode attack-hit SFX sample bank.
@@ -406,11 +406,11 @@ void fd2_repaint_settings_dialog_borders(uint32 menu_options, uint32 menu_state)
  *
  * Called at the entry of the NPC turn (Phase C) and the ENEMY turn (Phase E)
  * in fd2_run_full_turn_cycle; released on exit by
- * fd2_maybe_free_speed_mode_overlay.
+ * fd2_maybe_free_speed_mode_sfx_bank.
  *
  * void __cdecl with the __CHK(0x10) stack-probe prologue.
  * ---------------------------------------------------------------- */
-void fd2_maybe_load_speed_mode_overlay(void)
+void fd2_maybe_load_speed_mode_sfx_bank(void)
 {
     if (data_fd2_ui_game_speed_flag != 0) {
         data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr = 0;
@@ -420,22 +420,22 @@ void fd2_maybe_load_speed_mode_overlay(void)
 }
 
 /* ----------------------------------------------------------------
- * fd2_maybe_free_speed_mode_overlay @ 0x1A7F1  (1 caller:
+ * fd2_maybe_free_speed_mode_sfx_bank @ 0x1A7F1  (1 caller:
  *   fd2_run_full_turn_cycle)
  *
  * Fast-mode cleanup: release the speed-mode attack-hit SFX bank allocated by
- * fd2_maybe_load_speed_mode_overlay.
+ * fd2_maybe_load_speed_mode_sfx_bank.
  *
  * When data_fd2_ui_game_speed_flag is set (fast mode), the SFX bank at
  * data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr is freed. When fast mode is off
  * the pointer was never loaded and nothing is freed.
  *
  * Called at the exit of the NPC turn (Phase C) and the ENEMY turn (Phase E)
- * in fd2_run_full_turn_cycle, pairing with fd2_maybe_load_speed_mode_overlay.
+ * in fd2_run_full_turn_cycle, pairing with fd2_maybe_load_speed_mode_sfx_bank.
  *
  * void __cdecl with the __CHK(8) stack-probe prologue.
  * ---------------------------------------------------------------- */
-void fd2_maybe_free_speed_mode_overlay(void)
+void fd2_maybe_free_speed_mode_sfx_bank(void)
 {
     if (data_fd2_ui_game_speed_flag != 0) {
         free((void *)data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr);
@@ -454,9 +454,9 @@ void fd2_maybe_free_speed_mode_overlay(void)
  * fast mode and holds index 0x40 instead.
  *
  * NULL in the initial image (zero-bss); first touched by a write. When fast
- * mode is on, fd2_maybe_load_speed_mode_overlay stores NULL then assigns the
+ * mode is on, fd2_maybe_load_speed_mode_sfx_bank stores NULL then assigns the
  * fd2_load_dat_resource(FDOTHER.DAT, 0, 0x40) result here;
- * fd2_maybe_free_speed_mode_overlay frees it; fd2_animate_attack_hit_sequence
+ * fd2_maybe_free_speed_mode_sfx_bank frees it; fd2_animate_attack_hit_sequence
  * passes it as the sfx_table_base (arg1) to fd2_play_sfx_with_handle. When
  * fast mode is off it stays NULL and is never read. Accessor: MOV dword ptr
  * [0x53B0F] (32-bit), a single pointer-sized SFX-bank handle.

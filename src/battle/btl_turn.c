@@ -519,9 +519,9 @@ void fd2_run_full_turn_cycle(void)
     }
 
     /* Phase C: NPC (team 1) turn. */
-    fd2_maybe_load_speed_mode_overlay();
+    fd2_maybe_load_speed_mode_sfx_bank();
     fd2_npc_turn_phase_team1();
-    fd2_maybe_free_speed_mode_overlay();
+    fd2_maybe_free_speed_mode_sfx_bank();
     if (data_fd2_chapter_event_or_battle_end_code != 0) {
         return;
     }
@@ -548,9 +548,9 @@ void fd2_run_full_turn_cycle(void)
     fd2_set_bgm_track_with_fade(
         (uint32)data_fd2_audio_per_chapter_enemy_turn_bgm_track
             [data_fd2_chapter_current_chapter_id], 0);
-    fd2_maybe_load_speed_mode_overlay();
+    fd2_maybe_load_speed_mode_sfx_bank();
     fd2_enemy_turn_phase_team0();
-    fd2_maybe_free_speed_mode_overlay();
+    fd2_maybe_free_speed_mode_sfx_bank();
     if (data_fd2_chapter_event_or_battle_end_code != 0) {
         return;
     }

@@ -584,7 +584,7 @@ static void test_repaint_borders_blink_phase0(void)
 }
 
 /* ----------------------------------------------------------------
- * fd2_maybe_load_speed_mode_overlay @ 0x1A7BD direct tests.
+ * fd2_maybe_load_speed_mode_sfx_bank @ 0x1A7BD direct tests.
  *
  * Fast-mode gate: when data_fd2_ui_game_speed_flag != 0 the overlay pointer is
  * loaded with FDOTHER.DAT index 0x40 via the REAL fd2_load_dat_resource
@@ -605,17 +605,17 @@ static void test_speed_overlay_load_fast_on(void)
     ASSERT_TRUE(ref_size > 0);
 
     data_fd2_ui_game_speed_flag = 1;
-    data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
+    data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr = 0;
 
-    fd2_maybe_load_speed_mode_overlay();
+    fd2_maybe_load_speed_mode_sfx_bank();
 
-    got = (uint8 *)data_fd2_battle_fast_mode_walk_overlay_ptr;
+    got = (uint8 *)data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr;
     ASSERT_TRUE(got != 0);
     ASSERT_EQ((long)data_fd2_resource_last_loaded_resource_size, ref_size);
     ASSERT_EQ((long)memcmp(got, ref, (size_t)ref_size), 0);
 
     free(got);
-    data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
+    data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr = 0;
     data_fd2_ui_game_speed_flag = 0;   /* don't leak fast-mode to other suites */
     free(ref);
 }
@@ -625,17 +625,17 @@ static void test_speed_overlay_load_fast_on(void)
 static void test_speed_overlay_skip_fast_off(void)
 {
     data_fd2_ui_game_speed_flag = 0;
-    data_fd2_battle_fast_mode_walk_overlay_ptr = 0xDEADBEEF;
+    data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr = 0xDEADBEEF;
 
-    fd2_maybe_load_speed_mode_overlay();
+    fd2_maybe_load_speed_mode_sfx_bank();
 
-    ASSERT_EQ((long)data_fd2_battle_fast_mode_walk_overlay_ptr,
+    ASSERT_EQ((long)data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr,
               (long)0xDEADBEEF);
-    data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
+    data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr = 0;
 }
 
 /* ----------------------------------------------------------------
- * fd2_maybe_free_speed_mode_overlay @ 0x1A7F1 direct tests.
+ * fd2_maybe_free_speed_mode_sfx_bank @ 0x1A7F1 direct tests.
  *
  * Fast-mode cleanup pairing with the load above: when
  * data_fd2_ui_game_speed_flag != 0 the overlay pointer is passed to free();
@@ -652,17 +652,17 @@ static void test_speed_overlay_free_fast_on(void)
     uint8 *loaded;
 
     data_fd2_ui_game_speed_flag = 1;
-    data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
-    fd2_maybe_load_speed_mode_overlay();
-    loaded = (uint8 *)data_fd2_battle_fast_mode_walk_overlay_ptr;
+    data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr = 0;
+    fd2_maybe_load_speed_mode_sfx_bank();
+    loaded = (uint8 *)data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr;
     ASSERT_TRUE(loaded != 0);
 
-    /* free path: releases data_fd2_battle_fast_mode_walk_overlay_ptr. */
-    fd2_maybe_free_speed_mode_overlay();
+    /* free path: releases data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr. */
+    fd2_maybe_free_speed_mode_sfx_bank();
 
     /* The function does not NULL the pointer; clear it ourselves so no later
      * suite double-frees the now-released block. */
-    data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
+    data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr = 0;
     data_fd2_ui_game_speed_flag = 0;   /* don't leak fast-mode to other suites */
 }
 
@@ -673,13 +673,13 @@ static void test_speed_overlay_free_fast_on(void)
 static void test_speed_overlay_free_fast_off(void)
 {
     data_fd2_ui_game_speed_flag = 0;
-    data_fd2_battle_fast_mode_walk_overlay_ptr = 0xDEADBEEF;
+    data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr = 0xDEADBEEF;
 
-    fd2_maybe_free_speed_mode_overlay();
+    fd2_maybe_free_speed_mode_sfx_bank();
 
-    ASSERT_EQ((long)data_fd2_battle_fast_mode_walk_overlay_ptr,
+    ASSERT_EQ((long)data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr,
               (long)0xDEADBEEF);
-    data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
+    data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr = 0;
 }
 
 void run_ui_menu_menucfg_tests(void)

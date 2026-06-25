@@ -122,7 +122,7 @@ void fd2_load_status_effect_sfx(void)
  *
  * Cdecl, void(void). The binary's __CHK(0x10) stack-probe prologue
  * is compiler-injected and not source. The final free() is emitted
- * by Watcom as a tail call (JMP into fd2_maybe_free_speed_mode_overlay's
+ * by Watcom as a tail call (JMP into fd2_maybe_free_speed_mode_sfx_bank's
  * shared `CALL free; ADD ESP,4; RET` epilogue); it is reproduced here
  * as a plain free() at function end.
  * ---------------------------------------------------------------- */

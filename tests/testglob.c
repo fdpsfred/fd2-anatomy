@@ -1254,7 +1254,7 @@ uint32 g_play_ani_last_skip = 0;
  * src/battle/btl_turn.c; its former counting stub was removed and the
  * caller tests drive the real dispatcher via an in-memory tile-event
  * table + spy handlers (see tests/battle/btl_turn.c).
- * fd2_maybe_load_speed_mode_overlay / fd2_maybe_free_speed_mode_overlay:
+ * fd2_maybe_load_speed_mode_sfx_bank / fd2_maybe_free_speed_mode_sfx_bank:
  * now emitted in src/ui_menu/menucfg.c. */
 /* fd2_animate_phase_banner_slide_in / fd2_animate_phase_banner_slide_out:
  * both now emitted for real in src/anim/anicombt.c; their former counting
