@@ -124,7 +124,7 @@ const char data_fd2_string_resource_filename_fdshap_dat[11] = {
  * fd2_dialog_open_speaker_portrait. The address is taken (array decays) and consumed as
  * a char* path; never written. Immediately follows the "FDSHAP.DAT" string at
  * 0x51A65 and precedes the "FDMUS.DAT" string at 0x51A79. */
-const char data_fd2_string_resource_filename_dato_dat_51a70[9] = {
+const char data_fd2_string_resource_filename_dato_dat[9] = {
     0x44, 0x41, 0x54, 0x4f, 0x2e, 0x44, 0x41, 0x54, 0x00
 };
 

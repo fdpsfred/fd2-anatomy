@@ -187,7 +187,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             }
             data_fd2_portrait_sprite_buffer =
                 (uint8 *)fd2_load_dat_resource(
-                                      (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
+                                      (uint32)data_fd2_string_resource_filename_dato_dat,
                                       (uint32)data_fd2_portrait_sprite_buffer,
                                       portrait_target);
             portrait_anim = fd2_play_dialog_open_animation(
@@ -220,7 +220,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             pAlly = (runtime_char *)data_fd2_dialog_current_speaker_char_ptr;
             data_fd2_portrait_sprite_buffer =
                 (uint8 *)fd2_load_dat_resource(
-                                      (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
+                                      (uint32)data_fd2_string_resource_filename_dato_dat,
                                       (uint32)data_fd2_portrait_sprite_buffer,
                                       (uint32)pAlly->portrait_id);
             portrait_anim = fd2_play_dialog_open_animation(
@@ -253,7 +253,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             portrait_target = (uint32)pSpeaker->portrait_id;
             data_fd2_portrait_sprite_buffer =
                 (uint8 *)fd2_load_dat_resource(
-                                      (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
+                                      (uint32)data_fd2_string_resource_filename_dato_dat,
                                       (uint32)data_fd2_portrait_sprite_buffer,
                                       portrait_target);
             portrait_anim = fd2_play_dialog_open_animation(
@@ -285,7 +285,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
             portrait_flip = 0x70;
             data_fd2_portrait_sprite_buffer =
                 (uint8 *)fd2_load_dat_resource(
-                                      (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
+                                      (uint32)data_fd2_string_resource_filename_dato_dat,
                                       (uint32)data_fd2_portrait_sprite_buffer,
                                       (uint32)pAlly->portrait_id);
             portrait_anim = fd2_play_dialog_open_animation(

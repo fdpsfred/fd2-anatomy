@@ -1150,7 +1150,7 @@ void fd2_run_status_screen_member_menu(void)
         fd2_open_char_status_screen(data_fd2_ui_menu_cursor_idx);
         data_fd2_dialog_active_portrait_blit_offset = saved_portrait_mode;
         data_fd2_portrait_sprite_buffer = (uint8 *)fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
+            (uint32)data_fd2_string_resource_filename_dato_dat,
             (uint32)data_fd2_portrait_sprite_buffer,
             (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[0]);
     }

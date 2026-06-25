@@ -80,6 +80,7 @@
     {"n": 159, "address": "00051a0c", "did": "name", "note": "data_fd2_ui_terrain_hud_panel_offset_51a0c -> ..._offset (_51a0c addr residue; uint32 global; descriptor unchanged; terrain HUD panel column offset latched in rndstat). rndstat.c(762/812/815/819/1085)+globals.h(208) replace_all + setName. no collision."},
     {"_user_decision": "REF-SYNC approved (2026-06-25): at closeout, comprehensively sync routing.json + emit_issues.json + KB docs for ALL renamed symbols (functions+globals) using ledger old->new mappings, with verification. Per task #7."},
     {"n": 160, "address": "00051a59", "did": "name", "note": "data_fd2_string_resource_filename_fdfield_dat_51a59 -> ...fdfield_dat (_51a59 addr residue; FDFIELD.DAT filename string, descriptor correct). chend2/globals.h/main/rsrc/strtab (5 files) replace_all + setName. no collision."},
-    {"n": 161, "address": "00051a65", "did": "name", "note": "data_fd2_string_resource_filename_fdshap_dat_51a65 -> ...fdshap_dat (_51a65 addr residue; FDSHAP.DAT filename string). anicine/anispell/chend2/globals.h/main/rsrc/spellcin/strtab (8 files) replace_all + setName. no collision."}
+    {"n": 161, "address": "00051a65", "did": "name", "note": "data_fd2_string_resource_filename_fdshap_dat_51a65 -> ...fdshap_dat (_51a65 addr residue; FDSHAP.DAT filename string). anicine/anispell/chend2/globals.h/main/rsrc/spellcin/strtab (8 files) replace_all + setName. no collision."},
+    {"n": 162, "address": "00051a70", "did": "name", "note": "data_fd2_string_resource_filename_dato_dat_51a70 -> ...dato_dat (_51a70 addr residue; DATO.DAT filename string). aniend/dialog/rndstat/globals.h/rsrc/strtab/shop/status (8 files) replace_all + setName. no collision."}
   ]
 }

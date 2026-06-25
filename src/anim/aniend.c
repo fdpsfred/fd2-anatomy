@@ -872,7 +872,7 @@ void fd2_play_final_chapter_30_ending(void)
 
         memmove(scratch, bg_buf, 64000);
         data_fd2_portrait_sprite_buffer = (uint8 *)fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_dato_dat_51a70,
+            (uint32)data_fd2_string_resource_filename_dato_dat,
             (uint32)data_fd2_portrait_sprite_buffer, (uint32)portrait_id);
         fd2_assemble_dialog_frame_layered((uint32)scratch, 0x140, 5, 7, 5, 5);
 
