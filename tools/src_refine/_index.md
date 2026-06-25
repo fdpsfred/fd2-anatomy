@@ -17,7 +17,7 @@ production FD2.EXE 與 baseline byte-identical。
 
 ## 狀態 source of truth / 續跑
 
-- **durable 全在 tracked `data/`**：`baseline_hash.txt`、`shards/rpN/<addr8>.json`（per-symbol，refiner 在 worktree 寫+commit）、merge 後的 `src_info.json` / `src_info_by_name.json` / `src_issues.json`；closeout 另產 `rename_old2new.json`（live-Ghidra 校準的 old→new 映射，供 tests/ 等次級引用同步；`symbols`=全名、`prefixless_functions`/`kb_prose_shorthands`=簡寫）。
+- **durable 全在 tracked `data/`**：`baseline_hash.txt`、`shards/rpN/<addr8>.json`（per-symbol，refiner 在 worktree 寫+commit）、merge 後的 `src_info.json` / `src_info_by_name.json` / `src_issues.json`；closeout 另產 `rename_old2new.json`（live-Ghidra 校準的 old→new 映射，供 tests/ 等次級引用同步；`symbols`=全名、`prefixless_functions`/`kb_prose_shorthands`=簡寫）+ `rename_explain.md`（給接手 tests 同步的 agent 的操作指南）。
 - **per-symbol commit + shard 是斷點**：任何中斷後重跑零成本續做；`scout.py` 永遠回「下一批未做」。
 - 可重生暫存（不追蹤）：Ghidra dump、worklist.json、coverage 報告、partition manifest、每批 args；分別由 `run_script_inline` / `build_worklist.py` / `partition.py` / `scout.py` 重產。
 

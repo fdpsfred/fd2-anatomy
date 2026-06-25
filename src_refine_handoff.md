@@ -9,7 +9,7 @@
 > 只剩 item-1 的 **tests/ 同步**一項；emit/KB 同步、環境清理、n=132/133 動詞統一皆已 2026-06-25 完成（見 0b）。此項仍「勿自行開工，等指示」。
 
 1. **[CLOSEOUT] tests/ 次級引用同步**（item-1 餘項；使用者已批准、時機待定）：`tests/` 約 40+ 檔（`fieldfix.h`/`battlfix.h`/`chevt*.c`/`rsrc.c`/`promote.c`/`menufld.c`/`rndstat.c`…）仍引用已死的舊 symbol 名，對現行 `src/include/globals.h`/`protos.h` **必編不過**（例：n=173 舊 global `data_fd2_chapter_portrait_load_buffer` 約 71 處跨 16 檔）。
-   - **old→new 對照直接用 `tools/src_refine/data/rename_old2new.json`**（closeout 以 live Ghidra 校準，已含所有 closeout 修正）：`symbols`=全名映射（tests 主要用這個）、`prefixless_functions`/`kb_prose_shorthands`=簡寫變體。**`_doc` 內註明排除 0x53A8D/0x53A8E 的 macro alias `data_fd2_input_last_key_pressed`/`_key_input_mode`——那是有效 src macro，勿替換。**
+   - **先讀操作指南 `tools/src_refine/data/rename_explain.md`**（任務說明 + 單趟原子替換 recipe + pose 交換/n=178 macro 警告 + 驗證）；old→new 對照用同目錄 `rename_old2new.json`（closeout 以 live Ghidra 校準、已含所有 closeout 修正）：`symbols`=全名映射（tests 主要用這個）、`prefixless_functions`/`kb_prose_shorthands`=簡寫變體。**`_doc` 內註明排除 0x53A8D/0x53A8E 的 macro alias `data_fd2_input_last_key_pressed`/`_key_input_mode`——那是有效 src macro，勿替換。**
    - 套用後 `tests/` 須能對現行 `src/include/` 編譯通過（走 test build gate 驗證）。
    - 歷史 shards + 衍生 `src_info*.json` 不動。
 
