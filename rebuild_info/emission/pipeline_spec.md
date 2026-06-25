@@ -285,9 +285,9 @@ emit pipeline 規則：
 有「data + 專屬 accessor function 互相 reference，整個 .obj
 無外部 caller」的死碼鏈結。典型例：
 
-- `data_orphan_6017d_303b_4b_prefix_plus_99x3byte_table_final_unreachable_unknown @ 0x6017D` (303B
-  byte[] 含 99×3-byte entries) +
-  `fd2_get_orphan_table_60181_entry @ 0x4DB84` (accessor returning
+- `data_fd2_orphan_packed3_table @ 0x60181` (99×3-byte entries; 位於 303B data
+  unit @ 0x6017D 的 +4 偏移) +
+  `fd2_get_orphan_packed3_table_entry @ 0x4DB84` (accessor returning
   `&table[idx*3]`) — 兩者互引用但 accessor 本身 0 callers，0 LE FIXUP target。
   Watcom linker 因 mutual reference 保留兩者，但外部 caller 已被 DCE。
 
@@ -298,9 +298,14 @@ emit pipeline 規則：
 
 emit pipeline 規則：
 
-- 對整個 (data + accessor) 鏈走 `skip_unreachable_data` + `skip_unreachable_code`
-  （即不 emit accessor 也不 emit data）
-- 對應 verdict `indirection_chase_method` 標 `B_C_resolved_codead_chain`
+- **EMIT 整個 (data + accessor) 鏈**：這條死碼鏈實際存在於原始 FD2.LE（Watcom 因
+  mutual reference 未 dead-strip，rule 上方已述），byte-faithful 等價要求 rebuild
+  重現它；skip 會讓 rebuild 少掉這些 bytes、與原版 binary 發散（eqcheck FAIL）。
+  data 走 `emit_c_const`、accessor 走正常 function emit。
+  src 現況：src/table/orphan.c 定義 table、src/table/table.c 定義 accessor，整體
+  eqcheck PASS 驗證 emit 正確。
+- 對應 verdict `indirection_chase_method` 標 `B_C_resolved_codead_chain`（分類保留，
+  動作為 emit 而非 skip）
 
 ### 規則 E-7f: 大型 "blob orphan" 必須先做 internal LE FIXUP target probe
 
