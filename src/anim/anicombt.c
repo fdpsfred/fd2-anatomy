@@ -1010,7 +1010,7 @@ void fd2_animate_attack_hit_sequence(uint32 attacker_idx, uint32 defender_idx)
             if (data_fd2_battle_last_hit_or_miss_flag != 0) {
                 sfx_byte = 4;
             }
-            fd2_play_sfx_with_handle(data_fd2_battle_fast_mode_walk_overlay_ptr,
+            fd2_play_sfx_with_handle(data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr,
                                      (int)sfx_byte, 1);
         }
 

@@ -396,13 +396,13 @@ void fd2_repaint_settings_dialog_borders(uint32 menu_options, uint32 menu_state)
  * fd2_maybe_load_speed_mode_overlay @ 0x1A7BD  (1 caller:
  *   fd2_run_full_turn_cycle)
  *
- * Fast-mode gate: load the fast-walk animation overlay.
+ * Fast-mode gate: load the speed-mode attack-hit SFX sample bank.
  *
  * When the player has set data_fd2_ui_game_speed_flag to 1 (fast mode) in the
- * settings menu, the AI / enemy turns swap to the trimmed walk-animation
- * resource at FDOTHER.DAT index 0x40. The overlay pointer is first cleared to
- * NULL, then assigned the freshly loaded resource. When fast mode is off the
- * pointer stays NULL and the AI / enemy turns use the standard walk animation.
+ * settings menu, weapon attack-hit sounds are drawn from the SFX sample bank
+ * at FDOTHER.DAT index 0x40. The bank pointer is first cleared to NULL, then
+ * assigned the freshly loaded resource. When fast mode is off the pointer
+ * stays NULL and the default SFX bank is used.
  *
  * Called at the entry of the NPC turn (Phase C) and the ENEMY turn (Phase E)
  * in fd2_run_full_turn_cycle; released on exit by
@@ -413,8 +413,8 @@ void fd2_repaint_settings_dialog_borders(uint32 menu_options, uint32 menu_state)
 void fd2_maybe_load_speed_mode_overlay(void)
 {
     if (data_fd2_ui_game_speed_flag != 0) {
-        data_fd2_battle_fast_mode_walk_overlay_ptr = 0;
-        data_fd2_battle_fast_mode_walk_overlay_ptr = fd2_load_dat_resource(
+        data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr = 0;
+        data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr = fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x40);
     }
 }
@@ -423,11 +423,11 @@ void fd2_maybe_load_speed_mode_overlay(void)
  * fd2_maybe_free_speed_mode_overlay @ 0x1A7F1  (1 caller:
  *   fd2_run_full_turn_cycle)
  *
- * Fast-mode cleanup: release the fast-walk animation overlay allocated by
+ * Fast-mode cleanup: release the speed-mode attack-hit SFX bank allocated by
  * fd2_maybe_load_speed_mode_overlay.
  *
- * When data_fd2_ui_game_speed_flag is set (fast mode), the overlay resource at
- * data_fd2_battle_fast_mode_walk_overlay_ptr is freed. When fast mode is off
+ * When data_fd2_ui_game_speed_flag is set (fast mode), the SFX bank at
+ * data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr is freed. When fast mode is off
  * the pointer was never loaded and nothing is freed.
  *
  * Called at the exit of the NPC turn (Phase C) and the ENEMY turn (Phase E)
@@ -438,12 +438,12 @@ void fd2_maybe_load_speed_mode_overlay(void)
 void fd2_maybe_free_speed_mode_overlay(void)
 {
     if (data_fd2_ui_game_speed_flag != 0) {
-        free((void *)data_fd2_battle_fast_mode_walk_overlay_ptr);
+        free((void *)data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr);
     }
 }
 
 /* ----------------------------------------------------------------
- * data_fd2_battle_fast_mode_walk_overlay_ptr @ 0x53B0F  (4 bytes, .object2)
+ * data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr @ 0x53B0F  (4 bytes, .object2)
  *
  * Speed-mode attack-hit SFX sample bank pointer (NOT a walk-animation
  * overlay -- the only reader uses it solely as an SFX bank base). Holds
@@ -460,9 +460,5 @@ void fd2_maybe_free_speed_mode_overlay(void)
  * passes it as the sfx_table_base (arg1) to fd2_play_sfx_with_handle. When
  * fast mode is off it stays NULL and is never read. Accessor: MOV dword ptr
  * [0x53B0F] (32-bit), a single pointer-sized SFX-bank handle.
- *
- * Name note: the live "walk_overlay" name is misleading; Stage 2 renames to
- * data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr (audio-domain SFX-bank
- * family, *_sfx_bank_buf_ptr suffix).
  * ---------------------------------------------------------------- */
-uint32 data_fd2_battle_fast_mode_walk_overlay_ptr;
+uint32 data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr;

@@ -156,7 +156,7 @@ extern uint32 data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;    /* 0x541
  * REVERSE definition order, which inverts [1]/[2] and feeds garbage pointers
  * to the RLE blitter (the special-attack cinematic crash). */
 extern uint32 data_fd2_battle_special_cinematic_bg_layers[3];           /* 0x5410B[3] */
-extern uint32 data_fd2_battle_fast_mode_walk_overlay_ptr;               /* 0x53B0F */
+extern uint32 data_fd2_audio_speed_mode_attack_sfx_bank_buf_ptr;               /* 0x53B0F */
 /* Per-subframe defender-sprite shake offsets for the combat-hit cinematic;
  * indexed by a decaying shake counter (5..0). (.object2 const int[6]) */
 extern const int32 data_fd2_battle_combat_hit_shake_x_offset_table[6];  /* 0x5255F */
