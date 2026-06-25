@@ -207,7 +207,7 @@ int fd2_game_main_loop(void)
                 data_fd2_ui_click_debounce_skip_count - 1;
         }
         else {
-            while (data_fd2_chapter_chapter_init_done_flag == 0) {
+            while (data_fd2_chapter_init_done_flag == 0) {
                 fd2_set_chapter_init_done_flag();
             }
         }

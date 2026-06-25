@@ -12,7 +12,7 @@
 
 /* ---- runtime char & party ---- */
 extern uint32 data_fd2_runtime_battle_state_ptr;                        /* 0x53A4D */
-extern uint8  data_fd2_chapter_chapter_init_done_flag;                  /* 0x53A44 */
+extern uint8  data_fd2_chapter_init_done_flag;                  /* 0x53A44 */
 extern runtime_char *data_fd2_battle_runtime_char_array_ptr;            /* 0x53A45 */
 extern uint32 data_fd2_battle_party_member_count;                       /* 0x53BEB */
 extern uint32 data_fd2_battle_current_active_char_idx;                  /* 0x53AE9 */
