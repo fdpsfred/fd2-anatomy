@@ -108,7 +108,8 @@
     "title": "Pose-table global names read inverted vs their actual axis use",
     "description": "The two per-chapter portrait pose-byte tables used to position the portrait icon have Ghidra/C symbol names whose X/Y axis semantics are swapped relative to their actual use. data_fd2_chapter_intro_portrait_pose_y_row_table @0x52635 is added DIRECTLY to the destination (within-row / X contribution), while data_fd2_chapter_intro_portrait_pose_x_column_table @0x52647 is MULTIPLIED by the 0x1C8 row pitch (row / Y contribution). The names therefore suggest the opposite axes. These are shared globals (also referenced by fd2_chapter_transition_with_intro, fd2_run_chapter_intro_menu_main/typeB/typeC), so this is NOT in scope for renaming under this single-function refine task; recorded for a future global-rename pass.",
     "evidence": "Disassembly @0x2CF71: 0002d031 'MOVZX EDX,byte ptr [EAX + 0x52635]' then 0002d044 'ADD EDX,EBX' (direct add, no multiply); 0002d046 'MOVZX EAX,byte ptr [EAX + 0x52647]' then 0002d04d 'IMUL EAX,EAX,0x1c8' (multiplied by row pitch). Ghidra primary symbols: 0x52635 => data_fd2_chapter_intro_portrait_pose_y_row_table, 0x52647 => data_fd2_chapter_intro_portrait_pose_x_column_table.",
-    "status": "open"
+    "resolution": "RESOLVED (closeout). The paired swap was already applied in Stage 2 (handoff n=168/169): current Ghidra + src names are axis-correct -- 0x52635 = ..._pose_x_column_table (ADD direct @ 0x2D031 = X/within-row), 0x52647 = ..._pose_y_row_table (IMUL 0x1C8 @ 0x2D046 = Y/row). What remained was stale doc only: rewrote both Ghidra data PLATEs (headers still had the old names + 'NAME IS A MISNOMER/queued for rename' wording; the 0x52647 PRE even claimed 0x52647=X), cleared the contradictory 0x52647 PRE, and fixed the swapped chtrans.c:477 src comment. See ISS-0017.",
+    "status": "resolved"
   },
   "ISS-0009": {
     "id": "ISS-0009",
@@ -227,7 +228,8 @@
     "title": "pose X/Y table pair (0x52635, 0x52647) names are swapped vs blit math",
     "description": "0x52635 is named '..._pose_y_row_table' but is added directly to the destination (within-row/X); 0x52647 is named '..._pose_x_column_table' but is multiplied by the 0x1C8 row pitch (row/Y). The two names should be swapped together in Stage 2 so each name matches the axis it actually supplies. Recorded as a paired rename: 0x52635 -> '..._pose_x_within_row_table', 0x52647 -> '..._pose_y_row_table'. No logic change.",
     "evidence": "fd2_render_chapter_intro_overlay disassembly: 0x2D031 'MOVZX EDX, byte ptr [EAX + 0x52635]' then 0x2D044 'ADD EDX,EBX' (EBX = base+0x8088) = direct add; 0x2D046 'MOVZX EAX, byte ptr [EAX + 0x52647]' then 0x2D04D 'IMUL EAX,EAX,0x1C8' = multiply by row pitch. The overlay function's own Ghidra plate also notes 'the names read inverted vs their actual use'.",
-    "status": "open"
+    "resolution": "RESOLVED (closeout) with ISS-0008. Names were already swapped-correct in Stage 2: 0x52635=...pose_x_column_table (X, added @ 0x2D031), 0x52647=...pose_y_row_table (Y, *0x1C8 @ 0x2D046) -- verified vs disasm + all 5 readers (rndmenu.c, chtrans.c, chintro.c usage all consistent: x_column->src_cx, y_row->src_cy of fd2_blit_scaled_chapter_pose). No rename needed (x_column/y_row are already axis-correct; the proposed x_within_row was only an alternate wording). Cleanup only: rewrote 0x52635/0x52647 Ghidra PLATEs to clean axis-correct text, cleared stale 0x52647 PRE, fixed chtrans.c:477. Comment/plate-only -> zero binary change.",
+    "status": "resolved"
   },
   "ISS-0018": {
     "id": "ISS-0018",

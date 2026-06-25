@@ -474,7 +474,7 @@ int fd2_chapter_transition_menu(void)
  * started. Cleanup frees the pose backup, nulls the runtime char ptr splice,
  * and returns result_code.
  *
- * The "_pose_y_row_table" feeds the blit's X arg and "_pose_x_column_table"
+ * The "_pose_x_column_table" feeds the blit's X arg and "_pose_y_row_table"
  * feeds the Y arg (the per-frame coordinate math: (table[off]-bias)*i/10 is a
  * signed 32-bit divide, *0x80, +screen_base).
  * ---------------------------------------------------------------- */
