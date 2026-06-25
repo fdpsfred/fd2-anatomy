@@ -22,7 +22,7 @@
  *   origin_y <= world_y < origin_y + max_y
  *
  * Sprite source: cursor/UI sprite atlas at
- *   data_fd2_runtime_battle_state_ptr; the per-index absolute byte
+ *   data_fd2_cursor_highlight_sprite_sheet_ptr; the per-index absolute byte
  *   offset lives in an offset table at +6 (index*4), so
  *   sprite_src = base + *(int*)(base + 6 + sprite_idx*4).
  *
@@ -45,8 +45,8 @@ void fd2_blit_24x24_at_window_relative_pos(uint32 world_x, uint32 world_y,
         (int)world_y < (int)(data_fd2_battle_view_window_origin_y +
                              data_fd2_battle_view_window_max_y)) {
 
-        sprite_src = data_fd2_runtime_battle_state_ptr +
-            *(int *)(data_fd2_runtime_battle_state_ptr + 6 + sprite_idx * 4);
+        sprite_src = data_fd2_cursor_highlight_sprite_sheet_ptr +
+            *(int *)(data_fd2_cursor_highlight_sprite_sheet_ptr + 6 + sprite_idx * 4);
 
         dst = data_fd2_large_game_state_buffer_ptr +
             (world_y - data_fd2_battle_view_window_origin_y) * 0x2AC0 +

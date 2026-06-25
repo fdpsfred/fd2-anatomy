@@ -1001,8 +1001,8 @@ void fd2_render_recruitment_select_screen(uint32 panel_buf,
 
     fd2_render_full_char_stat_panel(cursor_idx + 1, surface);
 
-    highlight_src = data_fd2_runtime_battle_state_ptr
-                  + *(int32 *)(data_fd2_runtime_battle_state_ptr + 6);
+    highlight_src = data_fd2_cursor_highlight_sprite_sheet_ptr
+                  + *(int32 *)(data_fd2_cursor_highlight_sprite_sheet_ptr + 6);
     cursor_off = ((int)cursor_idx % 10) * 0x1c + 0x17
                + (((int)cursor_idx / 10) * 0x1e + 0x68) * 0x140;
     fd2_tile_blit_24x24_passthrough(highlight_src, surface + cursor_off, 0x140);
@@ -1047,7 +1047,7 @@ void fd2_render_recruitment_select_screen(uint32 panel_buf,
  *   5. for i in 0..enemy_count-1: enemy_id_array[i] tile at
  *      (i*0x20 + 0x74, 0x61).
  *   6. highlight overlay: tile 0 from the runtime_battle_state atlas
- *      (atlas base = the pointer value at data_fd2_runtime_battle_state_ptr)
+ *      (atlas base = the pointer value at data_fd2_cursor_highlight_sprite_sheet_ptr)
  *      at the player-row slot reserved_char_pos: (pos*0x19 + 0x56, 0x84).
  *   7. memmove(0xA0000, dst, 64000); free(dst).
  *
@@ -1093,7 +1093,7 @@ void fd2_render_battle_scene_with_portrait_grid_layout(
     }
 
     fd2_blit_24x24_tile_to_battle_grid_position(
-        data_fd2_runtime_battle_state_ptr, 0, (uint32)dst, 0x140,
+        data_fd2_cursor_highlight_sprite_sheet_ptr, 0, (uint32)dst, 0x140,
         reserved_char_pos * 0x19 + 0x56, 0x84);
 
     memmove((void *)0xa0000, dst, 64000);

@@ -77,10 +77,10 @@ void main(void)
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdother_dat,
             data_fd2_audio_fdother_sfx_bank_buf_ptr, 0x1F);
-    data_fd2_runtime_battle_state_ptr =
+    data_fd2_cursor_highlight_sprite_sheet_ptr =
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdother_dat,
-            data_fd2_runtime_battle_state_ptr, 1);
+            data_fd2_cursor_highlight_sprite_sheet_ptr, 1);
     data_fd2_menu_dialog_state_handle =
         fd2_load_dat_resource(
             (uint32)data_fd2_string_resource_filename_fdother_dat,
@@ -1010,18 +1010,17 @@ uint8 data_fd2_audio_bgm_enabled_flag = 1;
 uint8 data_fd2_audio_sfx_enabled_flag = 1;
 
 /*
- * data_fd2_runtime_battle_state_ptr @ 0x53A4D -- base pointer of the cursor /
+ * data_fd2_cursor_highlight_sprite_sheet_ptr @ 0x53A4D -- base pointer of the cursor /
  * highlight 24x24 sprite atlas (FDOTHER.DAT resource index 1). uint32 address
- * slot; not battle state -- the current symbol name is a misnomer (it holds a
- * sprite sheet, like its siblings data_fd2_chinese_font_sheet /
- * data_fd2_ui_anim_sprite_sheet_ptr / data_fd2_resource_portrait_sheet_ptr).
+ * slot holding a sprite sheet, like its siblings data_fd2_chinese_font_sheet /
+ * data_fd2_ui_anim_sprite_sheet_ptr / data_fd2_resource_portrait_sheet_ptr.
  *
  * Holds the malloc'd resource buffer returned by fd2_load_dat_resource; stored
  * as a 32-bit address slot, matching the engine-wide convention for DAT
  * resource pointers. The sole writer main @ 0x25BF4 does
- *   data_fd2_runtime_battle_state_ptr =
+ *   data_fd2_cursor_highlight_sprite_sheet_ptr =
  *       fd2_load_dat_resource(<FDOTHER.DAT name>,
- *                             data_fd2_runtime_battle_state_ptr, 1);
+ *                             data_fd2_cursor_highlight_sprite_sheet_ptr, 1);
  * passing the prior value (NULL on first call) so the loader frees-then-reloads.
  *
  * The three readers treat it as a sprite-sheet base, resolving each packed
@@ -1035,7 +1034,7 @@ uint8 data_fd2_audio_sfx_enabled_flag = 1;
  * Zero-initialized in the image; the first use is the load-time write, so this
  * is a zero-init (BSS) pointer slot.
  */
-uint32 data_fd2_runtime_battle_state_ptr;
+uint32 data_fd2_cursor_highlight_sprite_sheet_ptr;
 
 /*
  * data_fd2_tile_event_data_table_ptr @ 0x53A55 -- base pointer of the per-chapter
