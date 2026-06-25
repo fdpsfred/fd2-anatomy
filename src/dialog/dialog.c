@@ -412,56 +412,56 @@ uint32 fd2_play_dialog_open_animation(uint32 pos_x, uint32 pos_y, uint32 dst_ori
                 sheet = (uint8 *)data_fd2_ui_anim_sprite_sheet_ptr;
                 sprite_addr = data_fd2_ui_anim_sprite_sheet_ptr +
                               (uint32)(*(int16 *)(sheet + 6));
-                data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[0] =
+                data_fd2_dialog_frame_layer_save_buffer_ptrs[0] =
                     fd2_blit_indexed_sprite_with_alloc(sprite_addr, 0xa0000,
                                                        0x140, (uint32)interp_x,
                                                        (uint32)interp_y);
                 fd2_delay_ms(10);
                 fd2_clear_keyboard_buffer();
                 fd2_cleanup_dialog_sprite_buffer(
-                    (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[0],
+                    (uint32)data_fd2_dialog_frame_layer_save_buffer_ptrs[0],
                     0xa0000, 0x140);
             }
         }
     }
 
     for (i = 0; i < 5; i++) {
-        data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[i] = malloc(0x682c);
+        data_fd2_dialog_frame_layer_save_buffer_ptrs[i] = malloc(0x682c);
     }
 
     width = dst_origin * 0x140 + 5;
 
     fd2_save_screen_block_to_buffer(
-        (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[0],
+        (uint32)data_fd2_dialog_frame_layer_save_buffer_ptrs[0],
         0x136, 0x56, 0xa0000, width, 0x140);
     fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, dst_origin, 4, 2);
     fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
-        (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[1],
+        (uint32)data_fd2_dialog_frame_layer_save_buffer_ptrs[1],
         0x136, 0x56, 0xa0000, width, 0x140);
     fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, dst_origin, 8, 3);
     fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
-        (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[2],
+        (uint32)data_fd2_dialog_frame_layer_save_buffer_ptrs[2],
         0x136, 0x56, 0xa0000, width, 0x140);
     fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, dst_origin, 0xc, 4);
     fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
-        (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[3],
+        (uint32)data_fd2_dialog_frame_layer_save_buffer_ptrs[3],
         0x136, 0x56, 0xa0000, width, 0x140);
     fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, dst_origin, 0x10, 5);
     fd2_delay_ms(10);
 
     fd2_save_screen_block_to_buffer(
-        (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[4],
+        (uint32)data_fd2_dialog_frame_layer_save_buffer_ptrs[4],
         0x136, 0x56, 0xa0000, width, 0x140);
     fd2_assemble_dialog_frame_layered(0xa0000, 0x140, 5, dst_origin, 0x13, 5);
 
     fd2_clear_keyboard_buffer();
-    return (uint32)data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs;
+    return (uint32)data_fd2_dialog_frame_layer_save_buffer_ptrs;
 }
 
 /* ----------------------------------------------------------------
@@ -1284,7 +1284,7 @@ uint32 data_fd2_dialog_portrait_blink_frame_idx;
 uint32 data_fd2_dialog_portrait_blink_subtick_counter;
 
 /* ----------------------------------------------------------------
- * data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs @ 0x53A18
+ * data_fd2_dialog_frame_layer_save_buffer_ptrs @ 0x53A18
  *
  * 5-entry array of save-buffer pointers (void *[5], 20 bytes total),
  * one per assemble stage of the layered dialog frame. Populated at
@@ -1300,7 +1300,7 @@ uint32 data_fd2_dialog_portrait_blink_subtick_counter;
  * before it is read, so it relies on zero-initialization at startup;
  * no static initializer.
  * ---------------------------------------------------------------- */
-void *data_fd2_dialog_dialog_frame_layer_save_buffer_ptrs[5];
+void *data_fd2_dialog_frame_layer_save_buffer_ptrs[5];
 
 /* ----------------------------------------------------------------
  * data_fd2_dialog_area_backup_buffer @ 0x53A71
