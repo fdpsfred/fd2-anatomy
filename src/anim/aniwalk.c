@@ -92,7 +92,7 @@ void fd2_walk_step_down(uint32 char_idx)
         fd2_update_palette_cycle_anim();
         pChar[4] = (uint8)frame;
         fd2_tick_chapter_palette_animation();
-        data_fd2_battle_compose_walk_step_y_sub_pixel_offset +=
+        data_fd2_battle_compose_walk_step_sub_pixel_offset +=
             scroll_delta_y;
         data_fd2_battle_walk_anim_y_scroll_rows += scroll_window_flag;
         composite_height = (scroll_delta_y == 0) ? 8 : 9;
@@ -114,7 +114,7 @@ void fd2_walk_step_down(uint32 char_idx)
     data_fd2_battle_view_window_origin_y += scroll_window_flag;
     data_fd2_battle_cursor_world_y++;
     pChar[4] = 0;
-    data_fd2_battle_compose_walk_step_y_sub_pixel_offset = 0;
+    data_fd2_battle_compose_walk_step_sub_pixel_offset = 0;
     data_fd2_battle_walk_anim_y_scroll_rows = 0;
 
     fd2_check_tile_event_post_action(
@@ -161,7 +161,7 @@ void fd2_walk_step_left(uint32 char_idx)
         pChar[4] = (uint8)frame;
         fd2_tick_chapter_palette_animation();
         data_fd2_battle_compose_left_edge_clip_offset = 0x18;
-        data_fd2_battle_compose_walk_step_y_sub_pixel_offset +=
+        data_fd2_battle_compose_walk_step_sub_pixel_offset +=
             scroll_delta_x;
         data_fd2_battle_walk_anim_x_scroll_offset += scroll_window_flag;
         fd2_composite_battle_tile_map(
@@ -183,7 +183,7 @@ void fd2_walk_step_left(uint32 char_idx)
     data_fd2_battle_view_window_origin_x += scroll_window_flag;
     data_fd2_battle_cursor_world_x--;
     pChar[4] = 0;
-    data_fd2_battle_compose_walk_step_y_sub_pixel_offset = 0;
+    data_fd2_battle_compose_walk_step_sub_pixel_offset = 0;
     data_fd2_battle_walk_anim_x_scroll_offset = 0;
 
     fd2_check_tile_event_post_action(
@@ -233,7 +233,7 @@ void fd2_walk_step_up(uint32 char_idx)
         fd2_update_palette_cycle_anim();
         pChar[4] = (uint8)frame;
         fd2_tick_chapter_palette_animation();
-        data_fd2_battle_compose_walk_step_y_sub_pixel_offset +=
+        data_fd2_battle_compose_walk_step_sub_pixel_offset +=
             scroll_delta_y;
         data_fd2_battle_walk_anim_y_scroll_rows += scroll_window_flag;
 
@@ -265,7 +265,7 @@ void fd2_walk_step_up(uint32 char_idx)
     data_fd2_battle_view_window_origin_y += scroll_window_flag;
     data_fd2_battle_cursor_world_y--;
     pChar[4] = 0;
-    data_fd2_battle_compose_walk_step_y_sub_pixel_offset = 0;
+    data_fd2_battle_compose_walk_step_sub_pixel_offset = 0;
     data_fd2_battle_walk_anim_y_scroll_rows = 0;
 
     fd2_check_tile_event_post_action(
@@ -313,7 +313,7 @@ void fd2_walk_step_right(uint32 char_idx)
         fd2_update_palette_cycle_anim();
         pChar[4] = (uint8)frame;
         fd2_tick_chapter_palette_animation();
-        data_fd2_battle_compose_walk_step_y_sub_pixel_offset +=
+        data_fd2_battle_compose_walk_step_sub_pixel_offset +=
             scroll_delta_x;
         data_fd2_battle_walk_anim_x_scroll_offset += scroll_window_flag;
         composite_width = (scroll_delta_x == 0) ? 0xD : 0xE;
@@ -335,7 +335,7 @@ void fd2_walk_step_right(uint32 char_idx)
     data_fd2_battle_view_window_origin_x += scroll_window_flag;
     data_fd2_battle_cursor_world_x++;
     pChar[4] = 0;
-    data_fd2_battle_compose_walk_step_y_sub_pixel_offset = 0;
+    data_fd2_battle_compose_walk_step_sub_pixel_offset = 0;
     data_fd2_battle_walk_anim_x_scroll_offset = 0;
 
     fd2_check_tile_event_post_action(
@@ -783,11 +783,11 @@ uint32 data_fd2_battle_compose_parallax_scroll_y_rows;
  * background-blit source byte offset, alongside the left-edge clip offset
  * (@0x53AED). Mutable BSS (game has WRITE xrefs); all accesses are dword.
  *
- * NOTE: the "y" in the current symbol name is a misnomer -- the accumulator is
- * single-axis and carries the X byte-offset during left/right steps. Rename is
- * recorded for Stage 2 (proposed: data_fd2_battle_compose_walk_step_sub_pixel_offset).
+ * NOTE: the name omits an axis on purpose -- this single accumulator is
+ * axis-agnostic, carrying the X byte-offset during left/right steps and the
+ * Y offset during up/down, so no per-axis name would be accurate.
  * ---------------------------------------------------------------- */
-uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset;
+uint32 data_fd2_battle_compose_walk_step_sub_pixel_offset;
 
 /* ----------------------------------------------------------------
  * Walk-step horizontal (X) parallax scroll offset @ 0x53B07  (.object2, zero-init)

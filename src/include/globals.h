@@ -242,7 +242,7 @@ extern uint32 data_fd2_graphics_battle_compose_flip_tick_latch;         /* 0x53A
 extern uint32 data_fd2_graphics_bg_anim_flip_flag;                      /* 0x53A40 */
 extern uint32 data_fd2_battle_compose_left_edge_clip_offset;            /* 0x53AED */
 extern uint32 data_fd2_battle_compose_parallax_scroll_y_rows;          /* 0x53AF1 */
-extern uint32 data_fd2_battle_compose_walk_step_y_sub_pixel_offset;     /* 0x53AF5 */
+extern uint32 data_fd2_battle_compose_walk_step_sub_pixel_offset;     /* 0x53AF5 */
 extern uint32 data_fd2_graphics_static_bg_buffer_ptr;                   /* 0x53AFF */
 extern uint32 data_fd2_graphics_animated_bg_buffer_ptr;                 /* 0x53B03 */
 extern int    data_fd2_battle_walk_anim_x_scroll_offset;                /* 0x53B07 -- signed: reader does signed /2 (SAR) and left-scroll stores negatives */

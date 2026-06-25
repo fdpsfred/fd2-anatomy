@@ -1468,7 +1468,7 @@ void fd2_composite_battle_tile_map(uint32 dst_buf, uint32 dst_stride,
             }
         }
         src_stride = 0x140;
-        dst_off = data_fd2_battle_compose_walk_step_y_sub_pixel_offset +
+        dst_off = data_fd2_battle_compose_walk_step_sub_pixel_offset +
                   dst_buf + data_fd2_battle_compose_left_edge_clip_offset;
         base_off = data_fd2_battle_compose_parallax_scroll_y_rows * 0x1c8;
         bg_src = data_fd2_graphics_animated_bg_buffer_ptr;
@@ -1487,7 +1487,7 @@ void fd2_composite_battle_tile_map(uint32 dst_buf, uint32 dst_stride,
                  (uint32)(data_fd2_battle_walk_anim_x_scroll_offset / 2) +
                  win_origin_y * src_stride * 2 + win_origin_x * 3;
         dst_off = dst_buf + data_fd2_battle_compose_left_edge_clip_offset +
-                  data_fd2_battle_compose_walk_step_y_sub_pixel_offset;
+                  data_fd2_battle_compose_walk_step_sub_pixel_offset;
         base_off = data_fd2_battle_compose_parallax_scroll_y_rows * 0x1c8;
     } else if (data_fd2_chapter_current_chapter_id == 0x17) {
         cur_tick = (int32)(int16)BIOS_TICK_WORD;
@@ -1496,7 +1496,7 @@ void fd2_composite_battle_tile_map(uint32 dst_buf, uint32 dst_stride,
             data_fd2_battle_bg_anim_last_advance_tick = (uint32)cur_tick;
         }
         src_stride = 0x138;
-        dst_off = data_fd2_battle_compose_walk_step_y_sub_pixel_offset +
+        dst_off = data_fd2_battle_compose_walk_step_sub_pixel_offset +
                   dst_buf + data_fd2_battle_compose_left_edge_clip_offset;
         base_off = data_fd2_battle_compose_parallax_scroll_y_rows * 0x1c8;
         bg_src = data_fd2_graphics_static_bg_buffer_ptr;
