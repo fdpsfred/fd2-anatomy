@@ -295,12 +295,12 @@ void fd2_play_class_promotion_cinematic(uint32 promoting_char_idx, uint32 target
     data_fd2_battle_special_cinematic_bg_layers[2] = 0;
 
     data_fd2_battle_special_cinematic_bg_layers[0] = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0, 0);
+        (uint32)data_fd2_string_resource_filename_bg_dat, 0, 0);
     data_fd2_battle_special_cinematic_bg_layers[1] = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        (uint32)data_fd2_string_resource_filename_bg_dat,
         data_fd2_battle_special_cinematic_bg_layers[1], 1);
     data_fd2_battle_special_cinematic_bg_layers[2] = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        (uint32)data_fd2_string_resource_filename_bg_dat,
         data_fd2_battle_special_cinematic_bg_layers[2], 2);
 
     work = malloc(0x1f400);
@@ -588,7 +588,7 @@ void fd2_play_spell_cast_sequence(uint32 caster_idx, uint32 spell_id,
     }
 
     bg_resource = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0, bg_idx);
+        (uint32)data_fd2_string_resource_filename_bg_dat, 0, bg_idx);
     tai_resource = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_tai_dat, 0, tai_idx);
 

@@ -161,7 +161,7 @@ const char data_fd2_string_ui_render_decimal_format_template[6] = {
  * planes. The address is taken (PUSH 0x52381 / array decays) and consumed as a
  * char* path; never written. Immediately precedes the "FIGANI.DAT" string at
  * 0x52388. */
-const char data_fd2_string_resource_filename_bg_dat_52381[7] = {
+const char data_fd2_string_resource_filename_bg_dat[7] = {
     0x42, 0x47, 0x2e, 0x44, 0x41, 0x54, 0x00
 };
 

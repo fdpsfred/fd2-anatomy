@@ -1118,14 +1118,14 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
         fd2_resolve_terrain_for_aoe_targets(n_targets, (uint8 *)target_idx_buf);
 
     pBg_layer = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        (uint32)data_fd2_string_resource_filename_bg_dat,
         pBg_resource, (uint32)tile_attr_byte);
     pBg_layer_saved = pBg_layer;
     pTai_resource = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_tai_dat,
         pTai_resource, (uint32)tile_attr_byte);
     pTai_layer = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        (uint32)data_fd2_string_resource_filename_bg_dat,
         pBg_resource, (uint32)resolved_terrain);
 
     data_fd2_battle_special_cinematic_bg_layers[0] = 0;
@@ -1133,12 +1133,12 @@ void fd2_execute_special_attack_skill(uint32 caster_idx, uint32 spell_id,
     data_fd2_battle_special_cinematic_bg_layers[2] = 0;
     pBg_resource = pTai_layer;
     data_fd2_battle_special_cinematic_bg_layers[0] = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0, 0);
+        (uint32)data_fd2_string_resource_filename_bg_dat, 0, 0);
     data_fd2_battle_special_cinematic_bg_layers[1] = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        (uint32)data_fd2_string_resource_filename_bg_dat,
         data_fd2_battle_special_cinematic_bg_layers[1], 1);
     data_fd2_battle_special_cinematic_bg_layers[2] = fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+        (uint32)data_fd2_string_resource_filename_bg_dat,
         data_fd2_battle_special_cinematic_bg_layers[2], 2);
 
     pAnimWorkBuf1 = (uint32)malloc(64000);
@@ -1404,7 +1404,7 @@ void fd2_execute_summon_spell_cast(uint32 caster_idx, uint32 spell_id,
         (uint32)data_fd2_string_resource_filename_tai_dat, 0,
         (uint32)tile_attr_byte);
     pBg_layer = (uint32)fd2_load_dat_resource(
-        (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0,
+        (uint32)data_fd2_string_resource_filename_bg_dat, 0,
         (uint32)tile_attr_byte);
 
     pCaster_figani = (uint32)malloc(64000);

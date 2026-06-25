@@ -248,7 +248,7 @@ void fd2_play_figani_char_intro_animation(uint32 char_idx)
     fd2_play_palette_fade_to_black();
     data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr =
         fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+            (uint32)data_fd2_string_resource_filename_bg_dat,
             data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr,
             tile_attr[6]);
     fd2_flash_char_hit_sprite((uint32)dst, char_idx);
@@ -461,7 +461,7 @@ void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx)
     fd2_play_palette_fade_to_black();
     data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr =
         fd2_load_dat_resource(
-            (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+            (uint32)data_fd2_string_resource_filename_bg_dat,
             data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr,
             spotlight_terrain);
     if (data_fd2_battle_scripted_cinematic_mode_or_terrain_idx == 0) {
@@ -490,19 +490,19 @@ void fd2_play_full_combat_cinematic(uint32 attacker_idx, uint32 defender_idx)
         data_fd2_battle_special_cinematic_bg_layers[2] = 0;
         data_fd2_battle_combat_cinematic_split_bg_b_buf_ptr =
             fd2_load_dat_resource(
-                (uint32)data_fd2_string_resource_filename_bg_dat_52381, 0,
+                (uint32)data_fd2_string_resource_filename_bg_dat, 0,
                 defender_terrain);
         data_fd2_battle_special_cinematic_bg_layers[0] =
             fd2_load_dat_resource(
-                (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+                (uint32)data_fd2_string_resource_filename_bg_dat,
                 data_fd2_battle_special_cinematic_bg_layers[0], 0);
         data_fd2_battle_special_cinematic_bg_layers[1] =
             fd2_load_dat_resource(
-                (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+                (uint32)data_fd2_string_resource_filename_bg_dat,
                 data_fd2_battle_special_cinematic_bg_layers[1], 1);
         data_fd2_battle_special_cinematic_bg_layers[2] =
             fd2_load_dat_resource(
-                (uint32)data_fd2_string_resource_filename_bg_dat_52381,
+                (uint32)data_fd2_string_resource_filename_bg_dat,
                 data_fd2_battle_special_cinematic_bg_layers[2], 2);
         swap_tmp = data_fd2_battle_combat_cinematic_spotlight_bg_buf_ptr;
         if (p_attacker->team == 0) {
