@@ -9715,7 +9715,7 @@
   "00052635": {
     "address": "00052635",
     "name_current": "data_fd2_chapter_intro_portrait_pose_y_row_table",
-    "name_final": "data_fd2_chapter_intro_portrait_pose_y_row_table",
+    "name_final": "data_fd2_chapter_intro_portrait_pose_x_column_table",
     "name_verdict": "rename",
     "name_proposed": "data_fd2_chapter_intro_portrait_pose_x_within_row_table",
     "name_reason": "Current name says 'y_row' but the compositor disassembly (fd2_render_chapter_intro_overlay @ 0x2D031/0x2D046) proves this table is the one ADDED DIRECTLY to the destination address (MOVZX [EAX+0x52635]; ADD EDX,base) = the WITHIN-ROW (X/column) contribution, while the companion @ 0x52647 is the one IMUL'd by the 0x1C8 row pitch = the ROW (Y) contribution. So the X/Y labels of this table and its companion are swapped relative to the blit math. Both the 0x52635 data plate (now corrected) and the companion's plate/name carried the inverted label. Proposed name reflects the true X/within-row role. The companion at 0x52647 (currently '..._pose_x_column_table') should be renamed in the same Stage-2 swap to '..._pose_y_row_table' so the pair is consistent. Recorded only; not applied (Stage 2 will swap both, touching globals.h and all call sites).",
