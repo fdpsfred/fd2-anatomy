@@ -785,7 +785,7 @@ void fd2_play_final_chapter_30_ending(void)
 
     workspace = malloc(0x36B00);
     memset(workspace, 0, 0x36B00);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 0x2C,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 0x2C,
                              (uint32)workspace + 0x12C30, 0x140, 0xCD, 0x4C,
                              0, 0x19, 0);
 
@@ -908,14 +908,14 @@ void fd2_play_final_chapter_30_ending(void)
                                            (uint32)workspace, 0x140);
 
             /* 5-fragment dialog assembly */
-            fd2_display_dialog_scene(data_fd2_current_chapter_text, 10,
+            fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 10,
                                      (uint32)workspace + 0x16E9, 0x140, 0xCD,
                                      0x4C, 0, 0, 0);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
                                      (uint32)(party[swap_idx].char_id + 1),
                                      (uint32)workspace + 0x171B, 0x140, 0xCD,
                                      0x4C, 0, 0, 0);
-            fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xB,
+            fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 0xB,
                                      (uint32)workspace + 0x2FE9, 0x140, 0xCD,
                                      0x4C, 0, 0, 0);
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
@@ -927,7 +927,7 @@ void fd2_play_final_chapter_30_ending(void)
             } else {
                 i = 0x2D;
             }
-            fd2_display_dialog_scene(data_fd2_current_chapter_text, i,
+            fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, i,
                                      (uint32)workspace + 0x7D08, 0x140, 0xCD,
                                      0x4C, 0, 0x14, 0);
 

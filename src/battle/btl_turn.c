@@ -790,7 +790,7 @@ void fd2_process_battle_drop_entries(uint32 recipient_idx,
                 [entry_value](recipient_idx);
         } else if (entry_type == 3) {
             fd2_display_dialog_scene(
-                data_fd2_current_chapter_text, entry_value, 0xA0000,
+                data_fd2_current_chapter_text_ptr, entry_value, 0xA0000,
                 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
         }
     }

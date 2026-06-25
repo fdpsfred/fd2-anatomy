@@ -47,7 +47,7 @@ void fd2_chapter_event_handler_2f__ch21_turn_gated(uint32 event_arg)
     fd2_wait_n_bios_ticks(8);
 
     if (data_fd2_battle_turn_counter == 2) {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
     }
 }
@@ -93,7 +93,7 @@ void fd2_chapter_event_handler_30__ch21_ai_ctrl(uint32 event_arg)
  * In the binary the dialog call and the early return share a borrowed tail:
  * when turn != 3 the handler does JNZ into the shared RET, and when turn == 3
  * it pushes its 9 args then JMP 0x35A20 — falling into the
- * PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET
+ * PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET
  * tail of fd2_chapter_event_handler_42__ch28_dialog_with_state @ 0x359C8.
  * That tail-merge is a binary size optimisation; the functionally-exact source
  * is a single self-contained dialog call.
@@ -111,7 +111,7 @@ void fd2_chapter_event_handler_31__ch22_turn_gated(uint32 event_arg)
     fd2_wait_n_bios_ticks(8);
 
     if (data_fd2_battle_turn_counter == 3) {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 1, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 1, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
     }
 }
@@ -132,7 +132,7 @@ void fd2_chapter_event_handler_31__ch22_turn_gated(uint32 event_arg)
  *
  * In the binary the dialog call shares a borrowed tail: after the spawn the
  * handler does JMP 0x347F1, falling into the
- * PUSH 1/0x13/0x4A/0x4C/0xCD/0x140/0xA0000/2; PUSH data_fd2_current_chapter_text;
+ * PUSH 1/0x13/0x4A/0x4C/0xCD/0x140/0xA0000/2; PUSH data_fd2_current_chapter_text_ptr;
  * CALL fd2_display_dialog_scene; ADD ESP,0x24; RET tail of
  * fd2_chapter_event_handler_15 @ 0x347D9 (the page=2 dialog body). That
  * tail-merge is a binary size optimisation; the functionally-exact source is a
@@ -147,7 +147,7 @@ void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)
     fd2_wait_n_bios_ticks(8);
     fd2_init_runtime_char_from_base_growth(0x14);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -167,7 +167,7 @@ void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)
  *
  * In the binary the dialog call shares a borrowed tail: after pushing its 8
  * args (page=3) the handler does JMP 0x34FB7, falling into the
- * PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24 tail
+ * PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24 tail
  * hosted in fd2_chapter_event_handler_27__unref_drop @ 0x34F74. That tail-merge
  * is a binary size optimisation; the functionally-exact source is a single
  * self-contained dialog call.
@@ -184,7 +184,7 @@ void fd2_chapter_event_handler_33__unref_drop(uint32 stepping_char_id)
     drop_entry[2] = data_fd2_chapter_event_handler_33_drop_entry_inline[2];
     fd2_process_battle_drop_entries(stepping_char_id, 1, (uint32)drop_entry);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -322,7 +322,7 @@ void fd2_chapter_event_handler_35__unref_dialog_with_state(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 5, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 5, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_kill_runtime_chars_from_index_to_end(0x12);
 }
@@ -403,7 +403,7 @@ void fd2_chapter_event_handler_37__ch25_first_time(uint32 event_arg)
 
     if (event_arg == 0 &&
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr) == 0) {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 0, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 0, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         /* second arg is the stepping char id from [ESP+0x10] (= event_arg);
          * inside this branch event_arg is provably 0, so the lord (char 0) is
@@ -448,7 +448,7 @@ void fd2_chapter_event_handler_38__ch25_dialog_with_state(uint32 event_arg)
     fd2_pan_cursor_and_window(6, 0x28);
     fd2_load_chapter_portraits_and_dump_tmp(1);
     fd2_cutscene_event_trigger(0x4A);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 5, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 5, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_clear_all_chars_facing();
 }
@@ -509,7 +509,7 @@ void fd2_chapter_event_handler_39__ch26_cinematic(uint32 event_arg)
  *
  * Unlike the chapter-dialog handlers in this file this one renders against
  * data_fd2_all_game_text_ptr with the 0xA9F23 render buffer (a different text
- * scope from data_fd2_current_chapter_text), matching the shop / battle item dialogs.
+ * scope from data_fd2_current_chapter_text_ptr), matching the shop / battle item dialogs.
  *
  * The tile-attribute read fills an 8-byte buffer; the index byte is the low
  * byte of the +2 ushort terrain_class field (0..0x1F). The lookup table is only
@@ -652,7 +652,7 @@ void fd2_chapter_event_handler_3d__ch26_pickup(uint32 stepping_char_id)
 
     slot = (uint32)fd2_find_inventory_slot_with_item(stepping_char_id, 0xD0);
     if (slot == 0xFFFFFFFF) {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA951F, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA951F, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         fd2_paint_portrait_to_dialog_area(0);
         fd2_wait_for_input_dialog_with_blink(0);
@@ -661,7 +661,7 @@ void fd2_chapter_event_handler_3d__ch26_pickup(uint32 stepping_char_id)
     }
 
     fd2_remove_inventory_slot_at(stepping_char_id, slot);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA951F, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA951F, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_wait_for_input_dialog_with_blink(0);
     fd2_close_status_screen_with_slide_out();
@@ -678,7 +678,7 @@ void fd2_chapter_event_handler_3d__ch26_pickup(uint32 stepping_char_id)
     fd2_tick_tile_event_animations();
     fd2_load_chapter_portraits_and_dump_tmp(1);
     fd2_init_runtime_char_from_base_growth(0x1F);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -778,14 +778,14 @@ void fd2_chapter_event_handler_40__unref_dyn_turn_event(uint32 event_arg)
 
     stage = *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10);
     if (stage == 1) {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 1, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 1, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         fd2_cinematic_chapter_portrait_dump_with_white_flash(9, 0x2C, 3);
         fd2_cinematic_chapter_portrait_dump_with_white_flash(0, 9, 4);
         fd2_cinematic_chapter_portrait_dump_with_white_flash(0x11, 9, 5);
         data_fd2_battle_anim_phase = 1;
     } else if (stage == 2) {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         fd2_kill_runtime_chars_from_index_to_end(0x10);
     }
@@ -846,7 +846,7 @@ void fd2_chapter_event_handler_41__shared_dyn_turn_event(uint32 event_arg)
  *   - alt_37 @ 0x359FF (the cutscene + page-6 dialog + cleanup + RET tail) is
  *     tail-JMPed into by fd2_chapter_event_handler_46 (from 0x35B66) after it
  *     pre-pushes its own cinematic args (0, 7, 5);
- *   - alt_58 @ 0x35A20 (the PUSH data_fd2_current_chapter_text; CALL display_dialog;
+ *   - alt_58 @ 0x35A20 (the PUSH data_fd2_current_chapter_text_ptr; CALL display_dialog;
  *     ADD ESP,0x24; RET tail) is tail-JMPed into by
  *     fd2_chapter_event_handler_31__ch22_turn_gated (from 0x3525C) on its
  *     turn==3 branch after it pre-pushes its own 8 page-1 dialog args;
@@ -860,10 +860,10 @@ void fd2_chapter_event_handler_42__ch28_dialog_with_state(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_cinematic_chapter_portrait_dump_with_white_flash(0x11, 0x12, 1);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 6, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -921,10 +921,10 @@ void fd2_chapter_event_handler_44__ch28_dialog_with_state(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_cinematic_chapter_portrait_dump_with_white_flash(0xE, 7, 2);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 6, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 
     *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x12) = 1;
@@ -998,12 +998,12 @@ void fd2_chapter_event_handler_46__ch28_dialog_with_state(uint32 event_arg)
     (void)event_arg;
 
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x29, 0x2D, 0);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 5, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 5, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_cinematic_chapter_portrait_dump_with_white_flash(8, 7, 3);
     fd2_cinematic_chapter_portrait_dump_with_white_flash(4, 7, 4);
     fd2_cinematic_chapter_portrait_dump_with_white_flash(0, 7, 5);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 6, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -1035,7 +1035,7 @@ void fd2_chapter_event_handler_47__unref_dyn_turn_event(uint32 event_arg)
     (void)event_arg;
 
     if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x13) != 0) {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         fd2_kill_runtime_chars_from_index_to_end(0x14);
     }
@@ -1202,7 +1202,7 @@ void fd2_chapter_event_handler_4b__ch29_major_cinematic(uint32 stepping_char_id)
         if (data_fd2_battle_runtime_char_array_ptr[stepping_char_id].char_id != 9) {
             fd2_dialog_open_speaker_portrait(
                 (uint32)data_fd2_battle_runtime_char_array_ptr[stepping_char_id].portrait_id);
-            fd2_display_dialog_scene(data_fd2_current_chapter_text, 0, 0xA951F, 0x140,
+            fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 0, 0xA951F, 0x140,
                                      0xCD, 0x4C, 0x4A, 0x13, 1);
             fd2_paint_portrait_to_dialog_area(0);
             fd2_wait_for_input_dialog_with_blink(0);
@@ -1210,7 +1210,7 @@ void fd2_chapter_event_handler_4b__ch29_major_cinematic(uint32 stepping_char_id)
             return;
         }
 
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 1, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 1, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) = 1;
         *(uint8 *)(data_fd2_tile_event_data_table_ptr + 6) =
@@ -1270,7 +1270,7 @@ void fd2_chapter_event_handler_4c__ch29_major_cinematic(uint32 event_arg)
         return;
     }
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_load_chapter_portraits_and_dump_tmp(1);
 
@@ -1286,7 +1286,7 @@ void fd2_chapter_event_handler_4c__ch29_major_cinematic(uint32 event_arg)
 
     for (page = 3; page < 7; page = page + 1) {
         fd2_animate_palette_flash_pulse_white();
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, (uint32)page, 0xA0000,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, (uint32)page, 0xA0000,
                                  0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
     }
 }
@@ -1486,7 +1486,7 @@ void fd2_chapter_event_handler_52__ch30_major_cinematic(uint32 event_arg)
 
     fd2_pan_cursor_and_window(0x10, 1);
     fd2_display_dialog_scene(
-        data_fd2_current_chapter_text,
+        data_fd2_current_chapter_text_ptr,
         (uint32)(*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) + 2),
         0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
@@ -1544,7 +1544,7 @@ void fd2_chapter_event_handler_53__unref_dialog_with_state(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 8, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 8, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_kill_runtime_chars_from_index_to_end(0x14);
 }

@@ -24,7 +24,7 @@
  * ---------------------------------------------------------------- */
 void fd2_chapter_01_end(void)
 {
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 9, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 9, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = 1;
@@ -61,11 +61,11 @@ void fd2_chapter_02_end(void)
     }
 
     if (villager_dead) {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 7, 0xa0000, 0x140, 0xcd,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 7, 0xa0000, 0x140, 0xcd,
                                  0x4c, 0x4a, 0x13, 1);
     }
     else {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xa0000, 0x140, 0xcd,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 6, 0xa0000, 0x140, 0xcd,
                                  0x4c, 0x4a, 0x13, 1);
         fd2_give_item_to_first_player_char(0xc6);
     }
@@ -75,13 +75,13 @@ void fd2_chapter_02_end(void)
     fd2_delay_ms(100);
     fd2_cutscene_event_trigger(0xe);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 8, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 8, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
     fd2_delay_ms(200);
     fd2_cutscene_event_trigger(0xf);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 9, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 9, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
     fd2_delay_ms(200);
@@ -90,7 +90,7 @@ void fd2_chapter_02_end(void)
     fd2_cutscene_event_trigger(0x10);
     fd2_delay_ms(200);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 10, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 10, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_init_runtime_char_from_base_growth(8);
     fd2_save_runtime_char_to_template();
@@ -142,12 +142,12 @@ void fd2_chapter_03_end(void)
         fd2_setup_chars_and_camera_for_intro(
             (uint32)recruit_block_a, (uint32)recruit_block_b,
             (uint32)recruit_block_c, 0, 6, 0, 0, 0, 0, 2, char6_dead);
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 7, 0xa0000, 0x140, 0xcd,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 7, 0xa0000, 0x140, 0xcd,
                                  0x4c, 0x4a, 0x13, 1);
         fd2_init_runtime_char_from_base_growth(2);
     }
     else {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xa0000, 0x140, 0xcd,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 6, 0xa0000, 0x140, 0xcd,
                                  0x4c, 0x4a, 0x13, 1);
     }
 
@@ -177,7 +177,7 @@ void fd2_chapter_03_end(void)
  * ---------------------------------------------------------------- */
 void fd2_chapter_04_end(void)
 {
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
@@ -216,7 +216,7 @@ void fd2_chapter_05_end(void)
     fd2_setup_chars_and_camera_for_intro(
         (uint32)recruit_block_a, (uint32)recruit_block_b,
         (uint32)recruit_block_c, 0, 6, 0x29, 0xc, 8, 0, 6, 4);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 9, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 9, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_init_runtime_char_from_base_growth(10);
     fd2_save_runtime_char_to_template();
@@ -234,7 +234,7 @@ void fd2_chapter_05_end(void)
  * state to the template store, then advances the current-chapter id by 1.
  *
  * In the binary the function ends with a tail-jump into the shared tail of
- * fd2_chapter_04_end @ 0x231DF (PUSH data_fd2_current_chapter_text; dialog; cleanup;
+ * fd2_chapter_04_end @ 0x231DF (PUSH data_fd2_current_chapter_text_ptr; dialog; cleanup;
  * save; INC chapter id; RET). It is emitted here as a self-contained
  * function (Layer 2 functional equivalence -- the jump-into-middle sharing is
  * not preserved in source).
@@ -249,7 +249,7 @@ void fd2_chapter_06_end(void)
     fd2_load_chapter_portraits_and_dump_tmp(3);
     fd2_pan_cursor_and_window(5, 0xe);
     fd2_cutscene_event_trigger(0x1b);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 6, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
@@ -300,12 +300,12 @@ void fd2_chapter_07_end(void)
         fd2_setup_chars_and_camera_for_intro(
             (uint32)recruit_block_a, (uint32)recruit_block_b,
             (uint32)recruit_block_c, 0, 8, 0x2b, 0xc, 7, 2, 6, 2);
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xa0000, 0x140, 0xcd,
                                  0x4c, 0x4a, 0x13, 1);
         fd2_init_runtime_char_from_base_growth(0xc);
     }
     else {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 5, 0xa0000, 0x140, 0xcd,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 5, 0xa0000, 0x140, 0xcd,
                                  0x4c, 0x4a, 0x13, 1);
     }
 
@@ -356,12 +356,12 @@ void fd2_chapter_08_end(void)
         (uint32)scene_block_x, (uint32)scene_block_y, 2, 0, 9, 0x1c, 0xe, 0x10,
         0, 8, 0xe);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
     fd2_cutscene_event_trigger(0x21);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_chapter_cutscene_event_state = 1;
     data_fd2_battle_anim_phase = 0;
@@ -388,7 +388,7 @@ void fd2_chapter_08_end(void)
  * state back to the template store, then advances the current-chapter id by 1.
  *
  * In the binary the function ends with `JMP 0x231C6`, a tail-jump into the
- * shared tail of fd2_chapter_04_end @ 0x231C6 (+0xA: PUSH data_fd2_current_chapter_text;
+ * shared tail of fd2_chapter_04_end @ 0x231C6 (+0xA: PUSH data_fd2_current_chapter_text_ptr;
  * dialog page 4; cleanup; save; INC chapter id; RET). It is emitted here as a
  * self-contained function (Layer 2 functional equivalence — the jump-into-middle
  * sharing is not preserved in source).
@@ -403,7 +403,7 @@ void fd2_chapter_09_end(void)
     fd2_pan_cursor_and_window(6, 1);
     fd2_load_chapter_portraits_and_dump_tmp(4);
     fd2_cutscene_event_trigger(0x24);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_save_runtime_char_to_template();
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
@@ -483,12 +483,12 @@ void fd2_chapter_10_end(void)
     fd2_play_palette_fade_in();
     fd2_delay_ms(200);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
     fd2_cutscene_event_trigger(0x25);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 5, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 5, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_save_runtime_char_to_template();
     fd2_init_runtime_char_from_base_growth(0xb);
@@ -518,7 +518,7 @@ void fd2_chapter_10_end(void)
  * ---------------------------------------------------------------- */
 void fd2_chapter_11_end(void)
 {
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_save_runtime_char_to_template();
     fd2_init_runtime_char_from_base_growth(0xe);
@@ -566,10 +566,10 @@ void fd2_chapter_12_end(void)
         (uint32)scene_block_x, (uint32)scene_block_y, (uint32)scene_block_facing,
         0, 0xd, 0xe, 0xa, 2, 0, 4, 0);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_cutscene_event_trigger(0x2d);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
 
     fd2_save_runtime_char_to_template();
@@ -603,7 +603,7 @@ void fd2_chapter_12_end(void)
  * ---------------------------------------------------------------- */
 void fd2_chapter_13_end(void)
 {
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 9, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 9, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_save_runtime_char_to_template();
     fd2_init_runtime_char_from_base_growth(3);
@@ -654,11 +654,11 @@ void fd2_chapter_14_end(void)
         (uint32)scene_block_x, (uint32)scene_block_y, (uint32)scene_block_facing,
         0, 0xf, 0, 0, 0, 0, 0xc, 10);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
     fd2_cutscene_event_trigger(0x2f);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
 
     fd2_save_runtime_char_to_template();
@@ -695,7 +695,7 @@ void fd2_chapter_15_end(void)
     uint8 page;
 
     page = (uint8)(((uint8)fd2_check_party_has_char_id(0xc) ^ 1) + 0xc);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, page, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, page, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_save_runtime_char_to_template();
     fd2_init_runtime_char_from_base_growth(0xf);
@@ -753,7 +753,7 @@ void fd2_chapter_17_end(void)
         fd2_setup_chars_and_camera_for_intro(
             (uint32)scene_block_x, (uint32)scene_block_y, 0, 0, 0xf, 0x34, 0x17,
             0x17, 2, 0x11, 0x11);
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 7, 0xa0000, 0x140, 0xcd,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 7, 0xa0000, 0x140, 0xcd,
                                  0x4c, 0x4a, 0x13, 1);
         data_fd2_battle_anim_phase = 0;
         fd2_cutscene_event_trigger(0x32);
@@ -762,7 +762,7 @@ void fd2_chapter_17_end(void)
         next_cutscene = 0x33;
     }
     else {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 5, 0xa0000, 0x140, 0xcd,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 5, 0xa0000, 0x140, 0xcd,
                                  0x4c, 0x4a, 0x13, 1);
         data_fd2_battle_anim_phase = 0;
         fd2_pan_cursor_and_window(0x11, 0xe);
@@ -771,10 +771,10 @@ void fd2_chapter_17_end(void)
     }
 
     fd2_cutscene_event_trigger(next_cutscene);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 6, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_cutscene_event_trigger(0x35);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 8, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 8, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_init_runtime_char_from_base_growth(0x10);
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
@@ -827,22 +827,22 @@ void fd2_chapter_18_end(void)
         (uint32)scene_block_x, (uint32)scene_block_y, (uint32)scene_block_facing,
         0, 0x10, 0x11, 0x19, 8, 1, 0x12, 4);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 7, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 7, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
     fd2_cutscene_event_trigger(0x38);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 8, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 8, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
     fd2_cutscene_event_trigger(0x39);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 9, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 9, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
     fd2_cutscene_event_trigger(0x3a);
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 10, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 10, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     fd2_init_runtime_char_from_base_growth(0x15);
     fd2_init_runtime_char_from_base_growth(7);
@@ -916,16 +916,16 @@ void fd2_chapter_16_end(void)
 
     if ((int32)data_fd2_battle_turn_counter < 0x13 && dead_exceeds_4 != 1 &&
         data_fd2_battle_runtime_char_array_ptr->hp_max >= 0x140) {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xa0000, 0x140, 0xcd,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xa0000, 0x140, 0xcd,
                                  0x4c, 0x4a, 0x13, 1);
         fd2_init_runtime_char_from_base_growth(0x12);
     }
     else {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xa0000, 0x140, 0xcd,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xa0000, 0x140, 0xcd,
                                  0x4c, 0x4a, 0x13, 1);
         data_fd2_battle_anim_phase = 0;
         fd2_cutscene_event_trigger(0x31);
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xa0000, 0x140, 0xcd,
                                  0x4c, 0x4a, 0x13, 1);
     }
 
@@ -956,7 +956,7 @@ void fd2_chapter_16_end(void)
 void fd2_chapter_19_end(void)
 {
     fd2_save_runtime_char_to_template();
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xa0000, 0x140, 0xcd,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xa0000, 0x140, 0xcd,
                              0x4c, 0x4a, 0x13, 1);
     data_fd2_chapter_current_chapter_id = data_fd2_chapter_current_chapter_id + 1;
 }

@@ -171,7 +171,7 @@ void fd2_chapter_event_handler_00__ch1_dialog_with_state(uint32 event_arg)
     fd2_delay_ms(100);
     fd2_cutscene_event_trigger(7);
     fd2_clear_keyboard_buffer();
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xB, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 0xB, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     data_fd2_battle_anim_phase = 0;
 
@@ -180,7 +180,7 @@ void fd2_chapter_event_handler_00__ch1_dialog_with_state(uint32 event_arg)
     fd2_delay_ms(100);
     fd2_cutscene_event_trigger(8);
     fd2_clear_keyboard_buffer();
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_clear_all_chars_facing();
 }
@@ -211,7 +211,7 @@ void fd2_chapter_event_handler_01__ch1_dialog_with_state(uint32 event_arg)
     fd2_composite_battle_frame(1);
     fd2_cutscene_event_trigger(3);
     fd2_clear_all_chars_facing();
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -230,7 +230,7 @@ void fd2_chapter_event_handler_01__ch1_dialog_with_state(uint32 event_arg)
  * compiler-injected and omitted here.
  *
  * In the original binary the final dialog call is reached by a JMP
- * into the shared tail of handler_01 (PUSH data_fd2_current_chapter_text;
+ * into the shared tail of handler_01 (PUSH data_fd2_current_chapter_text_ptr;
  * CALL fd2_display_dialog_scene; ADD ESP,0x24; POP EBX; RET) at
  * 0x3430D; reproduced here as the inline call for Layer-2 equivalence.
  *
@@ -246,7 +246,7 @@ void fd2_chapter_event_handler_02__ch1_dialog_with_state(uint32 event_arg)
     fd2_composite_battle_frame(1);
     fd2_cutscene_event_trigger(4);
     fd2_clear_all_chars_facing();
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 5, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 5, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -268,7 +268,7 @@ void fd2_chapter_event_handler_02__ch1_dialog_with_state(uint32 event_arg)
  * compiler-injected and omitted here.
  *
  * In the original binary the final dialog call is reached by a JMP
- * into the shared tail of handler_01 (PUSH data_fd2_current_chapter_text;
+ * into the shared tail of handler_01 (PUSH data_fd2_current_chapter_text_ptr;
  * CALL fd2_display_dialog_scene; ADD ESP,0x24; POP EBX; RET) at
  * 0x3430D; reproduced here as the inline call for Layer-2 equivalence.
  *
@@ -286,7 +286,7 @@ void fd2_chapter_event_handler_03__ch1_dialog_with_state(uint32 event_arg)
     fd2_cutscene_event_trigger(6);
     fd2_clear_all_chars_facing();
     fd2_clear_keyboard_buffer();
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 6, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -305,7 +305,7 @@ void fd2_chapter_event_handler_03__ch1_dialog_with_state(uint32 event_arg)
  * and omitted here.
  *
  * In the original binary the dialog call is the head of a shared
- * tail at 0x343FA (PUSH page=7..PUSH data_fd2_current_chapter_text; CALL
+ * tail at 0x343FA (PUSH page=7..PUSH data_fd2_current_chapter_text_ptr; CALL
  * fd2_display_dialog_scene; ADD ESP,0x24; RET) that
  * fd2_chapter_event_handler_11 @ 0x346C8 JMPs into for its own
  * page-7 dialog; reproduced here as the inline call for Layer-2
@@ -316,7 +316,7 @@ void fd2_chapter_event_handler_04__unref_dialog_with_state(uint32 event_arg)
     (void)event_arg;
 
     data_fd2_battle_runtime_char_array_ptr[0xD].team = 1;
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 7, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 7, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -353,7 +353,7 @@ void fd2_chapter_event_handler_06__ch2_reinforcement(uint32 event_arg)
     data_fd2_chapter_init_phase_flag = 0;
     fd2_cutscene_event_trigger(0xD);
     fd2_delay_ms(200);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 
     for (i = 5; i < 0xB; i++) {
@@ -383,7 +383,7 @@ void fd2_chapter_event_handler_06__ch2_reinforcement(uint32 event_arg)
  * In the original binary this handler prepares its own 8 PUSHes (page=8
  * plus the fixed dialog geometry) and then JMPs (0x34DC8 -> 0x34C0F) into
  * the shared tail of fd2_show_chapter_dialog_with_portrait_set_1 (PUSH
- * data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET);
+ * data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET);
  * reproduced here as the inline call for Layer-2 equivalence.
  *
  * Walkthrough SOT: assets/chapters/chapter_13.md
@@ -398,7 +398,7 @@ void fd2_chapter_event_handler_07__ch13_dialog_with_state(uint32 event_arg)
     data_fd2_chapter_init_phase_flag = 0;
     fd2_cutscene_event_trigger(0x2E);
     fd2_clear_all_chars_facing();
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 8, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 8, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -438,7 +438,7 @@ void fd2_chapter_event_handler_08__ch13_first_time(uint32 stepping_char_id)
         if (fd2_count_usable_inventory_slots(stepping_char_id) != 8 &&
             *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) == 0) {
             fd2_add_item_to_inventory(stepping_char_id, 0x59);
-            fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xB, 0xA0000, 0x140,
+            fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 0xB, 0xA0000, 0x140,
                                      0xCD, 0x4C, 0x4A, 0x13, 1);
             *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
         }
@@ -465,7 +465,7 @@ void fd2_chapter_event_handler_08__ch13_first_time(uint32 stepping_char_id)
  * and omitted here.
  *
  * In the original binary the trailing dialog call is the head of a
- * shared tail at 0x34516 (PUSH page=4 .. PUSH data_fd2_current_chapter_text;
+ * shared tail at 0x34516 (PUSH page=4 .. PUSH data_fd2_current_chapter_text_ptr;
  * CALL fd2_display_dialog_scene; ADD ESP,0x24; RET) that
  * fd2_chapter_event_handler_0F @ 0x3462E JMPs into for its own page-4
  * dialog; reproduced here as the inline call for Layer-2 equivalence.
@@ -482,7 +482,7 @@ void fd2_chapter_event_handler_09__ch3_char_cond(uint32 event_arg)
         fd2_delay_ms(800);
         fd2_pan_cursor_and_window(3, 0x11);
         fd2_delay_ms(200);
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
     }
 }
@@ -503,7 +503,7 @@ void fd2_chapter_event_handler_09__ch3_char_cond(uint32 event_arg)
  *
  * In the original binary this handler prepares its own 8 PUSHes (page=2
  * plus the fixed dialog geometry) and then JMPs into handler_09's shared
- * tail at 0x3452F (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene;
+ * tail at 0x3452F (PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene;
  * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
  * equivalence.
  *
@@ -514,7 +514,7 @@ void fd2_chapter_event_handler_0b__ch4_dialog(uint32 event_arg)
     (void)event_arg;
 
     fd2_load_chapter_portraits_and_dump_tmp(2);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -545,7 +545,7 @@ void fd2_chapter_event_handler_0c__unref_first_time(uint32 event_arg)
 
     if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) == 0) {
         fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x18, 0x1B, 7);
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
     }
@@ -578,7 +578,7 @@ void fd2_chapter_event_handler_0d__ch15_dialog_with_state(uint32 event_arg)
 
     (void)event_arg;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 6, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 
     for (i = 0x40; i < 0x4A; i++) {
@@ -605,7 +605,7 @@ void fd2_chapter_event_handler_0d__ch15_dialog_with_state(uint32 event_arg)
  *
  * In the original binary this handler prepares its own 8 PUSHes (page=3
  * plus the fixed dialog geometry) and then JMPs into handler_09's shared
- * tail at 0x3452F (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene;
+ * tail at 0x3452F (PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene;
  * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
  * equivalence.
  *
@@ -617,7 +617,7 @@ void fd2_chapter_event_handler_0e__ch5_dialog_with_state(uint32 event_arg)
 
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x25, 0x28, 0);
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0xD, 0x18, 0);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -643,7 +643,7 @@ void fd2_chapter_event_handler_0e__ch5_dialog_with_state(uint32 event_arg)
  *
  * In the original binary this handler prepares its own 8 PUSHes (page=4
  * plus the fixed dialog geometry) and then JMPs into handler_09's shared
- * tail at 0x34516 (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene;
+ * tail at 0x34516 (PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene;
  * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
  * equivalence.
  *
@@ -662,7 +662,7 @@ void fd2_chapter_event_handler_0f__ch5_dialog_with_state(uint32 event_arg)
     fd2_clear_all_chars_facing();
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(7, 0xC, 0);
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x21, 0x23, 0);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -682,7 +682,7 @@ void fd2_chapter_event_handler_0f__ch5_dialog_with_state(uint32 event_arg)
  *
  * In the original binary this handler prepares its own 8 PUSHes (page=5
  * plus the fixed dialog geometry) and then JMPs into handler_09's shared
- * tail at 0x3452F (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene;
+ * tail at 0x3452F (PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene;
  * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
  * equivalence.
  *
@@ -693,7 +693,7 @@ void fd2_chapter_event_handler_10__ch5_dialog(uint32 event_arg)
     (void)event_arg;
 
     fd2_load_chapter_portraits_and_dump_tmp(3);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 5, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 5, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -715,7 +715,7 @@ void fd2_chapter_event_handler_10__ch5_dialog(uint32 event_arg)
  *
  * In the original binary the trailing page-7 dialog call is reached by
  * a JMP into the shared tail of handler_04 at 0x343FA (PUSH page=7 ..
- * PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
+ * PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24;
  * RET); reproduced here as the inline call for Layer-2 equivalence.
  *
  * Walkthrough SOT: assets/chapters/chapter_05.md
@@ -725,10 +725,10 @@ void fd2_chapter_event_handler_11__ch5_dialog_with_state(uint32 event_arg)
     (void)event_arg;
 
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x30, 0x33, 7);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 6, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_cutscene_event_trigger(0x18);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 7, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 7, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -765,7 +765,7 @@ void fd2_chapter_event_handler_12__ch15_dialog_with_state(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 8, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 8, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x10, 0x22, 0);
 }
@@ -809,7 +809,7 @@ void fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg)
 
     any_alive = 0;
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(7, 0x24, 7);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 8, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 8, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     for (i = 7; (int32)i < 0x25; i++) {
         if (fd2_check_char_is_dead(i) == 0) {
@@ -817,7 +817,7 @@ void fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg)
         }
     }
     if (any_alive != 0) {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xB, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 0xB, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
     }
 }
@@ -839,7 +839,7 @@ void fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg)
  *
  * In the original binary this handler prepares its own 8 PUSHes (page=1
  * plus the fixed dialog geometry) and then JMPs into handler_09's shared
- * tail at 0x3452F (PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene;
+ * tail at 0x3452F (PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene;
  * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
  * equivalence.
  *
@@ -849,7 +849,7 @@ void fd2_chapter_event_handler_14__ch6_dialog(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 1, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 1, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -870,7 +870,7 @@ void fd2_chapter_event_handler_14__ch6_dialog(uint32 event_arg)
  * and omitted here.
  *
  * In the original binary the trailing dialog call is the head of a
- * shared tail at 0x347F1 (PUSH page=2 .. PUSH data_fd2_current_chapter_text;
+ * shared tail at 0x347F1 (PUSH page=2 .. PUSH data_fd2_current_chapter_text_ptr;
  * CALL fd2_display_dialog_scene; ADD ESP,0x24; RET) that
  * fd2_chapter_event_handler_32 (ch22 reinforcement) JMPs into for its
  * own page-2 dialog; reproduced here as the inline call for Layer-2
@@ -883,7 +883,7 @@ void fd2_chapter_event_handler_15__ch6_char_cond(uint32 event_arg)
     (void)event_arg;
 
     if (fd2_check_char_is_dead(8) == 0) {
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
     }
 }
@@ -963,13 +963,13 @@ void fd2_chapter_event_handler_17__unref_turn_gated(uint32 event_arg)
     (void)event_arg;
 
     fd2_set_combat_aux_block_byte_d_low4_for_char_range(8, 0x1C, 0);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     if ((int32)data_fd2_battle_turn_counter < 0xF) {
         fd2_load_chapter_portraits_and_dump_tmp(2);
         fd2_pan_cursor_and_window(5, 0x11);
         fd2_cutscene_event_trigger(0x19);
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 5, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 5, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         fd2_pan_cursor_and_window(5, 0x11);
         fd2_cutscene_event_trigger(0x1A);
@@ -997,7 +997,7 @@ void fd2_chapter_event_handler_17__unref_turn_gated(uint32 event_arg)
  * In the original binary this handler prepares its own 8 PUSHes (page=3
  * plus the fixed dialog geometry) and then JMPs (0x3491F -> 0x34C0F) into
  * the shared tail of fd2_show_chapter_dialog_with_portrait_set_1 (PUSH
- * data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET);
+ * data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET);
  * reproduced here as the inline call for Layer-2 equivalence. The handler
  * also exposes a Class-3 shared entry at 0x34901 (the CALL __CHK
  * instruction): fd2_chapter_event_handler_22 @ 0x34C6C borrows the entire
@@ -1008,13 +1008,13 @@ void fd2_chapter_event_handler_18__unref_dialog(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
 /* ----------------------------------------------------------------
  * fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906
- *   — Named helper that shows data_fd2_current_chapter_text dialog page 3 with
+ *   — Named helper that shows data_fd2_current_chapter_text_ptr dialog page 3 with
  *     the standard dialog geometry. Its sole caller is
  *     fd2_chapter_event_handler_16__ch6_char_cond @ 0x34819, which
  *     tail-JMPs here (0x3483F -> 0x34906) when 索倫 (char_id 8) is
@@ -1024,9 +1024,9 @@ void fd2_chapter_event_handler_18__unref_dialog(uint32 event_arg)
  * touched. The body is a pure 8-PUSH chain (page=3 plus the fixed
  * dialog geometry) followed by a JMP (0x3491F -> 0x34C0F) into the
  * shared tail of fd2_show_chapter_dialog_with_portrait_set_1 (PUSH
- * data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24;
+ * data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24;
  * RET). The borrowed tail supplies the 9th argument
- * (data_fd2_current_chapter_text) and performs the cdecl 0x24-byte (9-arg)
+ * (data_fd2_current_chapter_text_ptr) and performs the cdecl 0x24-byte (9-arg)
  * cleanup; reproduced here as the inline call for Layer-2 equivalence.
  *
  * Magic numbers (matching every dialog call in this group):
@@ -1038,7 +1038,7 @@ void fd2_chapter_event_handler_18__unref_dialog(uint32 event_arg)
  * ---------------------------------------------------------------- */
 void fd2_show_chapter_intro_text_dialog_mode_3(void)
 {
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -1081,7 +1081,7 @@ void fd2_chapter_event_handler_19__ch7_first_time(uint32 event_arg)
         data_fd2_chapter_init_phase_flag = 0;
         fd2_pan_cursor_and_window(0x10, 10);
         fd2_cutscene_event_trigger(0x1E);
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) = 1;
     }
@@ -1227,7 +1227,7 @@ void fd2_chapter_event_handler_1c__ch8_ai_ctrl(uint32 event_arg)
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_1d__unref_dialog_with_state(uint32 event_arg)
 {
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_chapter_event_handler_1c__ch8_ai_ctrl(event_arg);
 }
@@ -1293,10 +1293,10 @@ void fd2_chapter_event_handler_1e__unref_major_cinematic(uint32 event_arg)
     p[0xB].combat_aux_block[0x0D] = 0x80;
     p[0xB].hp_current = 1;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_load_chapter_portraits_and_dump_tmp(1);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 
     data_fd2_battle_pending_xp_credit = 0;
@@ -1385,7 +1385,7 @@ void fd2_chapter_event_handler_20__ch10_dialog(uint32 event_arg)
     (void)event_arg;
 
     fd2_load_chapter_portraits_and_dump_tmp(1);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 1, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 1, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -1394,7 +1394,7 @@ void fd2_chapter_event_handler_20__ch10_dialog(uint32 event_arg)
  *   (1 caller: fd2_chapter_event_handler_05__ch13_thunk @ 0x34D68)
  *
  * Shared portrait+dialog body: reload portrait set 1, then show
- * data_fd2_current_chapter_text dialog page 1 with the standard dialog
+ * data_fd2_current_chapter_text_ptr dialog page 1 with the standard dialog
  * geometry. A straight-line, no-branch sequence with no camera pan,
  * no cutscene trigger, no state writes, no RNG, no numeric
  * computation, and no CALL-return value used.
@@ -1419,7 +1419,7 @@ void fd2_chapter_event_handler_20__ch10_dialog(uint32 event_arg)
  *   - 0x34BF6 (+0x0F): start of the 8-PUSH chain (page=1 plus the fixed
  *     dialog geometry) — fd2_chapter_event_handler_28 reaches it for its
  *     own page-1 dialog.
- *   - 0x34C0F (+0x28): the "PUSH data_fd2_current_chapter_text; CALL
+ *   - 0x34C0F (+0x28): the "PUSH data_fd2_current_chapter_text_ptr; CALL
  *     fd2_display_dialog_scene; ADD ESP,0x24; RET" tail —
  *     fd2_show_chapter_intro_text_dialog_mode_3 (page=3),
  *     fd2_chapter_event_handler_07 (ch13), fd2_chapter_event_handler_26
@@ -1438,7 +1438,7 @@ void fd2_chapter_event_handler_20__ch10_dialog(uint32 event_arg)
 void fd2_show_chapter_dialog_with_portrait_set_1(void)
 {
     fd2_load_chapter_portraits_and_dump_tmp(1);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 1, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 1, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -1446,7 +1446,7 @@ void fd2_show_chapter_dialog_with_portrait_set_1(void)
  * fd2_chapter_event_handler_05__ch13_thunk @ 0x34D68
  *   — Chapter 13 turn-event slot (哈斯米爾之戰 / Battle of Hasmir).
  *
- * ch13 beat: reload portrait set 1, then show data_fd2_current_chapter_text
+ * ch13 beat: reload portrait set 1, then show data_fd2_current_chapter_text_ptr
  * dialog page 1 with the standard dialog geometry — the exact effect
  * of fd2_show_chapter_dialog_with_portrait_set_1. A straight-line,
  * no-branch sequence with no camera pan, no cutscene trigger, no state
@@ -1507,7 +1507,7 @@ void fd2_chapter_event_handler_21__ch10_dialog_with_state(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 2, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     data_fd2_battle_runtime_char_array_ptr[0xC].combat_aux_block[0xD] = 0;
     data_fd2_battle_runtime_char_array_ptr[0xD].combat_aux_block[0xD] = 0;
@@ -1536,7 +1536,7 @@ void fd2_chapter_event_handler_21__ch10_dialog_with_state(uint32 event_arg)
  * instruction). It thereby reuses handler_18's __CHK probe, the 8-PUSH
  * chain (page=3 plus the fixed dialog geometry) at 0x34906, and the
  * JMP (0x3491F -> 0x34C0F) into the shared tail of
- * fd2_show_chapter_dialog_with_portrait_set_1 (PUSH data_fd2_current_chapter_text;
+ * fd2_show_chapter_dialog_with_portrait_set_1 (PUSH data_fd2_current_chapter_text_ptr;
  * CALL fd2_display_dialog_scene; ADD ESP,0x24; RET) unchanged. The whole
  * borrowed body's effect is reproduced here as the inline page-3 dialog
  * call for Layer-2 equivalence.
@@ -1545,7 +1545,7 @@ void fd2_chapter_event_handler_22__unref_dialog(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -1651,7 +1651,7 @@ void fd2_chapter_event_handler_25__unref_major_cinematic(uint32 event_arg)
 {
     (void)event_arg;
 
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 1, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 1, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 
     fd2_pan_cursor_and_window(0xF, 0x22);
@@ -1698,7 +1698,7 @@ void fd2_chapter_event_handler_0a__ch14_first_time(uint32 event_arg)
 
     if (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) == 0) {
         fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x10, 0x47, 0);
-        fd2_display_dialog_scene(data_fd2_current_chapter_text, 1, 0xA0000, 0x140,
+        fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 1, 0xA0000, 0x140,
                                  0xCD, 0x4C, 0x4A, 0x13, 1);
         *(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) = 1;
     }
@@ -1724,7 +1724,7 @@ void fd2_chapter_event_handler_0a__ch14_first_time(uint32 event_arg)
  * In the original binary this handler prepares its own 8 PUSHes (page=0xA
  * plus the fixed dialog geometry) and then JMPs (0x34F6F -> 0x34C0F) into
  * the shared tail of fd2_show_chapter_dialog_with_portrait_set_1 (PUSH
- * data_fd2_current_chapter_text; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET);
+ * data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET);
  * reproduced here as the inline call for Layer-2 equivalence.
  *
  * Walkthrough SOT: assets/chapters/chapter_15.md
@@ -1734,7 +1734,7 @@ void fd2_chapter_event_handler_26__ch15_dialog(uint32 event_arg)
     (void)event_arg;
 
     fd2_load_chapter_portraits_and_dump_tmp(1);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xA, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 0xA, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -1800,7 +1800,7 @@ void fd2_chapter_event_handler_27__unref_drop(uint32 stepping_char_id)
     drop_entry[1] = data_fd2_chapter_event_handler_27_drop_entry_inline[1];
     drop_entry[2] = data_fd2_chapter_event_handler_27_drop_entry_inline[2];
     fd2_process_battle_drop_entries(stepping_char_id, 1, (uint32)drop_entry);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 0xB, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 0xB, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -1825,7 +1825,7 @@ void fd2_chapter_event_handler_27__unref_drop(uint32 stepping_char_id)
  * 0x11, 0x25)) and then JMPs (0x34FEB -> 0x34BF6) into the +0x0F shared
  * entry point of fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7:
  * the start of its 8-PUSH chain (page=1 plus the fixed dialog geometry)
- * followed by the "PUSH data_fd2_current_chapter_text; CALL fd2_display_dialog_scene;
+ * followed by the "PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene;
  * ADD ESP,0x24; RET" tail. The JMP skips that body's own portrait reload
  * (PUSH 1; CALL fd2_load_chapter_portraits_and_dump_tmp at 0x34BEC) because
  * this handler has already reloaded portrait set 2. The borrowed body's
@@ -1845,7 +1845,7 @@ void fd2_chapter_event_handler_28__ch17_dialog_with_state(uint32 event_arg)
 
     fd2_load_chapter_portraits_and_dump_tmp(2);
     fd2_pan_cursor_and_window(0x11, 0x25);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 1, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 1, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -1894,7 +1894,7 @@ const uint8 data_fd2_chapter_event_handler_29_drop_entry_inline[3] = {
  * drop call are emitted inline; the handler then pre-pushes its own 8 args
  * (page=4 plus the fixed dialog geometry) and JMPs (0x3505A -> 0x34FB7)
  * into the shared display_dialog tail alt_43 hosted in
- * fd2_chapter_event_handler_27 (PUSH data_fd2_current_chapter_text; CALL
+ * fd2_chapter_event_handler_27 (PUSH data_fd2_current_chapter_text_ptr; CALL
  * fd2_display_dialog_scene; ADD ESP,0x24; ADD ESP,4; POP EDI; POP ESI;
  * RET). That borrowed tail is an in-binary code-folding artifact; its
  * effect — the page-4 dialog plus cdecl cleanup + register restore — is
@@ -1912,10 +1912,10 @@ void fd2_chapter_event_handler_29__unref_drop(uint32 stepping_char_id)
     drop_entry[0] = data_fd2_chapter_event_handler_29_drop_entry_inline[0];
     drop_entry[1] = data_fd2_chapter_event_handler_29_drop_entry_inline[1];
     drop_entry[2] = data_fd2_chapter_event_handler_29_drop_entry_inline[2];
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 3, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 3, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_process_battle_drop_entries(stepping_char_id, 1, (uint32)drop_entry);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 4, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 4, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -1938,7 +1938,7 @@ void fd2_chapter_event_handler_29__unref_drop(uint32 stepping_char_id)
  *
  * In the original binary this handler reloads portrait set 1, prepares its
  * own 8 PUSHes (page=6 plus the fixed dialog geometry), and then JMPs
- * (0x3508C -> 0x34C0F) into the "PUSH data_fd2_current_chapter_text; CALL
+ * (0x3508C -> 0x34C0F) into the "PUSH data_fd2_current_chapter_text_ptr; CALL
  * fd2_display_dialog_scene; ADD ESP,0x24; RET" tail of
  * fd2_show_chapter_dialog_with_portrait_set_1 @ 0x34BE7 (entry +0x28).
  * That borrowed tail is an in-binary code-folding artifact; its effect —
@@ -1957,7 +1957,7 @@ void fd2_chapter_event_handler_2a__ch18_dialog(uint32 event_arg)
     (void)event_arg;
 
     fd2_load_chapter_portraits_and_dump_tmp(1);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 6, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 6, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
 }
 
@@ -2091,7 +2091,7 @@ void fd2_chapter_event_handler_2e__ch19_reinforcement(uint32 event_arg)
     (void)event_arg;
 
     fd2_load_chapter_portraits_and_dump_tmp(1);
-    fd2_display_dialog_scene(data_fd2_current_chapter_text, 1, 0xA0000, 0x140,
+    fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 1, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
     fd2_init_runtime_char_from_base_growth(0x1B);
 }

@@ -188,7 +188,7 @@ extern uint32 data_fd2_tile_event_data_table_ptr;                       /* 0x53A
 extern uint32 data_fd2_chapter_char_spawn_pos_table;                             /* 0x53A59 */
 extern uint32 data_fd2_battle_scene_tile_gfx_ptr;                                    /* 0x53A5D */
 extern uint32 data_fd2_tile_attribute_flags_buffer_ptr;                 /* 0x53A69 */
-extern uint32 data_fd2_current_chapter_text;                                     /* 0x53A79 */
+extern uint32 data_fd2_current_chapter_text_ptr;                                     /* 0x53A79 */
 
 /* ---- cursor & map viewport ---- */
 extern uint32 data_fd2_battle_view_window_origin_x;                     /* 0x53AA9 */

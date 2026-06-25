@@ -271,7 +271,7 @@ int fd2_load_portrait_to_cache(uint32 portrait_id, uint32 fp)
  *
  * Pipeline:
  *   1. fd2_load_chapter_background_layers()
- *   2. FDTXT.DAT[chapter+1] -> data_fd2_current_chapter_text
+ *   2. FDTXT.DAT[chapter+1] -> data_fd2_current_chapter_text_ptr
  *   3. FDFIELD.DAT[chapter*3 + 2/1/0] -> data_fd2_chapter_char_spawn_pos_table /
  *      tile_event_data_table / battle_tile_map
  *   4. map width/height = tile_map[0]/[2] (16-bit)
@@ -308,9 +308,9 @@ void fd2_load_chapter_battle_data(uint32 chapter_id)
     active_count = 0;
     fd2_load_chapter_background_layers();
 
-    data_fd2_current_chapter_text = fd2_load_dat_resource(
+    data_fd2_current_chapter_text_ptr = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdtxt_dat,
-        data_fd2_current_chapter_text, chapter_id + 1);
+        data_fd2_current_chapter_text_ptr, chapter_id + 1);
 
     fdfield_x3 = chapter_id * 3;
     data_fd2_chapter_char_spawn_pos_table = fd2_load_dat_resource(
