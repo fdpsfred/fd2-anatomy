@@ -314,6 +314,7 @@
     "title": "Ghidra struct type name 'spell_entry' differs from src struct name 'spell_effect'",
     "description": "The Ghidra data type applied at 0x619FD is 'spell_entry[36]' (label data_fd2_battle_spell_effect_table, length 252), while src/include/types.h and btltab3.c use the struct name 'spell_effect'. The two structs are byte-identical (7-byte pack(1), same field order/widths), so this is a cosmetic naming divergence only -- no layout or value difference. Not changed in this stage (type renames are out of scope for src-refine). Recorded for later type-name harmonization if desired.",
     "evidence": "Ghidra getDataAt(0x619fd): DT=spell_entry[36], DLEN=252, LABEL=data_fd2_battle_spell_effect_table. src/include/types.h line 80-87 defines 'typedef struct {...} spell_effect;'. btltab3.c line 622: 'const spell_effect data_fd2_battle_spell_effect_table[36]'.",
-    "status": "open"
+    "resolution": "RESOLVED (closeout, Ghidra-only). Verified byte-identical layouts: Ghidra spell_entry (7B: wDA/bHT/bDS/bRN/bMP/bWH) == src spell_effect (7B: damage/hit_rate/cast_range_flags/area/mp_cost/target_side), field-for-field, pack(1). No spell_effect type pre-existed in Ghidra (no collision). Renamed the Ghidra data type spell_entry -> spell_effect (DataType.setName); the array @0x619fd now reports spell_effect[36] (len 252), matching btltab3.c/types.h. Field names kept Hungarian per the Ghidra-vs-src field convention. No src/binary change.",
+    "status": "resolved"
   }
 }
