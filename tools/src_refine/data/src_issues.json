@@ -24,7 +24,8 @@
     "title": "Ghidra plate listed non-existent callers",
     "description": "The prior Ghidra plate claimed this scan was 'used everywhere' and named fd2_ai_score_physical_attack, fd2_ai_score_offensive_spell and render_threat_overlay as callers. Verified xrefs show exactly one caller (fd2_wait_for_action_target_input @ call site 0001175f). Updated the plate to state the single real caller; no code change needed.",
     "evidence": "get_xrefs_to(0x00014742) and get_function_callers both return only 'fd2_wait_for_action_target_input @ 000115b6' (UNCONDITIONAL_CALL from 0001175f).",
-    "status": "open"
+    "resolution": "RESOLVED (closeout, verify-only). get_xrefs_to(0x14742) + get_function_callers confirm EXACTLY one caller: fd2_wait_for_action_target_input @ 0x115b6 (UNCONDITIONAL_CALL from 0x1175f). The old plate's phantom callers (fd2_ai_score_physical_attack / fd2_ai_score_offensive_spell / render_threat_overlay) do not reference it. Live Ghidra plate already states the single real caller correctly (survived the wedge); no change needed.",
+    "status": "resolved"
   },
   "ISS-0003": {
     "id": "ISS-0003",
