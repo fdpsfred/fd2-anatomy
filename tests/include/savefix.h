@@ -2,7 +2,7 @@
 #define SAVEFIX_H
 /* savefix.h — drive the REAL fd2_save_slot_selector_ui (src/save/save.c) from
  * a caller's test (the save/load orchestrators in save/save.c and the CONTINUE
- * branch of fd2_main_menu_continue_dispatcher in life/main.c).
+ * branch of fd2_main_menu_dispatcher in life/main.c).
  *
  * The real picker's setup phase, before its input loop, does:
  *   - malloc 3 x 64000-byte workspaces (a/b/c) -> NOT freed by the picker;

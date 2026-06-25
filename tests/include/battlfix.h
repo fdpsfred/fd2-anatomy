@@ -5,7 +5,7 @@
 
 
 /* 4-byte tile-map header + 20x15 4-byte tile records. The +4 header room lets
- * the real fd2_obfuscate_battle_tile_map (count = header[0]*header[2], records
+ * the real fd2_battle_reset_tile_transient_state (count = header[0]*header[2], records
  * start at base+4) iterate the full 300-tile map without running past the
  * buffer. (Before this function was emitted it was a no-op stub, so the header
  * was never read and the buffer carried no header allowance.) */
@@ -45,7 +45,7 @@ static void reset_ai_stubs(void)
     g_pathfind_md0_dst_x = -1;
     g_pathfind_md0_dst_y = -1;
     memset(t_ai_tile_map, 0xFF, sizeof(t_ai_tile_map));
-    /* Valid header dims so the real fd2_obfuscate_battle_tile_map iterates a
+    /* Valid header dims so the real fd2_battle_reset_tile_transient_state iterates a
      * bounded count (20*15 = 300 records) instead of header[0]*header[2] =
      * 0xFF*0xFF = 65025, which would overrun the buffer by ~260 KB. */
     t_ai_tile_map[0] = 20;   /* map width  (header byte 0) */
