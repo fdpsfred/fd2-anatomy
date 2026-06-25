@@ -11,7 +11,7 @@
 1. **[CLOSEOUT] 次級引用一次性同步**（使用者已批准、時機待定）：用 ledger old→new 映射一次性同步**所有被改符號**的引用並驗證。實際待同步處（item 2/3/4 audit 查出）：
    - emit：`tools/code_emit/data/routing.json`、`tools/data_emit/data/data_routing.json`、`emit_issues.json`
    - KB：`resource_info/overview.md`（line 54 `portrait_load_buffer`=n=173 舊名、line 55 `battle_scene_snapshot`=n=174 舊名）、`resource_info/fdfield.md`（line 125 `portrait_cache_alloc_offset`=n=182 舊名）等
-   - **tests/**：~15 檔（`fieldfix.h`、`chevt*.c`、`rsrc.c`…）引用已死舊 global `data_fd2_chapter_portrait_load_buffer`（n=173 漏同步到 tests → 現編不過）；同類 ISS-0018 gap（`tests/ui_menu/menucfg.c`）已於 item 2 順手修
+   - **tests/**：~15 檔（`fieldfix.h`、`chevt*.c`、`rsrc.c`…）引用已死舊 global `data_fd2_chapter_portrait_load_buffer`（n=173 漏同步到 tests；**已靜態驗證**：globals.h:188 只剩新名 `data_fd2_chapter_char_spawn_pos_table`、tests 無 shim/decl → 必編不過）；同類 ISS-0018 gap（`tests/ui_menu/menucfg.c`）已於 item 2 順手修
    - 注意：name-sweep 只抓完整符號名，無前綴簡寫 prose（上述 KB 例）抓不到須逐一查；歷史 shards + 衍生 `src_info*.json` 不動。
 
 2. **[CLOSEOUT] 環境清理**：`git worktree remove` rp1-4（`C:/Users/fdpsf/Documents/fd2-wt/rp1..rp4`，branch refine-p1..4）、刪 `workspace/src_refine/`；未追蹤的 `tools/src_refine/plate_rebuild_scope.py`（Phase2 prep，已 moot）建議刪。
@@ -68,7 +68,7 @@ Ghidra MCP 已開 FD2.LE；DOSBox-X 在 PATH（silent mode）；Watcom 9.5a 在 
 - **Stage 1**：4 worktree（`fd2-wt/rp1..rp4`）平行跑 `src_refine.wf.js`，serial per-symbol commit。教訓進 memory `project_workflow_running_detection`、`feedback_ghidra_disconnect_handling`。
 - **merge**：octopus merge rp1..rp4 回 main（`ddd51113`）；`merge_shards.py` 產 `src_info*.json` / `src_issues.json`（1016 shard）。
 - **Stage 2 rename**：main 手動 per-item 套 75 符號 + 279 param；gate hash_check→eqcheck(STRICT)→加 RELOC 級。
-- **Closeout（本批）**：23 issue 全 resolved + const/baseline 推進；逐筆 commit `0d3ce8a0`..`b6a9b9cb`，細節見 `src_issues.json`。
+- **Closeout**：(a) 23 issue 全 resolved + const/baseline 推進，commit `0d3ce8a0`..`b6a9b9cb`（細節見 `src_issues.json`）；(b) 2026-06-25 — Phase 2 判 moot + 零星 n=181/164/173，commit `76096eb2`..`c291af14`（細節見 0a/0b）。
 
 ## 6. 硬性規則
 
