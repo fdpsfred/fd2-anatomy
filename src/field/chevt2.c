@@ -549,7 +549,7 @@ void fd2_chapter_event_handler_3a__unref_pickup(uint32 stepping_char_id)
                                        data_fd2_battle_cursor_world_y,
                                        (uint32)tile_read_buf);
         tile_attr = tile_read_buf[2];
-        data_fd2_dialog_last_action_sprite_id_param =
+        data_fd2_dialog_last_action_text_id_param =
             (uint32)item_id_table[tile_attr] + 0xB5;
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x1A6, 0xA9F23,
                                  0x140, 0xCD, 0x4C, 0x4A, 0x13, 1);

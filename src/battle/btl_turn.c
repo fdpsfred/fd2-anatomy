@@ -715,7 +715,7 @@ void fd2_process_battle_drop_entries(uint32 recipient_idx,
             if (pCharArray[recipient_idx].team != 2) {
                 return;
             }
-            data_fd2_dialog_last_action_sprite_id_param =
+            data_fd2_dialog_last_action_text_id_param =
                 entry_value + 0xB5;
             fd2_dialog_open_speaker_portrait(
                 (uint32)pCharArray[recipient_idx].portrait_id);
@@ -967,7 +967,7 @@ void fd2_process_xp_and_level_up_for_char(uint32 char_idx)
                 if ((uint32)pCharArray[char_idx].status_flags_block[0] ==
                     pSpellLearn[spell_pair_iter * 2]) {
                     spell_id = pSpellLearn[spell_pair_iter * 2 + 1];
-                    data_fd2_dialog_last_action_sprite_id_param =
+                    data_fd2_dialog_last_action_text_id_param =
                         spell_id + 0x1B9;
                     fd2_grant_spell_to_char(char_idx, spell_id);
                     fd2_display_dialog_scene(

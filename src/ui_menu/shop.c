@@ -305,7 +305,7 @@ void fd2_run_buy_item_menu(uint32 shop_item_count, uint8 *shop_item_id_array)
 
         item_id = *(uint8 *)(data_fd2_ui_menu_saved_cursor_idx
                              + shop_item_id_array);
-        data_fd2_dialog_last_action_sprite_id_param = item_id + 0xb5;
+        data_fd2_dialog_last_action_text_id_param = item_id + 0xb5;
         item_entry = fd2_get_item_effect_entry(item_id);
         data_fd2_dialog_last_action_value_param =
             *(uint16 *)(item_entry + 0x13);
@@ -383,7 +383,7 @@ void fd2_run_buy_item_menu(uint32 shop_item_count, uint8 *shop_item_id_array)
 
         recipient = eligible_chars[data_fd2_ui_menu_cursor_idx];
         if (fd2_count_usable_inventory_slots(recipient) == 8) {
-            data_fd2_dialog_last_action_sprite_id_param =
+            data_fd2_dialog_last_action_text_id_param =
                 data_fd2_battle_runtime_char_array_ptr[recipient].portrait_id
                 + 1;
             fd2_dialog_open_speaker_portrait(
@@ -522,7 +522,7 @@ void fd2_run_sell_item_menu(void)
         }
 
         if (inv_count == 0) {
-            data_fd2_dialog_last_action_sprite_id_param =
+            data_fd2_dialog_last_action_text_id_param =
                 data_fd2_battle_runtime_char_array_ptr[seller].portrait_id + 1;
             fd2_dialog_open_speaker_portrait(
                 data_fd2_chapter_intro_menu_speaker_portrait_id_table[
@@ -551,7 +551,7 @@ void fd2_run_sell_item_menu(void)
 
         item_id = fd2_get_inventory_slot_item_id(seller,
                                                  data_fd2_ui_menu_cursor_idx);
-        data_fd2_dialog_last_action_sprite_id_param = item_id + 0xb5;
+        data_fd2_dialog_last_action_text_id_param = item_id + 0xb5;
         item_entry = fd2_get_item_effect_entry(item_id);
         data_fd2_dialog_last_action_value_param =
             (uint32)((int)((uint32)*(uint16 *)(item_entry + 0x13) * 3) >> 2);
@@ -679,7 +679,7 @@ void fd2_run_equip_member_menu(void)
  *
  * The two reject dialogs read the member's char_id (runtime struct +0x08), not
  * the portrait_id (+0x07) that the sibling sell menu uses, into
- * data_fd2_dialog_last_action_sprite_id_param (matching the binary's MOVZX +8).
+ * data_fd2_dialog_last_action_text_id_param (matching the binary's MOVZX +8).
  *
  * The binary's __CHK(0x3C) stack-probe prologue is compiler-injected and not
  * part of the source, so it is omitted (as in the sibling shop functions). The
@@ -741,7 +741,7 @@ void fd2_run_give_item_menu(void)
         }
 
         if (inv_count == 0) {
-            data_fd2_dialog_last_action_sprite_id_param =
+            data_fd2_dialog_last_action_text_id_param =
                 data_fd2_battle_runtime_char_array_ptr[
                     data_fd2_ui_menu_cursor_idx].char_id + 1;
             fd2_dialog_open_speaker_portrait(
@@ -782,7 +782,7 @@ void fd2_run_give_item_menu(void)
         }
 
         if (fd2_count_usable_inventory_slots(data_fd2_ui_menu_cursor_idx) == 8) {
-            data_fd2_dialog_last_action_sprite_id_param =
+            data_fd2_dialog_last_action_text_id_param =
                 data_fd2_battle_runtime_char_array_ptr[
                     data_fd2_ui_menu_cursor_idx].char_id + 1;
             fd2_dialog_open_speaker_portrait(
@@ -806,7 +806,7 @@ void fd2_run_give_item_menu(void)
 }
 
 /* ----------------------------------------------------------------
- * data_fd2_dialog_last_action_sprite_id_param @ 0x53AD9  (.object2, uint32)
+ * data_fd2_dialog_last_action_text_id_param @ 0x53AD9  (.object2, uint32)
  *
  * Transient dialog-VM parameter: the FDTXT page/text index used by the
  * dialog interpreter (fd2_display_dialog_scene @ 0x16067) when it hits the
@@ -817,7 +817,7 @@ void fd2_run_give_item_menu(void)
  * on every code path is a write -- the binary image is statically zero, so
  * this is a zero-initialized (BSS) scalar, not a constant table.
  * ---------------------------------------------------------------- */
-uint32 data_fd2_dialog_last_action_sprite_id_param;
+uint32 data_fd2_dialog_last_action_text_id_param;
 
 /* ----------------------------------------------------------------
  * data_fd2_ui_menu_scroll_offset @ 0x5412F  (.object2, uint32)

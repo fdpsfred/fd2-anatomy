@@ -93,7 +93,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx)
 
     if (event_type == 0) {
         /* ITEM */
-        data_fd2_dialog_last_action_sprite_id_param = event_value + 0xb5;
+        data_fd2_dialog_last_action_text_id_param = event_value + 0xb5;
         if ((tile_attr & 0x20) == 0)
             dialog_text_id = 0x1ad;
         else

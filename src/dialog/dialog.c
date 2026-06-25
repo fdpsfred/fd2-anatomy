@@ -138,7 +138,7 @@ uint32 fd2_display_dialog_scene(uint32 text_base, uint32 page_idx,
 
         if ((opcode == -4) || (opcode == -5)) {     /* recursive sub-dialog */
             sub_idx = (opcode == -4)
-                          ? data_fd2_dialog_last_action_sprite_id_param
+                          ? data_fd2_dialog_last_action_text_id_param
                           : data_fd2_dialog_drop_swap_text_id_param;
             render_pos = fd2_display_dialog_scene(data_fd2_all_game_text_ptr,
                                                   sub_idx, render_pos,

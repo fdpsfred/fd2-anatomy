@@ -331,7 +331,7 @@ extern const uint8 data_fd2_chapter_event_handler_29_drop_entry_inline[3]; /* 0x
 /* ---- text / dialog ---- */
 extern uint32 data_fd2_all_game_text_ptr;                               /* 0x53A7D */
 extern uint32 data_fd2_dialog_current_speaker_char_ptr;                 /* 0x53C1B */
-extern uint32 data_fd2_dialog_last_action_sprite_id_param;              /* 0x53AD9 */
+extern uint32 data_fd2_dialog_last_action_text_id_param;              /* 0x53AD9 */
 extern uint32 data_fd2_dialog_drop_swap_text_id_param;                  /* 0x53ADD */
 extern uint32 data_fd2_dialog_last_action_value_param;                  /* 0x53AE1 */
 extern uint32 data_fd2_dialog_active_portrait_blit_offset;              /* 0x53C67 */

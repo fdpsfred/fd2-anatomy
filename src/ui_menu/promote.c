@@ -361,7 +361,7 @@ void fd2_execute_class_promotion_with_dialog(uint32 char_idx)
     growth = fd2_get_char_growth_entry((int)rt_chars[char_idx].portrait_id);
     fd2_clear_keyboard_buffer();
     fd2_dialog_open_speaker_portrait((uint32)rt_chars[char_idx].portrait_id);
-    data_fd2_dialog_last_action_sprite_id_param =
+    data_fd2_dialog_last_action_text_id_param =
         (uint32)rt_chars[char_idx].job_id + 0x96;
     fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x253, 0xa951f,
         0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);
@@ -583,7 +583,7 @@ void fd2_run_class_promotion_menu_main(void)
             rt_chars = data_fd2_battle_runtime_char_array_ptr;
             char_idx = (uint32)candidate_chars[data_fd2_ui_menu_cursor_idx];
             class_id = (uint32)target_classes[data_fd2_ui_menu_cursor_idx];
-            data_fd2_dialog_last_action_sprite_id_param =
+            data_fd2_dialog_last_action_text_id_param =
                 (uint32)rt_chars[char_idx].portrait_id + 1;
 
             fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x252,
@@ -1008,7 +1008,7 @@ void fd2_run_revive_menu_main(void)
             (uint32)data_fd2_chapter_intro_menu_speaker_portrait_id_table[4]);
         rc = data_fd2_battle_runtime_char_array_ptr;
         chosen_idx = candidate_chars[data_fd2_ui_menu_cursor_idx];
-        data_fd2_dialog_last_action_sprite_id_param =
+        data_fd2_dialog_last_action_text_id_param =
             (uint32)rc[chosen_idx].char_id + 1;
         data_fd2_dialog_last_action_value_param =
             (uint32)rc[chosen_idx].status_flags_block[0] *
