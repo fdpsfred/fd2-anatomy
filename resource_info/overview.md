@@ -27,11 +27,11 @@ FD2.SAV 存檔、FD2.LE binary 本身，以及 Miles Sound System 用的 .MDI / 
 | FDTXT.DAT | 120,502 | 34 | `fdtxt.md` | 對話文字 (中文 dialog VM bytecode) |
 | FDOTHER.DAT | 3,382,481 | 103 (+166 nested) | `fdother.md` | UI sprite / portrait / SFX / cinematic image / palette |
 | FDFIELD.DAT | 243,169 | 99 | `fdfield.md` | 章節地圖 + tile_event + char spawn |
-| FDSHAP.DAT | 3,557,794 | 66 | `fdshap.md` | 戰鬥背景 snapshot + tile attribute |
-| DATO.DAT | 1,979,029 | 136 | `dato.md` | 80×80 4-view portrait sprite |
+| FDSHAP.DAT | 3,557,794 | 66 | `fdshap.md` | 戰鬥地形 24×24 tile sheet + tile attribute |
+| DATO.DAT | 1,979,029 | 136 | `dato.md` | 80×80 4-表情 portrait (dialog-pixel) |
 | FDMUS.DAT | 80,367 | 20 | `fdmus.md` | Miles XMI MIDI 音樂 |
 | FIGANI.DAT | 15,279,582 | 408 | `figani.md` | 必殺技 / 召喚動畫 byte-stream |
-| BG.DAT | 624,564 | 56 | `bg.md` | 320×100 cinematic / battle BG (count/color RLE) |
+| BG.DAT | 624,564 | 56 | `bg.md` | 320×100 cinematic / battle BG (`fd2_rle_blit_sprite` RLE) |
 | TAI.DAT | 94,917 | 56 | `tai.md` | terrain overlay / AI 配對資料 (與 BG 配對) |
 | TITLE.DAT | 23,377 | 7 | `title.md` | dead resource (FD2 從未載入) |
 | ANI.DAT | 2,437,547 | 9 | `ani.md` | 多 frame RLE delta 動畫序列 |

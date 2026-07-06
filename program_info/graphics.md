@@ -20,9 +20,9 @@ DOS mode 13h (320×200×256-color)，primary surface @ `0xA0000` (linear)。
 
 | Code | 操作 |
 |---|---|
-| `0b00xxxxxx` | literal copy len 個 byte |
-| `0b01xxxxxx` | stretched literal: 1 src byte → 2 dst pixels (×len 次) |
-| `0b10xxxxxx` | RLE run: 後續 1 byte 重複 len 次 |
+| `0b00xxxxxx` | RLE fill：後續 1 byte 重複填 len 個像素 |
+| `0b01xxxxxx` | stretched fill：後續 1 byte 寫入 len 個「隔一」像素 (寫 dst+1、dst 每次 +2)，佔 2×len 欄 |
+| `0b10xxxxxx` | literal copy：從串流複製 len 個 byte |
 | `0b11xxxxxx` | skip len 個像素 (透明) |
 
 每行寬度由 `data_fd2_graphics_rle_blit_cur_width @ 0x627B4` 計數，遇 0 換行並
@@ -33,8 +33,8 @@ DOS mode 13h (320×200×256-color)，primary surface @ `0xA0000` (linear)。
 | 值 | 模式 |
 |---|---|
 | `0xFFFFFFFF` | passthrough (直接複製) |
-| `> 0xFF` | translucent overlay：`(byte + (op>>8)) & 7) + (op & 0xFF)` |
-| `≤ 0xFF` | silhouette：所有不透明像素都換成 `(op>>8)` 的單一顏色 |
+| `> 0xFF` | translucent overlay：`((src + (op>>8)) & 7) + (op & 0xFF)` |
+| `≤ 0xFF` | silhouette：所有不透明像素都換成 `op & 0xFF` 的單一顏色 |
 
 ## 通用 primitive
 

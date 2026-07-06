@@ -1,6 +1,6 @@
 # BG.DAT — 320×100 cinematic / battle background
 
-戰鬥 / cinematic 用的 320×100 indexed 8bpp 背景圖，count/color pair RLE 編碼。
+戰鬥 / cinematic 用的 320×100 indexed 8bpp 背景圖，`fd2_rle_blit_sprite` RLE 編碼。
 file size 624,564 bytes，56 entries (idx 0..55)。
 
 ## 檔案格式
@@ -12,13 +12,13 @@ LLLLLL archive (詳 `overview.md`)。
 ```
 +0x00  u16 LE  width    (= 0x0140 = 320)
 +0x02  u16 LE  height   (= 0x0064 = 100)
-+0x04  bytes   count/color pair RLE
-                每對 2 bytes: (count, color)
-                count 通常 ≤ 63 (= 0x3F)，可能跨多 pair 描繪同色
++0x04  bytes   fd2_rle_blit_sprite 指令流 (高 2 bits 選 op、len=(cmd&0x3F)+1)
 ```
 
-注意：BG 的 RLE 格式與 `fd2_rle_blit_sprite @ 0x4E63D` 的 opcode-based RLE **不同**。
-BG 的 (count, color) 配對更簡單，每對 2 bytes 直接展開為 count 個 color 像素。
+BG entry 由 `fd2_rle_blit_sprite @ 0x4E63D` 直接繪製 (`fd2_execute_summon_spell_cast`
+等把 BG.DAT 載入 `data_fd2_battle_special_cinematic_bg_layers[]`，再由 anispell /
+anicine 以 `fd2_rle_blit_sprite` blit)，RLE 格式與 FIGANI / FDICON / FDSHAP tile 相同
+(高 2 bits 選 op：`0b00` RLE fill / `0b01` stretched / `0b10` literal / `0b11` skip)。
 
 ## Placeholder marker
 

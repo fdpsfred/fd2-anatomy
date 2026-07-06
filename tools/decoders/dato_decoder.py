@@ -2,16 +2,17 @@
 in each entry (136 entries total).
 
 DATO entry layout:
-    +0x00  u32 LE  offset_a   (frame A start)
-    +0x04  u32 LE  offset_b   (frame B start)
-    +0x08  u32 LE  offset_c   (frame C start)
-    +0x0C  u32 LE  offset_d   (frame D start)
-    +0x10  u16 LE  width      (= 0x50 = 80)
-    +0x12  u16 LE  height     (= 0x50 = 80)
-    +0x14  RLE-encoded 80x80 portrait frames (4 frames per entry)
+    +0x00  u32 LE x4   frame A/B/C/D byte offsets (offset_a == 0x10)
+    each frame, at its offset:
+        +0  u16 LE  width   (= 0x50 = 80)
+        +2  u16 LE  height  (= 0x50 = 80)
+        +4  dialog-pixel stream
 
-Each frame uses the rle_blit_sprite RLE format. The 4 frames likely
-correspond to (face_normal, face_smile, face_sad, face_special) variants.
+Each frame uses the DIALOG-PIXEL format of fd2_decode_dialog_pixel_byte
+(rle_decoder.dialog_pixel_decode), NOT the fd2_rle_blit_sprite format: a byte
+<= 0xC0 is one literal pixel; a byte b in 0xC1..0xFF is a run of the next byte,
+length (b-0xC1)+1. The 4 frames are portrait expression variants
+(normal / smile / talk / closed-eyes).
 
 CLI:
     python tools/decoders/dato_decoder.py --list
@@ -33,12 +34,14 @@ DEFAULT_OUT_DIR = REPO_ROOT / "workspace" / "decoders" / "dato"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dat_header_parser import parse_dat_header, read_dat_entry  # noqa: E402
-from rle_decoder import rle_decode  # noqa: E402
+from rle_decoder import dialog_pixel_decode  # noqa: E402
 
 
 def parse_dato_entry(entry_bytes: bytes) -> dict:
     offsets = struct.unpack_from("<4I", entry_bytes, 0)
-    width, height = struct.unpack_from("<2H", entry_bytes, 0x10)
+    # Each frame carries its own [width u16][height u16] header (offset_a points
+    # at it, == 0x10), followed by a dialog-pixel stream.
+    width, height = struct.unpack_from("<2H", entry_bytes, offsets[0])
     header = {
         "offsets": list(offsets),
         "width": width,
@@ -48,11 +51,14 @@ def parse_dato_entry(entry_bytes: bytes) -> dict:
     for i in range(4):
         start = offsets[i]
         end = offsets[i + 1] if i < 3 else len(entry_bytes)
-        compressed = entry_bytes[start:end]
-        decoded = rle_decode(compressed, max_pixels=width * height)
+        fw, fh = struct.unpack_from("<2H", entry_bytes, start)
+        commands = entry_bytes[start + 4:end]
+        decoded = dialog_pixel_decode(commands, fw * fh)
+        if len(decoded) < fw * fh:
+            decoded = decoded + bytes(fw * fh - len(decoded))
         frames.append({
             "frame_idx": i,
-            "compressed_size": len(compressed),
+            "compressed_size": len(commands),
             "decoded_pixels": len(decoded),
             "data": decoded,
         })

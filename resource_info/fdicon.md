@@ -32,11 +32,12 @@ monotonic non-decreasing。
 
 ## RLE 格式
 
-與 6 主 DAT 共用 `fd2_rle_blit_sprite @ 0x4E63D` 格式 (詳 `program_info/graphics.md`)：
+與 FDOTHER sprite / FIGANI / BG / FDSHAP tile 共用 `fd2_rle_blit_sprite @ 0x4E63D`
+格式 (DATO portrait 不共用，用 dialog-pixel 格式)：
 
-- `0b00xxxxxx` = literal copy
-- `0b01xxxxxx` = stretched literal (1 src → 2 dst)
-- `0b10xxxxxx` = RLE run
+- `0b00xxxxxx` = RLE fill (後續 1 byte 重複 len 次)
+- `0b01xxxxxx` = stretched fill (後續 1 byte 寫 len 個隔一像素)
+- `0b10xxxxxx` = literal copy (len 個 byte)
 - `0b11xxxxxx` = skip transparent
 
 平均壓縮率：449 bytes per 576-pixel icon ≈ 78% retained (壓縮率 ~22%)。

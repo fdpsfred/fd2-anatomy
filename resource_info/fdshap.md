@@ -1,6 +1,7 @@
-# FDSHAP.DAT — 戰鬥背景 + tile attribute
+# FDSHAP.DAT — 戰鬥地形 tile sheet + tile attribute
 
-每章戰鬥場景的 320×200 RLE-encoded snapshot 與 4-byte/tile 屬性資料。
+每章戰鬥場景的 24×24 地形 tile sheet 與 4-byte/tile 屬性資料。戰鬥地圖由
+compositor 依 FDFIELD tile map 逐格擺放這些 tile 組成，並非單張預算圖。
 file size 3,557,794 bytes，66 entries (idx 0..65)。
 
 ## 檔案格式
@@ -11,13 +12,13 @@ LLLLLL archive (詳 `overview.md`)。
 
 ```
 shap_id = tile_event_data_table[0]   // FDFIELD chapter_id × 3 + 1 entry 的 first byte
-FDSHAP[shap_id × 2 + 0] = data_fd2_battle_scene_tile_gfx_ptr   (RLE 320×200 image)
+FDSHAP[shap_id × 2 + 0] = data_fd2_battle_scene_tile_gfx_ptr   (24×24 tile sheet)
 FDSHAP[shap_id × 2 + 1] = tile_attribute_flags    (4 bytes/tile)
 ```
 
 ## 33 章 × 2 = 66 idx 完整對照表
 
-| Chapter | tile_event idx | shap_id | FDSHAP[snapshot] | FDSHAP[attr] |
+| Chapter | tile_event idx | shap_id | FDSHAP[tile_sheet] | FDSHAP[attr] |
 |---|---|---|---|---|
 | ch1  |  1 | 0x00 |  0 |  1 |
 | ch2  |  4 | 0x01 |  2 |  3 |
@@ -62,12 +63,22 @@ tile_event[0] = 0x17)。
 
 ## data_fd2_battle_scene_tile_gfx_ptr (`shap_id × 2 + 0`)
 
-- RLE-encoded indexed 320×200 image
-- 由 `fd2_rle_blit_sprite @ 0x4E63D` 解 (RLE format 詳 `program_info/graphics.md`)
-- 用為 chapter battle 的 pre-render snapshot (特殊技 cinematic 暫存)
+24×24 地形 tile sheet，供戰鬥地圖 compositor 依 tile map 逐格擺放。layout
+(`fd2_convert_battle_tiles_to_24px @ 0x1399C` 消費)：
 
-ch1 sample (FDSHAP[0])：147,740 bytes RLE，解開為 320×200 = 64,000 pixels，250
-unique color values。
+```
++0  u16 LE  tile width  (= 0x18 = 24)
++2  u16 LE  tile height (= 0x18 = 24)
++4  u16 LE  tile_count
++6  int32 LE [tile_count]  各 tile 相對 sheet base 的 byte offset
+各 tile：command-only 的 fd2_rle_blit_sprite 指令流，固定 24×24
+        (in-game 由 fd2_tile_blit_24x24_passthrough @ 0x1399C 前的 helper 解)
+```
+
+每個 tile 的 RLE 指令格式與 `fd2_rle_blit_sprite @ 0x4E63D` 相同 (高 2 bits 選
+op、`len=(cmd&0x3F)+1`)，只是固定 24×24 且無 `[w][h]` header。
+
+ch1 sample (FDSHAP[0])：147,740 bytes，288 個 24×24 tile。
 
 ## tile_attribute_flags (`shap_id × 2 + 1`)
 
@@ -86,6 +97,8 @@ unique color values。
 
 ch1 sample: 1200 bytes / 4 = 300 tiles。
 
-## Round-trip 驗證
+## 驗證
 
-Round-trip 驗證 (decode → re-encode bit-exact match) 全 33 章 RLE format 通過。
+以 offset 表逐 tile 解碼 (每 tile 為固定 24×24 的 command-only rle_blit 指令流)，
+ch1 sheet 的 288 個 tile 全數還原成連貫的地形圖磚 (草地 / 水 / 泥路 / 岩石 /
+屋頂 / 木橋 等)。

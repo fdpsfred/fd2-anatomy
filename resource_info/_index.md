@@ -13,7 +13,7 @@
   10 個 control opcode、entry 0..33 用途對照
 - `fdfield.md` — FDFIELD.DAT (99 entries) 章節地圖 + tile_event + char_spawn
   完整 byte-level layout
-- `fdshap.md` — FDSHAP.DAT (66 entries) 戰鬥 snapshot + tile_attribute
+- `fdshap.md` — FDSHAP.DAT (66 entries) 戰鬥地形 24×24 tile sheet + tile_attribute
   33 章 × 2 idx 對照
 - `fdmus.md` — FDMUS.DAT (20 entries: 15 XMI + 5 placeholder)、
   `fd2_set_bgm_track_with_fade` dispatcher、per_chapter BGM 表
@@ -21,7 +21,7 @@
   分類統計、21 個 confirmed_dead idx
 - `dato.md` — DATO.DAT 80×80 portrait sprite (136 entries × 4 view)
 - `figani.md` — FIGANI.DAT (408 entries) 必殺技 / 召喚動畫 byte-stream
-- `bg.md` — BG.DAT (56 entries) 320×100 cinematic / battle BG (count/color RLE)
+- `bg.md` — BG.DAT (56 entries) 320×100 cinematic / battle BG (`fd2_rle_blit_sprite` RLE)
 - `tai.md` — TAI.DAT (56 entries) terrain overlay / AI 配對資料 (與 BG 配對)
 - `ani.md` — ANI.DAT (9 entries) 多 frame RLE delta 動畫序列
 - `title.md` — TITLE.DAT (7 entries) — 對 FD2 主遊戲是 dead resource
