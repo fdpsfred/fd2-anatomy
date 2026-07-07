@@ -41,6 +41,7 @@ static int           g_active = 0;
 static int           g_cap_idx = 0;
 static unsigned long g_hb_seq = 0;
 static uint32        g_vtick = 0;
+static int           g_init_guard = 0;
 
 /*
  * Deterministic virtual clock (see consts.h BIOS_TICK_* under FD2_REPLAY).
@@ -146,6 +147,35 @@ void fd2_replay_pump(void)
             }
             g_cap_idx++;
             continue;
+        }
+        /* INITCH <hex-chapter-id>: invoke a chapter INIT handler through the
+         * exact dispatch expression the game's main loop uses
+         * (data_fd2_chapter_init_handler_table[current_chapter_id]()), so a
+         * chapter's init cinematic can be exercised deterministically without
+         * navigating the fragile CONTINUE/recruitment menu chain. The engine
+         * is fully set up before the first pump (video/AIL/large+roster
+         * buffers malloc'd in main() ahead of fd2_replay_init), and
+         * fd2_load_chapter_battle_data rebuilds the runtime_char array from the
+         * chapter's own FDFIELD data, so the handler is self-sufficient. The
+         * init handler's own dialog loops call fd2_replay_pump re-entrantly and
+         * consume the KEY lines that follow this command; a one-shot guard
+         * blocks re-entry. On return we capture and finish -- the interrupted
+         * outer menu context is abandoned (we exit before unwinding to it). */
+        if (strcmp(cmd, "INITCH") == 0) {
+            unsigned ch = 0;
+            sscanf(line, "%15s %x", cmd, &ch);
+            fd2_play_heartbeat("INITCH");
+            if (g_init_guard == 0 && ch < 30) {
+                g_init_guard = 1;
+                data_fd2_chapter_current_chapter_id = ch;
+                data_fd2_chapter_init_handler_table[ch]();
+                if (g_cap_idx <= MAX_CAP) {
+                    fd2_play_capture(g_cap_idx);
+                }
+                g_cap_idx++;
+                replay_finish();
+            }
+            return;                    /* not reached (replay_finish exits) */
         }
         if (strcmp(cmd, "KEY") == 0) {
             sc = 0;

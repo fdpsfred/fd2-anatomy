@@ -37,7 +37,11 @@ DOSBOX = "dosbox-x"
 # ABI-identical to production (build_fd2.py CF) PLUS -DFD2_REPLAY and the extra
 # include dirs: -i=include is C:\include = src/include; -i=G: is tests/play (for
 # playharn.h); -i=F:\ailv3 is the vendor header.
-CF = r"-bt=dos4g -fp5 -fpi87 -3s -ms -zp4 -DFD2_REPLAY -i=include -i=G: -i=F:\ailv3"
+# Delivered via the WCC386 env var (the Watcom-native default-options channel),
+# NOT expanded inline with %CF% in build.bat: COMMAND.COM truncates batch lines
+# past ~176 chars after %VAR% expansion, silently mangling the trailing -fo=
+# object path (observed: lifemain->MAIN.OBJ etc., then wlink file-not-found).
+CF = r"-bt=dos4g -fp5 -fpi87 -3s -ms -zp4 -DFD2_REPLAY -DFD2_ASM_PRIMITIVES -i=include -i=G: -i=F:\ailv3"
 
 AIL_LIB = r"F:\ailv3\ailv3.lib"
 CRT_LIBS = [r"D:\LIB386\DOS\CLIB3S.LIB",
@@ -97,7 +101,7 @@ def gen_build_bat(items):
     ordered = sorted(items, key=lambda t: t[1] != MAIN_OBJ)
     L = [r"echo === compile (FD2RP.EXE, replay) === > E:\out\build.out"]
     for path, obj, _is_play in ordered:
-        L.append(r"D:\BIN\WCC386.EXE %s %%CF%% -fo=E:\out\obj\%s.obj >> E:\out\build.out"
+        L.append(r"D:\BIN\WCC386.EXE %s -fo=E:\out\obj\%s.obj >> E:\out\build.out"
                  % (path, obj))
     L.append(r"echo === link === >> E:\out\build.out")
     L.append(r"D:\BIN\WLINK.EXE @E:\fd2rp.lnk >> E:\out\build.out")
@@ -122,7 +126,7 @@ def gen_conf():
         "set WATCOM=D:\\",
         "set PATH=Z:\\;D:\\BIN;D:\\BINB",
         "set INCLUDE=D:\\H",
-        "set CF=" + CF,
+        "set WCC386=" + CF,
         r"E:\build.bat",
     ]
     return "\n".join(lines) + "\n"

@@ -7,6 +7,10 @@
 #include "globals.h"
 #include "protos.h"
 #include <string.h>
+/* __NO_MATH_OPS: force sin/cos to compile as real CRT calls, matching the
+   original codegen; the IF@D* intrinsic helpers are never executed by the
+   original binary (see rndscene.c for the full rationale). */
+#define __NO_MATH_OPS
 #include <math.h>
 
 /* ----------------------------------------------------------------

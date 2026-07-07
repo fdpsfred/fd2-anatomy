@@ -44,20 +44,31 @@ DOSBOX = "dosbox-x"
 # stack-call cdecl (matches CLIB3S + the extracted AIL lib); -ms small model;
 # -zp4 pack. -i=include is C:\include = src/include
 # (protos.h/types.h); -i=F:\ailv3 is the vendor header.
-# -fp5 -fpi87: original FD2 FP model (inline hardware 387 x87). WITHOUT it,
-# wcc386 defaults to -fpi (emulator-aware FP), which routes transcendentals
-# through the emulator-dispatch helper IF@DSQRT instead of the hardware __sqrt.
-# The game calls sqrt() in exactly one place -- fd2_render_circle_anim_row, the
-# white-pillar (filled-circle-band) spell effect shared by heal / teleport /
-# ch30 summon -- so -fpi's IF@DSQRT faults on a strict/accurate x87 emulator
-# (86Box) while a lenient one (DOSBox-X) tolerates it. -fpi87 restores the
-# original raw-x87 sqrt path and matches the original codegen.
+# -fp5 -fpi87: original FD2 FP model (inline raw 387 x87 instructions, no
+# emulator fixup records; matches the original codegen). NOTE -fpi87 does NOT
+# decide how sqrt()/sin()/cos() are CALLED: math.h marks them intrinsic and
+# wcc386 then emits IF@D* helper calls under BOTH -fpi and -fpi87. The original
+# game code always calls the CRT functions (its IF@* stubs have zero xrefs), so
+# the intrinsics are disabled in-source with __NO_MATH_OPS (see rndscene.c).
 # NO -s: the original binary carries a stack probe (PUSH n / CALL __CHK) in
 # every function prologue; -s would strip them from the rebuild. With a 4KB
 # DGROUP stack whose bottom sits right above game globals, an unprobed
 # overflow silently corrupts state instead of halting cleanly like the
 # original, so stack checking stays ON to match vendor behavior.
-CF = r"-bt=dos4g -fp5 -fpi87 -3s -ms -zp4 -i=include -i=F:\ailv3"
+# -DFD2_ASM_PRIMITIVES: select the #pragma aux inline-asm bodies for the three
+# original hand-assembly primitives (fd2_apply_palette_remap_run @ palette.c,
+# fd2_save_compute_checksum + fd2_save_crypt_buffer @ save.c). wcc386 9.5a
+# cannot emit the vendor's LODSB/STOSB/LOOP string form from portable C under
+# any optimization flag (it always yields MOVZX/DEC/JNE); the asm bodies match
+# the original loop byte-for-byte. Undefine to compile the portable-C reference.
+# NOTE: sqrt/sin/cos must compile as real CRT calls, never IF@D* intrinsics
+# (the original never executes those); enforced in-source via __NO_MATH_OPS
+# before <math.h> (rndscene.c / spellcin.c / anisummn.c), not by a CF flag.
+# Delivered via the WCC386 env var (the Watcom-native default-options channel),
+# NOT expanded inline with %CF% in build.bat: COMMAND.COM truncates batch lines
+# past ~176 chars after %VAR% expansion, silently mangling the trailing -fo=
+# object path (this is what broke the replay build once its CF grew to 97 chars).
+CF = r"-bt=dos4g -fp5 -fpi87 -3s -ms -zp4 -DFD2_ASM_PRIMITIVES -i=include -i=F:\ailv3"
 
 # Link directive pieces. ailv3.lib from libs/ (mounted F:); CRT by full Watcom
 # path (D:). fd2common.lib deliberately absent -- src/util/dpmi.c + src/crt/crt.c
@@ -116,7 +127,7 @@ def gen_build_bat(src_list):
     ordered = sorted(src_list, key=lambda t: t[1] != MAIN_OBJ)   # main first
     L = [r"echo === compile src (FD2.EXE, no tests) === > E:\out\build.out"]
     for rel, obj in ordered:
-        L.append(r"D:\BIN\WCC386.EXE %s %%CF%% -fo=E:\out\obj\%s.obj >> E:\out\build.out"
+        L.append(r"D:\BIN\WCC386.EXE %s -fo=E:\out\obj\%s.obj >> E:\out\build.out"
                  % (rel.replace("/", "\\"), obj))
     L.append(r"echo === link FD2.EXE === >> E:\out\build.out")
     L.append(r"D:\BIN\WLINK.EXE @E:\fd2.lnk >> E:\out\build.out")
@@ -142,7 +153,7 @@ def gen_conf():
         "set WATCOM=D:\\",
         "set PATH=Z:\\;D:\\BIN;D:\\BINB",
         "set INCLUDE=D:\\H",
-        "set CF=" + CF,
+        "set WCC386=" + CF,
         r"E:\build.bat",
     ]
     return "\n".join(lines) + "\n"

@@ -242,24 +242,63 @@ void fd2_tick_chapter_palette_animation(void)
  * fd2_apply_palette_remap_run @ 0x4DB9C
  *
  * In-place byte remap: buf[i] = remap_table[buf[i]] for byte_count
- * bytes, via remap_table (a 256-byte translation LUT). Uses
- * LODSB/STOSB/LOOP. byte_count must be >= 1 (do-while, no zero-check).
+ * bytes, via remap_table (a 256-byte translation LUT). byte_count must
+ * be >= 1 (do-while / LOOP, no zero-check).
  *
  * Sole callers are the filled-circle / AoE band animators
  * (fd2_render_circle_anim_row, fd2_render_filled_circle_band_anim):
  * buf is a horizontal pixel run inside the off-screen render buffer
  * (data_fd2_large_game_state_buffer + 0x8088 + row*0x1C8 + left_clip),
  * so this recolors the pixels under a circular spell/warp effect.
+ *
+ * This is one of a three-function hand-assembly cluster in the original
+ * (0x4DB9C remap, 0x4DBB9 checksum @ save.c, 0x4DBD8 crypt @ save.c):
+ * standalone leaf functions with NO __CHK stack probe and a
+ * LODSB / table-lookup / STOSB / LOOP body. wcc386 9.5a cannot emit that
+ * string-instruction form from portable C under any optimization flag
+ * (it always produces MOVZX/DEC/JNE), so with FD2_ASM_PRIMITIVES the body
+ * is a #pragma aux inline-asm loop matching the original byte-for-byte;
+ * the loop counter lives in ECX with a single hardware LOOP, exactly as
+ * the vendor wrote it. The portable-C reference is kept below for clarity
+ * and is selected when FD2_ASM_PRIMITIVES is not defined.
  * ---------------------------------------------------------------- */
+#ifdef FD2_ASM_PRIMITIVES
+extern void fd2_palette_remap_asm_loop(uint32 remap_table,
+                                       uint32 byte_count, uint8 *buf);
+#pragma aux fd2_palette_remap_asm_loop = \
+    "mov edi,esi"        \
+    "xor eax,eax"        \
+    "L0: lodsb"          \
+    "mov al,[eax+edx]"   \
+    "stosb"              \
+    "loop L0"            \
+    parm [edx] [ecx] [esi] \
+    modify [eax ecx esi edi];
+
+#pragma off (check_stack)
 void fd2_apply_palette_remap_run(uint32 remap_table,
                                   uint32 byte_count, uint8 *buf)
 {
+#ifdef FD2_REPLAY
+    fd2_probe_remap((long)byte_count);
+#endif
+    fd2_palette_remap_asm_loop(remap_table, byte_count, buf);
+}
+#pragma on (check_stack)
+#else   /* portable-C reference (compiles to MOVZX/DEC/JNE, not the LOOP form) */
+void fd2_apply_palette_remap_run(uint32 remap_table,
+                                  uint32 byte_count, uint8 *buf)
+{
+#ifdef FD2_REPLAY
+    fd2_probe_remap((long)byte_count);
+#endif
     do {
         *buf = *(uint8 *)(remap_table + (uint32)*buf);
         buf++;
         byte_count--;
     } while (byte_count != 0);
 }
+#endif
 
 /* ----------------------------------------------------------------
  * fd2_interpolate_palette_range_toward_color @ 0x286BD  (2 callers)

@@ -16,6 +16,17 @@
 #ifdef FD2_REPLAY
 void fd2_replay_init(void);   /* load input script + pin rng warm-up */
 void fd2_replay_pump(void);   /* inject next scripted key / run captures */
+/* warp/band/remap argument probe (tests/play/probe.c) -- PROBE.TXT logger
+ * used to verify the warp -> band -> circle -> remap argument chain on a
+ * correct CPU (white-pillar 86Box crash differential). */
+void fd2_probe_warp(long char_id, long tile_x, long tile_y,
+                    long cursor_x, long cursor_y);
+void fd2_probe_warpout(long src_x, long src_y);
+void fd2_probe_band(long col, long bottom, long radius, long top, long end);
+void fd2_probe_circle(long cx, long cy, long r, long scale,
+                      long start_row, long end_row);
+void fd2_probe_remap(long count);
+void fd2_probe_summary(void);
 #endif
 
 /* ---- lifecycle ---- */

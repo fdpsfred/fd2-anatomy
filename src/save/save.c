@@ -72,11 +72,38 @@ void fd2_save_runtime_char_to_template(void)
  * len = total length including the 4 trailing checksum bytes.
  * Returns the natural u32-wrap byte sum (no overflow handling).
  *
- * Body mirrors the LODSB/LOOP form: remaining = len - 4, then a
- * do-while that adds *pBuf and decrements remaining. do-while means
- * len <= 4 underflows; callers must pass len > 4 (FD2.SAV uses
- * len = 0x59CB, checksum field at +0x59C7).
+ * Original body: SUB ECX,4 (len-4), then LODSB / ADD EBX,EAX / LOOP,
+ * returning the sum in EAX. do-while means len <= 4 underflows; callers
+ * must pass len > 4 (FD2.SAV uses len = 0x59CB, checksum field at +0x59C7).
+ *
+ * One of the original's three-function hand-assembly cluster (see the
+ * fd2_apply_palette_remap_run note @ gfx/palette.c). With FD2_ASM_PRIMITIVES
+ * the body is a #pragma aux inline-asm loop matching the vendor's LODSB/LOOP
+ * form (ECX counter, hardware LOOP); the portable-C reference below is kept
+ * for clarity and selected when FD2_ASM_PRIMITIVES is not defined.
  * ---------------------------------------------------------------- */
+#ifdef FD2_ASM_PRIMITIVES
+extern uint32 fd2_save_checksum_asm_loop(uint32 buf, uint32 len);
+#pragma aux fd2_save_checksum_asm_loop = \
+    "mov edi,esi"        \
+    "sub ecx,4"          \
+    "xor ebx,ebx"        \
+    "xor eax,eax"        \
+    "L1: lodsb"          \
+    "add ebx,eax"        \
+    "loop L1"            \
+    "mov eax,ebx"        \
+    parm [esi] [ecx]     \
+    value [eax]          \
+    modify [eax ebx ecx esi edi];
+
+#pragma off (check_stack)
+uint32 fd2_save_compute_checksum(uint32 buf, uint32 size)
+{
+    return fd2_save_checksum_asm_loop(buf, size);
+}
+#pragma on (check_stack)
+#else   /* portable-C reference */
 uint32 fd2_save_compute_checksum(uint32 buf, uint32 size)
 {
     uint8 *pBuf;
@@ -93,6 +120,7 @@ uint32 fd2_save_compute_checksum(uint32 buf, uint32 size)
     } while (remaining != 0);
     return checksum;
 }
+#endif
 
 /* ----------------------------------------------------------------
  * fd2_save_crypt_buffer @ 0x4dbd8 (6 callers)
@@ -102,8 +130,9 @@ uint32 fd2_save_compute_checksum(uint32 buf, uint32 size)
  * buf = byte buffer, size = length (must be > 0). void return.
  *
  * scramble_state starts at 0xA5; each iteration advances it via
- * ROL16(state + 0x9014, 3) (16-bit add then rotate-left by 3 -- the
- * Watcom shift+OR idiom on a 16-bit word) and XORs the low byte of
+ * ROL16(state + 0x9014, 3) (16-bit add then a hardware ROL DX,3 in
+ * the original hand-asm; the portable-C branch expresses the rotate
+ * as shift+OR) and XORs the low byte of
  * the new state into the current buffer byte. Because XOR is
  * self-inverse and the keystream is deterministic from the constant
  * seed, the same routine encrypts (write path) and decrypts (read
@@ -111,7 +140,35 @@ uint32 fd2_save_compute_checksum(uint32 buf, uint32 size)
  *
  * NOTE: do-while means size == 0 underflows; callers must pass
  * size >= 1.
+ *
+ * One of the original's three-function hand-assembly cluster (see the
+ * fd2_apply_palette_remap_run note @ gfx/palette.c). The original body is
+ * MOV DX,0A5 / LODSB / ADD DX,9014 / ROL DX,3 / XOR AL,DL / STOSB / LOOP
+ * (16-bit DX keystream, ECX counter). With FD2_ASM_PRIMITIVES the body is a
+ * #pragma aux inline-asm loop matching that form; the portable-C reference
+ * below is kept for clarity and selected when FD2_ASM_PRIMITIVES is off.
  * ---------------------------------------------------------------- */
+#ifdef FD2_ASM_PRIMITIVES
+extern void fd2_save_crypt_asm_loop(uint32 buf, uint32 size);
+#pragma aux fd2_save_crypt_asm_loop = \
+    "mov edi,esi"        \
+    "mov dx,0a5H"        \
+    "L2: lodsb"          \
+    "add dx,9014H"       \
+    "rol dx,3"           \
+    "xor al,dl"          \
+    "stosb"              \
+    "loop L2"            \
+    parm [esi] [ecx]     \
+    modify [eax ecx edx esi edi];
+
+#pragma off (check_stack)
+void fd2_save_crypt_buffer(uint32 buf, uint32 size)
+{
+    fd2_save_crypt_asm_loop(buf, size);
+}
+#pragma on (check_stack)
+#else   /* portable-C reference */
 void fd2_save_crypt_buffer(uint32 buf, uint32 size)
 {
     uint16 scramble_state;
@@ -127,6 +184,7 @@ void fd2_save_crypt_buffer(uint32 buf, uint32 size)
         pBuf = pBuf + 1;
     } while (size != 0);
 }
+#endif
 
 /* ----------------------------------------------------------------
  * fd2_battle_reset_tile_transient_state @ 0x4dbfc (15 callers)

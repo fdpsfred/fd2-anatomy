@@ -26,6 +26,14 @@ ROOT = Path(__file__).resolve().parents[2]
 SAV_SIZE = 0x59CB
 OFF_CHAPTER = 0x30C5
 OFF_CKSUM = 0x59C7
+# CONTINUE slot array (see resource_info/save_format.md): 4 slots of 0xA28
+# bytes at +0x312B; each slot's chapter byte sits at slot+0xA00. The main-menu
+# CONTINUE path (fd2_main_menu_dispatcher) reads chapter/roster from a SLOT and
+# then runs the chapter INIT handler, whereas the quick-load path reads
+# OFF_CHAPTER from the main body and resumes the saved battle without init.
+OFF_SLOTS = 0x312B
+SLOT_SIZE = 0xA28
+SLOT_CHAPTER = 0xA00
 
 
 def resolve_stock_sav():
@@ -70,8 +78,12 @@ def validate(stock_enc):
 
 
 def make_jump(stock_enc, chapter):
+    """Patch BOTH chapter bytes: the main body one (quick-load path resumes
+    the saved battle at chapter N) and CONTINUE slot 0's (CONTINUE path runs
+    chapter N's init handler with slot 0's roster)."""
     plain = bytearray(crypt(stock_enc))
     plain[OFF_CHAPTER] = chapter & 0xFF
+    plain[OFF_SLOTS + SLOT_CHAPTER] = chapter & 0xFF
     cs = checksum(plain)
     plain[OFF_CKSUM:OFF_CKSUM + 4] = cs.to_bytes(4, "little")
     return crypt(bytes(plain))

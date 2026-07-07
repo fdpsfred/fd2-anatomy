@@ -7,6 +7,13 @@
 #include "globals.h"
 #include "protos.h"
 #include <stdlib.h>
+/* __NO_MATH_OPS: math.h must not mark sqrt/sin/cos as compiler intrinsics.
+   The original binary always calls the CRT functions (its linked-in IF@*
+   intrinsic stubs have zero xrefs); the IF@D* helpers do their sign check
+   via FTST/FSTSW/SAHF with ST(0) live across the call -- an x87 path the
+   original never executes, and one that 86Box's dynarec mis-executes
+   (sqrt returns 0.0 -> zero-count palette-remap runaway). */
+#define __NO_MATH_OPS
 #include <math.h>
 
 /* ----------------------------------------------------------------
@@ -1041,6 +1048,10 @@ void fd2_render_circle_anim_row(int cx, int cy, int r, int scale_num,
     uint32 left_clip;
     uint32 right_off;
 
+#ifdef FD2_REPLAY
+    fd2_probe_circle((long)cx, (long)cy, (long)r, (long)scale_num,
+                     (long)start_row, (long)end_row);
+#endif
     for (; start_row < end_row; start_row++) {
         if ((cy - r < start_row) && (start_row < cy + r)) {
             dy = abs(cy - start_row);
@@ -1132,6 +1143,10 @@ void fd2_render_filled_circle_band_anim(uint32 col_center, uint32 bottom_row,
     uint32 right_off;
     uint32 row_ptr;
 
+#ifdef FD2_REPLAY
+    fd2_probe_band((long)col_center, (long)bottom_row, (long)radius_factor,
+                   (long)top_row, (long)row_loop_end);
+#endif
     fd2_render_circle_anim_row(col_center, bottom_row, radius_factor, 0x10,
                                top_row, row_loop_end, (uint8 *)palette_remap_src);
     fd2_composite_all_chars_overlay();
