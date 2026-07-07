@@ -25,6 +25,16 @@
 #include <io.h>         /* open, close, lseek, read, SEEK_SET */
 #include <fcntl.h>      /* O_* flags for open() */
 
+/* Every function in this file is probe-free in the original binary (no
+ * PUSH n / CALL __CHK prologue -- verified 0x36107/0x36344/0x3647b/0x36de3/
+ * 0x37f86/0x3ed58/0x3d26e/0x4d340/0x4d8ea), i.e. the vendor compiled these
+ * CRT-equivalent units with stack checking off. This is load-bearing:
+ * crt_equivalent_get_eflags_thunk/_get_eflags run inside the AIL timer /
+ * audio-mix ISRs on the AIL private DGROUP stack (below _STACKLOW with the
+ * same flat SS), where a compiler-injected __CHK falsely aborts with
+ * "Stack Overflow!". */
+#pragma off (check_stack)
+
 /* ----------------------------------------------------------------
  * crt_equivalent_lx_chunk_read @ 0x36107
  *

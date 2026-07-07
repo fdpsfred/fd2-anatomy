@@ -37,7 +37,7 @@ DOSBOX = "dosbox-x"
 # ABI-identical to production (build_fd2.py CF) PLUS -DFD2_REPLAY and the extra
 # include dirs: -i=include is C:\include = src/include; -i=G: is tests/play (for
 # playharn.h); -i=F:\ailv3 is the vendor header.
-CF = r"-bt=dos4g -3s -ms -s -zp4 -DFD2_REPLAY -i=include -i=G: -i=F:\ailv3"
+CF = r"-bt=dos4g -fp5 -fpi87 -3s -ms -zp4 -DFD2_REPLAY -i=include -i=G: -i=F:\ailv3"
 
 AIL_LIB = r"F:\ailv3\ailv3.lib"
 CRT_LIBS = [r"D:\LIB386\DOS\CLIB3S.LIB",

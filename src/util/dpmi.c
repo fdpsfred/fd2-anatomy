@@ -28,6 +28,13 @@
 #include <dos.h>
 #include <string.h>
 
+/* Every function in this file is probe-free in the original binary (no
+ * PUSH n / CALL __CHK prologue -- verified 0x361CC/0x36284: bare
+ * PUSH/SUB ESP prologues), matching the vendor's stack-checking-off build
+ * of these DPMI support units. Keep it that way: they serve the AIL driver
+ * setup path and must stay safe outside normal-stack context. */
+#pragma off (check_stack)
+
 /* ----------------------------------------------------------------
  * fd2_dpmi_alloc_dos_memory @ 0x361CC
  *

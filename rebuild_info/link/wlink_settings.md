@@ -193,7 +193,17 @@ wcc386 -bt=dos4g          # build target = DOS/4G (LE format)
        -3r? -3s? -4r? -4s? # CPU: 386 or 486？(無證據區分；3 系列即可)
        -ms                # stack-call ABI (CLIB3S)；對應 default __cdecl
        -ot -oh -ol+ -oi   # optimizations: time + loops; FD2 是 release build
-       -s                 # skip stack overflow check（FD2 自帶 stkchk via `__STKOVERFLOW`）
+                          # （不用 -s：原版遊戲 function prologue 都有 PUSH n / CALL __CHK
+                          #   stack probe，即 wcc386 預設的 stack overflow check；加 -s 會
+                          #   拿掉它，重建就少了原版的溢位防護——4K stack 底下緊鄰 DGROUP
+                          #   資料，未偵測溢位會無聲改寫全域。
+                          #   例外：CRT-equivalent / DPMI 支援單元（src/crt/crt.c、
+                          #   src/util/dpmi.c）在原版全部無探測，以 #pragma off (check_stack)
+                          #   對齊；這是 load-bearing——crt_equivalent_get_eflags_thunk 被
+                          #   AIL timer/audio-mix ISR 在 AIL 私有 DGROUP 堆疊（低於
+                          #   _STACKLOW、SS 同 flat selector）上呼叫，帶探測必誤發
+                          #   "Stack Overflow!" 終止（CLIB3S(stk) 的 SS 逃生門在 flat
+                          #   model 下永不生效））
        -zq                # quiet
        -zp4               # struct align 4 byte（FD2 struct field offset 均為 4 倍數）
        -d0                # no debug info

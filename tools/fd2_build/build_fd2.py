@@ -40,11 +40,24 @@ OUT = EXE_DIR / "out"
 OBJ = OUT / "obj"
 DOSBOX = "dosbox-x"
 
-# Compile flags -- ABI-identical to the test build's FD2 settings, minus the
-# test-only -i=E:\include. -3s = 386 stack-call cdecl (matches CLIB3S + the
-# extracted AIL lib); -ms small model; -zp4 pack; -s no stack checks. -i=include
-# is C:\include = src/include (protos.h/types.h); -i=F:\ailv3 is the vendor header.
-CF = r"-bt=dos4g -3s -ms -s -zp4 -i=include -i=F:\ailv3"
+# Compile flags -- ABI-identical to the original FD2 settings. -3s = 386
+# stack-call cdecl (matches CLIB3S + the extracted AIL lib); -ms small model;
+# -zp4 pack. -i=include is C:\include = src/include
+# (protos.h/types.h); -i=F:\ailv3 is the vendor header.
+# -fp5 -fpi87: original FD2 FP model (inline hardware 387 x87). WITHOUT it,
+# wcc386 defaults to -fpi (emulator-aware FP), which routes transcendentals
+# through the emulator-dispatch helper IF@DSQRT instead of the hardware __sqrt.
+# The game calls sqrt() in exactly one place -- fd2_render_circle_anim_row, the
+# white-pillar (filled-circle-band) spell effect shared by heal / teleport /
+# ch30 summon -- so -fpi's IF@DSQRT faults on a strict/accurate x87 emulator
+# (86Box) while a lenient one (DOSBox-X) tolerates it. -fpi87 restores the
+# original raw-x87 sqrt path and matches the original codegen.
+# NO -s: the original binary carries a stack probe (PUSH n / CALL __CHK) in
+# every function prologue; -s would strip them from the rebuild. With a 4KB
+# DGROUP stack whose bottom sits right above game globals, an unprobed
+# overflow silently corrupts state instead of halting cleanly like the
+# original, so stack checking stays ON to match vendor behavior.
+CF = r"-bt=dos4g -fp5 -fpi87 -3s -ms -zp4 -i=include -i=F:\ailv3"
 
 # Link directive pieces. ailv3.lib from libs/ (mounted F:); CRT by full Watcom
 # path (D:). fd2common.lib deliberately absent -- src/util/dpmi.c + src/crt/crt.c

@@ -16,6 +16,7 @@ import shared lib、不依賴 `legacy/`。CLI 用法看 `python <script> --help`
 | `src_refine/` | `src/` 逐 symbol 解析 + refine（只改名稱/註解）+ 同步 Ghidra：worklist/partition/scout + `src_refine.wf.js` Stage 1 workflow + `hash_check` byte-identical gate + `merge_shards` 產 src_info/src_issues |
 | `fd2_build/` | src-only FD2.EXE 正式建置（`build_fd2` 自編 src + link，零 `tests/` 依賴；`analyze_undefined` 把 undefined 分類成「`src/` 還缺什麼」worklist）|
 | `snd_kbd_diag/` | 實機 playtest 診斷（wlink map / lib dump / SFX 重現 / runtime audio 狀態）|
+| `stkdiag/` | `__CHK` 堆疊探測診斷：產生取代 CLIB3S(stk) 的 STKDIAG.OBJ，Stack Overflow 時先印觸發函數位址與 ESP |
 
 ## 資料儲放慣例
 
