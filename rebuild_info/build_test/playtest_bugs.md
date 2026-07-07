@@ -5,8 +5,9 @@
 emit 在編譯層面看起來沒問題（build 0 error / 0 warning、測試綠）、卻在真實遊戲執行時悄悄
 偏離原版行為的案例。本文件按**根因類別**整理，作為後續 emit / data-land 要避開的坑。
 
-每個 bug 都已使用者實機確認修復。完整建置與定位流程見 `workflow.md`；牽涉的 emit pipeline
-規則精煉寫在 `../emission/pipeline_spec.md`（E-8b array、Layer-2 熱迴圈時序、E-3b 硬編位址）。
+除另註明 pending 者外，每個 bug 都已使用者實機確認修復。完整建置與定位流程見 `workflow.md`；
+牽涉的 emit pipeline 規則精煉寫在 `../emission/pipeline_spec.md`（E-8b array、Layer-2 熱迴圈
+時序、手寫組語 / math intrinsic 例外、E-3b 硬編位址）。
 
 ## 分工鐵則（使用者定）
 
@@ -26,6 +27,7 @@ emit 在編譯層面看起來沒問題（build 0 error / 0 warning、測試綠�
 | C. 資料型別號性 | 開場 scene 顯示錯亂 | cursor 螢幕座標誤宣告 `uint32`，原版是有號 `int`，比較分支號性相反 | `a9b772e` |
 | D. 熱迴圈 codegen 時序 | 商店進入腳步聲被對話音效打斷 | pose 縮放取整除法 emit 成 `>>7`（2 指令），原版有號 `/128`（6 指令）→ 過場變快、SFX 被切 | `a195696` |
 | E. 硬編絕對位址 | "File not found" 開場退出 | `fd2_load_dat_resource` 把字串位址寫死成 immediate，linker 把字串擺別處 → fopen 空檔名 | `f44a0a1` |
+| F. math intrinsic 呼叫形式 | 白光柱特效在 86Box-macOS runaway page fault | math.h intrinsic 使 sqrt() emit 成 `CALL IF@DSQRT`（原版從未執行的路徑），86Box dynarec 誤執行回 0.0 → remap count=0 下溢 | `15d32073` |
 
 其中**開場 hang（第一個 scene 後黑畫面）**不是獨立 bug，是 E（fname）與 B（union REGS）兩個修復
 連帶解決的，不另列。
@@ -194,9 +196,41 @@ linker 把字串擺到別的位址，於是這些寫死的 immediate 指到錯�
 
 ---
 
+## F. math intrinsic 呼叫形式 —— 白光柱特效在 86Box-macOS runaway page fault
+
+**症狀**：只在 86Box-macOS（Apple Silicon）dynarec 上，白光柱（filled-circle band）法術特效
+（治療 / 傳送 / 第 30 章召喚共用）觸發 page fault：`fd2_apply_palette_remap_run` 以 count=0
+進入，LOOP 下溢跑 ~857,948 圈直到 ESI/EDI 撞到未映射頁（crash 現場 ECX=0xFFF2E8A4=-0xD175C）。
+DOSBox-X 與 86Box interpreter（關 recompiler）皆正常；原版在同一環境免疫。remap 迴圈體以
+`#pragma aux` 對齊 byte-for-byte 後 crash 依舊——腐蝕點不在迴圈，在上游。
+
+**根因**：math.h 預設 `#pragma intrinsic(sqrt,sin,cos,...)`，wcc386（`-fpi` 與 `-fpi87` 皆然）
+把 `sqrt()` emit 成 `CALL IF@DSQRT`，引數留在 ST(0) 跨 call 邊界。IF@SQRT stub 用
+FTST/FSTSW/SAHF 旗標鏈做負數 domain check——這是**原版從未執行的指令路徑**：原版遊戲碼呼叫
+CRT `sqrt` 真函數（引數走堆疊、sign check 用整數指令 `TEST byte,0x80`、double 以 EDX:EAX
+回傳），IF@* stub 在原 binary 零 xref、只是隨 sqrt387/trig387 module 連帶進入。86Box-macOS
+dynarec 誤執行該路徑 → sqrt 回傳 matherr DOMAIN 預設值 0.0 →
+`fd2_render_circle_anim_row` 的 half_width = trunc(0.0×16/10) = 0 → remap count = 0+0 = 0。
+crash 暫存器與此機轉閉合：EBX=112 = row counter（cy=111 / r=11 圓的內部 row，真 sqrt 應為
+最大值附近，排除精度飄移）、EBP=堆疊 frame 位址（circle_anim_row 有 frame，排除 band middle
+fill 呼叫點）。sin/cos 的 `IF@DSIN` / `IF@DCOS`（spellcin.c / anisummn.c）是同類地雷。
+
+**修法**：在 `#include <math.h>` 前定義 `__NO_MATH_OPS`（math.h 官方開關；src/gfx/rndscene.c、
+src/spell/spellcin.c、src/anim/anisummn.c），sqrt/sin/cos 全部回到真 CRT 呼叫，sqrt call site
+與原版逐指令同形。驗證：全 obj 零 IF@ 引用、map 內 IF@* 全數 unreferenced（同原版）、
+golden 5/5 PASS + ch30 warp 探針全綠。**86Box 實機驗證：pending（使用者跑）**。
+
+**教訓**：「同版編譯器＋同旗標」不保證呼叫形式對齊——header 的 intrinsic pragma 也是 codegen
+的一部分。凡 helper 呼叫形式（intrinsic vs 真函數）偏離原版，就會把**原版從未執行過的 vendor
+lib 程式碼**帶進 runtime，任何 emulator 對那段碼的缺陷都只咬重建版。診斷面：對「只在單一
+emulator 崩潰」的 case，歸因不能停在與崩潰點的形式相關性（迴圈形式差異），要沿資料流上溯到
+腐蝕值的產生點（count ← half_width ← sqrt 回傳值）。
+
+---
+
 ## 通用教訓
 
-這六個 bug 揭示了「Layer-2 功能等價」emit 會在五個面向悄悄偏離原版、且只在完整遊戲執行時才浮現的
+這些 bug 揭示了「Layer-2 功能等價」emit 會在六個面向悄悄偏離原版、且只在完整遊戲執行時才浮現的
 盲點。編譯綠、單元測試綠都驗不出來，因為它們不是「這個 function 算錯」，而是「這個 function 在真實
 環境的某個隱性契約上和原版不一致」：
 
@@ -208,6 +242,8 @@ linker 把字串擺到別的位址，於是這些寫死的 immediate 指到錯�
 4. **熱迴圈時序（D）** —— 純 CPU 熱迴圈的指令數決定執行時間，時序敏感處的 codegen 要對齊原版，不能
    做等價簡化。
 5. **絕對位址引用（E）** —— 原版寫死的位址在 rebuild 一律改 symbol。
+6. **helper 呼叫形式（F）** —— header intrinsic pragma 也是 codegen 的一部分；intrinsic vs 真函數
+   偏離原版會把原版從未執行的 vendor lib 路徑帶進 runtime。
 
 定位這類 bug 的主力手段是**host WDISASM 反組譯比對**（把 `tests/OUT/obj/*.obj` 用
 `WATCOM_9.5a\BINNT\WDISASM.EXE` 直接在 Windows 反組譯，對照 Ghidra 的原版反組譯），免 DOSBox。

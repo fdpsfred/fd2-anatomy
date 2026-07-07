@@ -775,6 +775,22 @@ SFX（AIL DMA real-time、不隨 DOSBox cycles）→ 後續 SFX 的 `AIL_stop_sa
 所以時序敏感熱迴圈不能為了「等價且更短」而簡化，要對齊原版 codegen（wdis 逐指令比指令數驗
 證）。詳見 `../build_test/playtest_bugs.md` D 類。
 
+**⚠ 例外：原版手寫組語函數。** 原版有少數 game-logic 函數不是 wcc386 編譯的 C，
+辨識特徵＝無 `PUSH n / CALL __CHK` stack-probe prologue（wcc386 編譯的 FD2 C 必有）
+＋字串指令 / 硬體 ROL 慣用法（wcc386 9.5a 從可攜 C 任何旗標組合都產不出
+LODSB/STOSB/LOOP 形式，恆為 MOVZX/DEC/JNE）。位址連續 cluster
+0x4DB9C（palette remap）/ 0x4DBB9（save checksum）/ 0x4DBD8（save crypt）
+以 `#pragma aux` inline-asm 對齊原版迴圈體 byte-for-byte（`FD2_ASM_PRIMITIVES`
+gate；可攜 C 參考版保留在 `#else` 分支）。其餘手寫組語 leaf（RLE blitter 家族，
+見 src/gfx/blittile.c / blitspr.c 註解）以可攜 C emit 維持 Layer-2 功能等價。
+
+**⚠ 例外：math intrinsic 呼叫形式必須對齊原版（停用 intrinsic）。** 原版遊戲碼
+一律呼叫 CRT `sqrt`/`sin`/`cos` 真函數（IF@* intrinsic stub 在原 binary 零 xref）；
+math.h 預設會把它們標成 intrinsic 使 wcc386 emit `IF@D*` helper call（ST(0) 跨
+call 邊界、含原版從未執行的 FTST/FSTSW/SAHF 檢查路徑，86Box-macOS dynarec 會誤執行）。
+emit 端在 `#include <math.h>` 前定義 `__NO_MATH_OPS`。詳見
+`../link/wlink_settings.md` 與 `../build_test/playtest_bugs.md` F 類。
+
 驗證手段：對 pure-compute leaf function（damage 計算、softfp、decoder helper、
 hash / checksum）跑 emulator 雙邊 trace（原 FD2.LE vs 重建版），對相同 input
 比對 final state。

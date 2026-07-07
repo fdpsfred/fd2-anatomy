@@ -9,15 +9,19 @@
 | 檔案 | 用途 |
 | ---- | ---- |
 | `playharn.h` | harness 共用宣告(`fd2_play_capture` / `fd2_play_heartbeat`)。 |
-| `replay.c` | 讀 `SCRIPT.TXT`、把 scancode 注入 BIOS 鍵盤環驅動既有輸入路徑、處理 `CAP`/`SEED`/`END`、寫 `DONE.TXT`。idle 迴圈因鍵已備妥而跑 0 圈 → 決定論。 |
-| `capture.c` | 在檢查點 dump `FBnn.BIN`(0xA0000 framebuffer 64000B)+ `PALnn.BIN`(DAC 256 色,供 fb2png 還原)+ `STnn.BIN`(16 個 int32 關鍵全域 + `party_count × 0x50` runtime_char)。 |
+| `replay.c` | 讀 `SCRIPT.TXT`、把 scancode 注入 BIOS 鍵盤環驅動既有輸入路徑、處理 `CAP`/`SEED`/`INITCH`/`END`、寫 `DONE.TXT`。idle 迴圈因鍵已備妥而跑 0 圈 → 決定論。 |
+| `capture.c` | 在檢查點 dump `FBnn.BIN`(0xA0000 framebuffer 64000B)+ `PALnn.BIN`(DAC 256 色,供 fb2png 還原)+ `STnn.BIN`(16 個 int32 關鍵全域 + `party_count × 0x50` runtime_char);另 flush remap 統計 `RS` 行到 `PROBE.TXT`。 |
+| `probe.c` | 白光柱/warp 引數探針(寫 `PROBE.TXT`):warp/band/circle 入口逐呼叫記錄(`WT`/`WO`/`BA`/`CI` 行),remap count 只累計統計(違反 [1,0x138] 才寫 `RV` 行,累計以 `RS` 行輸出)。hook 在 src/ 的 `#ifdef FD2_REPLAY` 內(spellcin.c / rndscene.c / palette.c)。 |
 
 src/ 端 gated hook:`life/main.c`(init + warmup pin)、`input/input.c`
 (buffer-check pump)、`anim/aniend.c` 與 `save/save.c`(兩處非輪詢讀取前的 pump)。
 
 ## SCRIPT.TXT 命令
 
-`SEED <hex16>` / `KEY <hexSc> [hexAsc]` / `CAP` / `END`(EOF 等同 END;`#` 為註解)。
+`SEED <hex16>` / `KEY <hexSc> [hexAsc]` / `CAP` / `INITCH <hexCh>` / `END`(EOF 等同 END;`#` 為註解)。
+`INITCH` 以 dispatcher 同表達式 `data_fd2_chapter_init_handler_table[ch]()` 直呼章節 init handler,
+繞過脆弱的選單導覽(引擎在首次 pump 前已就緒、`fd2_load_chapter_battle_data` 自 FDFIELD 重建
+runtime_char,handler 自足);handler 內的對話迴圈 re-entrant 消耗後續 `KEY` 行,回傳即擷取並結束。
 
 ## 目錄
 
@@ -37,6 +41,7 @@ src/ 端 gated hook:`life/main.c`(init + warmup pin)、`input/input.c`
 | `combat_attack` | 有 + oracle | 玩家 idx0 攻擊敵人 idx14:固定 seed 0x1234,擷取攻擊前/後。帶 `oracle` 區塊,`expect.py` 用 LFSR + 公式預算傷害(此 seed 觸發爆擊 = 12)並斷言 idx14 hp_current 減少量。 |
 | `bootdown` | 無 | 鑑別力探針:按下後再擷取,畫面應與 `boot` golden 不同(驗證比對器會變紅)。 |
 | `atk_probe` | 無 | 探測 scenario:逐步擷取玩家攻擊 UI 流程(選單位->移動->動作選單->選攻擊->目標選取),供編寫/除錯。 |
+| `ch30_warp` | 無 | 探測 scenario:`INITCH 1D` + Enter 洪水直跑第 30 章開場空魔神召喚(7× cinematic warp -> 白光柱),`PROBE.TXT` 記 warp/band/circle 引數 + remap count 統計(健康值:RS n=14644 min=14 max=34 bad=0)。 |
 
 `run_all.py` 只跑「有 golden」者。新增章節 scenario 的範式即 `ch01_intro`:用 `KEY` 行驅動、`CAP` 在穩定輸入等待點擷取,`fb2png.py` 看畫面確認後 `compare.py --bless` 凍結。
 

@@ -189,25 +189,34 @@ wlink 預設會把所有 `FAR_DATA` class segment group 起來變成獨立 LE ob
 
 ```sh
 wcc386 -bt=dos4g          # build target = DOS/4G (LE format)
-       -fp5 -fpi87        # x87 instructions + 387 emulator fallback
-       -3r? -3s? -4r? -4s? # CPU: 386 or 486？(無證據區分；3 系列即可)
-       -ms                # stack-call ABI (CLIB3S)；對應 default __cdecl
-       -ot -oh -ol+ -oi   # optimizations: time + loops; FD2 是 release build
-                          # （不用 -s：原版遊戲 function prologue 都有 PUSH n / CALL __CHK
-                          #   stack probe，即 wcc386 預設的 stack overflow check；加 -s 會
-                          #   拿掉它，重建就少了原版的溢位防護——4K stack 底下緊鄰 DGROUP
-                          #   資料，未偵測溢位會無聲改寫全域。
-                          #   例外：CRT-equivalent / DPMI 支援單元（src/crt/crt.c、
-                          #   src/util/dpmi.c）在原版全部無探測，以 #pragma off (check_stack)
-                          #   對齊；這是 load-bearing——crt_equivalent_get_eflags_thunk 被
-                          #   AIL timer/audio-mix ISR 在 AIL 私有 DGROUP 堆疊（低於
-                          #   _STACKLOW、SS 同 flat selector）上呼叫，帶探測必誤發
-                          #   "Stack Overflow!" 終止（CLIB3S(stk) 的 SS 逃生門在 flat
-                          #   model 下永不生效））
-       -zq                # quiet
+       -fp5 -fpi87        # raw 387 x87 指令（無 emulator fixup record）
+       -3s                # 386 stack-call ABI（對應 CLIB3S）
+       -ms                # small memory model
        -zp4               # struct align 4 byte（FD2 struct field offset 均為 4 倍數）
-       -d0                # no debug info
 ```
+
+- **最佳化旗標：不加任何 `-o*`**。全部 emit 函數的 asm review 都以上述組態
+  （預設最佳化）與原版逐指令對照通過。9.5a 不接受 `-oh` 與 `-ol+`
+  （Open Watcom v2 語法，報 "Invalid optimization option"）。
+- **不用 `-s`**：原版遊戲 function prologue 都有 PUSH n / CALL __CHK
+  stack probe，即 wcc386 預設的 stack overflow check；加 `-s` 會拿掉它，
+  重建就少了原版的溢位防護——4K stack 底下緊鄰 DGROUP 資料，未偵測溢位會
+  無聲改寫全域。例外：CRT-equivalent / DPMI 支援單元（src/crt/crt.c、
+  src/util/dpmi.c）在原版全部無探測，以 `#pragma off (check_stack)` 對齊；
+  這是 load-bearing——crt_equivalent_get_eflags_thunk 被 AIL timer/audio-mix
+  ISR 在 AIL 私有 DGROUP 堆疊（低於 _STACKLOW、SS 同 flat selector）上呼叫，
+  帶探測必誤發 "Stack Overflow!" 終止（CLIB3S(stk) 的 SS 逃生門在 flat
+  model 下永不生效）。
+- **math intrinsic 必須停用**：math.h 預設 `#pragma intrinsic` 標記
+  sqrt/sin/cos 等，wcc386（`-fpi` 與 `-fpi87` 皆然）會對它們 emit
+  `IF@D*` helper call、把引數留在 ST(0) 跨 call 邊界。原版遊戲碼一律呼叫
+  CRT `sqrt`/`sin`/`cos` 真函數（引數走堆疊、double 以 EDX:EAX 回傳；
+  原 binary 內 IF@* stub 零 xref，僅隨 sqrt387/trig387 module 連帶進入）。
+  其中 IF@SQRT 的 FTST/FSTSW/SAHF 負數檢查是原版從未執行的指令路徑，
+  在 86Box-macOS dynarec 上會誤執行（sqrt 回傳 0.0 → 白光柱
+  fd2_render_circle_anim_row 的 remap count 變 0 → runaway page fault）。
+  重建以在 `#include <math.h>` 前定義 `__NO_MATH_OPS` 對齊
+  （src/gfx/rndscene.c、src/spell/spellcin.c、src/anim/anisummn.c）。
 
 關鍵旗標證據：
 
