@@ -894,11 +894,11 @@ int fd2_roll_stat_gain_and_show_message(short *stat_ptr, uint8 *growth_pair,
  * Gate (any one skips): pending_xp_credit == 0, flags bit0 (dead), or
  * already at level cap (portrait 0x1E/0x1F hero -> 99; others -> 0x28).
  *
- * remaining_xp = pending_xp_credit + carry-over movement_order.
+ * remaining_xp = pending_xp_credit + carry-over exp_carry.
  * Per level-up: level++, roll 5 stat slots, learn spells whose required
  * level matches, recalc stats, subtract 100. A per-call cap forces an
  * early exit at level 30 (normal) or 99 (hero), discarding leftover XP.
- * On exit movement_order keeps the (possibly zeroed) remainder and
+ * On exit exp_carry keeps the (possibly zeroed) remainder and
  * pending_xp_credit is cleared.
  * ---------------------------------------------------------------- */
 void fd2_process_xp_and_level_up_for_char(uint32 char_idx)
@@ -933,7 +933,7 @@ void fd2_process_xp_and_level_up_for_char(uint32 char_idx)
 
     pGrowth = fd2_get_char_growth_entry((int)pCharArray[char_idx].portrait_id);
     remaining_xp = (int)(data_fd2_battle_pending_xp_credit
-                       + (uint32)pCharArray[char_idx].movement_order);
+                       + (uint32)pCharArray[char_idx].exp_carry);
     data_fd2_dialog_last_action_value_param = data_fd2_battle_pending_xp_credit;
     fd2_clear_keyboard_buffer();
     fd2_dialog_open_speaker_portrait((uint32)pCharArray[char_idx].portrait_id);
@@ -989,7 +989,7 @@ void fd2_process_xp_and_level_up_for_char(uint32 char_idx)
 
     fd2_wait_ticks_or_keypress_with_palette(0xB);
     fd2_close_status_screen_with_slide_out();
-    pCharArray[char_idx].movement_order = (uint8)remaining_xp;
+    pCharArray[char_idx].exp_carry = (uint8)remaining_xp;
     data_fd2_battle_pending_xp_credit = 0;
 }
 

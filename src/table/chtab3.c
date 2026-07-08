@@ -25,10 +25,12 @@ const uint8 data_fd2_chapter_per_chapter_category_table[30] = {
 
 /* FDOTHER.DAT intro-panel RLE resource id, selected by the chapter-intro
  * metadata category code. fd2_chapter_transition_menu copies all 3 bytes into a
- * stack scratch buffer (MOVSW + MOVSB) then indexes it as table[metadata[0]-2]
- * to obtain the resource id passed to fd2_load_dat_resource("FDOTHER.DAT", idx),
- * where metadata[0] is the chapter category byte from
- * fd2_get_chapter_intro_metadata_entry. Category 2 -> 0x0B, 3 -> 0x3D, 4 -> 0x3E.
+ * stack scratch buffer (MOVSW + MOVSB) then indexes it as table[bCategory]
+ * (disasm 0x2CD49: MOVZX EAX,[ESP+EAX+0x4], base = ESP+4, no -2 -- the "-2" is a
+ * decompiler artifact of splitting the 3-byte buffer) to obtain the resource id
+ * passed to fd2_load_dat_resource("FDOTHER.DAT", idx), where bCategory is the
+ * intro appearance-variant code (0/1/2) from
+ * fd2_get_chapter_intro_metadata_entry. Category 0 -> 0x0B, 1 -> 0x3D, 2 -> 0x3E.
  * Byte-width, unsigned. Read-only. @ 0x526D7 */
 const uint8 data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table[3] =
     { 0x0b, 0x3d, 0x3e };

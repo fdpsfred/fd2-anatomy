@@ -326,14 +326,14 @@ int fd2_promote_member_select_loop(int char_count, void *char_list_ptr,
  *        +0x42 (hp_max)                    growth+6  page 0x1ED
  *        +0x46 (mp_max)                    growth+8  page 0x1EE
  *   5. promo_entry = fd2_get_class_promotion_data_entry(rt_chars[idx].
- *      portrait_id). If promo_entry[1] != 0 (this class learns a spell on
- *      promotion): stash it as the dialog value, show the "learns [spell]"
- *      dialog (page 0x254) at row*0x17C0 + base, wait for a keypress, then
- *      append the spell id to combat_aux[0x14] (the known-spell list tail).
+ *      portrait_id). If promo_entry[1] != 0 (this class grants a movement
+ *      bonus on promotion): stash it as the dialog value, show the
+ *      "movement +[N]" dialog (page 0x254) at row*0x17C0 + base, wait for a
+ *      keypress, then add it to combat_aux[0x14] (the MV movement budget).
  *   6. fd2_recalculate_combat_stats(idx) (re-derive AP/DP/DX/EV from the
  *      new raw stats + equipment) then slide the dialog out.
  *   7. Reset to a fresh level-1 state for the new class: status_flags[0]
- *      (level) = 1, movement_order = 0 (XP-carry reset), and full-restore
+ *      (level) = 1, exp_carry = 0 (XP-carry reset), and full-restore
  *      HP/MP (current = max).
  *   8. Clear the keyboard buffer.
  *
@@ -397,7 +397,7 @@ void fd2_execute_class_promotion_with_dialog(uint32 char_idx)
     fd2_recalculate_combat_stats(char_idx);
     fd2_close_intro_dialog_with_slide_out();
     rt_chars[char_idx].status_flags_block[0] = 1;
-    rt_chars[char_idx].movement_order = 0;
+    rt_chars[char_idx].exp_carry = 0;
     rt_chars[char_idx].hp_current = rt_chars[char_idx].hp_max;
     rt_chars[char_idx].mp_current = rt_chars[char_idx].mp_max;
     fd2_clear_keyboard_buffer();

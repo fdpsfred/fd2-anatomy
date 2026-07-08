@@ -1461,7 +1461,7 @@ void fd2_chapter_25_init(void)
  * Linked handlers:
  *   End:         fd2_chapter_26_end @ 0x24E80
  *   Post-action: fd2_chapter_26_post_action @ 0x20B3C
- *                (extra lose if char[1] OR char[2] dead -- 悠妮/亞奇梅吉)
+ *                (extra lose if char[1] OR char[2] dead -- 亞奇梅吉/悠妮)
  *
  * (9 階段密集 reinforcement turn 2/4/6/8/10/12/15/16/17 = FDFIELD event
  * 觸發, 非此 init handler.)

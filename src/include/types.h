@@ -32,7 +32,7 @@ typedef struct {
     uint8  status_flags_block[5];       /* +0x21  [0]=level [1]=ap_buff [2]=dp_buff [3]=dx_buff [4]=poison */
     uint8  status_paralysis_flag;           /* +0x26 */
     uint8  combat_aux_block[21];        /* +0x27  [0]=silence ... [0xD]=ai_class ... see KB */
-    uint8  movement_order;              /* +0x3C  0=moved 0xFF=not_moved */
+    uint8  exp_carry;                   /* +0x3C  EX carry: leftover XP toward next level (acted flag is flags bit7, not here) */
     uint8  ai_target_and_dx_block[3];   /* +0x3D  [0]=ai_target_id [1..2]=dx_total */
     uint16 hp_current;                  /* +0x40 */
     uint16 hp_max;                      /* +0x42 */

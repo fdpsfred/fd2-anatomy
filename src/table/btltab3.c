@@ -369,7 +369,7 @@ const item_effect data_fd2_battle_item_effect_table[215] = {
  * returns &table[(class_id - 0x20)*2]; callers read only byte[0] and byte[1]
  * (8-bit MOVs), so element type is uint8 and stride is 2.
  *   byte[0] = post-promotion job_id (00h..1Ah job-id space)
- *   byte[1] = learned-spell id on promotion (0 = none)
+ *   byte[1] = MV movement bonus on promotion (0 = none; added to runtime +0x3B, dialog page 0x254)
  * Read-only const (no writers). Index bound 0x43 is set by
  * fd2_build_promotion_candidates_with_targets @ 0x31793, whose target class is
  * portrait_id+0x20 (default) / portrait_id+0x32 (alt key-item path) / 0x34
@@ -806,7 +806,7 @@ const character_base data_fd2_battle_character_base_table[32] = {
  * Indexed by portrait id (0..67) via fd2_get_char_growth_entry @ 0x4E4DE
  * (base + idx*0xB, returns &entry.ap_min). All consumer accesses are single
  * byte reads off the returned pointer: +0/+2/+4/+6/+8 (the *_min growth floors,
- * paired with the next byte as the inclusive max inside the stat-roll helper)
+ * paired with the next byte as the exclusive upper bound -- actual max gain = byte-1, byte==min = fixed min)
  * and +0xA (spell_learning_idx, compared against 0xFF then used as a table
  * index). Readers: fd2_init_runtime_char_for_battle (0x10C50),
  * fd2_init_runtime_char_from_base_growth (0x112A5),

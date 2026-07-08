@@ -184,8 +184,8 @@ void fd2_render_status_screen_static_layout(uint32 char_idx, uint32 overlay_buff
  *
  *   Status / movement numbers (white 0x2A, 2-digit):
  *     +0x29DD  status_flags_block[0]   (level)
- *     +0x379D  movement_order          (MV)
- *     +0x455D  combat_aux_block[0x14]  (magic resist)
+ *     +0x379D  exp_carry               (EX)
+ *     +0x455D  combat_aux_block[0x14]  (MV movement)
  *
  *   Combat stat numbers (color = 0x77 red if the matching boost flag is
  *   set, else 0x2A white; 3-digit):
@@ -248,11 +248,11 @@ void fd2_render_full_char_stat_panel(uint32 char_idx, uint32 overlay_buffer)
     fd2_render_number_red_when_full(overlay_buffer + 0x4ae5, 0x140,
                                     (uint32)mp_max, (uint32)mp_max, 3);
 
-    /* level / movement / magic-resist (white, 2-digit) */
+    /* level / EX carry / MV movement (white, 2-digit) */
     fd2_render_decimal_number_to_buffer(overlay_buffer + 0x29dd, 0x140,
                                         rc->status_flags_block[0], 0x2a, 2);
     fd2_render_decimal_number_to_buffer(overlay_buffer + 0x379d, 0x140,
-                                        rc->movement_order, 0x2a, 2);
+                                        rc->exp_carry, 0x2a, 2);
     fd2_render_decimal_number_to_buffer(overlay_buffer + 0x455d, 0x140,
                                         rc->combat_aux_block[0x14], 0x2a, 2);
 

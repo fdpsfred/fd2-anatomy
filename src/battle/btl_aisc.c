@@ -467,7 +467,7 @@ int fd2_ai_score_physical_attack(uint32 caster_idx, uint32 ctx_flag)
     uint32 effective_DP;
     uint32 weapon_aoe_x;
     uint32 weapon_aoe_y;
-    uint32 mp_remaining;
+    uint32 range_rem;
     uint32 movement_class;
     uint8 *pMove_cost_table;
     uint32 pAlloc_a;
@@ -507,7 +507,7 @@ int fd2_ai_score_physical_attack(uint32 caster_idx, uint32 ctx_flag)
     pItem = fd2_get_item_effect_entry((int)item_id);
     weapon_aoe_x = (uint32)pItem[0xB];
     weapon_aoe_y = (uint32)pItem[0xC];
-    mp_remaining = (uint32)pCaster[0x3B];
+    range_rem = (uint32)pCaster[0x3B];
 
     if (fd2_check_char_status_immunity(caster_idx) != 0) {
         movement_class = 0x13;
@@ -525,7 +525,7 @@ int fd2_ai_score_physical_attack(uint32 caster_idx, uint32 ctx_flag)
     fd2_init_movement_range_floodfill(
         (uint32)pMove_cost_table,
         (uint32)pCaster[0], (uint32)pCaster[1],
-        mp_remaining, data_fd2_battle_tile_map_ptr,
+        range_rem, data_fd2_battle_tile_map_ptr,
         data_fd2_tile_attribute_flags_buffer_ptr);
     fd2_mark_char_occupant_tiles_for_team(caster_idx, ctx_flag);
     n_reachable = (uint32)fd2_collect_unmarked_tile_positions(

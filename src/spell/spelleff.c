@@ -25,7 +25,7 @@ void fd2_apply_use_effect_dispatch(uint32 caster_idx, uint32 inv_slot,
     uint32 drops_buf[25];
     uint32 pending_drops;
     uint8 target_id;
-    uint8 saved_mv;
+    uint8 saved_exp_carry;
 
     fd2_load_status_effect_sfx();
     data_fd2_battle_spell_aoe_count_and_fx_queue_idx = 0;
@@ -110,13 +110,16 @@ consume_item:
             target_count, p_target_array, 0x0D);
     } else if (effect_code == 0x13) {
         target_id = *(uint8 *)p_target_array;
-        saved_mv = data_fd2_battle_runtime_char_array_ptr[
-                       (uint32)target_id].movement_order;
+        /* Add effect_param to the MV budget (+0x3B). The helper does a
+         * 16-bit ADD at +0x3B, which also touches +0x3C (exp_carry), so
+         * snapshot and restore exp_carry to keep the XP carry intact. */
+        saved_exp_carry = data_fd2_battle_runtime_char_array_ptr[
+                       (uint32)target_id].exp_carry;
         fd2_apply_item_stat_modifier_with_anim(
             caster_idx, effect_param, 0x3B, inv_slot,
             target_count, p_target_array, 0x13);
         data_fd2_battle_runtime_char_array_ptr[
-            (uint32)target_id].movement_order = saved_mv;
+            (uint32)target_id].exp_carry = saved_exp_carry;
     } else if (effect_code == 0x14 || effect_code == 0x18) {
         uint32 j;
         fd2_animate_spell_impact_per_target(
