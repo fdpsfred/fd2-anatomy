@@ -124,6 +124,24 @@ Step  Script                         Input                          Output
 | ISR stack gap | Ghidra data item 自然保留 | MERGE_GROUPS |
 | Vendor adjacency | 自動（compact vendor-order） | MERGE_GROUPS |
 
+## Ghidra alignment-NOP 邊界修正 SOP
+
+Watcom 9.5a 把 hot fn（多為 ISR / driver entry）對齊到 16-byte 邊界時，前一個
+fn 尾與該 entry 之間的 alignment NOP padding 可能被 Ghidra 自動分析誤併進 AIL
+fn body，使 entry 假性落在 padding 起點。修正步驟：
+
+1. `delete_function(padding_entry_addr)` 移除誤包的 fn
+2. `create_function(real_aligned_entry_addr, name=AIL_internal_<original_name>)`
+   在真實對齊 entry 建 fn
+3. 對 alignment block 各 `create_function(nop_addr, name=binary_artifact_align_nop_<addr>)`，
+   歸 `binary_artifact` pool
+4. plate 轉移到新 entry；alignment block 各 plate 寫下 NOP encoding 與對齊目的
+
+判定某段 byte 是否為 alignment NOP，須以 `read_memory` 的實際 byte 對照 NOP
+encoding 表（見 `rebuild_info/equivalence/pool_classification.md`），不可從
+Ghidra mnemonic 推——同 mnemonic 可能對應多種 encoding，只有特定 encoding 才是
+Watcom alignment NOP。
+
 ## Workspace 結構
 
 Pipeline 中間產物寫入 `workspace/ail_extract/`：

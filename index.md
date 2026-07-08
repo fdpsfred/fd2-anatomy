@@ -29,7 +29,7 @@
 - 想寫資源檔解碼器：`resource_info/overview.md` + 對應檔案的 `.md`
 - 想理解戰鬥 AI：`program_info/battle.md`
 - 想知道 FD2 用哪個編譯器和 CRT lib：`rebuild_info/crt/fid_match.md`
-- 想理解 emit pipeline / pool routing / fall-through pattern：`rebuild_info/emission/_index.md`
+- 想理解等價鐵則 / pool 分類 / fall-through pattern：`rebuild_info/equivalence/_index.md`
 - 想抽 AIL `.obj` 重建：`rebuild_info/ail/_index.md` + `tools/ail_extract/_index.md`
 - 想知道 FD2.LE 怎麼連結出來 / wlink 設定：`rebuild_info/link/wlink_settings.md` + `rebuild_info/link/le_layout.md`
 - 想知道實機 playtest 解過哪些 rebuild bug / 怎麼建置測試 src-only FD2.EXE：`rebuild_info/build_test/_index.md`

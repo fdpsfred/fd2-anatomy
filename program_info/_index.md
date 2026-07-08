@@ -42,4 +42,4 @@ post_action handler、FDFIELD event script。
 ## 相關文件
 
 整體 entry chain / startup / exit、CRT layer、pool routing、call graph、calling convention、
-emit pipeline 規格詳見 `rebuild_info/emission/` 與 `rebuild_info/crt/`。
+等價鐵則與 pool 分類詳見 `rebuild_info/equivalence/` 與 `rebuild_info/crt/`。

@@ -43,26 +43,14 @@ extern <ret> __cdecl AIL_<fn>(<args>);
 - `"*"` 抑制 cdecl 預設的 `_` prefix/suffix 對 PUBDEF 名（讓 lib EXTDEF 對得上）
 - `modify [eax ebx ecx edx]` 列出全部四個 caller-saved 暫存器，在 `-3r` 與 `-3s`
   下都正確；少列任何一個在 `-3s` 下都會把污染轉移到沒列的那顆暫存器
+- cc keyword 的選擇依前節 `__watcall` / `__cdecl` 區分（`__watcall` fn 不 emit
+  keyword，用 Watcom register-cc 預設），`modify` clobber list 則不分 cc 一律套用
 
 FD2 遊戲端的 `src/include/protos.h` 直接 `#include "ailv3.h"`，所以這份 clobber
 資訊對遊戲所有 AIL 呼叫生效（`fd2_play_sfx_with_handle` 把 sample offset 跨
 `AIL_init_sample` 存活，正是靠它才不被破壞、避免 SFX 靜音）。
 
 ## Handle 與 buffer-pointer 型別
-
-`ailv3.h` 的 handle typedef（`HSAMPLE` / `HDIGDRIVER` / ...）是 `void *`：Ghidra
-確認 AIL 內部把 handle 當指標 dereference（`AIL_allocate_sample_handle` 回傳 slot
-指標，`AIL_set_sample_address` 的 worker 0x41250 寫 `[handle+8]=address`）。遊戲端
-對應的 handle 全域（`data_fd2_audio_sfx_sample_handle_0/1`、driver / sequence
-handle）因此也用 `void *`。
-
-但 buffer-pointer 型參數（如 `AIL_init_sequence` 的 XMI data、`AIL_set_sample_address`
-的 sample 位址）在 ailv3.h 用 `unsigned int` 而非 `void *`：FD2 的 resource 層
-（`fd2_load_dat_resource`）一律用 32-bit 值（`uint32`）表示載入緩衝的指標，client
-照此傳遞，配 `unsigned int` 才不噴 W113，也不必把 `void *` 擴散進整個 resource 層。
-handle 用 `void *`、data buffer 用 `uint32`，這個區分是刻意的。
-
-## Handle typedef
 
 `ailv3.h` 定義 7 個 opaque handle typedef（Miles SDK convention）：
 
@@ -76,7 +64,20 @@ handle 用 `void *`、data buffer 用 `uint32`，這個區分是刻意的。
 | `HDRIVER` | `void *` | `AIL_install_driver` |
 | `HWAVESYNTH` | `void *` | `AIL_create_wave_synthesizer` |
 
-Watcom 32-bit flat model 下 `int` 和 `void *` 都是 32-bit，底層表示可互換。
+多數 handle 底層都是 `void *`：Ghidra 確認 AIL 內部把 handle 當指標
+dereference（`AIL_allocate_sample_handle` 回傳 slot 指標；worker
+`AIL_internal_set_sample_address_inner @ 0x41250` 對 sample handle 寫
+`[handle+8]=address`）。遊戲端對應的 handle 全域
+（`data_fd2_audio_sfx_sample_handle_0/1`、driver / sequence handle）因此也用
+`void *`。`HTIMER` 例外用 `unsigned int`——它在 Miles 是 timer-slot 索引而非
+指標；Watcom 32-bit flat model 下 `int` 與 `void *` 都是 32-bit，底層表示可
+互換。
+
+buffer-pointer 型參數（如 `AIL_init_sequence` 的 XMI data、`AIL_set_sample_address`
+的 sample 位址）則在 `ailv3.h` 用 `unsigned int` 而非 `void *`：FD2 的 resource
+層（`fd2_load_dat_resource`）一律用 32-bit 值（`uint32`）表示載入緩衝的指標，
+client 照此傳遞，配 `unsigned int` 才不噴 W113，也不必把 `void *` 擴散進整個
+resource 層。handle 用 `void *`、data buffer 用 `uint32`，這個區分是刻意的。
 
 ## Vendor data symbol 暴露
 
@@ -107,5 +108,6 @@ FD2 自寫的 helper，AIL vendor code 透過 EXTDEF reference：
 | EFLAGS | `crt_equivalent_get_eflags` | PUSHFD; POP EAX; CLI; RET（4B） |
 | | `crt_equivalent_get_eflags_thunk` | JMP 到上者（5B） |
 
-Step 1 CRT 識別確認：Watcom 9.5a 全 19 lib 掃描 0 byte-match。
-全部是 FD2 原創或 CRT 行為等價，不是 Watcom lib symbol。
+這些符號都是 FD2 原創或與 CRT 行為等價的實作，不是 Watcom lib 匯出符號；
+`crt_equivalent_*` 的完整具名清單與 CRT 等價論證見
+`rebuild_info/crt/symbol_inventory.md`。

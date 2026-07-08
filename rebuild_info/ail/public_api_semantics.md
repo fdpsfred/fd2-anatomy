@@ -72,16 +72,10 @@ AIL preferences default 已涵蓋此格式。
 
 ## FDOTHER SFX bank container
 
-FDOTHER.DAT 是 LLLLLL outer container。`FDOTHER[0x1F]` = nested LLLLLL
-sub-archive，每個 entry 是一個 SFX 的 PCM bytes。
-
-```c
-u8 *entry = bank + sfx_id * 4;
-u32 off   = *(u32 *)(entry + 6);      // +6 skips LLLLLL magic
-u32 end   = *(u32 *)(entry + 10);
-u8 *sample     = bank + off;
-u32 sample_len = end - off;
-```
+FD2 的 SFX PCM 存在 `FDOTHER[0x1F]` 這個 nested LLLLLL sub-archive，
+`fd2_play_sfx_with_handle` 從中取出單一 SFX 的 raw PCM bytes 傳給
+`AIL_set_sample_address`。FDOTHER 容器格式與 `0x1F` bank 的 sub-entry 佈局見
+`resource_info/fdother.md`。
 
 ## FD2 game 的 AIL API 使用模式
 

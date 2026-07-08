@@ -1,9 +1,15 @@
-# Matched Function Sources
+# Matched Function Sources（CRT 符號 ↔ Watcom lib 對照，generated view）
 
-Each row maps a FD2.LE function address to the Watcom 9.5 lib that
-contains the matching obj. Generated from `rebuild_info/crt/lookup_9.5a.json` (read field `source_libs`).
+**本檔是由 `rebuild_info/crt/lookup_9.5a.json` 的 `source_libs` 欄產生的
+generated view，請勿手改表格內容**；重生方式見
+`tools/program_analysis/crt_fid_match/_index.md`。每列把一個 FD2.LE function
+address 對應到含 matching obj 的 Watcom lib 與版本，供 build pipeline 決定哪個
+.obj 該 EXTDEF 哪個 lib 解析。手寫的 CRT 命名約定與 `crt_equivalent_*` / `fd2_*`
+primitive 具名清單在 `symbol_inventory.md`。
 
-Total entries: **193**
+Total entries（= `lookup_9.5a.json` 的 `by_address` 條目數）: **194**
+
+> 本檔的逐列表與彙總數字是 `lookup_9.5a.json` 的生成檢視，正典計數以該 JSON 為準（`by_address` = 194）。表格由 `tools/program_analysis/crt_fid_match/` 的產生器重生（見該 `_index.md`）；重生前若逐列/彙總與 194 有出入，以 JSON 與 `fid_match.md` 為準。
 
 | FD2 addr | lib symbol | body | verified | source obj | source lib(s) / versions |
 |---|---|---:|---|---|---|
@@ -201,11 +207,10 @@ Total entries: **193**
 | `0x0004db0a` | `frexp` | 88 | byte_match | `3bf50f39eafd_frexp.obj` | MATH387S:9.5+9.5a+9.5b+9.5c |
 | `0x0004db64` | `modf` | 32 | byte_match | `3ede649993e4_modf387.obj` | MATH387S:9.5+9.5a+9.5b+9.5c |
 
-註：`__int7 @ 0x49D98`（11830B emu387.obj）body 內部，Ghidra 額外 carve 出一個獨立 Function
-entity `crt_emu387_int7_fptan_opcode_worker_4c630 @ 0x4C630`（503B，x87 `FPTAN` opcode 的軟體
-模擬 worker）。它無獨立 PUBDEF，是 `__int7` 內部 subroutine（與 6 個 sibling helper、8 個 inline
-x87-opcode jump table 同性質，只是其他都沒有 Function entity），靠 link 同一 `__int7` module
-解析（emit_action `link_vendor_lib`），不重 emit C source。詳見 `symbol_inventory.md`。
+註：`__int7 @ 0x49D98`（emu387.obj）body 內部的
+`crt_emu387_int7_fptan_opcode_worker_4c630 @ 0x4C630` 是 `__int7` 的內部
+subroutine，無獨立 PUBDEF，靠連結同一 `__int7` module 解析，不 emit C source。
+歸屬詳見 `symbol_inventory.md` 的 fptan worker 段。
 
 ## Aggregate by source lib + version
 
@@ -236,8 +241,12 @@ Each (lib, version) pair lists the FD2 functions that came from a obj in that li
 | MATH3S | 9.5b | 5 | `_set_matherr`, `_SetMaxPrec`, `__CmpBigInt`, `__Rnd2Int`, `__Bin2String` |
 | MATH3S | 9.5c | 5 | `_set_matherr`, `_SetMaxPrec`, `__CmpBigInt`, `__Rnd2Int`, `__Bin2String` |
 
-## Notes
+## 讀表說明
 
-- A single FD2 function maps to ≥ 1 (lib, version) appearance if the same obj SHA appears in multiple Watcom 9.5x versions (typical when obj bytes are unchanged across versions).
-- A FD2 function whose obj SHA is **only** in 9.5+9.5a is a strong signal that FD2 was linked with that specific lib version. `MATH387S/dosinite.obj` (`__sys_init_387_emulator` / `__sys_fini_387_emulator`) and `MATH387S/ftos.obj` (`_FtoS`) are 9.5+9.5a-only — confirming FD2's compiler/lib version.
-- A FD2 function whose obj appears in MULTIPLE libs (e.g., `dosinite.obj` in both MATH387R and MATH387S — same byte content, ABI-independent) means the obj is shared across register-call and stack-call lib variants. Either lib in the build pipeline EXTDEF resolves it correctly.
+- 同一個 FD2 function 若對應 ≥ 1 個 (lib, version)，代表該 obj 的 SHA 在多個
+  Watcom 9.5x 版本間相同（obj 位元組跨版本未變時的常態）。
+- 某 obj 同時出現在多個 lib（例如 `dosinite.obj` 同時在 MATH387R 與 MATH387S，
+  位元組相同、ABI-independent），代表該 obj 為 register-call 與 stack-call 兩種
+  lib 變體共用，build pipeline 用任一 lib EXTDEF 都能正確解析。
+- 「obj 只出現在 9.5+9.5a」是 FD2 連結版本的判定訊號（例如 `dosinite.obj` /
+  `ftos.obj`）；完整的版本判定結論見 `fid_match.md`。

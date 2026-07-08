@@ -51,4 +51,4 @@
 
 本 workflow 只處理 **function**(`routing.json` 650 個)。完整可執行檔還需:
 A. 本 workflow(function emit+review,650)→ B. Phase 8 data emit(~1300 data items,真實 byte → C const;建議沿用同架構 per-item workflow)→ C. wlink 整合(src `.obj` + Watcom CLIB3S + AIL lib → LE)→ D. Layer 1 驗證(DOSBox scripted playtest 對比原版)。
-規格見 `rebuild_info/emission/`(pipeline_spec / calling_convention / pool_routing)、進度見 `routing.json`(本檔「狀態 source of truth」段)。
+規格見 `rebuild_info/equivalence/`(rules / watcom_abi / pool_classification)、進度見 `routing.json`(本檔「狀態 source of truth」段)。

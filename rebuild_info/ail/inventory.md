@@ -53,14 +53,13 @@ Ghidra 後續 audit / rename / boundary fix 失效。命名前綴分群：
 print（vendor-internal logged API），其 fmt string 含 `"AIL_xxx(...)\n"`
 模式但 FD2 source 端不直接呼叫。
 
-每個 entry-point 命名都透過 `AIL_internal_log_print_timestamp_prefix(...)`
-+ `fprintf` 的 debug printf 親自驗證；當函式 body 含多個 AIL 字串引用時，
-**以 entry-point 第一條 printf 為準**。
+每個 entry-point 的命名取自它啟動時 `AIL_internal_log_print_timestamp_prefix(...)`
++ `fprintf` 印出的 debug 字串；當函式 body 含多個 AIL 字串引用時，以
+entry-point 第一條 printf 為準。
 
 AIL 內部 helper（ISR / timer / mixer / sequence worker 等沒有 debug printf
-字串者）命名依 callees / data ref / 結構推敲決定，全部命名為
-`AIL_internal_<descriptor>` 或 `AIL_internal_<X>_inner`——不留
-`_helper_<addr>` 形式 placeholder。
+字串者）依 callees / data ref / 結構命名為 `AIL_internal_<descriptor>` 或
+`AIL_internal_<X>_inner`，不留 `_helper_<addr>` 形式 placeholder。
 
 逆向目標是辨認 AIL 層的邊界：看到 FD2 遊戲邏輯呼叫
 `AIL_start_sequence(seq_handle)` 就理解意圖即可，AIL 內部邏輯不深究
@@ -68,43 +67,36 @@ AIL 內部 helper（ISR / timer / mixer / sequence worker 等沒有 debug printf
 
 ## Dead 判定方法（資訊性，不影響 lib 納入）
 
-「dead」這個詞在本 KB 內定義為「FD2.LE binary 內無任何 instruction / data
-fixup 引用該 function 的 entry 或 body」。透過 Ghidra ReferenceManager
-4-axis 判定：
+「dead」在本 KB 定義為「FD2.LE binary 內無任何 instruction / data fixup
+引用該 function 的 entry 或 body」。以 Ghidra ReferenceManager 四軸判定：
 
 | Axis | 來源 |
 |---|---|
-| entry xref | `mcp__ghidra__get_function_xrefs(addr=entry)` 計入 call / jump / data / indirect |
-| body inbound xref | iterate `getReferencesTo(addr)` for addr ∈ (body − entry)，filter external source（src ∉ body）|
-| mid-fn rel32 jump | `tools/ail_extract/ail_fixups_midfn.jsonl` 內 `target_within_fn == fn_name` 的 entry |
-| LE FIXUP data ref to fn ptr | `workspace/data_audit/le_fixups.json` `target_addr_to_sources` filter target ∈ fn body |
+| entry xref | `get_function_xrefs(addr=entry)`，計入 call / jump / data / indirect |
+| body inbound xref | `getReferencesTo(addr)` for addr ∈ (body − entry)，濾掉 fn 自身內部的來源 |
+| mid-fn rel32 jump | mid-fn alt-entry 明細內 `target_within_fn == fn_name` 的項（明細重生見 `tools/ail_extract/_index.md`）|
+| LE FIXUP data ref to fn ptr | LE fixup 表內 target 落在 fn body 的項（LE fixup 資料重生見 `tools/program_analysis/data_audit/_index.md`）|
 
-**4 軸全 0 = dead**；任一軸 > 0 = alive。判定純資訊性——dead fn 仍納入
-ailv3.lib（per 「完整 lib reproduction」goal）。Ghidra plate 含
-`sub-case dead_code_stub` 標記是過去某次 audit 的結論，與當前判定可能不
-一致；若 plate 與 4-axis 結果衝突，**以 4-axis 為準**。
+四軸全 0 即 dead，任一軸 > 0 即 alive。此判定純屬資訊性：dead fn 仍納入
+`ailv3.lib`（依「完整 lib reproduction」目標）。
 
 ## Alignment NOP fn boundary（Watcom 9.5a hot-fn alignment）
 
-Watcom 9.5a 對某些 hot function（多為 ISR / driver entry）的 entry 對齊到
-16-byte 邊界（`entry & 0xF == 0`），在前一個 fn 結束處與該 entry 之間
-插入 alignment NOP padding。常見 NOP encoding 見
-`rebuild_info/emission/pool_routing.md`「Watcom compiler alignment NOP」
-段（6-byte `8D 80 00 00 00 00` / 6-byte `8D 92 00 00 00 00` / 3-byte
-`8D 40 00` / 2-byte `8B C0` 等）。
+Watcom 9.5a 把某些 hot function（多為 ISR / driver entry）的 entry 對齊到
+16-byte 邊界（`entry & 0xF == 0`），在前一個 fn 結束處與該 entry 之間插入
+alignment NOP padding。這些 NOP block 建為獨立 function、歸 `binary_artifact`
+pool（`binary_artifact_align_nop_<addr>`）；NOP encoding 表（6-byte
+`8D 80 00 00 00 00` / 6-byte `8D 92 00 00 00 00` / 3-byte `8D 40 00` /
+2-byte `8B C0` 等）見 `rebuild_info/equivalence/pool_classification.md`
+「Watcom compiler alignment NOP」段。
 
-當 Ghidra 自動分析誤把 alignment NOP 包進 AIL fn body（造成 entry 假性
-落在 padding 開始位址），須拆 fn boundary：
+判定某段 byte 是否為 alignment NOP，須以 `read_memory` 的實際 byte 對照
+encoding 表，**不可從 Ghidra mnemonic 推**——同 mnemonic 可能對應多種
+encoding（2/3/6 byte），只有特定 encoding 才是 Watcom alignment NOP。
 
-1. `delete_function(padding_entry_addr)` 移除誤包的 fn
-2. `create_function(real_aligned_entry_addr, name=AIL_internal_<original_name>)` 新建真實 entry 的 fn
-3. 對 alignment block 各 `create_function(nop_addr, name=binary_artifact_align_nop_<addr>)`
-   歸 `binary_artifact` pool
-4. plate transfer 到新 entry + alignment block 各 plate 寫 NOP encoding + 對齊目的
-
-判定 alignment NOP 須以 `read_memory` 的實際 byte 對照 NOP encoding 表，
-**不可從 Ghidra mnemonic 推**——同 mnemonic 可能對應多種 encoding（2/3/6
-byte），只有特定 encoding 才是 Watcom alignment NOP。
+當 Ghidra 自動分析誤把 alignment NOP 併進 AIL fn body（使 entry 假性落在
+padding 起點）時，須拆開 fn boundary、把 padding 各自建為 `binary_artifact`
+fn；操作步驟見 `tools/ail_extract/_index.md`。
 
 ## Static-link thunk + body pairs
 
@@ -257,24 +249,17 @@ address range 判定**。具體 AIL fn 邊界透過 Ghidra MCP
 
 ## ailv3.lib / fd2common.lib build artifact
 
-`tools/ail_extract/pack_libs.py` 把 `workspace/ail_extract/objs/*.obj`
-打包成兩份 lib，產出在 `workspace/ail_extract/out/`：
+AIL 重建打包成兩份 static library：
 
 | 檔案 | 內容 |
 |---|---|
-| `ailv3.lib` | 所有 AIL fn `.obj`（含 dead public + dead internal stub）+ 所有 shared-data `.obj`；全 PUBDEF（`AIL_*` + `AIL_internal_*`）以滿足 lib 內部 cross-`.obj` EXTDEF 解析 |
-| `fd2common.lib` | `fd2_dpmi_*` wrapper + `crt_equivalent_get_eflags` + `_thunk`；全 PUBDEF |
-| `ailv3.lst` / `fd2common.lst` | wlib `-l` 列出的 module + dictionary symbol（含 mid-fn alt-entry `L_*_alt_*` label）|
+| `ailv3.lib` | 所有 AIL function `.obj`（含 FD2 未呼叫的 vendor public 與 internal stub）加上所有 shared-data `.obj`；`AIL_*` 與 `AIL_internal_*` 符號全 PUBDEF，以滿足 lib 內部 cross-`.obj` EXTDEF 解析 |
+| `fd2common.lib` | `fd2_dpmi_*` wrapper 加 `crt_equivalent_get_eflags` 與其 thunk；全 PUBDEF |
 
-具體 module count / lib size / dictionary symbol count 透過
-`out/pack_libs_summary.json` + `out/*.lst` 即時取得（rebuild 後會自動
-更新），不在 KB 維護人寫的數字（per [[feedback_no_kb_hardcoded_values]]）。
+link 階段 extern 解析分工：AIL 對 AIL 的 rel32 在 `ailv3.lib` 內解析、
+mid-fn alt-entry label（`L_<fn>_alt_<off>`）也在 `ailv3.lib` 內；AIL 對
+fd2common 的 rel32 在 `fd2common.lib` 內解析；AIL 對 CRT 的 extern 與
+`data_crt_*` extern 留到 wlink 以 CLIB3S 9.5a 解析。
 
-lib 自洽性 — `pack_libs.py` 後置 sanity 對 `ail_fixups_synth.jsonl` 內 4
-類 verdict 全做 PUBDEF dictionary 對比，要求 0 missing：
-
-- `AIL_to_AIL` rel32 EXTDEF target → `ailv3.lib` PUBDEF
-- `AIL_to_fd2common` rel32 EXTDEF target → `fd2common.lib` PUBDEF
-- mid-fn alt-entry label (`L_<fn>_alt_<off>`) → `ailv3.lib` PUBDEF
-- 全 `AIL_to_CRT` extern 與 `data_crt_*` extern 留 wlink 階段以
-  CLIB3S 9.5a 解析（不在 lib 自洽範圍內）
+lib 打包腳本、workspace 輸出位置、module / dictionary symbol 清單與 pack
+後自洽性檢查見 `tools/ail_extract/_index.md`。
