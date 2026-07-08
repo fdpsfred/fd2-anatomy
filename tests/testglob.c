@@ -1190,9 +1190,9 @@ int   AIL_install_MDI_INI(void) { return 0; }
 int   AIL_install_DIG_INI(void) { return 0; }
 void *AIL_allocate_sequence_handle(void *mdi_driver) { (void)mdi_driver; return (void *)0; }
 void *AIL_allocate_sample_handle(void *dig_driver) { (void)dig_driver; return (void *)0; }
-/* fd2_play_chapter_clear_fanfare: chapter-clear jingle, not yet emitted;
- * referenced only by the (Phase 9-deferred) main loop. */
-void fd2_play_chapter_clear_fanfare(void) {}
+/* fd2_play_game_over_sequence: game-over sprite sequence on protagonist death;
+ * emitted in src/anim/aniend.c. */
+void fd2_play_game_over_sequence(void) {}
 /* fd2_load_dat_resource: now emitted in src/rsrc/rsrc.c. Its caller tests
  * drive the real loader against the staged real DAT files (copied into the
  * test cwd by build_test.py) and cross-check its output against an independent

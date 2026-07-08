@@ -332,16 +332,18 @@ int fd2_title_attract_and_main_menu(void)
 }
 
 /* ----------------------------------------------------------------
- * fd2_play_chapter_clear_fanfare @ 0x22E5C  (1 caller)
+ * fd2_play_game_over_sequence @ 0x22E5C  (1 caller)
  *
- * Sole caller: main @ 0x25BF4 (entered when
- * data_fd2_chapter_event_or_battle_end_code == 1, i.e. a chapter was just
- * cleared). Plays a short 2-frame "chapter cleared" fanfare sprite sequence,
- * then returns; main clears that event code afterward.
+ * Sole caller: main @ 0x25BF4, entered when
+ * data_fd2_chapter_event_or_battle_end_code == 1 -- the protagonist
+ * (索爾 = runtime_char[0]) died, i.e. the player LOST
+ * (fd2_check_battle_end_condition sets 1 on protagonist death, 2 on victory).
+ * Plays a short 2-frame game-over sprite sequence; main then clears the event
+ * code and returns to the main menu (end_code == 2 is the victory path instead).
  *
  * Sequence:
  *   - stop BGM with fade
- *   - fade screen to black, load FDOTHER.DAT[0x4F] fanfare sprite sheet
+ *   - fade screen to black, load FDOTHER.DAT[0x4F] game-over sprite sheet
  *   - clear framebuffer, blit frame 0, fade in, hold 9 ticks
  *   - blit frame 1, hold 36 ticks
  *   - free the sprite sheet
@@ -349,22 +351,22 @@ int fd2_title_attract_and_main_menu(void)
  * The tail free() compiles (via the original) into a jump into the shared
  * free-wrapper epilogue; the plain call below is the functional equivalent.
  * ---------------------------------------------------------------- */
-void fd2_play_chapter_clear_fanfare(void)
+void fd2_play_game_over_sequence(void)
 {
-    uint32 fanfare_sprite;
+    uint32 gameover_sprite;
 
     fd2_set_bgm_track_with_fade(0xFFFFFFFF, 1);
     fd2_wait_n_bios_ticks(1);
     fd2_play_palette_fade_to_black();
-    fanfare_sprite = fd2_load_dat_resource(
+    gameover_sprite = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x4F);
     memset((void *)0xA0000, 0, 64000);
-    fd2_blit_indexed_sprite(fanfare_sprite, 0, 0xA0000, 0x140, -1);
+    fd2_blit_indexed_sprite(gameover_sprite, 0, 0xA0000, 0x140, -1);
     fd2_play_palette_fade_in();
     fd2_wait_n_bios_ticks(9);
-    fd2_blit_indexed_sprite(fanfare_sprite, 1, 0xA0000, 0x140, -1);
+    fd2_blit_indexed_sprite(gameover_sprite, 1, 0xA0000, 0x140, -1);
     fd2_wait_n_bios_ticks(0x24);
-    free((void *)fanfare_sprite);
+    free((void *)gameover_sprite);
 }
 
 /* ----------------------------------------------------------------

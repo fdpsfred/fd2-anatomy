@@ -38,7 +38,7 @@ sub-entries 各自獨立索引。
 | 0x22 | `fd2_play_chapter_21_hidden_stage_unlock_cinematic` | chapter intro slideshow |
 | 0x2A | `fd2_load_chapter_background_layers` | chapter background |
 | 0x2D | `fd2_chapter_event_handler_3d__ch26_pickup` | ch26 pickup 動畫 |
-| 0x4F | `fd2_play_chapter_clear_fanfare` | chapter clear fanfare |
+| 0x4F | `fd2_play_game_over_sequence` | game over screen (2-frame) |
 | 0x58 | `fd2_chapter_25_init` | earthquake_sfx (nested archive 2 sub-entries) |
 
 ## Cinematic / Ending 序列靜態

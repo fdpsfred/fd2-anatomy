@@ -82,7 +82,7 @@ LE loader (EIP = 0x3C964)
                      └─ 內層迴圈 do { … } while (game_loop_result == 0):
                           ├─ fd2_game_main_loop()      per-frame 輸入 / AI / 動畫 dispatcher
                           ├─ end_code == 1（fd2_check_battle_end_condition 判主角索爾陣亡＝落敗）:
-                          │    播一段過場 sprite（fd2_play_chapter_clear_fanfare）→ 回主選單
+                          │    播 game-over 過場 sprite（fd2_play_game_over_sequence）→ 回主選單
                           └─ end_code == 2（敵全滅＝過關）:
                                ├─ data_fd2_chapter_end_handler_table[chapter_id]()   章結束 handler
                                ├─ fd2_chapter_transition_menu()                       存檔／續戰提示

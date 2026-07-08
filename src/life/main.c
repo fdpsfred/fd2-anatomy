@@ -138,7 +138,7 @@ void main(void)
                 game_loop_result = fd2_game_main_loop();
                 if (data_fd2_chapter_event_or_battle_end_code == 1) {
                     data_fd2_ui_play_active_flag = 0;
-                    fd2_play_chapter_clear_fanfare();
+                    fd2_play_game_over_sequence();
                     data_fd2_ui_play_active_flag = 1;
                     data_fd2_chapter_event_or_battle_end_code = 0;
                     game_loop_result = 1;

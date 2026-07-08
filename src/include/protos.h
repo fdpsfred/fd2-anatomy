@@ -586,7 +586,7 @@ void fd2_set_bgm_track_with_fade(uint32 track_id, uint32 loop_count);
  * build needs -- without it the compiler keeps the SFX sample offset in a
  * register AIL trashes, producing a garbage sample address and silent SFX. */
 #include "ailv3.h"
-void fd2_play_chapter_clear_fanfare(void);
+void fd2_play_game_over_sequence(void);
 uint32 fd2_load_dat_resource(uint32 fname, uint32 buf, uint32 idx);
 void fd2_rle_blit_sprite(uint32 rle_stream, int32 dst_x, int32 dst_y,
                          uint32 dst_buf, int32 stride, uint32 palette_op);

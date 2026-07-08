@@ -345,7 +345,7 @@ assets/tables/character_growth.md。
 
 | 位址 | 名稱 |
 |---|---|
-| `0x00022E5C` | `fd2_play_chapter_clear_fanfare` |
+| `0x00022E5C` | `fd2_play_game_over_sequence` |
 | `0x00010B4E` | `fd2_load_chapter_portraits_and_dump_tmp` |
 | `0x000205DA` | `fd2_init_battle_state_for_chapter`（清旗標、載 battle data、首次 paint、fade-in、turn=1）|
 
