@@ -803,7 +803,7 @@ const character_base data_fd2_battle_character_base_table[32] = {
  * character_growth (11 bytes: ap_min/ap_max, dp_min/dp_max, dx_min/dx_max,
  * hp_min/hp_max, mp_min/mp_max per-level random-roll bounds, and
  * spell_learning_idx -- an index into the spell-learning table, 0xFF = none).
- * Indexed by portrait id (0..67) via fd2_get_char_growth_entry @ 0x4E4DE
+ * Indexed by portrait id (0..67) via fd2_get_char_growth_entry @ 0x4E4D1
  * (base + idx*0xB, returns &entry.ap_min). All consumer accesses are single
  * byte reads off the returned pointer: +0/+2/+4/+6/+8 (the *_min growth floors,
  * paired with the next byte as the exclusive upper bound -- actual max gain = byte-1, byte==min = fixed min)
