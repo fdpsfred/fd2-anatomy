@@ -41,7 +41,10 @@ DOSBOX = "dosbox-x"
 # NOT expanded inline with %CF% in build.bat: COMMAND.COM truncates batch lines
 # past ~176 chars after %VAR% expansion, silently mangling the trailing -fo=
 # object path (observed: lifemain->MAIN.OBJ etc., then wlink file-not-found).
-CF = r"-bt=dos4g -fp5 -fpi87 -3s -ms -zp4 -DFD2_REPLAY -DFD2_ASM_PRIMITIVES -i=include -i=G: -i=F:\ailv3"
+# FD2_ASM_PRIMITIVES not defined, matching build_fd2.py: the three hand-asm
+# primitives compile as their portable-C reference branches (asm bodies stay
+# in-source behind the ifdef; re-enable in BOTH scripts together).
+CF = r"-bt=dos4g -fp5 -fpi87 -3s -ms -zp4 -DFD2_REPLAY -i=include -i=G: -i=F:\ailv3"
 
 AIL_LIB = r"F:\ailv3\ailv3.lib"
 CRT_LIBS = [r"D:\LIB386\DOS\CLIB3S.LIB",

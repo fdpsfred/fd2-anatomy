@@ -55,12 +55,14 @@ DOSBOX = "dosbox-x"
 # DGROUP stack whose bottom sits right above game globals, an unprobed
 # overflow silently corrupts state instead of halting cleanly like the
 # original, so stack checking stays ON to match vendor behavior.
-# -DFD2_ASM_PRIMITIVES: select the #pragma aux inline-asm bodies for the three
-# original hand-assembly primitives (fd2_apply_palette_remap_run @ palette.c,
-# fd2_save_compute_checksum + fd2_save_crypt_buffer @ save.c). wcc386 9.5a
-# cannot emit the vendor's LODSB/STOSB/LOOP string form from portable C under
-# any optimization flag (it always yields MOVZX/DEC/JNE); the asm bodies match
-# the original loop byte-for-byte. Undefine to compile the portable-C reference.
+# FD2_ASM_PRIMITIVES deliberately NOT defined: the three original hand-assembly
+# primitives (fd2_apply_palette_remap_run @ palette.c, fd2_save_compute_checksum
+# + fd2_save_crypt_buffer @ save.c) compile as their portable-C reference
+# branches (Layer-2 functionally exact, same policy as the other hand-asm
+# leaves e.g. the RLE blitters). The #pragma aux bodies that match the vendor
+# loops byte-for-byte stay in-source behind #ifdef FD2_ASM_PRIMITIVES; add
+# -DFD2_ASM_PRIMITIVES here AND in build_replay.py (flags must stay identical)
+# to re-enable them.
 # NOTE: sqrt/sin/cos must compile as real CRT calls, never IF@D* intrinsics
 # (the original never executes those); enforced in-source via __NO_MATH_OPS
 # before <math.h> (rndscene.c / spellcin.c / anisummn.c), not by a CF flag.
@@ -68,7 +70,7 @@ DOSBOX = "dosbox-x"
 # NOT expanded inline with %CF% in build.bat: COMMAND.COM truncates batch lines
 # past ~176 chars after %VAR% expansion, silently mangling the trailing -fo=
 # object path (this is what broke the replay build once its CF grew to 97 chars).
-CF = r"-bt=dos4g -fp5 -fpi87 -3s -ms -zp4 -DFD2_ASM_PRIMITIVES -i=include -i=F:\ailv3"
+CF = r"-bt=dos4g -fp5 -fpi87 -3s -ms -zp4 -i=include -i=F:\ailv3"
 
 # Link directive pieces. ailv3.lib from libs/ (mounted F:); CRT by full Watcom
 # path (D:). fd2common.lib deliberately absent -- src/util/dpmi.c + src/crt/crt.c

@@ -775,14 +775,15 @@ SFX（AIL DMA real-time、不隨 DOSBox cycles）→ 後續 SFX 的 `AIL_stop_sa
 所以時序敏感熱迴圈不能為了「等價且更短」而簡化，要對齊原版 codegen（wdis 逐指令比指令數驗
 證）。詳見 `../build_test/playtest_bugs.md` D 類。
 
-**⚠ 例外：原版手寫組語函數。** 原版有少數 game-logic 函數不是 wcc386 編譯的 C，
-辨識特徵＝無 `PUSH n / CALL __CHK` stack-probe prologue（wcc386 編譯的 FD2 C 必有）
-＋字串指令 / 硬體 ROL 慣用法（wcc386 9.5a 從可攜 C 任何旗標組合都產不出
-LODSB/STOSB/LOOP 形式，恆為 MOVZX/DEC/JNE）。位址連續 cluster
-0x4DB9C（palette remap）/ 0x4DBB9（save checksum）/ 0x4DBD8（save crypt）
-以 `#pragma aux` inline-asm 對齊原版迴圈體 byte-for-byte（`FD2_ASM_PRIMITIVES`
-gate；可攜 C 參考版保留在 `#else` 分支）。其餘手寫組語 leaf（RLE blitter 家族，
-見 src/gfx/blittile.c / blitspr.c 註解）以可攜 C emit 維持 Layer-2 功能等價。
+**原版手寫組語函數的辨識與 emit 政策。** 原版有少數 game-logic 函數不是 wcc386
+編譯的 C，辨識特徵＝無 `PUSH n / CALL __CHK` stack-probe prologue（wcc386 編譯的
+FD2 C 必有）＋字串指令 / 硬體 ROL 慣用法（wcc386 9.5a 從可攜 C 任何旗標組合都
+產不出 LODSB/STOSB/LOOP 形式，恆為 MOVZX/DEC/JNE）。全部手寫組語函數（位址連續
+cluster 0x4DB9C palette remap / 0x4DBB9 save checksum / 0x4DBD8 save crypt，
+以及 RLE blitter 家族，見 src/gfx/blittile.c / blitspr.c 註解）一律以可攜 C emit
+維持 Layer-2 功能等價。三函數 cluster 另在 `#ifdef FD2_ASM_PRIMITIVES` 下保留
+與原版迴圈體 byte-for-byte 相同的 `#pragma aux` inline-asm 分支（建置預設不定義
+此 macro；供 A/B 診斷，兩支 build script 的旗標必須同開同關）。
 
 **⚠ 例外：math intrinsic 呼叫形式必須對齊原版（停用 intrinsic）。** 原版遊戲碼
 一律呼叫 CRT `sqrt`/`sin`/`cos` 真函數（IF@* intrinsic stub 在原 binary 零 xref）；
