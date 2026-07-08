@@ -213,7 +213,7 @@ struct tile_step_event_hook {
 ```
 
 機制：char 移動到一個有 `tile_event_id != 0` 的 tile 時，post-action 流程呼
-`check_tile_event_post_action`。詳 `program_info/field.md`。
+`fd2_check_tile_event_post_action`（@ 0x13A44）。詳 `program_info/field.md`。
 
 ## tile_pickup_table (offset +0x53..+0x82)
 
