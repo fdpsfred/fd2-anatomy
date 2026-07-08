@@ -28,6 +28,7 @@ emit 在編譯層面看起來沒問題（build 0 error / 0 warning、測試綠�
 | D. 熱迴圈 codegen 時序 | 商店進入腳步聲被對話音效打斷 | pose 縮放取整除法 emit 成 `>>7`（2 指令），原版有號 `/128`（6 指令）→ 過場變快、SFX 被切 | `a195696` |
 | E. 硬編絕對位址 | "File not found" 開場退出 | `fd2_load_dat_resource` 把字串位址寫死成 immediate，linker 把字串擺別處 → fopen 空檔名 | `f44a0a1` |
 | F. math intrinsic 呼叫形式 | 白光柱特效在 86Box-macOS runaway page fault | math.h intrinsic 使 sqrt() emit 成 `CALL IF@DSQRT`（原版從未執行的路徑），86Box dynarec 誤執行回 0.0 → remap count=0 下溢 | `15d32073` |
+| G. stack-probe 分佈 | 音效初始化時 "Stack Overflow!" 終止 | crt/dpmi 支援單元帶了探測，AIL ISR 在私有堆疊（低於 _STACKLOW）呼叫 get_eflags thunk → 探測誤判溢位 | `395221d7` |
 
 其中**開場 hang（第一個 scene 後黑畫面）**不是獨立 bug，是 E（fname）與 B（union REGS）兩個修復
 連帶解決的，不另列。
@@ -228,9 +229,29 @@ emulator 崩潰」的 case，歸因不能停在與崩潰點的形式相關性（
 
 ---
 
+## G. stack-probe 分佈 —— 音效初始化時 "Stack Overflow!" 終止
+
+**症狀**：帶音效初始化啟動時，程式立即印 "Stack Overflow!" 終止。
+
+**根因**：wcc386 預設給每個函數插 `PUSH n / CALL __CHK` 堆疊探測，探測拿 ESP 與**主堆疊底線**
+（`_STACKLOW`）比較。AIL 的 timer/audio-mix ISR 進中斷後切到 **AIL 私有 DGROUP 堆疊**（位址低於
+`_STACKLOW`）再呼叫 `crt_equivalent_get_eflags_thunk`——thunk 若帶探測，ESP 必低於主堆疊底線
+→ 誤判溢位 → 終止。CLIB3S(stk) 對「外來堆疊」本有 SS 逃生門，但 flat model 下所有段共用同一
+selector，逃生門永不生效。原版的探測分佈是：**遊戲碼全帶 `__CHK`，crt/dpmi 支援單元全不帶**。
+
+**修法**：不用全域 `-s`（那會拿掉原版本有的溢位防護——4K 堆疊底下緊鄰 DGROUP 全域，未偵測
+溢位會無聲改寫遊戲狀態），改在 `src/crt/crt.c`、`src/util/dpmi.c` 以
+`#pragma off (check_stack)` 對齊原版分佈。診斷工具：`tools/stkdiag/`。
+
+**教訓**：stack-probe 的「哪些單元有、哪些沒有」也是原版的隱性契約，load-bearing、兩邊都不能
+動：全關（`-s`）失去防護，全開則被中斷的私有堆疊誤殺。與 A 類同源（都是「被 vendor lib 以
+特殊 context 呼叫」的隱性契約）。詳細機制：`../link/wlink_settings.md` 的 `-s` 段。
+
+---
+
 ## 通用教訓
 
-這些 bug 揭示了「Layer-2 功能等價」emit 會在六個面向悄悄偏離原版、且只在完整遊戲執行時才浮現的
+這些 bug 揭示了「Layer-2 功能等價」emit 會在七個面向悄悄偏離原版、且只在完整遊戲執行時才浮現的
 盲點。編譯綠、單元測試綠都驗不出來，因為它們不是「這個 function 算錯」，而是「這個 function 在真實
 環境的某個隱性契約上和原版不一致」：
 
@@ -244,6 +265,8 @@ emulator 崩潰」的 case，歸因不能停在與崩潰點的形式相關性（
 5. **絕對位址引用（E）** —— 原版寫死的位址在 rebuild 一律改 symbol。
 6. **helper 呼叫形式（F）** —— header intrinsic pragma 也是 codegen 的一部分；intrinsic vs 真函數
    偏離原版會把原版從未執行的 vendor lib 路徑帶進 runtime。
+7. **stack-probe 分佈（G）** —— 探測「哪些單元有、哪些沒有」是原版隱性契約；全關失去防護，
+   全開被 vendor ISR 的私有堆疊誤殺。
 
 定位這類 bug 的主力手段是**host WDISASM 反組譯比對**（把 `tests/OUT/obj/*.obj` 用
 `WATCOM_9.5a\BINNT\WDISASM.EXE` 直接在 Windows 反組譯，對照 Ghidra 的原版反組譯），免 DOSBox。
