@@ -158,7 +158,7 @@
  * callee-saved; the __CHK(0x2C) stack-probe prologue is
  * compiler-injected and omitted here.
  *
- * Walkthrough SOT: assets/chapters/chapter_01.md
+ * Walkthrough SOT: chapters/chapter_01.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_00__ch1_dialog_with_state(uint32 event_arg)
 {
@@ -199,7 +199,7 @@ void fd2_chapter_event_handler_00__ch1_dialog_with_state(uint32 event_arg)
  * callee-saved; the __CHK(0x2C) stack-probe prologue is
  * compiler-injected and omitted here.
  *
- * Walkthrough SOT: assets/chapters/chapter_01.md
+ * Walkthrough SOT: chapters/chapter_01.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_01__ch1_dialog_with_state(uint32 event_arg)
 {
@@ -234,7 +234,7 @@ void fd2_chapter_event_handler_01__ch1_dialog_with_state(uint32 event_arg)
  * CALL fd2_display_dialog_scene; ADD ESP,0x24; POP EBX; RET) at
  * 0x3430D; reproduced here as the inline call for Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_01.md
+ * Walkthrough SOT: chapters/chapter_01.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_02__ch1_dialog_with_state(uint32 event_arg)
 {
@@ -272,7 +272,7 @@ void fd2_chapter_event_handler_02__ch1_dialog_with_state(uint32 event_arg)
  * CALL fd2_display_dialog_scene; ADD ESP,0x24; POP EBX; RET) at
  * 0x3430D; reproduced here as the inline call for Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_01.md
+ * Walkthrough SOT: chapters/chapter_01.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_03__ch1_dialog_with_state(uint32 event_arg)
 {
@@ -338,7 +338,7 @@ void fd2_chapter_event_handler_04__unref_dialog_with_state(uint32 event_arg)
  * callee-saved; the __CHK(0x2C) stack-probe prologue is
  * compiler-injected and omitted here.
  *
- * Walkthrough SOT: assets/chapters/chapter_02.md
+ * Walkthrough SOT: chapters/chapter_02.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_06__ch2_reinforcement(uint32 event_arg)
 {
@@ -386,7 +386,7 @@ void fd2_chapter_event_handler_06__ch2_reinforcement(uint32 event_arg)
  * data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET);
  * reproduced here as the inline call for Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_13.md
+ * Walkthrough SOT: chapters/chapter_13.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_07__ch13_dialog_with_state(uint32 event_arg)
 {
@@ -430,7 +430,7 @@ void fd2_chapter_event_handler_07__ch13_dialog_with_state(uint32 event_arg)
  * trigger is byte [0x10] of that block (read as the gate, written 1 to
  * consume).
  *
- * Walkthrough SOT: assets/chapters/chapter_13.md
+ * Walkthrough SOT: chapters/chapter_13.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_08__ch13_first_time(uint32 stepping_char_id)
 {
@@ -470,7 +470,7 @@ void fd2_chapter_event_handler_08__ch13_first_time(uint32 stepping_char_id)
  * fd2_chapter_event_handler_0F @ 0x3462E JMPs into for its own page-4
  * dialog; reproduced here as the inline call for Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_03.md
+ * Walkthrough SOT: chapters/chapter_03.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_09__ch3_char_cond(uint32 event_arg)
 {
@@ -507,7 +507,7 @@ void fd2_chapter_event_handler_09__ch3_char_cond(uint32 event_arg)
  * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
  * equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_04.md
+ * Walkthrough SOT: chapters/chapter_04.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_0b__ch4_dialog(uint32 event_arg)
 {
@@ -570,7 +570,7 @@ void fd2_chapter_event_handler_0c__unref_first_time(uint32 event_arg)
  * callee-saved; the __CHK(0x2C) stack-probe prologue is compiler-injected
  * and omitted here. fd2_display_dialog_scene's uint32 return is discarded.
  *
- * Walkthrough SOT: assets/chapters/chapter_15.md
+ * Walkthrough SOT: chapters/chapter_15.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_0d__ch15_dialog_with_state(uint32 event_arg)
 {
@@ -609,7 +609,7 @@ void fd2_chapter_event_handler_0d__ch15_dialog_with_state(uint32 event_arg)
  * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
  * equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_05.md
+ * Walkthrough SOT: chapters/chapter_05.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_0e__ch5_dialog_with_state(uint32 event_arg)
 {
@@ -647,7 +647,7 @@ void fd2_chapter_event_handler_0e__ch5_dialog_with_state(uint32 event_arg)
  * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
  * equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_05.md
+ * Walkthrough SOT: chapters/chapter_05.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_0f__ch5_dialog_with_state(uint32 event_arg)
 {
@@ -686,7 +686,7 @@ void fd2_chapter_event_handler_0f__ch5_dialog_with_state(uint32 event_arg)
  * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
  * equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_05.md
+ * Walkthrough SOT: chapters/chapter_05.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_10__ch5_dialog(uint32 event_arg)
 {
@@ -718,7 +718,7 @@ void fd2_chapter_event_handler_10__ch5_dialog(uint32 event_arg)
  * PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24;
  * RET); reproduced here as the inline call for Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_05.md
+ * Walkthrough SOT: chapters/chapter_05.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_11__ch5_dialog_with_state(uint32 event_arg)
 {
@@ -759,7 +759,7 @@ void fd2_chapter_event_handler_11__ch5_dialog_with_state(uint32 event_arg)
  * reproduced here only as this function's own inline call; the consuming
  * handlers emit their own equivalent calls for Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_15.md
+ * Walkthrough SOT: chapters/chapter_15.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_12__ch15_dialog_with_state(uint32 event_arg)
 {
@@ -843,7 +843,7 @@ void fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg)
  * ADD ESP,0x24; RET); reproduced here as the inline call for Layer-2
  * equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_06.md
+ * Walkthrough SOT: chapters/chapter_06.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_14__ch6_dialog(uint32 event_arg)
 {
@@ -876,7 +876,7 @@ void fd2_chapter_event_handler_14__ch6_dialog(uint32 event_arg)
  * own page-2 dialog; reproduced here as the inline call for Layer-2
  * equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_06.md
+ * Walkthrough SOT: chapters/chapter_06.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_15__ch6_char_cond(uint32 event_arg)
 {
@@ -914,7 +914,7 @@ void fd2_chapter_event_handler_15__ch6_char_cond(uint32 event_arg)
  * return; reproduced here as the call to the named helper for Layer-2
  * equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_06.md
+ * Walkthrough SOT: chapters/chapter_06.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_16__ch6_char_cond(uint32 event_arg)
 {
@@ -1034,7 +1034,7 @@ void fd2_chapter_event_handler_18__unref_dialog(uint32 event_arg)
  *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
  *   0x13 (=19) max line count, 1 wait-for-input flag.
  *
- * Walkthrough SOT: assets/chapters/chapter_06.md
+ * Walkthrough SOT: chapters/chapter_06.md
  * ---------------------------------------------------------------- */
 void fd2_show_chapter_intro_text_dialog_mode_3(void)
 {
@@ -1069,7 +1069,7 @@ void fd2_show_chapter_intro_text_dialog_mode_3(void)
  * second-stage gate flag is byte [0x10] of that block and this handler's
  * own consumed flag is byte [0x11].
  *
- * Walkthrough SOT: assets/chapters/chapter_07.md
+ * Walkthrough SOT: chapters/chapter_07.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_19__ch7_first_time(uint32 event_arg)
 {
@@ -1114,7 +1114,7 @@ void fd2_chapter_event_handler_19__ch7_first_time(uint32 event_arg)
  * handler consumes byte [0x10] of that block (the same slot whose
  * consumption gates the second-stage handler_19 @ 0x34924).
  *
- * Walkthrough SOT: assets/chapters/chapter_07.md
+ * Walkthrough SOT: chapters/chapter_07.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_1a__ch7_char_cond(uint32 stepping_char_id)
 {
@@ -1156,7 +1156,7 @@ void fd2_chapter_event_handler_1a__ch7_char_cond(uint32 stepping_char_id)
  * tail performs the cdecl 4-byte cleanup and RET; reproduced here as the
  * inline fd2_delay_ms(100) call for Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_08.md
+ * Walkthrough SOT: chapters/chapter_08.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_1b__ch8_cinematic(uint32 event_arg)
 {
@@ -1190,7 +1190,7 @@ void fd2_chapter_event_handler_1b__ch8_cinematic(uint32 event_arg)
  * uniform cdecl); the body never reads the arg. EBX is callee-saved; the
  * __CHK(8) stack-probe prologue is compiler-injected and omitted here.
  *
- * Walkthrough SOT: assets/chapters/chapter_08.md
+ * Walkthrough SOT: chapters/chapter_08.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_1c__ch8_ai_ctrl(uint32 event_arg)
 {
@@ -1331,7 +1331,7 @@ void fd2_chapter_event_handler_1e__unref_major_cinematic(uint32 event_arg)
  * handler reaches via "PUSH 0xC8; JMP 0x353D1"; reproduced here as the
  * inline call for Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_09.md
+ * Walkthrough SOT: chapters/chapter_09.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_1f__ch9_reinforcement(uint32 event_arg)
 {
@@ -1378,7 +1378,7 @@ void fd2_chapter_event_handler_1f__ch9_reinforcement(uint32 event_arg)
  * shared body's effect is reproduced inline here for Layer-2
  * equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_10.md
+ * Walkthrough SOT: chapters/chapter_10.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_20__ch10_dialog(uint32 event_arg)
 {
@@ -1432,8 +1432,8 @@ void fd2_chapter_event_handler_20__ch10_dialog(uint32 event_arg)
  *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
  *   0x13 (=19) max line count, 1 wait-for-input flag.
  *
- * Walkthrough SOT: assets/chapters/chapter_10.md (ch10 reinforcement
- * arrival) and assets/chapters/chapter_13.md (ch13).
+ * Walkthrough SOT: chapters/chapter_10.md (ch10 reinforcement
+ * arrival) and chapters/chapter_13.md (ch13).
  * ---------------------------------------------------------------- */
 void fd2_show_chapter_dialog_with_portrait_set_1(void)
 {
@@ -1465,7 +1465,7 @@ void fd2_show_chapter_dialog_with_portrait_set_1(void)
  * shared helper. The sibling handler_20 @ 0x34BE2 reaches the same body
  * by falling through ("PUSH 0x28; 0x34BE2 -> 0x34BE7").
  *
- * Walkthrough SOT: assets/chapters/chapter_13.md
+ * Walkthrough SOT: chapters/chapter_13.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_05__ch13_thunk(uint32 event_arg)
 {
@@ -1501,7 +1501,7 @@ void fd2_chapter_event_handler_05__ch13_thunk(uint32 event_arg)
  *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
  *   0x13 (=19) max line count, 1 wait-for-input flag.
  *
- * Walkthrough SOT: assets/chapters/chapter_10.md
+ * Walkthrough SOT: chapters/chapter_10.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_21__ch10_dialog_with_state(uint32 event_arg)
 {
@@ -1571,7 +1571,7 @@ void fd2_chapter_event_handler_22__unref_dialog(uint32 event_arg)
  * (0x34CAE -> 0x000134E4) into fd2_clear_all_chars_facing (void, no args);
  * reproduced here as the inline call for Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_12.md
+ * Walkthrough SOT: chapters/chapter_12.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_23__ch12_cinematic(uint32 event_arg)
 {
@@ -1601,7 +1601,7 @@ void fd2_chapter_event_handler_23__ch12_cinematic(uint32 event_arg)
  * touched; the __CHK(4) stack-probe prologue is compiler-injected and
  * omitted here.
  *
- * Walkthrough SOT: assets/chapters/chapter_12.md
+ * Walkthrough SOT: chapters/chapter_12.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg)
 {
@@ -1727,7 +1727,7 @@ void fd2_chapter_event_handler_0a__ch14_first_time(uint32 event_arg)
  * data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET);
  * reproduced here as the inline call for Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_15.md
+ * Walkthrough SOT: chapters/chapter_15.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_26__ch15_dialog(uint32 event_arg)
 {
@@ -1837,7 +1837,7 @@ void fd2_chapter_event_handler_27__unref_drop(uint32 stepping_char_id)
  *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
  *   0x13 (=19) max line count, 1 wait-for-input flag.
  *
- * Walkthrough SOT: assets/chapters/chapter_17.md
+ * Walkthrough SOT: chapters/chapter_17.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_28__ch17_dialog_with_state(uint32 event_arg)
 {
@@ -1950,7 +1950,7 @@ void fd2_chapter_event_handler_29__unref_drop(uint32 stepping_char_id)
  *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
  *   0x13 (=19) max line count, 1 wait-for-input flag.
  *
- * Walkthrough SOT: assets/chapters/chapter_18.md
+ * Walkthrough SOT: chapters/chapter_18.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_2a__ch18_dialog(uint32 event_arg)
 {
@@ -1987,7 +1987,7 @@ void fd2_chapter_event_handler_2a__ch18_dialog(uint32 event_arg)
  * single-char AI-flag write -- is reproduced here as the inline call for
  * Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_18.md
+ * Walkthrough SOT: chapters/chapter_18.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_2b__ch18_ai_ctrl(uint32 event_arg)
 {
@@ -2022,7 +2022,7 @@ void fd2_chapter_event_handler_2b__ch18_ai_ctrl(uint32 event_arg)
  * in-binary code-folding artifact; its effect -- the AI-flag range write --
  * is reproduced here as the inline call for Layer-2 equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_19.md
+ * Walkthrough SOT: chapters/chapter_19.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_2c__ch19_ai_ctrl(uint32 event_arg)
 {
@@ -2057,7 +2057,7 @@ void fd2_chapter_event_handler_2c__ch19_ai_ctrl(uint32 event_arg)
  * AI-flag range write -- is reproduced here as the inline call for Layer-2
  * equivalence.
  *
- * Walkthrough SOT: assets/chapters/chapter_19.md
+ * Walkthrough SOT: chapters/chapter_19.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_2d__ch19_ai_ctrl(uint32 event_arg)
 {
@@ -2084,7 +2084,7 @@ void fd2_chapter_event_handler_2d__ch19_ai_ctrl(uint32 event_arg)
  * uniform cdecl); the body never reads the arg. EBX is not touched; the
  * __CHK(0x28) stack-probe prologue is compiler-injected and omitted here.
  *
- * Walkthrough SOT: assets/chapters/chapter_19.md
+ * Walkthrough SOT: chapters/chapter_19.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_event_handler_2e__ch19_reinforcement(uint32 event_arg)
 {

@@ -130,7 +130,7 @@ def parse_program_info() -> dict[str, tuple[str, str]]:
 
     Sources:
     - program_info/*.md root-level system files (per SYSTEM_GROUP_MAP)
-    - program_info/chapters/*.md → all G8 event
+    - chapters/*.md → all G8 event
     """
     mapping: dict[str, tuple[str, str]] = {}
     # `@ 0xADDR` style reference; capture the addr. Allow leading spaces /

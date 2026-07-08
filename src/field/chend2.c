@@ -65,7 +65,7 @@ const uint8 data_fd2_chapter_ch20_end_scene2_char_pos_y_table[9] = {
  * 15 turns (turn_counter < 16) it also plays the extended 達可賽 scene and
  * recruits 達可賽 (char 0x1C). Finishes by advancing current_chapter_id.
  *
- * Walkthrough SOT: assets/chapters/chapter_20.md
+ * Walkthrough SOT: chapters/chapter_20.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_20_end(void)
 {
@@ -188,7 +188,7 @@ const uint8 data_fd2_chapter_ch21_end_scene_char_facing_table[25] = {
  * and 羅蘭 (0x17) from base+growth, saving the runtime char templates, and
  * advancing current_chapter_id.
  *
- * Walkthrough SOT: assets/chapters/chapter_21.md
+ * Walkthrough SOT: chapters/chapter_21.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_21_end(void)
 {
@@ -293,7 +293,7 @@ const uint8 data_fd2_chapter_ch22_end_scene_char_facing_table[16] = {
  * tail shares fd2_chapter_14_end's epilogue snippet @ 0x239AC). No char is
  * added in the handler — 龍騎士莎拉 joins via an FDFIELD event.
  *
- * Walkthrough SOT: assets/chapters/chapter_22.md
+ * Walkthrough SOT: chapters/chapter_22.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_22_end(void)
 {
@@ -386,7 +386,7 @@ const uint8 data_fd2_chapter_ch23_end_scene_char_facing_table[17] = {
  * reloads the chapter background layers, performs two cursor/window pans
  * around cutscene event 0x49 (fired three times), and shows final page 17.
  *
- * Walkthrough SOT: assets/chapters/chapter_23.md
+ * Walkthrough SOT: chapters/chapter_23.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_23_end(void)
 {
@@ -492,7 +492,7 @@ void fd2_chapter_23_end(void)
  * increments -> full fade-out). Finishes by blacking the framebuffer,
  * saving the runtime char templates, and advancing current_chapter_id.
  *
- * Walkthrough SOT: assets/chapters/chapter_24.md
+ * Walkthrough SOT: chapters/chapter_24.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_24_end(void)
 {
@@ -548,7 +548,7 @@ void fd2_chapter_24_end(void)
  * is initialised AFTER the save, it joins the runtime roster but is NOT
  * persisted into the template chars (binary design; the walkthrough omits it).
  *
- * Walkthrough SOT: assets/chapters/chapter_25.md
+ * Walkthrough SOT: chapters/chapter_25.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_25_end(void)
 {
@@ -606,7 +606,7 @@ const uint8 data_fd2_chapter_ch26_end_scene_char_facing_table[16] = {
  * the handler -- 機器人渥德 joins via an FDFIELD event; this handler only
  * positions it.
  *
- * Walkthrough SOT: assets/chapters/chapter_26.md
+ * Walkthrough SOT: chapters/chapter_26.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_26_end(void)
 {
@@ -720,7 +720,7 @@ const uint8 data_fd2_chapter_ch27_end_scene_bad_path_status_flicker_char_idx = 0
  *     (fd2_play_game_ending_cinematic). It then hard-locks in an infinite
  *     loop — the binary's "沒天空之鑰悠妮獨自回黃金城無法玩" game-over.
  *
- * Walkthrough SOT: assets/chapters/chapter_27.md
+ * Walkthrough SOT: chapters/chapter_27.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_27_end(void)
 {
@@ -821,7 +821,7 @@ void fd2_chapter_27_end(void)
  * runtime char templates, and advances current_chapter_id by one. No char
  * added, no cutscene -- pure dialog (page 7) + save + chapter advance.
  *
- * Walkthrough SOT: assets/chapters/chapter_28.md
+ * Walkthrough SOT: chapters/chapter_28.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_28_end(void)
 {
@@ -857,7 +857,7 @@ void fd2_chapter_28_end(void)
  * fade-in (brightness 0x3E->0, 4ms/step), then saves the runtime char
  * templates and advances current_chapter_id by one.
  *
- * Walkthrough SOT: assets/chapters/chapter_29.md
+ * Walkthrough SOT: chapters/chapter_29.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_29_end(void)
 {
@@ -971,7 +971,7 @@ const uint8 data_fd2_chapter_ch30_end_scene_char_facing_table[20] = {
  * staff-roll cinematic (fd2_play_game_ending_cinematic) and hard-locks in an
  * infinite loop — the game terminates here.
  *
- * Walkthrough SOT: assets/chapters/chapter_30.md
+ * Walkthrough SOT: chapters/chapter_30.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_30_end(void)
 {

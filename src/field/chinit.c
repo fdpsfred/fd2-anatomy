@@ -32,7 +32,7 @@
  * __CHK(0x2C) stack-probe is the Watcom-injected frame-size check
  * and is not part of the source body.
  *
- * Walkthrough SOT: assets/chapters/chapter_01.md
+ * Walkthrough SOT: chapters/chapter_01.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_01_init(void)
 {
@@ -204,7 +204,7 @@ void fd2_chapter_01_init(void)
  *   Post-action: fd2_chapter_02_post_action @ 0x206C5
  *                (extra lose if any of chars[5..10] dead — 6 villagers)
  *
- * Walkthrough SOT: assets/chapters/chapter_02.md
+ * Walkthrough SOT: chapters/chapter_02.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_02_init(void)
 {
@@ -270,7 +270,7 @@ void fd2_chapter_02_init(void)
  *   Post-action: (default — fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
- * Walkthrough SOT: assets/chapters/chapter_03.md
+ * Walkthrough SOT: chapters/chapter_03.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_03_init(void)
 {
@@ -330,7 +330,7 @@ void fd2_chapter_03_init(void)
  *   Post-action: (default — fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
- * Walkthrough SOT: assets/chapters/chapter_04.md
+ * Walkthrough SOT: chapters/chapter_04.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_04_init(void)
 {
@@ -382,7 +382,7 @@ void fd2_chapter_04_init(void)
  *   Post-action: (default — fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
- * Walkthrough SOT: assets/chapters/chapter_05.md
+ * Walkthrough SOT: chapters/chapter_05.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_05_init(void)
 {
@@ -437,7 +437,7 @@ void fd2_chapter_05_init(void)
  *   Post-action: (default — fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
- * Walkthrough SOT: assets/chapters/chapter_06.md
+ * Walkthrough SOT: chapters/chapter_06.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_06_init(void)
 {
@@ -483,7 +483,7 @@ void fd2_chapter_06_init(void)
  *   Post-action: (default — fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
- * Walkthrough SOT: assets/chapters/chapter_07.md
+ * Walkthrough SOT: chapters/chapter_07.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_07_init(void)
 {
@@ -538,7 +538,7 @@ void fd2_chapter_07_init(void)
  *   Post-action: (default -- fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
- * Walkthrough SOT: assets/chapters/chapter_08.md
+ * Walkthrough SOT: chapters/chapter_08.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_08_init(void)
 {
@@ -584,7 +584,7 @@ void fd2_chapter_08_init(void)
  *   Post-action: (default — fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
- * Walkthrough SOT: assets/chapters/chapter_09.md
+ * Walkthrough SOT: chapters/chapter_09.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_09_init(void)
 {
@@ -615,9 +615,11 @@ void fd2_chapter_09_init(void)
  * NO portrait load, and NO char init — chapter 10 carries the party
  * over from chapter 9.
  *
- * The two paralysis writes set runtime_char[0x32] (索菲亞 / Sophia) and
- * runtime_char[0x33] (卡納恩三世 / Kanaan III) status_paralysis_flag
+ * The two paralysis writes set runtime_char[0x32] (卡納恩三世 / Kanaan III)
+ * and runtime_char[0x33] (索菲亞 / Sophia) status_paralysis_flag
  * (struct offset +0x26) = 100 — both NPCs start the battle paralyzed.
+ * (Identity confirmed from FDTXT entry 10 page 4/5: char 0x32 is the
+ * captured King Kanaan III, char 0x33 is the priestess Sophia.)
  * In the disassembly each write is base[0x53A45] + idx*0x50 + 0x26
  * (0xFA0 = 0x32*0x50, 0xFF0 = 0x33*0x50). There is no
  * data_fd2_battle_anim_phase reset on the code path and no
@@ -640,9 +642,9 @@ void fd2_chapter_09_init(void)
  *   End:         fd2_chapter_10_end @ 0x235F9
  *   Post-action: fd2_chapter_10_post_action @ 0x20707
  *                (extra lose if char[0x32] OR char[0x33] dead —
- *                 索菲亞/卡納恩三世)
+ *                 卡納恩三世/索菲亞)
  *
- * Walkthrough SOT: assets/chapters/chapter_10.md
+ * Walkthrough SOT: chapters/chapter_10.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_10_init(void)
 {
@@ -685,7 +687,7 @@ void fd2_chapter_10_init(void)
  *   Post-action: (default -- fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
- * Walkthrough SOT: assets/chapters/chapter_11.md
+ * Walkthrough SOT: chapters/chapter_11.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_11_init(void)
 {
@@ -746,7 +748,7 @@ void fd2_chapter_11_init(void)
  *   Post-action: fd2_chapter_12_post_action @ 0x2073D
  *                (extra lose if char[0xE] dead — 米亞斯多德)
  *
- * Walkthrough SOT: assets/chapters/chapter_12.md
+ * Walkthrough SOT: chapters/chapter_12.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_12_init(void)
 {
@@ -801,7 +803,7 @@ void fd2_chapter_12_init(void)
  *     (1) chars[0xF..0x1A] (12 NPCs) all dead = lose + dialog page 10;
  *     (2) save_metadata > 5 AND char[0x3B] dead = lose + dialog page 2.
  *
- * Walkthrough SOT: assets/chapters/chapter_13.md
+ * Walkthrough SOT: chapters/chapter_13.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_13_init(void)
 {
@@ -847,7 +849,7 @@ void fd2_chapter_13_init(void)
  *   Post-action: (default — fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
- * Walkthrough SOT: assets/chapters/chapter_14.md
+ * Walkthrough SOT: chapters/chapter_14.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_14_init(void)
 {
@@ -900,7 +902,7 @@ void fd2_chapter_14_init(void)
  *   Post-action: fd2_chapter_15_post_action @ 0x20822
  *                (extra lose if char[0x40] dead — 賽可邦勒)
  *
- * Walkthrough SOT: assets/chapters/chapter_15.md
+ * Walkthrough SOT: chapters/chapter_15.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_15_init(void)
 {
@@ -960,7 +962,7 @@ void fd2_chapter_15_init(void)
  * (蜜蒂 conditional recruit logic lives in fd2_chapter_16_end: HP_max >= 320
  * + save_metadata < 19 + chars[0x42..0x49] dead <= 4; char id 0x12 added.)
  *
- * Walkthrough SOT: assets/chapters/chapter_16.md
+ * Walkthrough SOT: chapters/chapter_16.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_16_init(void)
 {
@@ -1008,7 +1010,7 @@ void fd2_chapter_16_init(void)
  *   Post-action: fd2_chapter_17_post_action @ 0x20872 -- gated lose:
  *     蜜蒂(char 0x12) not joined AND char[0x34] dead -> page 2 + lose.
  *
- * Walkthrough SOT: assets/chapters/chapter_17.md
+ * Walkthrough SOT: chapters/chapter_17.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_17_init(void)
 {
@@ -1053,7 +1055,7 @@ void fd2_chapter_17_init(void)
  *     chars[0, 0x10, 0x11] any dead = lose;
  *     char[0x34] dead = win (擊殺黑暗騎士勝利條件 — 首章 boss-kill-win 設計).
  *
- * Walkthrough SOT: assets/chapters/chapter_18.md
+ * Walkthrough SOT: chapters/chapter_18.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_18_init(void)
 {
@@ -1130,7 +1132,7 @@ void fd2_chapter_18_init(void)
  *                  (extra lose if char[0x10] OR char[0x11] dead
  *                   — 羅蘭/希爾法)
  *
- * Walkthrough SOT: assets/chapters/chapter_19.md, chapter_20.md,
+ * Walkthrough SOT: chapters/chapter_19.md, chapter_20.md,
  *                  chapter_21.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_19_20_21_init_shared(void)
@@ -1179,7 +1181,7 @@ void fd2_chapter_19_20_21_init_shared(void)
  *                (shared with ch27/28) -- extra lose if runtime_char[1]
  *                dead (the slot-1 ally is 希爾法 in chapter 22).
  *
- * Walkthrough SOT: assets/chapters/chapter_22.md
+ * Walkthrough SOT: chapters/chapter_22.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_22_init(void)
 {
@@ -1244,7 +1246,7 @@ void fd2_chapter_22_init(void)
  *     chars[0, 1, 0x10, 0x11] any dead = lose; char[0x12] dead = win
  *     (機甲隊長).
  *
- * Walkthrough SOT: assets/chapters/chapter_23.md
+ * Walkthrough SOT: chapters/chapter_23.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_23_init(void)
 {
@@ -1335,7 +1337,7 @@ void fd2_chapter_23_init(void)
  *   Post-action: (default -- fd2_check_battle_end_default_handler
  *                @ 0x205B4)
  *
- * Walkthrough SOT: assets/chapters/chapter_24.md
+ * Walkthrough SOT: chapters/chapter_24.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_24_init(void)
 {
@@ -1392,7 +1394,7 @@ void fd2_chapter_24_init(void)
  *   Post-action: fd2_chapter_25_post_action @ 0x20B14
  *                (extra lose if char[0x10] dead -- 聖寇拉斯)
  *
- * Walkthrough SOT: assets/chapters/chapter_25.md
+ * Walkthrough SOT: chapters/chapter_25.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_25_init(void)
 {
@@ -1466,7 +1468,7 @@ void fd2_chapter_25_init(void)
  * (9 階段密集 reinforcement turn 2/4/6/8/10/12/15/16/17 = FDFIELD event
  * 觸發, 非此 init handler.)
  *
- * Walkthrough SOT: assets/chapters/chapter_26.md
+ * Walkthrough SOT: chapters/chapter_26.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_26_init(void)
 {
@@ -1530,7 +1532,7 @@ void fd2_chapter_26_init(void)
  *                (shared with ch22/28) -- extra lose if char[1] dead
  *                (悠妮).
  *
- * Walkthrough SOT: assets/chapters/chapter_27.md
+ * Walkthrough SOT: chapters/chapter_27.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_27_init(void)
 {
@@ -1624,7 +1626,7 @@ void fd2_chapter_27_init(void)
  *                (shared with ch22/27) — extra lose if char[1] dead
  *                (悠妮).
  *
- * Walkthrough SOT: assets/chapters/chapter_28.md
+ * Walkthrough SOT: chapters/chapter_28.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_28_init(void)
 {
@@ -1701,7 +1703,7 @@ void fd2_chapter_28_init(void)
  *                tile_event_consumed_flags[0x12,0x13,0x14] all set =
  *                win; chars[0,1] dead = lose)
  *
- * Walkthrough SOT: assets/chapters/chapter_29.md
+ * Walkthrough SOT: chapters/chapter_29.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_29_init(void)
 {
@@ -1759,7 +1761,7 @@ void fd2_chapter_29_init(void)
  *                char[0x14] dead = win (空魔神); chars[0,1] dead =
  *                lose)
  *
- * Walkthrough SOT: assets/chapters/chapter_30.md
+ * Walkthrough SOT: chapters/chapter_30.md
  * ---------------------------------------------------------------- */
 void fd2_chapter_30_init(void)
 {

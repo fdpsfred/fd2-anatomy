@@ -58,8 +58,8 @@ Entry 1 (chapter 2)：
 的公式 `base + (chapter_id-1) * 0x1F` 對 chapter_id > 26 會回傳指到
 `data_fd2_battle_spell_learning_table` 內部的指標；遊戲不會這樣呼叫，因為
 chapters 27..30 屬 endgame / 非 story chapter，其 transition dispatch 不走
-intro panel 流程 (詳 `program_info/chapters/chapter_29.md` /
-`program_info/chapters/chapter_30.md`)。
+intro panel 流程 (詳 `chapters/chapter_29.md` /
+`chapters/chapter_30.md`)。
 
 ## 跨版本偏移
 

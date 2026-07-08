@@ -99,7 +99,7 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
 
 ### 8. 各章寶物清單與 enemy 配置的詳細內容
 
-- **現狀**：`assets/chapters/chapter_NN.md` 中部分章節 (ch16..ch29) 寫
+- **現狀**：`chapters/chapter_NN.md` 中部分章節 (ch16..ch29) 寫
   「待解：寶物清單需從 FDFIELD.DAT tile_event 解析。」與類似標記。
 - **為什麼還沒解**：寶箱與 enemy 配置寫在 FDFIELD.DAT 的 char_spawn_records
   與 tile_pickup_table，未對 30 章全部展開。
@@ -318,7 +318,7 @@ emit C source → Watcom 編譯成 DOS executable 不受影響。等 build pipel
 - ✅ #28 FD2 連結時的 wlink linker 設定 — 從 LE header / object table / page map / 入口流程 + Watcom 9.5a CRT 識別結論反推完整 wlink directive：`system dos4g` + `name FD2.EXE` + `option stack=4K` + main `file f2.obj` (決定模組名 "f2")。LE binary layout 3 個 object（`_TEXT` @ 0x10000 / `DGROUP` @ 0x50000 含 22 KB CONST+DATA+BSS+4KB STACK / `FAR_DATA` @ 0x60000 含 13.5 KB FD2 大型 data tables）、入口 chain (`_cstart_ @ 0x3C964` stock Watcom cstart → `__InitRtns + __CMain` → `main`)、Watcom 9.5a 多 extender 偵測 (DOS/4G "DX" / DOS/4GW "CB" / Phar Lap)、FD2.EXE 10424-byte Watcom DOS bind stub (找 `dos4gw.exe`/`dos4g.exe` exec FD2.EXE)、stack 與 cmdline buffer 共用 4 KB region 機制、Object 3 推測由 `#pragma data_seg("FAR_DATA")` source-level 顯式分組（非 `-zdt=N` threshold）。詳見 `rebuild_info/link/le_layout.md` + `rebuild_info/link/wlink_settings.md`
 - ✅ #20 ch20 達可塞「15 回合內」與 binary `< 16` — binary turn 1..15 PASS、攻略「15 回合內」對應 turn 1..15，精準對齊無差異
 - ✅ #22 ch13 攻略「哈瓦諾」vs binary char_id 3 — binary char_id 3 = 哈瓦特 (per `assets/text/global_text.md` page 4)，**結論：攻略筆誤**，正確角色名應為哈瓦特
-- ✅ #9 ch1 哈瓦特 / 哈諾 char_spawn_record 列舉 — 30 records 中唯二的 `team=2 player_class` 是 record[8] (char_id 0x03 哈瓦特) 與 record[9] (char_id 0x01 哈諾)；三 byte AI override `+0x11/+0x12/+0x13` 均為 (0,0,0)，protective AI 行為實際來源是 record[8] `+0x02 ai_target_id=0x01` 指向哈諾。詳見 `assets/chapters/chapter_01.md`「哈瓦特暴走」段
+- ✅ #9 ch1 哈瓦特 / 哈諾 char_spawn_record 列舉 — 30 records 中唯二的 `team=2 player_class` 是 record[8] (char_id 0x03 哈瓦特) 與 record[9] (char_id 0x01 哈諾)；三 byte AI override `+0x11/+0x12/+0x13` 均為 (0,0,0)，protective AI 行為實際來源是 record[8] `+0x02 ai_target_id=0x01` 指向哈諾。詳見 `chapters/chapter_01.md`「哈瓦特暴走」段
 - ✅ #23 tools/decoders/ round-trip 驗證 — 修正全 12 個 decoder 的 `REPO_ROOT = parents[4]` (舊路徑常數) → `parents[2]` + DAT 檔位置補上 `fd2_game_files/` prefix；smoke-test 全 12 個 decoder 跑 `--list` / `--info` / `--self-test` 通過
 - ✅ D7-3 ANI.DAT decoder dst_buf unaligned dword (`0x52762`) — 規則寫進 `rebuild_info/emission/pipeline_spec.md` §規則 E-9；全 DGROUP 已知唯一一筆 unaligned 4-byte global，emit 預設選 byte stream + bit-cast (`memcpy` access)
 - ✅ D7-4 AIL timer 16 vs 15 slot drain asymmetry — by design 非 bug：`AIL_internal_register_timer_inner @ 0x3eee6` 的 slot 分配 loop bound `< 0x3c` 表 slot 15 永不被 register_timer 分配，accumulate loop 跑到 slot 15 時不會更新 `pending_trigger_count[15]`（= nested counter @ 0x52B90）

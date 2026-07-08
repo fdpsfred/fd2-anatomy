@@ -20,7 +20,7 @@
  *
  * Paired init handler: fd2_chapter_01_init @ 0x3231B.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
- * Walkthrough: assets/chapters/chapter_01.md.
+ * Walkthrough: chapters/chapter_01.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_01_end(void)
 {
@@ -46,7 +46,7 @@ void fd2_chapter_01_end(void)
  *
  * Paired init handler: fd2_chapter_02_init @ 0x32D18.
  * Post-action handler: fd2_chapter_02_post_action @ 0x206C5.
- * Walkthrough: assets/chapters/chapter_02.md.
+ * Walkthrough: chapters/chapter_02.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_02_end(void)
 {
@@ -119,7 +119,7 @@ void fd2_chapter_02_end(void)
  *
  * Paired init handler: fd2_chapter_03_init @ 0x32E8C.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
- * Walkthrough: assets/chapters/chapter_03.md.
+ * Walkthrough: chapters/chapter_03.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_03_end(void)
 {
@@ -173,7 +173,7 @@ void fd2_chapter_03_end(void)
  *
  * Paired init handler: fd2_chapter_04_init @ 0x32FB2.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
- * Walkthrough: assets/chapters/chapter_04.md.
+ * Walkthrough: chapters/chapter_04.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_04_end(void)
 {
@@ -198,7 +198,7 @@ void fd2_chapter_04_end(void)
  *
  * Paired init handler: fd2_chapter_05_init @ 0x33049.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
- * Walkthrough: assets/chapters/chapter_05.md.
+ * Walkthrough: chapters/chapter_05.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_05_end(void)
 {
@@ -241,7 +241,7 @@ void fd2_chapter_05_end(void)
  *
  * Paired init handler: fd2_chapter_06_init @ 0x3314B.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
- * Walkthrough: assets/chapters/chapter_06.md.
+ * Walkthrough: chapters/chapter_06.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_06_end(void)
 {
@@ -278,7 +278,7 @@ void fd2_chapter_06_end(void)
  *
  * Paired init handler: fd2_chapter_07_init @ 0x33169.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
- * Walkthrough: assets/chapters/chapter_07.md.
+ * Walkthrough: chapters/chapter_07.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_07_end(void)
 {
@@ -339,7 +339,7 @@ void fd2_chapter_07_end(void)
  *
  * Paired init handler: fd2_chapter_08_init @ 0x33219.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
- * Walkthrough: assets/chapters/chapter_08.md.
+ * Walkthrough: chapters/chapter_08.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_08_end(void)
 {
@@ -395,7 +395,7 @@ void fd2_chapter_08_end(void)
  *
  * Paired init handler: fd2_chapter_09_init @ 0x3327D.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
- * Walkthrough: assets/chapters/chapter_09.md.
+ * Walkthrough: chapters/chapter_09.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_09_end(void)
 {
@@ -436,7 +436,7 @@ void fd2_chapter_09_end(void)
  *   sleep flag = 100 so they start the battle asleep).
  * Post-action handler: fd2_chapter_10_post_action @ 0x20707 (extra lose if
  *   char 0x32 OR char 0x33 is dead).
- * Walkthrough: assets/chapters/chapter_10.md.
+ * Walkthrough: chapters/chapter_10.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_10_end(void)
 {
@@ -514,7 +514,7 @@ void fd2_chapter_10_end(void)
  *
  * Paired init handler: fd2_chapter_11_init @ 0x33367.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
- * Walkthrough: assets/chapters/chapter_11.md.
+ * Walkthrough: chapters/chapter_11.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_11_end(void)
 {
@@ -547,7 +547,7 @@ void fd2_chapter_11_end(void)
  * Paired init handler: fd2_chapter_12_init @ 0x333F5.
  * Post-action handler: fd2_chapter_12_post_action @ 0x2073D (extra lose if
  *   char 0xE (米亞斯多德) is dead).
- * Walkthrough: assets/chapters/chapter_12.md.
+ * Walkthrough: chapters/chapter_12.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_12_end(void)
 {
@@ -599,7 +599,7 @@ void fd2_chapter_12_end(void)
  * Post-action handler: fd2_chapter_13_post_action @ 0x20765 (non-default lose
  *   checks: (1) chars[0xF..0x1A] 12 NPC all dead -> lose + dialog page 10;
  *   (2) save_metadata > 5 AND char[0x3B] dead -> lose + dialog page 2).
- * Walkthrough: assets/chapters/chapter_13.md.
+ * Walkthrough: chapters/chapter_13.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_13_end(void)
 {
@@ -634,7 +634,7 @@ void fd2_chapter_13_end(void)
  *
  * Paired init handler: fd2_chapter_14_init @ 0x3347C.
  * Post-action handler: fd2_check_battle_end_default_handler @ 0x205B4.
- * Walkthrough: assets/chapters/chapter_14.md.
+ * Walkthrough: chapters/chapter_14.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_14_end(void)
 {
@@ -688,7 +688,7 @@ void fd2_chapter_14_end(void)
  * Paired init handler: fd2_chapter_15_init @ 0x334D9.
  * Post-action handler: fd2_chapter_15_post_action @ 0x20822 (extra lose if
  *   char 0x40 (賽可邦勒) is dead).
- * Walkthrough: assets/chapters/chapter_15.md.
+ * Walkthrough: chapters/chapter_15.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_15_end(void)
 {
@@ -733,7 +733,7 @@ void fd2_chapter_15_end(void)
  * Paired init handler: fd2_chapter_17_init @ 0x335AA.
  * Post-action handler: fd2_chapter_17_post_action @ 0x20872 (gated lose: 蜜蒂
  *   (char 0x12) 未加入 AND char[0x34] dead -> dialog page 2 + lose).
- * Walkthrough: assets/chapters/chapter_17.md.
+ * Walkthrough: chapters/chapter_17.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_17_end(void)
 {
@@ -807,7 +807,7 @@ void fd2_chapter_17_end(void)
  * Paired init handler: fd2_chapter_18_init @ 0x335DA.
  * Post-action handler: fd2_chapter_18_post_action @ 0x208CF (non-default win/
  *   lose: chars[0, 0x10, 0x11] any dead -> lose; char[0x34] dead -> win).
- * Walkthrough: assets/chapters/chapter_18.md.
+ * Walkthrough: chapters/chapter_18.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_18_end(void)
 {
@@ -882,7 +882,7 @@ void fd2_chapter_18_end(void)
  * Paired init handler: fd2_chapter_16_init @ 0x335A0.
  * Post-action handler: fd2_chapter_16_post_action @ 0x2084A (extra lose if char
  *   0x41 (蜜蒂) is dead).
- * Walkthrough: assets/chapters/chapter_16.md.
+ * Walkthrough: chapters/chapter_16.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_16_end(void)
 {
@@ -951,7 +951,7 @@ void fd2_chapter_16_end(void)
  * Paired init handler: fd2_chapter_19_init @ 0x33674 (shared with ch20/21).
  * Post-action handler: fd2_chapter_19_post_action @ 0x20926 (gated lose:
  *   save_metadata > 6 AND char[0x40] dead -> lose, 巴拿羅西亞 死亡視為失敗).
- * Walkthrough: assets/chapters/chapter_19.md.
+ * Walkthrough: chapters/chapter_19.md.
  * ---------------------------------------------------------------- */
 void fd2_chapter_19_end(void)
 {

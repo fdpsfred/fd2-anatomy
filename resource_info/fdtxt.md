@@ -150,7 +150,7 @@ LLLLLL archive (詳 `overview.md`):
 
 每個 entry 的解碼結果 (中文已 substitute) 落在 assets/：
 - entry 0  → `assets/text/global_text.md`
-- entry 1..30 → `assets/chapters/chapter_NN.md` 的「對話」段
+- entry 1..30 → `chapters/chapter_NN.md` 的「對話」段
 - entry 31..33 → `assets/text/endgame_text.md`
 
 ## 工具

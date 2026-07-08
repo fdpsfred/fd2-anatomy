@@ -2,7 +2,7 @@
 
 章節生命週期（chapter lifecycle）與 FDFIELD 事件派遣。每章有一組 init / end
 handler（部分共用），戰鬥中的劇情事件則由 FDFIELD 資料驅動的函式 dispatch 觸發。
-各章劇情、招募、結局分歧等內容面細節見 `assets/chapters/`。
+各章劇情、招募、結局分歧等內容面細節見 `chapters/`。
 
 ## 驗證對象
 
@@ -50,7 +50,7 @@ end handler 收尾與 main loop 的章節切換路徑。
 ## Chapter init handlers（30 個，19/20/21 三章共用）
 
 各章 init handler 的內部流程與角色編成細節屬 per-chapter 內容，正典在
-`assets/chapters/`；下表僅列位址與大小作模組級索引。
+`chapters/`；下表僅列位址與大小作模組級索引。
 
 | ID | 位址 | 名稱 | 大小 |
 |---|---|---|---|
@@ -88,7 +88,7 @@ end handler 收尾與 main loop 的章節切換路徑。
 `chend1.c` 收錄 ch1–19（`fd2_chapter_01_end` ~ `fd2_chapter_19_end`），
 `chend2.c` 收錄 ch20–30（`fd2_chapter_20_end @ 0x23E74` ~ `fd2_chapter_30_end`），
 邊界章 ch19 是 chend1 最後一章、ch20 是 chend2 第一章。各章招募/獎勵/分歧細節在
-`assets/chapters/`。
+`chapters/`。
 
 | ID | 位址 | 名稱 | 大小 |
 |---|---|---|---|
@@ -153,7 +153,7 @@ id（0x20 / 0x1F），正式章節段才設成真正的 chapter id（0..0x1D）�
 
 只有 `fd2_chapter_01_init` 有完整 prologue（遊戲開場序章）。chinit.c 把它的
 prologue 記為 Phase A–D 四段（A/B 在 map 0x20、C 在 map 0x1F、D 為第 1 章正式戰鬥），
-逐段對話/cutscene 明細見 `assets/chapters/chapter_01.md`。其餘章節大多只有正式進入段
+逐段對話/cutscene 明細見 `chapters/chapter_01.md`。其餘章節大多只有正式進入段
 或極簡 stub。
 
 ## 回合結束 post-action：`data_fd2_chapter_post_action_handler_table`（`0x51B19`）
@@ -198,7 +198,7 @@ bypass-default 章以「後寫覆蓋前寫」決定最終結果，方向分兩�
 
 post-action 內的 `char_idx` 是 `runtime_char_array` 的 index（runtime 隊伍 slot），**不是**
 固定 char_id；同一 index 在不同章指不同角色。逐章 char_idx → 角色對照屬 per-chapter
-內容，正典在 `assets/chapters/`，此處僅列關鍵對應：
+內容，正典在 `chapters/`，此處僅列關鍵對應：
 
 | char_idx | 章節 | 對應角色 |
 |---|---|---|
@@ -468,4 +468,4 @@ ch28/29/30 以同型 state-machine-mutator handler 控制變身序列、final bo
 
 conditional recruit、reward、Good/Bad ending fork 等跨章節劇情機制的完整鏈路（如
 ch21_end 收齊 6 件 0xD1..0xD6 → 給天空之鑰、ch23/27_end 以是否持天空之鑰決定 good/bad
-path、ch30_end 擊殺空魔神 → epilogue good ending）正典在 `assets/chapters/_index.md`。
+path、ch30_end 擊殺空魔神 → epilogue good ending）正典在 `chapters/_index.md`。

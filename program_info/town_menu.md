@@ -199,7 +199,7 @@ promotion 表本身（`data_fd2_get_class_promotion_data_entry` 讀的表）欄�
 在回 0 時重跑）。勾滿後有 per-chapter 的必帶角色 gate 與 pin：確認名單含必帶角色，再
 `fd2_pin_required_char_to_party_slot1` 把必帶角色釘進 roster slot 1，最後顯示「準備好開戰了嗎」
 對話（FDTXT 0x292），選「是」回 1。逐章 pin 表與 slot-1 身分（如 ch22 希爾法、ch26 亞奇梅吉/
-悠妮、ch27/28 悠妮）見 `field.md` 與各 `assets/chapters/`。
+悠妮、ch27/28 悠妮）見 `field.md` 與各 `chapters/`。
 
 ## 角色狀態畫面
 
