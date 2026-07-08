@@ -199,7 +199,7 @@ struct turn_event_hook {
 
 Sentinel：`(turn=0xFF, event_code=0xFF, phase=0)`。30 章共 406 個 sentinel slot。
 ch9 / ch27 / ch28 / ch29 / ch30 有 `(turn=0xFF, event_code≠0xFF)` 形態，是動態
-啟動候選 (詳 `program_info/chapter_event_dispatch.md`)。
+啟動候選 (詳 `program_info/field.md`)。
 
 ## tile-step-event hook (offset +0x33..+0x52)
 
@@ -213,7 +213,7 @@ struct tile_step_event_hook {
 ```
 
 機制：char 移動到一個有 `tile_event_id != 0` 的 tile 時，post-action 流程呼
-`check_tile_event_post_action`。詳 `program_info/chapter_event_dispatch.md`。
+`check_tile_event_post_action`。詳 `program_info/field.md`。
 
 ## tile_pickup_table (offset +0x53..+0x82)
 

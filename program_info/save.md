@@ -1,6 +1,18 @@
-# save_load
+# save
 
 FD2.SAV 檔案的存讀寫，4-slot 選擇器，game-time 與 main-menu 兩條入口。
+
+## 驗證對象
+
+- **src 檔**：`save/save.c`（章末角色狀態回存、checksum、XOR 加解密、4-slot 存讀寫與 slot 選擇器 UI）。存讀入口與 portrait 快取 swap helper 另散於 lifecycle / rsrc 模組。
+- **主要 Ghidra 對象**（函數名 @ 位址，皆即時核對）：
+  - `fd2_load_save_and_init_engine` @ 0x10010、`fd2_field_menu_status_save_load_quit_dispatch` @ 0x19DF7、`fd2_main_menu_dispatcher` @ 0x25EBB — 三條存讀入口
+  - `fd2_save_current_state_to_slot` @ 0x30012、`fd2_load_state_from_selected_slot` @ 0x301F4、`fd2_save_slot_selector_ui` @ 0x30550 — slot 寫入/讀取/選擇器
+  - `fd2_save_compute_checksum` @ 0x4DBB9、`fd2_save_crypt_buffer` @ 0x4DBD8 — checksum 與 XOR involution
+  - `fd2_title_attract_and_main_menu` @ 0x1F894 — 讀檔判通關（lifecycle，正典見 overview.md）
+  - `fd2_load_chapter_portraits_and_dump_tmp` @ 0x10B4E、`fd2_restore_portrait_cache_from_tmp` @ 0x29117 — FD2.TMP portrait 快取 swap
+  - `data_fd2_portrait_sprite_cache` @ 0x53A61（0x32A00-byte portrait 快取區）
+- **相關資源檔**：`FD2.SAV`（存檔，完整 byte-level layout 見 resource_info/save_format.md）、`FD2.TMP`（換章 portrait swap 檔）、`FDICON.B24`（讀檔時重建 portrait 快取的來源）。
 
 ## 主要 functions
 
@@ -33,13 +45,14 @@ FD2.SAV 檔案的存讀寫，4-slot 選擇器，game-time 與 main-menu 兩條�
 ## 加密與 checksum
 
 `fd2_save_crypt_buffer` 是 XOR-based involution；同一 function 加密與解密。
-`fd2_save_compute_checksum` 是 4-byte sum/xor/rot 的快速 checksum (不是 CRC32)。
+`fd2_save_compute_checksum` 把 buffer[0..len-5]（排除末 4 byte 的 checksum 欄位本身）逐 byte
+累加成一個 32-bit 整數，是純加總 (additive byte-sum)，不是 CRC32，也不含 xor/rotate。
 
 ### 寫流程
 
 ```
 buffer ← 當前狀態
-compute_checksum(buffer, 0x59CB-4) → 寫進 buffer[0x59C7]
+compute_checksum(buffer, 0x59CB) → 寫進 buffer[0x59C7]   // 內部自動排除末 4 byte
 crypt_buffer(buffer, 0x59CB)
 fwrite(FD2.SAV, buffer)
 ```
@@ -49,7 +62,7 @@ fwrite(FD2.SAV, buffer)
 ```
 buffer ← fread(FD2.SAV)
 crypt_buffer(buffer, 0x59CB)               // 解密
-computed = compute_checksum(buffer, 0x59CB-4)
+computed = compute_checksum(buffer, 0x59CB)
 if (computed != buffer[0x59C7]) → 顯示錯誤
 ```
 
@@ -69,5 +82,5 @@ if (computed != buffer[0x59C7]) → 顯示錯誤
 
 `fd2_load_chapter_portraits_and_dump_tmp @ 0x10B4E` 與
 `fd2_restore_portrait_cache_from_tmp @ 0x29117` 兩個 helper 用 FD2.TMP 暫存
-data_fd2_portrait_sprite_cache (200 KB region from `0x53A61`)。換章節時把當前 portrait
-set dump 到 TMP，之後再 restore。
+data_fd2_portrait_sprite_cache (`0x53A61` 起的 0x32A00-byte 快取區)。換章節時把當前 portrait
+set dump 到 FD2.TMP，之後再 restore。

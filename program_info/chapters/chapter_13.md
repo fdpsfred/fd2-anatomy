@@ -71,5 +71,5 @@ header `+0..+2` = shap_id_byte / party_count = 15 / char_count = 70；`+3..+50` 
 
 | turn | phase | event_code | handler 位址 | 語意 |
 |---|---|---|---|---|
-| 4 | 1 (end_of_player_turn) | 0x05 | `0x00034D68` | thunk → FUN_00034BE7 (load_chapter_portraits race=1 + dialog page 1) |
+| 4 | 1 (end_of_player_turn) | 0x05 | `0x00034D68` | thunk → `fd2_show_chapter_dialog_with_portrait_set_1` @0x34BE7 (load_chapter_portraits race=1 + dialog page 1) |
 | 9 | 0 (enemy_turn_intro) | 0x07 | `0x00034D72` | dialog_with_state |

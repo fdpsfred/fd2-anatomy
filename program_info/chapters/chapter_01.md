@@ -1,6 +1,6 @@
 # 第 1 章 — chapter_01
 
-30 章中唯一含獨家 prologue（3-phase）的 init handler。
+30 章中唯一含獨家 prologue（分 Phase A–D 四段）的 init handler。
 
 ## Function 位址
 
@@ -12,58 +12,71 @@
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[0] @ 0x51E63` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[0] @ 0x51E81` |  |
 
-## Init handler 三階段
+## Init handler（Phase A–D 四段）
 
-### Phase 1 — Prologue (`current_chapter_id = 0x20`)
+依 `current_chapter_id` 三次寫入（0x20 / 0x1F / 0）分三個地圖階段；src 進一步把 map 0x20 段以
+state=1 過場 cutscene 0x64 為界拆成 Phase A、Phase B。對應關係：舊三段分法的 Phase 1 = A + B。
 
-`fd2_init_battle_state_for_chapter` 進入 prologue 模式，開場 cutscene：
+### Phase A — Prologue 地圖 1（`current_chapter_id = 0x20`）
 
-- `fd2_pan_cursor_and_window(3, 0x22)` 移到 prologue 場景
-- `fd2_cutscene_event_trigger(99)` 開場音樂 cue (event 0x63)
-- `walk_step_up(...) × 0xF` 然後 `fd2_display_dialog_scene(page=0)` — 開場走位
+`fd2_init_battle_state_for_chapter` 進入 prologue 模式：
+
+- `fd2_pan_cursor_and_window(3, 0x22)`
+- `fd2_cutscene_event_trigger(0x63=99)`
+- `walk_step_up × 0xF` 然後 `fd2_display_dialog_scene(page=0)`
 - `walk_step_up × 0xD` 然後 `fd2_display_dialog_scene(page=1)`
-- `fd2_set_bgm_track_with_fade(-1, 0)` 停 BGM；`fd2_cutscene_event_trigger(100)` (event 0x64)
-- `fd2_set_bgm_track_with_fade(0xB, 0)` 切 BGM track 11；`fd2_play_palette_fade_in`
-- 連續 5 段 cutscene + dialog: `0x65→page2`, `0x66→page3`, `0x67→page4`, `0x68→page5`, `0x69`
-- 共 6 個 prologue dialog pages (FDTXT entry 33 pages 0..5) + cutscene events 0x65..0x69
+- `fd2_set_bgm_track_with_fade(-1, 0)` 停 BGM
+- `cutscene_event_state=1`；`fd2_cutscene_event_trigger(0x64=100)` 過場
 
-### Phase 2 — Chapter 1 Intro (`current_chapter_id = 0x1F`)
+### Phase B — 仍在 map 0x20（不重設 chapter_id、不重跑 battle-state init）
 
-`fd2_init_battle_state_for_chapter` 切到 intro 模式，FDTXT 切到 entry 32：
+- `fd2_pan_cursor_and_window(0, 0x2B)`
+- `fd2_set_bgm_track_with_fade(0xB, 0)` 切 BGM track 11
+- `fd2_play_palette_fade_in`
+- 4 段 cutscene + dialog：`0x65→page2`、`0x66→page3`、`0x67→page4`、`0x68→page5`
+- `cutscene_event_state=1`；`fd2_cutscene_event_trigger(0x69)` 過場
+- Phase A+B 共用 6 個 prologue dialog pages（FDTXT entry 33 pages 0..5）
 
-- `fd2_pan_cursor_and_window(5, 0x2A)` 移到章節舞台
-- `fd2_load_chapter_portraits_and_dump_tmp(race_id=1)` 載肖像 set 1
-- 10 段 cutscene + dialog 序列：events `0x5A..0x62` + pages `0..9`
-- 中段 `fd2_load_chapter_portraits_and_dump_tmp(race_id=3)` 換肖像 set
-- 中段 `fd2_mark_char_as_dead(char_idx=2)` 移除某 char (cutscene 中某角色離場)
-- 末段 `fd2_load_chapter_portraits_and_dump_tmp(race_id=5)` 換肖像 set 3
-- 末尾 `fd2_set_bgm_track_with_fade(-1, 0)` + `fd2_cutscene_event_trigger(0x62)` 結束 intro
+### Phase C — Prologue 地圖 2（`current_chapter_id = 0x1F`）
 
-### Phase 3 — Set Chapter (`current_chapter_id = 0`)
+`fd2_init_battle_state_for_chapter` 切到第二段 prologue 地圖，FDTXT 切到 entry 32：
 
-`fd2_init_battle_state_for_chapter` 進入正式戰鬥模式，FDTXT 切到 entry 1：
+- `fd2_pan_cursor_and_window(5, 0x2A)`
+- `fd2_load_chapter_portraits_and_dump_tmp(1)` 載肖像 set 1
+- cutscene events `0x5A..0x61` 配 dialog pages `0..9`
+- 中段 `fd2_load_chapter_portraits_and_dump_tmp(3)` 換肖像、`fd2_pan_cursor_and_window(4, 0x29)`
+- 中段 `fd2_mark_char_as_dead(2)` 移除 cutscene 角色
+- 末段 `fd2_load_chapter_portraits_and_dump_tmp(5)` 換肖像 set
+- `fd2_set_bgm_track_with_fade(-1, 0)` 停 BGM
+- `cutscene_event_state=1`；`fd2_cutscene_event_trigger(0x62)` 結束 intro
+
+### Phase D — 第 1 章正式戰鬥（`current_chapter_id = 0`）
+
+先初始化 4 個 runtime char，**再**呼叫 `fd2_init_battle_state_for_chapter`（進入正式戰鬥模式、
+FDTXT 切到 entry 1）：
 
 - `fd2_init_runtime_char_from_base_growth(0)` — 索爾
-- `fd2_init_runtime_char_from_base_growth(9)` — 悠妮 (預初始化，下一步 `fd2_mark_char_as_dead(9)` 標未上場)
+- `fd2_init_runtime_char_from_base_growth(9)` — 悠妮（預初始化，稍後 `fd2_mark_char_as_dead(9)` 標未上場）
 - `fd2_init_runtime_char_from_base_growth(4)` — 亞雷斯
 - `fd2_init_runtime_char_from_base_growth(0x1E=30)` — 蓋亞
-- `fd2_pan_cursor_and_window(4, 0xC)` 移到地圖開始位置
-- `fd2_cutscene_event_trigger(0)` + `fd2_display_dialog_scene(page=0)` (entry 1)
-- `fd2_animate_party_addition_with_appear_effect(slot=1)` + `fd2_cutscene_event_trigger(1)`
-- `fd2_animate_party_addition_with_appear_effect(slot=2)` + `fd2_cutscene_event_trigger(2)`
-- `fd2_display_dialog_scene(page=1)` 對話
+- `fd2_init_battle_state_for_chapter`
+- `fd2_pan_cursor_and_window(4, 0xC)`
+- `fd2_cutscene_event_trigger(0)` + `fd2_display_dialog_scene(page=0)`（entry 1）
+- `fd2_animate_party_addition_with_appear_effect(1)` + `fd2_cutscene_event_trigger(1)`
+- `fd2_animate_party_addition_with_appear_effect(2)` + `fd2_cutscene_event_trigger(2)`
+- `fd2_display_dialog_scene(page=1)`
 - `fd2_cutscene_event_trigger(5)` + `fd2_mark_char_as_dead(9)` — 悠妮退場
-- `fd2_display_dialog_scene(page=2)` 結束開場
-- `fd2_pan_cursor_to_char(0)` 鏡頭聚焦索爾，戰鬥開始
-- `party_total_gold = 0` 重置初始金錢
+- `fd2_composite_battle_frame(0)`；`fd2_display_dialog_scene(page=2)`
+- `fd2_clear_all_chars_facing`；`fd2_pan_cursor_to_char(0)` 鏡頭聚焦索爾
+- `party_total_gold = 0`
 
 ## Dialog page 引用
 
 | 來源 | FDTXT entry | Pages 順序 |
 |---|---|---|
-| Init Phase 1 (prologue) | 33 | 0, 1, 2, 3, 4, 5 |
-| Init Phase 2 (intro) | 32 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 |
-| Init Phase 3 (start) | 1 | 0, 1, 2 |
+| Phase A+B (prologue) | 33 | 0, 1, 2, 3, 4, 5 |
+| Phase C (prologue 地圖 2) | 32 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 |
+| Phase D (正式戰鬥) | 1 | 0, 1, 2 |
 | End | 1 | 9 |
 
 ## char_id 初始化序列
@@ -124,6 +137,7 @@ turn-event hooks；`+51..` = char_spawn_records。
 | 6 | 1 (end_of_player_turn) | 0x03 | `0x00034377` | portrait race=6 swap + cutscene 6 + dialog 6 — 場景過場 |
 
 哈瓦特暴走機制：哈諾 (char_id 1) 死後，哈瓦特 protective AI
-(`pCombat_aux_block[0xD/E/F]` 由 `fd2_init_runtime_char_for_battle` 從 char_spawn_record
-+0x94/+0x95/+0x96 複製) 失去 ai_target dependency，自然 fall-through 為 default
-attacker。屬 implicit consequence，非 turn-triggered AI flip。
+(`pCombat_aux_block[0xD/E/F]`，即 runtime_char +0x34/+0x35/+0x36，由
+`fd2_init_runtime_char_for_battle` 從 char_spawn_record +0x11/+0x12/+0x13
+（ai_class_flags / ai_aux / ai_target_pos）複製) 失去 ai_target dependency，自然
+fall-through 為 default attacker。屬 implicit consequence，非 turn-triggered AI flip。

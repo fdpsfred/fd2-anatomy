@@ -19,21 +19,21 @@ vaddr，會隨 Ghidra 重分析穩定不變，但若要引用具體數值請即�
 
 | 模組 | `.c` 檔 | 代表 Ghidra 符號 | 對應 program_info |
 |---|---|---|---|
-| `anim` | anicine, anicombt, anidec, aniend, anispell, anisummn, aniui, aniwalk | `fd2_walk_path_animation_loop` @0x13488、`fd2_animate_spell_projectile_paths` @0x1df58、`fd2_animate_bg_zoom_transition_in` @0x29c90 | `animation.md` |
+| `anim` | anicine, anicombt, anidec, aniend, anispell, anisummn, aniui, aniwalk | `fd2_walk_path_animation_loop` @0x13488、`fd2_animate_spell_projectile_paths` @0x1df58、`fd2_animate_bg_zoom_transition_in` @0x29c90 | `anim.md` |
 | `audio` | audio | `fd2_set_bgm_track_with_fade` @0x25977、`fd2_play_sfx_with_handle` @0x25a96 | `audio.md`（game 端）；Miles AIL vendor 見 `ail/` |
 | `battle` | battle, btl_ai, btl_aisc, btl_aitg, btl_init, btl_turn | `fd2_game_main_loop` @0x117e7、`fd2_calculate_combat_hit_outcome` @0x29f72 | `battle.md` |
 | `crt` | crt | `crt_equivalent_get_eflags` @0x3ed58、`crt_equivalent_get_eflags_thunk` @0x37f86 | 無（CRT 層，見 `crt/symbol_inventory.md`）|
-| `dialog` | dialog | `fd2_display_dialog_scene` @0x15f84 | `text_dialog.md` |
-| `field` | chinit, chend1, chend2, chevt1, chevt2, chpost, chtrans | `fd2_chapter_NN_post_action`（各章）、章節 init/end handler | `field_map.md` + `chapter_event_dispatch.md` + `chapters/` |
-| `gfx` | blitspr, blittile, palette, rndmenu, rndscene, rndstat | `fd2_composite_battle_frame` @0x11cac、`fd2_rle_blit_sprite` @0x4e63d、`fd2_apply_palette_remap_run` @0x4db9c | `graphics.md` |
+| `dialog` | dialog | `fd2_display_dialog_scene` @0x15f84 | `dialog.md` |
+| `field` | chinit, chend1, chend2, chevt1, chevt2, chpost, chtrans | `fd2_chapter_NN_post_action`（各章）、章節 init/end handler | `field.md` + `chapters/` |
+| `gfx` | blitspr, blittile, palette, rndmenu, rndscene, rndstat | `fd2_composite_battle_frame` @0x11cac、`fd2_rle_blit_sprite` @0x4e63d、`fd2_apply_palette_remap_run` @0x4db9c | `gfx.md` |
 | `input` | input | `fd2_wait_for_input_with_idle` @0x11aa8 | `input.md` |
 | `life` | main | `main`（C 進入點，`fd2_` 前綴豁免）| `overview.md`（entry chain / startup）|
-| `rsrc` | rsrc | `fd2_load_dat_resource` @0x111ba | `resource.md` |
-| `save` | save | `fd2_save_current_state_to_slot` @0x30012、`fd2_save_crypt_buffer` @0x4dbd8、`fd2_save_compute_checksum` @0x4dbb9 | `save_load.md` |
-| `spell` | spell, spellcin, spelleff, spellsel | `fd2_cast_*` 系列（如 `fd2_cast_status_inflict_spell` @0x22d1b、`fd2_cast_screen_wide_spell_with_fade` @0x24618）| `battle.md`（法術效果/傷害）+ `animation.md`（法術視覺三段管線）|
-| `table` | table, anitab, audtab, btltab, btltab2, btltab3, chtab, chtab2, chtab3, dlgtab, gfxtab, strtab, uitab, orphan | `fd2_get_*_entry` accessor（如 `fd2_get_item_effect_entry` @0x4e56c、`fd2_get_spell_effect_entry` @0x4e516）；資料表如 `data_fd2_battle_item_effect_table`、`data_fd2_battle_spell_effect_table` | `table_accessor.md`；表的數值內容見 `assets/` |
-| `ui_menu` | menu, menucfg, menufld, cursor, chintro, promote, shop, status | `fd2_player_action_menu_loop` @0x18890、`fd2_cursor_move_up/down/left/right` @0x11b48.. | `ui_menu.md` |
-| `util` | dpmi, misc, noop, pathfnd | `fd2_dpmi_*`（如 `fd2_dpmi_lock_size` @0x36316）、`fd2_pathfind_*`（如 `fd2_pathfind_to_destination` @0x4e1a6）| dpmi 見 `link/` + `ail/`（AIL ISR 記憶體鎖定）；pathfind 屬 field 移動子系統 |
+| `rsrc` | rsrc | `fd2_load_dat_resource` @0x111ba | `rsrc.md` |
+| `save` | save | `fd2_save_current_state_to_slot` @0x30012、`fd2_save_crypt_buffer` @0x4dbd8、`fd2_save_compute_checksum` @0x4dbb9 | `save.md` |
+| `spell` | spell, spellcin, spelleff, spellsel | `fd2_cast_*` 系列（如 `fd2_cast_status_inflict_spell` @0x22d1b、`fd2_cast_screen_wide_spell_with_fade` @0x24618）| `spell.md`（dispatch/cinematic/effect 三層）；cinematic 視覺基元見 `anim.md`、傷害公式見 `battle.md` |
+| `table` | table, anitab, audtab, btltab, btltab2, btltab3, chtab, chtab2, chtab3, dlgtab, gfxtab, strtab, uitab, orphan | `fd2_get_*_entry` accessor（如 `fd2_get_item_effect_entry` @0x4e56c、`fd2_get_spell_effect_entry` @0x4e516）；資料表如 `data_fd2_battle_item_effect_table`、`data_fd2_battle_spell_effect_table` | `table.md`；表的數值內容見 `assets/` |
+| `ui_menu` | menu, menucfg, menufld, cursor, chintro, promote, shop, status | `fd2_player_action_menu_loop` @0x18890、`fd2_cursor_move_up/down/left/right` @0x11b48.. | `ui_menu.md`（戰場側 menu/cursor/menufld/menucfg）+ `town_menu.md`（城鎮側 chintro/shop/promote/status）|
+| `util` | dpmi, misc, noop, pathfnd | `fd2_dpmi_*`（如 `fd2_dpmi_lock_size` @0x36316）、`fd2_pathfind_*`（如 `fd2_pathfind_to_destination` @0x4e1a6）| `util.md`（misc/dpmi/noop）+ `pathfind.md`（pathfnd.c 移動範圍與尋路）|
 
 ## 資料表落點
 

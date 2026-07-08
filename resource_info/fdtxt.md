@@ -141,7 +141,7 @@ glyph_id 渲染英文/數字/符號。`NUMBER` opcode 內部從 `0x5014C` 讀 sp
 ## Dialog rendering pipeline
 
 `fd2_display_dialog_scene` 是完整 VM (do-while loop byte-by-byte u16 dispatch)。
-下游組件由 text_dialog system 詳述 (`program_info/text_dialog.md`)：
+下游組件由 dialog system 詳述 (`program_info/dialog.md`)：
 
 - `fd2_play_dialog_open_animation` — 5-stage 對話框 slide-in
 - `fd2_paint_portrait_to_dialog_area` — speaker 切換 (mirrored vs normal blit)

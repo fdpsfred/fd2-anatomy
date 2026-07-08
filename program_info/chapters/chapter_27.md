@@ -55,7 +55,7 @@ GOOD/BAD ENDING 分歧點：end handler 用 `fd2_any_char_has_item(100)` (天空
 - 標準 default 判定（全敵死 = 勝、索爾死 = 負）
 - **額外 lose 條件**：if chars[1] dead → `game_event_flag = 1`
 
-本章 chars[1] = 悠妮。
+本章 chars[1] = 悠妮（編成畫面 pin 表：chapter_id > 0x19 → char 9）。
 
 ## End handler events
 

@@ -239,4 +239,4 @@ ch21_end 收齊 6 件 → 兌換 item 0x64 (天空之鑰)，影響 ch23/ch27 分
 | D5 | 冰之眼 |
 | D6 | 火之眼 |
 
-詳 `assets/chapters/_index.md` 與 `program_info/field_map.md`。
+詳 `assets/chapters/_index.md` 與 `program_info/field.md`。

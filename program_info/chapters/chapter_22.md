@@ -41,7 +41,9 @@ End handler 為 FD2 全 30 章中唯一以「全螢幕白屏 → palette fade �
 - default
 - 額外 lose：if `char[1]` 死亡
 
-`char[1]` = 希爾法 (跨 ch22/27/28 共用同一 NPC slot)。
+`char[1]` = 希爾法（編成畫面 pin 表：chapter_id 0x15/0x16 → char 0x18，由
+`fd2_pin_required_char_to_party_slot1` 釘進 slot 1）。與 ch27/28 共用的是 post-action
+handler 的 slot-1 檢查結構，不是同一角色：ch27/28 的 chars[1] 是悠妮。
 
 ## End handler events
 

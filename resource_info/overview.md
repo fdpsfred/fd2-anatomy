@@ -18,7 +18,7 @@ FD2.SAV 存檔、FD2.LE binary 本身，以及 Miles Sound System 用的 .MDI / 
 內容 = file[start..end]。entry_count = N − 1（最後一個 u32 是 sentinel = file_size）。
 
 `fd2_load_dat_resource @ 0x111BA` 是統一 loader，演算法與 caller 細節見
-`program_info/resource.md`。
+`program_info/rsrc.md`。
 
 ## 11 個 LLLLLL 資源檔
 

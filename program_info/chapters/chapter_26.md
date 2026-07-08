@@ -42,9 +42,11 @@ End handler 用 `tile_event_consumed_flags[0xC]` 動態決定 dialog page (5 條
 
 `fd2_chapter_26_post_action @ 0x00020B3C`：
 - 標準 default 判定（全敵死 = 勝、索爾死 = 負）
-- **額外 lose 條件**：if chars[1] (悠妮) OR chars[2] (亞奇梅吉) 死 → `game_event_flag = 1`
+- **額外 lose 條件**：if chars[1] (亞奇梅吉) OR chars[2] (悠妮) 死 → `game_event_flag = 1`
 
-註：runtime char index 隨章節而變。chars[1] 在 ch22 是希爾法，ch26/27/28 是悠妮。
+註：runtime char index 隨章節而變，由編成畫面 per-chapter pin 決定：chars[1] 在 ch22/23
+是希爾法、ch27/28 是悠妮；ch26 先 pin 悠妮(9) 再 pin 亞奇梅吉(0x1D)，最終
+chars[1]=亞奇梅吉、chars[2]=悠妮。
 
 ## End handler events
 

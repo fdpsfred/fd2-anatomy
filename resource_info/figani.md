@@ -65,7 +65,7 @@ A0 3D 00 00  pose_offset[3] = 0x3DA0 (15776)
 ## per-spell animation 三個平行 byte-table
 
 對 spell_id 0..35 的視覺效果由 3 個平行 byte tables 驅動 (見
-`program_info/animation.md`)：
+`program_info/anim.md`)：
 
 | Table | Address | 用途 |
 |---|---|---|

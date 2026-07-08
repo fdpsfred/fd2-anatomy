@@ -81,4 +81,4 @@ if (computed != buffer[0x59C7]) → 顯示錯誤
 ## 與 program 端的對應
 
 完整 fopen call sites 與 9 處字串 occurrence 對應的 6 個 function 見
-`program_info/save_load.md`。
+`program_info/save.md`。
