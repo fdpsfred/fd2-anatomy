@@ -32,7 +32,7 @@ FD2.SAV 存檔、FD2.LE binary 本身，以及 Miles Sound System 用的 .MDI / 
 | FDMUS.DAT | 80,367 | 20 | `fdmus.md` | Miles XMI MIDI 音樂 |
 | FIGANI.DAT | 15,279,582 | 408 | `figani.md` | 必殺技 / 召喚動畫 byte-stream |
 | BG.DAT | 624,564 | 56 | `bg.md` | 320×100 cinematic / battle BG (`fd2_rle_blit_sprite` RLE) |
-| TAI.DAT | 94,917 | 56 | `tai.md` | terrain overlay / AI 配對資料 (與 BG 配對) |
+| TAI.DAT | 94,917 | 56 | `tai.md` | cinematic 前景 sprite 覆蓋層 (BG.DAT 配對) |
 | TITLE.DAT | 23,377 | 7 | `title.md` | dead resource (FD2 從未載入) |
 | ANI.DAT | 2,437,547 | 9 | `ani.md` | 多 frame RLE delta 動畫序列 |
 
@@ -43,10 +43,11 @@ FIGANI、BG、TAI。走獨立 fopen (但同 LLLLLL 格式) 的 2 個：TITLE、A
 
 - **FDICON.B24** — 唯一非 LLLLLL，由 `fopen` 直接讀。1680 個 24×24 8bpp
   RLE icon。詳 `fdicon.md`。
-- **FD2.SAV** — 22987-byte 存檔，header + map snapshot + runtime_char_array +
-  4 個 slot snapshot + checksum。詳 `save_format.md`。
+- **FD2.SAV** — 22987-byte 存檔，前段是 live-state header（tile-event 資料 + 隊伍
+  roster + runtime 角色陣列），後段是 4 個存檔 slot（各存一份隊伍 roster + 章節／設定
+  欄位），末端 4-byte checksum。詳 `save_format.md`。
 - **FD2.TMP** — runtime swap file (portrait cache dump，由 chapter handler 使用，
-  不是靜態資源檔)。
+  不是靜態資源檔)。檔案格式見 `fd2_tmp.md`。
 
 ## 與 program 端的對應
 

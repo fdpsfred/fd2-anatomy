@@ -71,12 +71,13 @@ tile_event[0] = 0x17)。
 +2  u16 LE  tile height (= 0x18 = 24)
 +4  u16 LE  tile_count
 +6  int32 LE [tile_count]  各 tile 相對 sheet base 的 byte offset
-各 tile：command-only 的 fd2_rle_blit_sprite 指令流，固定 24×24
-        (in-game 由 fd2_tile_blit_24x24_passthrough @ 0x1399C 前的 helper 解)
+各 tile：command-only 的 RLE 4-op 指令流，固定 24×24
+        (in-game 由 `fd2_convert_battle_tiles_to_24px @ 0x1399C` 消費)
 ```
 
-每個 tile 的 RLE 指令格式與 `fd2_rle_blit_sprite @ 0x4E63D` 相同 (高 2 bits 選
-op、`len=(cmd&0x3F)+1`)，只是固定 24×24 且無 `[w][h]` header。
+每個 tile 的 RLE 4-op 編碼與 `fd2_rle_blit_sprite @ 0x4E63D` 相同 (詳見
+`resource_info/codecs.md`)，FDSHAP tile 專屬點：固定 24×24、指令流無 `[w][h]`
+header (寬高由 sheet header 的 `0x18/0x18` 統一決定)。
 
 ch1 sample (FDSHAP[0])：147,740 bytes，288 個 24×24 tile。
 
@@ -99,6 +100,10 @@ ch1 sample: 1200 bytes / 4 = 300 tiles。
 
 ## 驗證
 
-以 offset 表逐 tile 解碼 (每 tile 為固定 24×24 的 command-only rle_blit 指令流)，
+以 offset 表逐 tile 解碼 (每 tile 為固定 24×24 的 command-only RLE 4-op 指令流)，
 ch1 sheet 的 288 個 tile 全數還原成連貫的地形圖磚 (草地 / 水 / 泥路 / 岩石 /
 屋頂 / 木橋 等)。
+
+## 工具
+
+- 解碼：`tools/decoders/fdshap_decoder.py` (tile sheet + 4-byte/tile attribute)

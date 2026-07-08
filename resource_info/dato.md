@@ -20,10 +20,8 @@ self-describing 的 frame：
   +4  bytes   dialog-pixel 編碼的像素流
 ```
 
-每 frame 的像素用 **dialog-pixel 編碼** (`fd2_decode_dialog_pixel_byte @ 0x4E916`)，
-**不是** `fd2_rle_blit_sprite` 格式：byte ≤ 0xC0 為一個 literal 像素；byte b 在
-0xC1..0xFF 起一段「下一 byte 值」的 run，長度 (b-0xC1)+1 (1..63)。因此 pixel
-值 0xC1..0xFF 只會作為 run 的值出現，不會是裸 literal。
+每 frame 的像素用 **DATO dialog-pixel 編碼**（`fd2_decode_dialog_pixel_byte`），與 sprite
+的 RLE 4-op 格式不同，opcode 與 run 格式見 `codecs.md`。
 
 4 frames 是同一 portrait 的 4 個表情 (normal / smile / talk / closed-eyes)。
 
@@ -33,7 +31,6 @@ self-describing 的 frame：
 
 Caller chain:
 - `fd2_display_dialog_scene @ 0x15F84` — dialog 講者 portrait blit
-- `fd2_load_portrait_to_cache @ 0x11019` — 200KB linear-probe portrait cache
 - `render_status_screen_static_layout` — status screen char portrait
 - `run_equip_member_menu` / `run_status_screen_member_menu` — menu portraits
 - `fd2_play_final_chapter_30_ending` — endgame char portraits

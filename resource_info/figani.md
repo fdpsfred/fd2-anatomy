@@ -35,7 +35,7 @@ Total placeholder (3-byte): 144 entries (= 136 frame_c slots + 8 extra slot
 
 ```
 +0x00  u16 LE  pose_count                  (典型 4..16)
-+0x02  u16 LE  ???_count                   (可能 sub_pose_count 或 alt_count)
++0x02  u16 LE  ???_count                   (pending: 欄位語意未定案)
 +0x04  u16 LE  sfx_bank_id                 (索引 → 0x525DA → FDOTHER sub-archive)
 +0x06  u16 LE  reserved
 +0x08  u32 LE × pose_count    pose_offsets (each pointing to pose payload)
@@ -79,7 +79,11 @@ A0 3D 00 00  pose_offset[3] = 0x3DA0 (15776)
 
 ## Caller 分布
 
-| Caller | 推測 idx 公式 |
+各 caller 的 idx 引數由 runtime 值 (施法者/目標 portrait_id、spell_id) 決定；下表
+列出依 caller 結構推導的 idx 公式，個別 callsite 的精確引數尚未逐一 byte 定案
+(pending)。
+
+| Caller | idx 公式 (caller-derived) |
 |---|---|
 | `fd2_execute_special_attack_skill` | caster_portrait × 3 + 0/1, target_portrait × 3 + 0/1 |
 | `fd2_execute_summon_spell_cast` | caster_portrait × 3 (basic) + spell_id-derived |

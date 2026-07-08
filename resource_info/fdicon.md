@@ -1,7 +1,7 @@
-# FDICON.B24 — 24×24 indexed icon sprites
+# FDICON.B24 — 24×24 indexed portrait-frame sprites
 
-唯一的非 LLLLLL 資源檔。1680 個 24×24 8bpp RLE icon。
-file size 624,010 bytes (0x9858A)。
+唯一的非 LLLLLL 資源檔。內含 1680 個 24×24 8bpp RLE sprite，file size 624,010 bytes
+(0x9858A)。
 
 ## 檔案格式
 
@@ -11,69 +11,53 @@ file size 624,010 bytes (0x9858A)。
 +0x04       u16 LE  active_count = 0x0690 = 1680
 +0x06       u32 LE × (count+1)  offset[]    (last = sentinel = file_size)
                                             header_size = 6 + 1681 × 4 = 0x1A4A
-+0x1A4A..   payload  1680 個 RLE-compressed 24×24 8bpp icons
++0x1A4A..   payload  1680 個 RLE-compressed 24×24 8bpp sprite
 ```
 
-第一 icon offset[0] = 0x1A4A；末 icon end = file size 0x9858A。全 1681 offsets
-monotonic non-decreasing。
+第一 sprite offset[0] = 0x1A4A；末 sprite end = file size 0x9858A。全 1681 offset
+monotonic non-decreasing。header/height/count 欄位與 offset 表尺寸來源見 loader
+`fd2_load_portrait_to_cache`（fseek 6、fread 0x1A40，src/rsrc/rsrc.c:206）。
 
 ## 載入方式
 
-由 `fopen("FDICON.B24"...)` 直接 fopen — 不走 LLLLLL `fd2_load_dat_resource`。
-唯一的非 LLLLLL 資源。
+由 `fopen("FDICON.B24", "rb")` 直接開檔，不走 LLLLLL `fd2_load_dat_resource`，是全遊戲
+唯一的非 LLLLLL 資源。開檔點為章節 init 的 `fd2_load_chapter_battle_data @ 0x1088d` 與
+portrait 重載的 `fd2_load_chapter_portraits_and_dump_tmp @ 0x10b4e`，開檔後對該章要用到的
+每個 portrait 呼叫 loader，載完即 `fclose`。
 
-## 副檔名「.B24」推測
+## sprite namespace：140 portrait-set × 12 frame
 
-可能含義：
-- "B24" = "Bitmap 24-pixel" 或 "B(itmap) 24-(byte aligned)"
-- 不是 24-bit color (這是 8bpp indexed)
-- 不是 BMP format (沒有 "BM" magic)
-- 漢堂自家命名習慣，與 "LLLLLL" DAT format 同源
+1680 個 sprite 是 140 組 portrait，每組 12 個 frame。索引公式為
+`icon_idx = portrait_id × 12 + frame_idx`（portrait_id = 0..139，frame_idx = 0..11）。
 
-## RLE 格式
-
-與 FDOTHER sprite / FIGANI / BG / FDSHAP tile 共用 `fd2_rle_blit_sprite @ 0x4E63D`
-格式 (DATO portrait 不共用，用 dialog-pixel 格式)：
-
-- `0b00xxxxxx` = RLE fill (後續 1 byte 重複 len 次)
-- `0b01xxxxxx` = stretched fill (後續 1 byte 寫 len 個隔一像素)
-- `0b10xxxxxx` = literal copy (len 個 byte)
-- `0b11xxxxxx` = skip transparent
-
-平均壓縮率：449 bytes per 576-pixel icon ≈ 78% retained (壓縮率 ~22%)。
-
-## 1680 icon namespace
-
-24×24 tile sprite 1680 個不直接對應 char_id：
-- player char_id 0..0x43 (68 IDs)
-- data_fd2_battle_enemy_data_table 68 entries (0x44+)
-- 總 char namespace ~154
-
-1680 likely 對應：
-- field map 上的 24×24 mini-character sprite (多 frame per direction × walk cycle)
-- 24×24 tile sprite (terrain decorations / NPC mini-icons)
-- 多 portrait variant per char (idle / hurt / KO / status / direction × frame)
-
-具體 char_id ↔ icon idx 對應邏輯在 `load_portrait_to_cache` decompile 中可見
-portrait_id 如何映射到 FDICON idx。
-
-## 載入時機
-
-`fd2_load_chapter_battle_data @ 0x1088D` 內：
+loader `fd2_load_portrait_to_cache @ 0x11019`（src/rsrc/rsrc.c:206）的取表方式證實此佈局：
+`fseek(fp, 6, SEEK_SET)` 跳過 6-byte magic 後 `fread(hdr_buf, 1, 0x1A40, fp)` 讀入 6720 bytes
+= 1680 個 int32 offset，再對指定 portrait 抽出 13 個 int32：
 
 ```c
-fopen("FDICON.B24", &DAT_00050078);
-for (char_iter = 0; char_iter < portrait_cache_total_size; char_iter++) {
-    portrait_idx = fd2_load_portrait_to_cache(
-        bPortrait_id, bPos_x, ECX, bPortrait_id, file_handle);
-    pSlot_iter->pSprite_state[0] = (byte)portrait_idx;
-}
-crt_fclose(file_handle);
+for (i = 0; i < 0xd; i++)                       /* 12 frame offset + 1 end-mark */
+    sprite_offsets[i] = ((int32 *)hdr_buf)[portrait_id * 0xc + i];
+data_size = sprite_offsets[12] - sprite_offsets[0];   /* 該 portrait 全部 sprite 位元組數 */
 ```
 
-`fd2_load_portrait_to_cache @ 0x11019` 是 200 KB linear-probe 快取系統。每次 chapter
-init 開啟 FDICON.B24 → 對該章每個 char 讀 portrait_id 對應的 24×24 icon → 存到
-data_fd2_portrait_sprite_cache。
+即每個 portrait 對應表中連續 12 個 frame offset，第 13 個（`portrait_id×12 + 12`，等於下一個
+portrait 的首 offset）作為 end-mark 計算資料長度。抽出的 sprite bytes 存進
+`data_fd2_portrait_sprite_cache` 這個 malloc(0x32A00) 的 200KB 快取。
+
+快取結構容量為 40 個 portrait：快取前 0x780 bytes 是 frame-offset lookup table
+（40 × 12 sprite × 4-byte 絕對 offset），0x780 之後接 packed sprite payload。任一時刻快取只放
+該章實際用到的 portrait 工作子集（loader 對重複 portrait_id idempotent，命中直接回既有 idx，
+不做 I/O）。快取被完整 dump 成 FD2.TMP swap 檔，格式見 `fd2_tmp.md`。
+
+## 編碼
+
+sprite payload 用 RLE 4-op sprite 編碼（`fd2_rle_blit_sprite`），opcode 與 palette_op 模式見
+`codecs.md`。
+
+## 副檔名「.B24」
+
+漢堂自家命名，與 LLLLLL DAT 命名同源。內容是 8bpp indexed（非 24-bit color、無 BMP `BM`
+magic）。
 
 ## 工具
 

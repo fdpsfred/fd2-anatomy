@@ -27,9 +27,9 @@ LLLLLL archive (詳 `overview.md`)，搭配兩種 entry：
 ## BGM dispatch
 
 - Dispatcher：`fd2_set_bgm_track_with_fade @ 0x25977`
-- `track_id` (4th arg via ECX register, Watcom convention) 直接當 FDMUS idx
+- `track_id`（第 1 個引數）直接當 FDMUS idx
 - **無 lookup table** — track_id ≡ FDMUS idx (1:1)
-- Loop count：5th arg via stack
+- Loop count：第 2 個引數 `loop_count`（`fd2_set_bgm_track_with_fade` 是 `__cdecl (track_id, loop_count)`）
 - 特殊規則：
   - `track_id == 0xFFFFFFFF` → stop with 4-second fade
   - `track_id == 0x10` 或 `0x11` → instant volume change (no fade-in)
@@ -55,8 +55,8 @@ LLLLLL archive (詳 `overview.md`)，搭配兩種 entry：
 | 0x0D | 6966 | XMI | dynamic-only |
 | 0x0E | 2924 | XMI | dynamic-only |
 | 0x0F | 4128 | XMI | dynamic-only |
-| 0x10 | 562 | XMI | special (instant fade-in, no smooth ramp) — 推測 victory fanfare 或 short stinger |
-| 0x11 | 1530 | XMI | special (instant fade-in) — 推測 defeat / chapter clear stinger |
+| 0x10 | 562 | XMI | special：dispatcher 特判為 instant fade-in、無 smooth ramp (短曲；具體用途 pending) |
+| 0x11 | 1530 | XMI | special：dispatcher 特判為 instant fade-in、無 smooth ramp (短曲；具體用途 pending) |
 | 0x12 | 9884 | XMI | main_menu (`main` 0x25BF4 `fd2_set_bgm_track_with_fade(0x12, 0)`) |
 | 0x13 | 1590 | XMI | player_turn ch1 / ch2 / ch3 / ch4 / ch6 / ch7 / ch8 / ch11..14 / ch16 / ch18..21 / ch24 / ch26 / ch28 / ch29 |
 
@@ -84,4 +84,4 @@ magic + chunk structure 完整)。
 
 ## 工具
 
-- 抽取 XMI：`tools/decoders/fdmus_xmi_extract.py`
+- 抽取 XMI：`tools/decoders/fdmus_xmi_extractor.py`

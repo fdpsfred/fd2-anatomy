@@ -12,13 +12,13 @@ LLLLLL archive (詳 `overview.md`)。
 ```
 +0x00  u16 LE  width    (= 0x0140 = 320)
 +0x02  u16 LE  height   (= 0x0064 = 100)
-+0x04  bytes   fd2_rle_blit_sprite 指令流 (高 2 bits 選 op、len=(cmd&0x3F)+1)
++0x04  bytes   RLE 4-op 指令流 (編碼見 resource_info/codecs.md)
 ```
 
 BG entry 由 `fd2_rle_blit_sprite @ 0x4E63D` 直接繪製 (`fd2_execute_summon_spell_cast`
-等把 BG.DAT 載入 `data_fd2_battle_special_cinematic_bg_layers[]`，再由 anispell /
-anicine 以 `fd2_rle_blit_sprite` blit)，RLE 格式與 FIGANI / FDICON / FDSHAP tile 相同
-(高 2 bits 選 op：`0b00` RLE fill / `0b01` stretched / `0b10` literal / `0b11` skip)。
+等把 BG.DAT 載入 `data_fd2_battle_special_cinematic_bg_layers[]` 再 blit)。編碼是
+RLE 4-op，與 FIGANI / FDICON / FDSHAP tile / TAI 共用同一格式，詳見
+`resource_info/codecs.md`。
 
 ## Placeholder marker
 

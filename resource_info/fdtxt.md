@@ -21,7 +21,7 @@ LLLLLL archive (詳 `overview.md`):
 
 | idx | chapter_id | 用途 | size (bytes) | pages |
 |---|---|---|---|---|
-| 0  | —    | `all_game_text` (global)   | 7636  | 661 |
+| 0  | —    | `data_fd2_all_game_text_ptr` (global)   | 7636  | 661 |
 | 1  | 0    | chapter 1 dialog           | 4360  | 12  |
 | 2  | 1    | chapter 2 dialog           | 3498  | 17  |
 | 3  | 2    | chapter 3 dialog           | 2458  | 10  |
@@ -62,7 +62,7 @@ LLLLLL archive (詳 `overview.md`):
 
 | Callsite | 函式 | 條件 | 目標 buffer |
 |---|---|---|---|
-| `0x25D07` | `main` | 程式啟動 (一次性) | `all_game_text @ 0x53A7D` ← idx 0 |
+| `0x25D07` | `main` | 程式啟動 (一次性) | `data_fd2_all_game_text_ptr @ 0x53A7D` ← idx 0 |
 | `0x108B7` | `fd2_load_chapter_battle_data` | 每章開戰前 | `data_fd2_current_chapter_text_ptr @ 0x53A79` ← idx = chapter_id + 1 |
 | `0x101E9` | `fd2_load_save_and_init_engine` | save 載入 | `data_fd2_current_chapter_text_ptr` ← idx = chapter_id + 1 |
 
@@ -76,7 +76,8 @@ LLLLLL archive (詳 `overview.md`):
 ```
 
 關鍵：`N = page_offsets[0] / 2`（offset table 自身結束 = 第一個 page 起點）。
-每個 page 以 `0xFFFF` (END) 終止；page 之間可能有少量 padding。
+每個 page 以 `0xFFFF` (END) 終止；page 之間偶有少量 padding byte，parser 一律以
+`page_offsets[]` 定位每頁起點，不受 padding 影響。
 
 範例 entry 1 (ch1, 4360 bytes) 開頭 16 bytes：
 `18 00 3C 01 CC 01 86 04 60 07 A8 07 90 0A 32 0C` →
@@ -95,8 +96,8 @@ LLLLLL archive (詳 `overview.md`):
 | `0xFFFF` | `END` | 0 | 終止 page (return from `fd2_display_dialog_scene`) |
 | `0xFFFE` | `LINE_ADVANCE` | 0 | 推進到下一行 (line_count++ 後重算 render 位置)，不等待按鍵；portrait active 且 line_count==3 時觸發 cinematic scroll |
 | `0xFFFD` | `PAGE_BREAK` | 0 | 推進到下一行後 paint portrait (若 active) 並等待玩家按鍵 (`fd2_wait_for_input_dialog_with_blink(1)`)；同樣有 line_count==3 的 cinematic scroll |
-| `0xFFFC` | `SUB_DIALOG_A` | 0 | 遞迴呼叫 `fd2_display_dialog_scene` 載入 `all_game_text[last_action_sprite_id]` 的 page |
-| `0xFFFB` | `SUB_DIALOG_B` | 0 | 遞迴載入 `all_game_text[drop_dialog_swap_text_id]` 的 page |
+| `0xFFFC` | `SUB_DIALOG_A` | 0 | 遞迴呼叫 `fd2_display_dialog_scene` 載入 `data_fd2_all_game_text_ptr[last_action_sprite_id]` 的 page |
+| `0xFFFB` | `SUB_DIALOG_B` | 0 | 遞迴載入 `data_fd2_all_game_text_ptr[drop_dialog_swap_text_id]` 的 page |
 | `0xFFFA` | `NUMBER` | 0 | runtime 數字代入 (sprintf via `0x5014C`，digit-by-digit blit) |
 | `0xFFEF` | `PORTRAIT_LEFT_BY_ID` | 1 (portrait_id) | 左側 portrait (`dialog_portrait_mode = 0x728`) |
 | `0xFFEE` | `PORTRAIT_RIGHT_BY_ID` | 1 (portrait_id) | 右側 portrait (`dialog_portrait_mode = 0x9017`) |
@@ -104,7 +105,7 @@ LLLLLL archive (詳 `overview.md`):
 | `0xFFEC` | `PORTRAIT_RIGHT_BY_CHAR` | 1 (runtime_char_array idx) | 右側 portrait (同上) |
 
 任何 < `0xFFEC` 的 u16 都被解讀為 `TEXT_CHARACTER`，直接傳入
-`fd2_blit_glyph_1bpp_with_outline(code = u16, atlas = chinese_font_sheet, ...)`
+`fd2_blit_glyph_1bpp_with_outline(code = u16, atlas = data_fd2_chinese_font_sheet, ...)`
 渲染一個字模。
 
 ### 控制碼出現次數 (across 1016 pages, 51155 glyphs)
@@ -125,18 +126,13 @@ LLLLLL archive (詳 `overview.md`):
 
 ## Glyph 編碼
 
-**Direct atlas index** — 不是 Big5 / GB / 任何標準中文編碼。每個 u16 glyph_id
-是 `chinese_font_sheet @ 0x53A75` (= FDOTHER.DAT[4]) 內 fixed-size sprite 的
-索引。Sprite 為 16×16 packed 1bpp (32 bytes/glyph)。
+任何 < `0xFFEC` 的 u16 (TEXT_CHARACTER) 就是 glyph_id，直接索引
+`data_fd2_chinese_font_sheet @ 0x53A75` (= FDOTHER.DAT[4]) 這張 atlas 的 fixed-size sprite。
+`NUMBER` opcode (`0xFFFA`) 由 `0x5014C` 讀 sprintf 結果、逐位轉成 atlas 索引 0..9 的
+數字字模。
 
-觀察到的 glyph_id 範圍：`0x0000..0x071F` (1824 distinct atlas slots)。
-
-ASCII 範圍 (`0x20..0x7E`) 在 atlas 中對應 ASCII 字模，可直接用 ASCII 碼作為
-glyph_id 渲染英文/數字/符號。`NUMBER` opcode 內部從 `0x5014C` 讀 sprintf 結果
-再 `digit_buf[i] - 0x30` 換成 0..9，證明 atlas 索引 0..9 對應數字 '0'..'9' 字模
-(數字字模在低索引處，不從 ASCII 0x30 起)。
-
-完整 glyph_id ↔ 中文字 lookup 見 `chinese_glyph_encoding.md`。
+編碼性質 (direct atlas index、非 Big5)、glyph_id 範圍、ASCII 對應、字模 16×16 1bpp
+規格，以及完整 glyph_id ↔ 中文字 lookup，統一見 `chinese_glyph_encoding.md`。
 
 ## Dialog rendering pipeline
 

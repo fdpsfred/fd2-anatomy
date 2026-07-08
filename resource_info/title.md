@@ -15,17 +15,12 @@ FD2.EXE: standalone "TITLE.DAT" string occurrences = 0
 無任何 fopen / `fd2_load_dat_resource` caller 引用 "TITLE.DAT" 字串。對 FD2 主
 遊戲而言是 dead resource，永遠不會被載入。
 
-## 推測用途 (非主遊戲)
+## 檔案性質
 
-雖然 TITLE.DAT 在 FLAME2 目錄存在，但對主遊戲是 dead resource。可能為：
-
-1. **早期開發殘留** — 原本計畫的標題畫面資源，後改用其他方式 (FDOTHER 內嵌 title sprite)
-2. **launcher / installer 殘留** — 廠商 packaging 工具可能用此檔顯示自己的 splash
-3. **共享其他檔案集** — 多遊戲共用 launcher 系列的標題資源
-4. **發行商的 cut content** — 本來要做但發行時砍掉的功能
-
-從 LLLLLL signature 看，這是漢堂自家 LLLLLL DAT format — 跟其他 LLLLLL DAT
-同源。可能是漢堂內部 build pipeline 統一輸出的 DAT 但 FD2 沒接這個 build target。
+TITLE.DAT 與其他 10 個資源檔同為漢堂自家 LLLLLL DAT format (同一 build pipeline
+輸出)，存在於 FLAME2 目錄，但 FD2 主遊戲沒有任何載入路徑接它。它在 FD2 的地位就是
+一個未被引用的 LLLLLL archive；為何隨遊戲一起發行，屬於 FD2 binary 之外的事實
+(pending，無法由程式碼定案)。
 
 ## 完整分類
 

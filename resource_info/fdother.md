@@ -17,13 +17,13 @@ sub-entries 各自獨立索引。
 |---|---|---|---|
 | 0x01 | `data_fd2_cursor_highlight_sprite_sheet_ptr @ 0x53A4D` | battle tile sprite table | 33,415 |
 | 0x02 | `data_fd2_menu_dialog_box_sprite_sheet_ptr @ 0x53A89` | menu dialog state | 37,680 |
-| 0x03 | `tile_anim_table_base @ 0x53A6D` | tile 動畫表 (LMI1 magic) | 5,990 |
-| **0x04** | `chinese_font_sheet @ 0x53A75` | **1bpp 中文字模 (1824 glyphs × 32 bytes)** | 58,368 |
-| 0x05 | `ui_and_anim_sprite_sheet @ 0x53A81` | UI / 動畫 sprite sheet (LMI1 magic) | 44,181 |
-| **0x06** | `portrait_sheet @ 0x53AD1` | portrait sheet (LMI1 magic) | 33,415 |
+| 0x03 | `data_fd2_tile_anim_table_base @ 0x53A6D` | tile 動畫表 (LMI1 magic) | 5,990 |
+| **0x04** | `data_fd2_chinese_font_sheet @ 0x53A75` | **1bpp 中文字模 (1824 glyphs × 32 bytes)** | 58,368 |
+| 0x05 | `data_fd2_ui_anim_sprite_sheet_ptr @ 0x53A81` | UI / 動畫 sprite sheet (LMI1 magic) | 44,181 |
+| **0x06** | `data_fd2_resource_portrait_sheet_ptr @ 0x53AD1` | portrait sheet (LMI1 magic) | 33,415 |
 | **0x1F** | `data_fd2_audio_fdother_sfx_bank_buf_ptr @ 0x53EEC` | nested archive (13 sub-entries) UI sprite + sfx | 31,771 |
 
-`chinese_font_sheet` 是 **1bpp** (58368 ÷ 1824 ÷ 32 = 1.0)。
+`data_fd2_chinese_font_sheet` 是 **1bpp** (58368 ÷ 1824 ÷ 32 = 1.0)。
 `fd2_blit_glyph_1bpp_with_outline @ 0x4EA2A` 命名指 **output buffer** 是 2bpp
 (fill + outline 兩 channel)，input glyph 是 1bpp。
 
@@ -68,19 +68,22 @@ sub-entries 各自獨立索引。
 
 ## Dynamic-domain 公式
 
-### chapter-id-dispatched (`fd2_load_chapter_background_layers`)
+### chapter-id-dispatched (`fd2_load_chapter_background_layers @ 0x10652`)
 
-`fd2_load_chapter_background_layers` 內部用 `CMP [current_chapter_id], 0xNN` 派發
-FDOTHER bg image idx：
+`fd2_load_chapter_background_layers` 依 `current_chapter_id` 分三型載入 FDOTHER
+背景圖層 (single-sprite / widescreen 上下雙圖 / text-scroll 過場)。widescreen 型
+以 `idx_base` 與 `idx_base + 1` 各載上下半：
 
-| idx range | dispatch 條件 |
-|---|---|
-| 0x0B | chapter_id 0 (ch1) - heuristic |
-| 0x10..0x1E | chapter_id 0x10..0x1E mapping (各章 BG 變體) |
-| 0x20, 0x23, 0x24 | chapter-state-dependent BG variant |
-| 0x27, 0x28, 0x2E, 0x2F | chapter-state BG |
-| 0x37 | `fd2_load_chapter_background_layers` explicit static |
-| 0x64 | chapter ending state BG |
+| current_chapter_id | FDOTHER idx | 型態 (bg_width × bg_height) |
+|---|---|---|
+| 9 / 0x18 / 0x19 | 0x0F | single-sprite (0x1CE × 0xE2) |
+| 0x11 | 0x10 + 0x11 | widescreen 上下雙圖 (0x1CE × 0xE2) |
+| 0x15 | 0x23 + 0x24 | widescreen (0x198 × 0x114) |
+| 0x16 | 0x28 + 0x29 | widescreen (0x198 × 0x100) |
+| 0x1B | 0x2E + 0x2F | widescreen (0x1CE × 0xF4) |
+| 0x17 | 0x2A | text-scroll 過場 (0x138 × 200) |
+| 0x1C / 0x1D | 0x37 | single-sprite |
+| 其他 (default) | 0x10 | single-sprite (0x1CE × 0xE2) |
 
 ### spell_id derived (`fd2_execute_summon_spell_cast`)
 
@@ -92,16 +95,17 @@ spell_id ∈ {0x20, 0x21, 0x22, 0x23} → FDOTHER idx **0x41 / 0x42 / 0x43 / 0x4
 ending 序列 loop `for(main_iter=0..8) load("FDOTHER", main_iter+0x45)` →
 FDOTHER idx **0x45..0x4D** (9 entries 連續 image sequence)。
 
-## 21 個 confirmed dead idx
+## 20 個 confirmed dead idx
 
 binary 內 immediate value **從未** 出現在 `fd2_load_dat_resource` 任何 callsite 50
-instruction 範圍內：
+instruction 範圍內。注意 widescreen 背景的下半圖 idx 是 `idx_base + 1` (0x11 /
+0x24 / 0x29 / 0x2F)，由加法算出而非 literal，因此不列為 dead — 這些 entry 由
+`fd2_load_chapter_background_layers` 實際載入。
 
 | idx | total uses elsewhere | classification |
 |---|---|---|
 | 0x25 | 18 | unrelated literals (loop counter) |
 | 0x26 | 10 | unrelated |
-| 0x29 | 6 | unrelated |
 | 0x2B | 19 | unrelated |
 | 0x2C | 61 | unrelated |
 | 0x31 | 19 | nested archive (7 sub-entries), no caller |
@@ -129,8 +133,8 @@ instruction 範圍內：
 |---|---|
 | documented_static | 38 |
 | documented_dynamic_recovered_via_binary_immediate_search | 33 |
-| documented_dynamic_domain (formula explicit) | 11 |
-| confirmed_dead_with_binary_no_ref_proof | 21 |
+| documented_dynamic_domain (formula explicit) | 12 |
+| confirmed_dead_with_binary_no_ref_proof | 20 |
 | **TOTAL** | **103** |
 
 ## 29 個 nested sub-archive
@@ -169,4 +173,6 @@ instruction 範圍內：
 
 ## 工具
 
-- 解碼：`tools/decoders/fdother_decoder.py`
+- archive header / nested sub-archive 拆解：`tools/decoders/dat_header_parser.py`
+- sprite / cinematic image 解碼：`tools/decoders/rle_decoder.py` (RLE 4-op，編碼見
+  `resource_info/codecs.md`)
