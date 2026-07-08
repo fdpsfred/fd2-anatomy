@@ -1,8 +1,9 @@
 # 全遊戲共用對話片段 (FDTXT.DAT entry 0)
 
 全遊戲共用對話片段庫 (661 pages)。`SUB_DIALOG_A` / `SUB_DIALOG_B` opcode 從
-chapter dialogs 遞迴到此；`fd2_play_final_chapter_30_ending` 用 `char.identity+1`
-(角色名) 與 `char.bJob_id+0x96` (職業名) 動態 page 索引拿系統文字。
+chapter dialogs 遞迴到此；名稱表以欄位值加常數當 page 索引（如角色名 = char_id + 1、
+職業名 = job_id + 0x96、道具名 = item_id + 0xB5）。各 page 的語意分區與 src 消費端見
+下方「Page 語意分區」表。
 
 ## Entry metadata
 
@@ -17,6 +18,47 @@ chapter dialogs 遞迴到此；`fd2_play_final_chapter_30_ending` 用 `char.iden
 - `{ascii char}` — 直接渲染的 ASCII glyph (font atlas indices 0x20–0x7E)
 - 中文字 — glyph_id 已從 `assets/text/glyph_table.md` 替換為實際字符
 - `〈NNNN〉` — 該 glyph_id 無 lookup entry 時的 fallback (極少出現)
+
+## Page 語意分區 (src 定錨)
+
+entry 0 是全遊戲共用文字庫，661 頁裡多數是名稱表與系統提示。下表只列出有 src 消費端
+定錨的語意分區：前半是「用某個欄位值加常數當 page 索引」的名稱表（消費端逐一列出），
+後半是 caller 寫死 page 值的系統提示簇。大量只含 `[END]` 的空頁是預留槽，無消費端，不
+逐一分類。
+
+### 以索引公式定位的名稱表
+
+| Page (dec) | Page (hex) | 語意 | 索引公式 | src 消費端 |
+|---|---|---|---|---|
+| 1–32 | 0x01–0x20 | 可加入角色名（索爾…渥德）| char_id + 1（玩家 char_id 0x00–0x1F）| rndstat.c:201、rndmenu.c、aniend.c 結局 |
+| 69–136 | 0x45–0x88 | 敵/友軍 unit 名（士兵…卡納恩三世）| char_id + 1（unit char_id ≥ 0x44）| 同上（同一名條查表路徑）|
+| 141–150 | 0x8D–0x96 | 種族/原型名（人類…龍）| archetype_flag + 0x8C | rndstat.c:202 |
+| 150–176 | 0x96–0xB0 | 職業/class 名（龍/劍士…機兵）| job_id + 0x96 | rndstat.c:203、rndmenu.c:802/910、promote.c:365、aniend.c:924 |
+| 181–395 | 0xB5–0x18B | 道具名（短劍…火之眼，215 道具 0x00–0xD6）| item_id + 0xB5 | menufld.c:96、btl_turn.c:719、chevt2.c:553、shop.c:308、rndmenu.c:307、rndstat.c:501 |
+| 441–476 | 0x1B9–0x1DC | 法術/劍技/召喚名（火炎術…暗邪鬼，36 法術 0x00–0x23）| spell_id + 0x1B9 | spellsel.c:167、btl_turn.c:971 |
+| 514–543 | 0x202–0x21F | 章號標題（第二章…第三十章）；page 0x202 兼作空存檔格「無儲存記錄」哨符 | chapter_id + 0x202 | rndmenu.c:689 |
+| 550–579 | 0x226–0x243 | 各章場景副標（孤島…傳說的終章）| chapter_id + 0x226 | rndmenu.c:692 |
+| 597–656 | 0x255–0x290 | 各章勝/敗條件顯示（敵全滅 / 索爾死亡…）| 勝利 = current_chapter_id×2 + 0x255；敗北 = +1（部分章 title 另有 −2 平移）| rndstat.c:995–1006 |
+
+道具名頁與法術名頁同時是拾取寶箱、商店、狀態面板等 `[SUB_DIALOG_A]` 內嵌名稱的來源。
+
+### 固定 page 的系統提示簇（caller 寫死 page 值）
+
+- **狀態解除訊息** page 480–487（0x1E0–0x1E7）：道具滿了、攻/防/速效果消失、毒/麻消退、
+  封咒消失、毒性發作 HP 減少。
+- **升級簇** page 488–494（0x1E8–0x1EE）：得到經驗(0x1E8) / 等級上升(0x1E9) /
+  力量(0x1EA) / 耐力(0x1EB) / 速度(0x1EC) / MHP(0x1ED) / MMP(0x1EE)。由
+  `fd2_process_xp_and_level_up_for_char`（btl_turn.c:950–961）依序印出，各 stat 訊息
+  page 由 `fd2_roll_stat_gain_and_show_message` 帶入。
+- **戰場/存讀檔/寶箱/行軍是非框對白** page 410–440（0x19A–0x1B8）：記錄戰況、讀取戰況、
+  離開戰場、行軍、結束回合、開寶箱（發現 `[SUB_DIALOG_A]`）、道具滿了要交換/丟棄等。
+- **商店招牌** page 495–500（0x1EF–0x1F4）：酒店 / 武器店 / 出口 / 道具店 / 教會 / ？？？。
+- **商店/教會 buy·sell·give·revive·promote 對白** page 501–513、585–596、657–660。其中
+  各店 tier 的拒絕/確認頁不是連續段，而是由 7 張 `data_fd2_dialog_shop_*` 表選出
+  （src/table/dlgtab.c，位址 0x5265F–0x52736，各 `int16[6]`，以 shop-tier cursor_state
+  0..5 索引；值域含 0x1B5/0x1B6/0x1B7/0x1F6/0x1F8–0x1FD/0x293）。升職「移動力增加
+  [NUMBER]點！」固定為 page 0x254（596），由轉職流程印出。
+- **存檔格「Slot N」標頭** page 549（0x225）。src: rndmenu.c:680。
 
 ## Pages
 

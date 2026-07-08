@@ -12,7 +12,9 @@ FDFIELD entry chapter_id*3+1 (= "tile_event_data_table") layout:
                   phase 1 = end_of_player_turn
                   phase 2 = new_player_turn_intro
                   event_code = idx into compiled handler table at 0x00051B91
-    +51..:     more sub-sections (char spawn records etc.)
+    +51..+82:  16 x 2-byte tile-step-event hooks (consequence_idx, event_type)
+    +83..+130: 16 x 3-byte tile_pickup table (kind, param u16 LE)
+    +131 (0x83)..: N x 26-byte char spawn records (see fdfield_char_spawn_decoder.py)
 
 CLI:
     python tools/decoders/fdfield_event_decoder.py --chapter 1

@@ -1,80 +1,70 @@
 # data_fd2_chapter_intro_metadata_table
 
-`.object3 @ 0x6238D`，26 entries × 31 bytes = 806 bytes。
+`.object3 @ 0x6238D`，26 entries × 31 bytes = 806 bytes。位址空間換算見
+`assets/tables/_index.md`。table 緊接 `data_fd2_battle_character_growth_table` 最後一筆
+entry 之後（`0x6238D`，零 padding），下一張表是
+`data_fd2_battle_spell_learning_table @ 0x626B3`。
 
-每筆對應一個 story 章節 (chapters 1..26) 的 intro 階段資料，含 chapter category
-旗標、特殊 hotkey 設定、以及 3 個商店 (weapons / items / mystery) 的物品 ID 列表。
+Ghidra type `chapter_intro_metadata_entry[26]`。每筆對應一個走 intro 畫面的章節，含 intro
+外觀變體碼、特殊 hotkey 設定，以及**內嵌的三家商店物品清單**。
 
-table 接在 `data_fd2_battle_character_growth_table` (尾端 padding 0x6238D 之前)
-正後方，下一張表是 `data_fd2_battle_spell_learning_table @ 0x626B3`。
+## struct layout（31 B）
 
-## struct layout (chapter_intro_metadata_entry, 31 B)
+| offset | size | 欄名 | 意義 |
+|---|---|---|---|
+| +0  | 1  | bCategory | intro 畫面**外觀變體碼**（0/1/2），非 story/battle 旗標，見下節 |
+| +1  | 1  | bHotkey_state | 觸發特殊 commit hotkey 的 `chapter_intro_menu_cursor_state` 值 |
+| +2  | 1  | bHotkey_scancode | 該特殊 hotkey 的鍵盤 scancode |
+| +3  | 12 | bWeapons[12] | 武器店 item ID（0xFF = 空 slot）|
+| +15 | 8  | bItems[8] | 道具店 item ID（0xFF = 空）|
+| +23 | 8  | bMystery[8] | 神秘商店 item ID（0xFF = 空）|
 
-```
-offset  size  field             意義
-+0      1     bCategory         chapter category byte
-                                 0 = story chapter (走 intro panel + shop menu)
-                                 非 0 = battle chapter (跳過 intro，直接 transition)
-+1      1     bHotkey_state     觸發特殊 hotkey commit 的 data_fd2_chapter_intro_menu_cursor_state 值
-                                 (0x5412B)；hotkey 命中後該 state 跳為 5
-+2      1     bHotkey_scancode  特殊 commit hotkey 的鍵盤 scancode
-+3      12    bWeapons[12]      武器店 item IDs (0xFF = 空 slot)
-                                 對應 fd2_load_chapter_shop_item_ids 的 state==1 路徑
-                                 (cap 12, src_offset 0x03)
-+15     8     bItems[8]         道具店 item IDs (0xFF = 空)
-                                 state==3 (cap 8, src_offset 0x0F)
-+23     8     bMystery[8]       神秘商店 item IDs (0xFF = 空)
-                                 state==其他 (cap 8, src_offset 0x17)
-```
+## bCategory 語意（外觀變體碼，非 story/battle 旗標）
+
+`bCategory` 值域 0/1/2，是 intro 畫面的外觀變體碼，**不決定** story/battle 分派（那是另一張表
+`data_fd2_chapter_per_chapter_category_table @ 0x526B9` 以 chapter_id 索引，見
+`chapter_category.md`）。它有兩個用途：
+
+1. `fd2_chapter_transition_menu` 用 `bCategory` 直接索引
+   `data_fd2_chapter_intro_panel_resource_idx_per_metadata_category_table @ 0x526D7`
+   = `{0x0B, 0x3D, 0x3E}`（0→0x0B、1→0x3D、2→0x3E），選 FDOTHER.DAT 的 intro panel 背景 RLE。
+2. 以 `bCategory × 6 + chapter_intro_menu_cursor_state` 索引 intro portrait pose 座標表
+   `[3][6]`（`0x52635` / `0x52647`），決定主角 portrait 繪製位置與 transition zoom 目標座標。
+
+## 商店資料（內嵌，無獨立表）
+
+每章三家商店的物品清單就是本 entry 的 `+3 / +15 / +23` 三段，沒有獨立的 shop 表。
+`fd2_load_chapter_shop_item_ids` 依 `chapter_intro_menu_cursor_state` 選段（state==1 → weapons
+cap 12 src_offset 0x03；state==3 → items cap 8 src_offset 0x0F；其他 → mystery cap 8
+src_offset 0x17），逐 byte 讀到 0xFF terminator，餵給 `fd2_run_buy_item_menu` /
+`fd2_run_sell_item_menu` / `fd2_run_give_item_menu`（`src/ui_menu/shop.c`）。逐章商店品項見
+各 `chapters/chapter_NN.md` §商店。
+
+位址 `0x62390`（= `0x6238D + 3`）落在本表 entry[0] 的 bWeapons slot 中段，並非獨立的商店表
+——FD2 沒有獨立的 28×28 商店表。商店資料一律以本表 entry 的內嵌欄位（+3 / +15 / +23）為準。
 
 ## entry sample
 
-Entry 0 (chapter 1)：
+Entry 0（chapter 1）：
+`00 00 54 80 81 84 A5 FF FF FF FF FF FF FF FF C0 FF FF FF FF FF FF FF 01 16 35 C0 C1 84 FF FF`
 
 ```
-00 00 54 80 81 84 A5 FF FF FF FF FF FF FF FF C0 FF FF FF FF FF FF FF 01 16 35 C0 C1 84 FF FF
+bCategory=00（intro 變體 0：panel 資源 0x0B、pose row 0）
+bHotkey_state=00  bHotkey_scancode=0x54 (F11)
+weapons: 0x80 0x81 0x84 0xA5
+items:   0xC0
+mystery: 0x01 0x16 0x35 0xC0 0xC1 0x84
 ```
 
-- `bCategory=00` (story chapter)
-- `bHotkey_state=00, bHotkey_scancode=0x54` (F11)
-- weapons: `0x80, 0x81, 0x84, 0xA5` (4 種武器)
-- items:   `0xC0`
-- mystery: `0x01, 0x16, 0x35, 0xC0, 0xC1, 0x84` (6 個物品)
+## entry count 與存取
 
-Entry 1 (chapter 2)：
+26 entries 對應走 intro 畫面的章節。Accessor
+`fd2_get_chapter_intro_metadata_entry @ 0x4E4B9` 公式 `base + (chapter_id − 1) × 0x1F`。
+部分章節的 entry 為全零（未填 intro / 商店資料）。**是否走 intro 與 story/battle 分派無關**：
+story/battle 只由 `data_fd2_chapter_per_chapter_category_table @ 0x526B9`（chapter_id 索引，見
+`chapter_category.md`）決定，不能用「entry 是否全零」判斷章節屬性——例如第 22 章是 story 章
+（category=0），而某些 battle 章反而帶有已填但 intro 流程不讀取的 entry。
 
-```
-02 01 5F 00 01 20 84 A5 FF FF FF FF FF FF FF C0 FF FF FF FF FF FF FF C1 CE FF FF FF FF FF FF
-```
+## 全 26 entries
 
-- `bCategory=02`, `bHotkey_state=01`, `bHotkey_scancode=0x5F` (F1)
-- weapons: `0x00, 0x01, 0x20, 0x84, 0xA5`
-- items:   `0xC0`
-- mystery: `0xC1, 0xCE`
-
-## entry count
-
-26 (chapters 1..26)。Accessor `fd2_get_chapter_intro_metadata_entry @ 0x4E4B9`
-的公式 `base + (chapter_id-1) * 0x1F` 對 chapter_id > 26 會回傳指到
-`data_fd2_battle_spell_learning_table` 內部的指標；遊戲不會這樣呼叫，因為
-chapters 27..30 屬 endgame / 非 story chapter，其 transition dispatch 不走
-intro panel 流程 (詳 `chapters/chapter_29.md` /
-`chapters/chapter_30.md`)。
-
-## 跨版本偏移
-
-| 版本 | 位址 |
-|---|---|
-| FD2.LE | `0x6238D` |
-
-FD2 strategy guide 文件以 28-byte 為單位描述 entry 內 `+3..+30` 的商店物品區段，
-實際 entry stride 為 31 B (含 +0..+2 的 chapter category / hotkey header)。
-
-## 存取路徑
-
-`fd2_get_chapter_intro_metadata_entry @ 0x4E4B9` 是唯一直接 reader。Indirect
-callers 透過 `chapter_transition_resume_metadata @ 0x54137` (全域變數) 緩存
-entry pointer，後續以 state-based offset 抓 weapons / items / mystery slice 給
-`fd2_run_buy_item_menu` / `fd2_run_sell_item_menu` / `fd2_run_equip_member_menu`
-/ `fd2_run_give_item_menu`。詳 `program_info/chapter.md` (or chapter intro
-dispatch doc)。
+逐章 intro 商店品項見對應 `chapters/chapter_NN.md`。

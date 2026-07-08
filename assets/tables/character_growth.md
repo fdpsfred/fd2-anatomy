@@ -1,57 +1,69 @@
 # data_fd2_battle_character_growth_table
 
-`.object3 @ 0x620A1`，68 entries × 11 bytes = 748 bytes (+3 bytes padding 至
-0x62390)。signature `06 08 04 06`。
+`.object3 @ 0x620A1`，68 entries × 11 bytes = 748 bytes，範圍 `[0x620A1, 0x6238D)`。
+entry 0 前 4 byte `06 08 04 06` 可當定位 anchor。位址空間換算見 `assets/tables/_index.md`。
 
-## struct layout
+Ghidra type `char_growth_entry[68]`；C struct `character_growth` 定義在
+`src/include/types.h`。
+
+## struct layout（11 B）
+
+每個屬性佔 2 byte：`_min` = 每級最小成長，`_max` = **exclusive 上界（= 最大成長 + 1）**。
+
+| offset | size | types.h 欄名 | 意義 |
+|---|---|---|---|
+| +0  | 1 | ap_min | 每級 AP 最小成長 |
+| +1  | 1 | ap_max | AP exclusive 上界（最大成長 = ap_max − 1）|
+| +2  | 1 | dp_min | |
+| +3  | 1 | dp_max | DP exclusive 上界 |
+| +4  | 1 | dx_min | |
+| +5  | 1 | dx_max | DX exclusive 上界 |
+| +6  | 1 | hp_min | |
+| +7  | 1 | hp_max | HP exclusive 上界 |
+| +8  | 1 | mp_min | |
+| +9  | 1 | mp_max | MP exclusive 上界 |
+| +10 | 1 | spell_learning_idx | `spell_learning_table` 的 index；0xFF = 無 |
+
+## 成長 roll 公式（exclusive 上界語意）
+
+唯一消費 `_max` 的程式是升級 / 轉職共用的
+`fd2_roll_stat_gain_and_show_message @ 0x1E529`：
 
 ```
-offset  size  field                 意義
-+0      1     AP_min                每級 AP 最小成長
-+1      1     AP_max                每級 AP 最大成長 +1 (exclusive)
-+2      1     DP_min
-+3      1     DP_max
-+4      1     DX_min
-+5      1     DX_max
-+6      1     HP_min
-+7      1     HP_max
-+8      1     MP_min
-+9      1     MP_max
-+10     1     spell_learning_idx    data_fd2_battle_spell_learning_table 的 index；0xFF = 無
+range = _max - _min
+若 range == 0：不呼叫 RNG，gain 恆等於 _min
+否則：         gain = _min + (fd2_advance_rng_state() % range)   -> gain 均勻落在 [_min, _max-1]
 ```
 
-## 跨版本偏移
-
-| 版本 | 位址 |
-|---|---|
-| FD2.LE | `0x55EA1` |
-| FD2.EXE | `0x7B0B5` |
-| Δ | +0xC200 |
+因此 raw byte `06 08` 代表每級成長 **6~7**（不是 6~8）。`_max == _min` 的 pair（如 MP
+`00 00`、哈瓦特 DX `01 01`）成長恆為 `_min`。出場屬性計算（`fd2_init_runtime_char_*`）
+只讀 `_min` 欄，不讀 `_max`。
 
 ## entry sample
 
-Entry 0 (索爾基礎)：`06 08 04 06 02 03 08 0C 00 00 FF`
+Entry 0（索爾基礎）：`06 08 04 06 02 03 08 0C 00 00 FF`
 
 ```
-AP min/max = 6 / 8
-DP min/max = 4 / 6
-DX min/max = 2 / 3
-HP min/max = 8 / 12
-MP min/max = 0 / 0
-spell_learning_idx = 0xFF (無)
+AP min/上界 = 6 / 8   -> 實際每級成長 6~7
+DP min/上界 = 4 / 6   -> 4~5
+DX min/上界 = 2 / 3   -> 恆 2
+HP min/上界 = 8 / 12  -> 8~11
+MP min/上界 = 0 / 0   -> 恆 0（range==0，不 roll）
+spell_learning_idx = 0xFF（無）
 ```
 
-## entry 數量考量
+## entry 數量與邊界
 
-68 entries 包含 32 角色的基礎 growth + 32 角色的轉職後 growth + 4 reserved /
-unused（per actual binary table size）。詳 `assets/characters.md` 完整對照。
-
-## padding
-
-table 尾端 3 bytes (`00 00 54` @ `0x6238D-0x6238F`) 是對齊 padding，與本表 entry
-內容無關。
+68 entries 涵蓋 32 角色的基礎 growth 與轉職後 growth，含少數 reserved slot。最後一筆
+（entry 67 = `08 0C 08 0A 03 03 0A 0F 00 00 FF`）結束於 `0x6238D`，其後緊接
+`data_fd2_chapter_intro_metadata_table @ 0x6238D`，兩表零 padding（`0x6238D` 起的
+`00 00 54 ...` 是 intro_metadata entry[0] 的 bCategory / hotkey，不屬本表）。
 
 ## 對應 spell_learning
 
-`spell_learning_idx` 指向 `data_fd2_battle_spell_learning_table @ 0x626B3` 的對應 entry，描述
-此職業在哪些等級學什麼 spell。詳 `assets/tables/spell_learning.md`。
+`spell_learning_idx` 指向 `data_fd2_battle_spell_learning_table @ 0x626B3` 的對應 entry，
+描述此職業在哪些等級學什麼法術。詳 `spell_learning.md`。
+
+## 全 68 entries
+
+數值與逐角色升級範圍見 `assets/characters.md`。

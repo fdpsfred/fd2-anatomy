@@ -1,12 +1,25 @@
-# 結局文字 (FDTXT.DAT entries 31–33)
+# 結局與序章文字 (FDTXT.DAT entries 31–33)
 
-最終結局時序內所引用的對話 entries：
+FDTXT.DAT 的 entry 由 `fd2_load_chapter_battle_data(chapter_id)` 載入，取的是
+`FDTXT.DAT[chapter_id+1]`（src/rsrc/rsrc.c）。本檔收錄三個高編號 entry；其中只有
+entry 31 是結局內容，entry 32/33 其實是第 1 章的序章對白。
 
-- entry 31 — `ch30_end fd2_load_chapter_battle_data(31)` 載入的 first epilogue
-  dialogue。`fd2_play_final_chapter_30_ending` 大量引用此 entry 的 page 0xC..0x2D
-  作為 per-character ending text，page 10/11/0x2C 為 narrator/description/title 框。
-- entry 32 — endgame extras (chapter_id=31)
-- entry 33 — endgame extras (chapter_id=32)
+- **entry 31 — 結局 epilogue**（46 pages）。第 30 章通關後的結局過場
+  （`fd2_play_final_chapter_30_ending`，src/anim/aniend.c）以
+  `fd2_load_chapter_battle_data(0x1E)` 載入（引數 30 → 載入 30+1 = entry 31）；同一過場
+  逐一角色動態索引此 entry：各角色的結局文字頁 = `char_id + 0xC`（範圍 0xC..0x2B），最後一名
+  角色改用 page 0x2D（aniend.c:928/930）。page 10（0xA）「姓名﹕」與 page 11（0xB）「職業﹕」
+  是角色卡的固定欄位標籤（分別配 all_game_text 的 `char_id+1` 姓名、`job_id+0x96` 職業）；
+  page 0x2C 是開場/收尾的旁白框（aniend.c:790 一次性繪出）。
+- **entry 32 — 第 1 章序章對話（第二幕）**（11 pages），並非結局內容。由
+  `fd2_chapter_01_init`（src/field/chinit.c）在 prologue 地圖 chapter_id=0x1F 的
+  Phase C 播出 page 0..9。
+- **entry 33 — 第 1 章序章對話（第一幕）**（6 pages），並非結局內容。由
+  `fd2_chapter_01_init` 在 prologue 地圖 chapter_id=0x20 的 Phase A/B 播出
+  page 0..5。
+
+三者實際播放順序為 entry 33 → entry 32 → entry 1（第 1 章主戰鬥文字）；序章劇情
+逐頁對照見 `chapters/chapter_01.md`。
 
 ## Notation
 
@@ -679,11 +692,12 @@ range [0x1a7ea, 0x1c24e), size 6756 bytes, 46 pages.
 
 ---
 
-## Entry 32 — endgame extras (chapter_id 31)
+## Entry 32 — 第 1 章序章對話（第二幕，chapter_id 0x1F）
 
-range [0x1c24e, 0x1caea), size 2204 bytes, 11 pages — 推測為 staff roll 文字
-或 game-over fallback。未在 named handlers 中找到直接 callsite，可能由
-`fd2_play_game_ending_cinematic` 或未命名 chapter_event_handler 載入。
+range [0x1c24e, 0x1caea), size 2204 bytes, 11 pages。第 1 章序章第二幕：
+`fd2_chapter_01_init` 在 prologue 地圖 chapter_id=0x1F 的 Phase C 播出 page 0..9
+（搭配 cutscene 0x5A..0x62），內容為索爾與亞雷斯練劍時發現昏倒的悠妮與機器人蓋亞、
+決意護送她前往馬拉大陸；page 10 在 init handler 內無 callsite（未使用）。
 
 ### Pages
 
@@ -956,10 +970,12 @@ range [0x1c24e, 0x1caea), size 2204 bytes, 11 pages — 推測為 staff roll 文
 
 ---
 
-## Entry 33 — endgame extras (chapter_id 32)
+## Entry 33 — 第 1 章序章對話（第一幕，chapter_id 0x20）
 
-range [0x1caea, 0x1d6b6), size 3020 bytes, 6 pages — 推測為 final ending screen
-文字 (『The End』之類)。未在 named handlers 中找到直接 callsite。
+range [0x1caea, 0x1d6b6), size 3020 bytes, 6 pages。第 1 章序章第一幕：
+`fd2_chapter_01_init` 在 prologue 地圖 chapter_id=0x20 的 Phase A 播出 page 0/1
+（王座廳，國王告知索爾將繼承羅特帝亞王位）、Phase B 播出 page 2..5（索爾向亞雷斯
+吐露繼位煩惱、相約後山練劍）；6 pages 全數用完，播放順序在 entry 32 之前。
 
 ### Pages
 

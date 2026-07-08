@@ -2,7 +2,8 @@
 
 可加入角色 32 名（char_id 0..0x1F），對應 `data_fd2_battle_character_base_table @ 0x61DA1`
 與 `data_fd2_battle_character_growth_table @ 0x620A1`。完整 stat schema 見 `assets/tables/character_base.md`
-與 `assets/tables/character_growth.md`。
+與 `assets/tables/character_growth.md`。角色的種族（RA = character_base +0）見 `assets/races.md`。
+異名角色的正名依據見 `assets/names.md`。
 
 ## 角色列表
 
@@ -23,7 +24,7 @@
 | 12 | 凱麗 (0x0C) | ch7_end (dual conditional: tile_event[0x11] AND char[0x2B] alive) | 武者 |
 | 13 | 貝克威 (0x0D) | ch6_end | 弓兵 |
 | 14 | 珊 (0x0E)     | ch11_end | 法師 |
-| 15 | 賽可邦勒 (0x0F) | ch15_end | 武者 |
+| 15 | 塞可邦勒 (0x0F) | ch15_end | 武者 |
 | 16 | 凱拉斯 (0x10) | ch17_end | 龍劍士 |
 | 17 | 米亞斯多德 (0x11) | ch12_end | 龍劍士 |
 | 18 | 蜜蒂 (0x12) | ch16_end (HP_max≥320 + save_metadata<19 + 部下死≤4 三條件) | 法師 |
@@ -36,25 +37,32 @@
 | 25 | 謝多 (0x19)   | ch20_end | 忍者 |
 | 26 | 聖寇拉斯 (0x1A) | ch25_end | 龍劍士 |
 | 27 | 巴拿羅西亞 (0x1B) | FDFIELD event (ch19) | 龍劍士 |
-| 28 | 達可賽 (0x1C) | ch20_end (save_metadata<16) | 鬥士 |
-| 29 | 亞奇梅吉 (0x1D) | ch25_end | 大法師 |
+| 28 | 達克塞 (0x1C) | ch20_end (save_metadata<16) | class_id 0x1C（顯示職業名未定）|
+| 29 | 亞齊梅吉 (0x1D) | ch25_end | 大法師 |
 | 30 | 蓋亞 (0x1E)   | ch1 init (cutscene NPC) | — |
 | 31 | 渥德 (0x1F)   | FDFIELD event (ch26, item 0xD0=控制中樞) | 機兵 |
 
 ## 出場屬性 schema
 
-`data_fd2_battle_character_base_table @ 0x61DA1`，每筆 24 bytes。實際出場數值 =
-`base + (LV-1) × growth_min`（HP/MP）或 `base + LV × growth_min`（AP/DP/DX）。
-
-詳細 struct layout 見 `assets/tables/character_base.md`。
+`data_fd2_battle_character_base_table @ 0x61DA1`，每筆 24 bytes，共 32 筆。玩家角色的
+實際出場數值由 `fd2_init_runtime_char_for_battle @ 0x10C50` 依出場 level 計算：
+HP/MP = `base + growth_min × (LV-1)`，AP/DP/DX = `base + growth_min × LV`（敵人另走純係數乘法，
+見 `assets/enemies.md`）。詳細 struct layout 見 `assets/tables/character_base.md`。
 
 ## 升級屬性 (data_fd2_battle_character_growth_table @ 0x620A1)
 
-每筆 11 bytes：`AP_min/max DP_min/max DX_min/max HP_min/max MP_min/max spell_learning_idx`。
-`spell_learning_idx` 是 `data_fd2_battle_spell_learning_table @ 0x626B3` 的 index；0xFF = 不會升級
-學技能。
+每筆 11 bytes，共 68 筆，涵蓋各角色基礎職業與各轉職階段的成長值；詳細 struct layout
+與 entry 對應見 `assets/tables/character_growth.md`。
 
-68 entries (= 32 角色 × 2 種職業狀態 + 2 reserved)。
+每個屬性佔 2 bytes：`byte[0]` = 每級最小成長，`byte[1]` = **exclusive 上界（= 最大成長 + 1）**。
+升級與轉職共用的 `fd2_roll_stat_gain_and_show_message @ 0x1E529` 依此 roll 成長：
+`range = byte[1] - byte[0]`；`range == 0` 時不呼叫 RNG，成長恆等於 min；否則成長 =
+`min + (RNG % range)`，均勻落在 `[min, byte[1]-1]`。**因此下面兩張表列的 min–max 是 raw byte，
+實際每級最大成長 = max 欄 − 1**（例：索爾 AP 6–8 表示每級成長 6~7）；min == max 的欄位
+（多數角色 MP 0–0、哈瓦特 DX 1–1 等）每級固定成長 min。
+
+`spell_learning_idx`（byte[10]）是 `data_fd2_battle_spell_learning_table @ 0x626B3` 的 index；
+0xFF = 升級不學法術。
 
 | 位址 | 角色 | AP | DP | DX | HP | MP | 法術 idx |
 |---|---|---|---|---|---|---|---|
@@ -73,7 +81,7 @@
 | 7B139 | 凱麗                |  8–10 | 5– 6 | 1– 4 | 11–14 | 0– 0 | FF |
 | 7B144 | 貝克威              |  5– 7 | 3– 4 | 2– 3 |  6– 9 | 0– 0 | FF |
 | 7B14F | 珊                  |  3– 5 | 2– 3 | 1– 3 |  6– 8 | 4– 8 | 03 |
-| 7B15A | 賽可邦勒            |  8–12 | 4– 6 | 1– 3 | 10–12 | 0– 0 | FF |
+| 7B15A | 塞可邦勒            |  8–12 | 4– 6 | 1– 3 | 10–12 | 0– 0 | FF |
 | 7B165 | 凱拉斯              | 10–15 | 8–13 | 2– 4 | 13–17 | 0– 0 | FF |
 | 7B170 | 米亞斯多德          |  7–11 | 5– 8 | 2– 3 |  9–13 | 0– 0 | FF |
 | 7B17B | 蜜蒂                |  9–15 | 7–11 | 2– 4 | 12–16 | 6– 8 | 05 |
@@ -86,8 +94,8 @@
 | 7B1C8 | 謝多                | 10–13 | 6– 9 | 3– 6 | 12–15 | 4– 7 | FF |
 | 7B1D3 | 聖寇拉斯            | 12–17 | 10–12 | 2– 4 | 18–25 | 0– 0 | FF |
 | 7B1DE | 巴拿羅西亞          | 10–15 | 9–13 | 2– 4 | 14–18 | 0– 0 | FF |
-| 7B1E9 | 達可賽              | 12–15 | 8–12 | 2– 3 | 15–22 | 4– 6 | 11 |
-| 7B1F4 | 亞奇梅吉            |  8–14 | 8–12 | 3– 6 | 14–22 | 12–16 | 08 |
+| 7B1E9 | 達克塞              | 12–15 | 8–12 | 2– 3 | 15–22 | 4– 6 | 11 |
+| 7B1F4 | 亞齊梅吉            |  8–14 | 8–12 | 3– 6 | 14–22 | 12–16 | 08 |
 | 7B1FF | 蓋亞                |  7–14 | 6–13 | 2– 4 |  8–15 | 0– 0 | FF |
 | 7B20A | 渥德                |  8–14 | 7–14 | 2– 4 | 12–15 | 0– 0 | FF |
 
@@ -111,7 +119,7 @@
 | 7B299 | 凱麗     | 鬥士   | 10–14 | 6– 9 | 3– 5 | 13–18 | 0– 0 | FF |
 | 7B2A4 | 貝克威   | 狙擊手 |  8–12 | 4– 7 | 2– 4 |  8–12 | 0– 0 | FF |
 | 7B2AF | 珊       | 大法師 |  8–14 | 6– 9 | 3– 4 |  8–11 | 18–22 | 08 |
-| 7B2BA | 賽可邦勒 | 鬥士   |  9–13 | 7–10 | 2– 4 | 14–18 | 0– 0 | FF |
+| 7B2BA | 塞可邦勒 | 鬥士   |  9–13 | 7–10 | 2– 4 | 14–18 | 0– 0 | FF |
 | 7B2D0 | 米亞斯多德 | 龍劍士 | 11–14 | 8–11 | 2– 4 | 12–18 | 0– 0 | FF |
 | 7B2DB | 索爾     | 英雄   | 10–15 | 7–10 | 2– 4 | 12–15 | 8–12 | 0A |
 | 7B2E6 | 哈諾     | 魔戰士 | 13–16 | 10–12 | 2– 3 | 15–20 | 8–12 | 0F |
@@ -127,7 +135,7 @@
 | 7B35F | 凱麗     | 武聖   | 12–15 | 7– 9 | 3– 6 | 14–18 | 0– 0 | FF |
 | 7B36A | 貝克威   | 神射手 |  9–13 | 4– 7 | 2– 4 |  9–13 | 0– 0 | FF |
 | 7B375 | 珊       | 聖者   |  8–10 | 7– 9 | 3– 5 |  8–11 | 14–18 | 0D |
-| 7B380 | 賽可邦勒 | 武聖   | 10–15 | 7– 9 | 2– 5 | 14–18 | 0– 0 | FF |
+| 7B380 | 塞可邦勒 | 武聖   | 10–15 | 7– 9 | 2– 5 | 14–18 | 0– 0 | FF |
 
 ## 法術習得 (per-character / per-class)
 
@@ -148,7 +156,7 @@
 珊          法師    -- 烈炎術  -- 電擊術  -- 落雷術  20 碎岩術  24 轟雷術
             大法師   4 炎龍術   8 神雷術  12 地震術
             聖者     4 再生術  10 聖光彈  15 封咒術  20 解毒術  24 神雷術
-亞奇梅吉    大法師  -- 碎岩術  -- 地震術  -- 裂地術  -- 魔刃術  -- 毒擊術  -- 麻痺術
+亞齊梅吉    大法師  -- 碎岩術  -- 地震術  -- 裂地術  -- 魔刃術  -- 毒擊術  -- 麻痺術
 瑪琳        僧侶    -- 治療術   7 解毒術  11 回復術  16 魔鎧術  24 封咒術  30 傳送術
             祭司     3 再生術   9 祛麻術  18 風行術  23 神恩術
             聖者     3 再生術   9 聖光彈  16 風行術  21 祛麻術  26 神恩術
@@ -159,6 +167,6 @@
 約拿        聖者    -- 回復術  -- 再生術  -- 聖光彈  -- 魔鎧術  -- 解毒術  -- 封咒術  -- 風行術  -- 祛麻術
 哈諾        魔戰士   4 魔鎧術  11 再生術  18 解毒術
 哈瓦特      魔戰士   3 風行術   9 再生術  16 解毒術
-達克賽      ？？？  -- 回復術  -- 魔刃術  -- 毒擊術  15 地震術  20 魔鎧術
+達克塞      ？？？  -- 回復術  -- 魔刃術  -- 毒擊術  15 地震術  20 魔鎧術
 謝多        忍者    -- 炎龍術  -- 轟雷術  -- 地震術  -- 風行術
 ```

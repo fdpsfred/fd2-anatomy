@@ -1,8 +1,15 @@
 # 職業
 
-職業編號 0x00..0x1A，共 27 個。`bJob_id` 存於 `runtime_char +0x20`。
+遊戲有兩套「職業」編號視角，對 0x01..0x19 一致，差異在高位：
 
-## 職業列表
+- **職業名稱表**（`all_game_text` page `job_id + 0x96`）收錄 job_id 0x00..0x1A 共 27 個名稱，
+  即下方「職業列表」。
+- **單位實際被指派的 class_id**（= `bJob_id`，存於 `runtime_char +0x20`）值域是 **0x01..0x1C**。
+  差異：class_id 0x1A 是龍 / 魔神 / 魔族 boss 共用的職業（名稱表把 0x1A 標為「？？？」），而名稱
+  「龍」其實掛在無任何單位使用的 0x00；class_id 0x1B（村民類敵人）與 0x1C（達克塞與沼澤怪物）則
+  超出名稱表 0x1A 上界（見下方魔抗 / 暴擊率表）。
+
+## 職業列表（名稱表 `job_id + 0x96`）
 
 | ID | 名稱 |
 |---|---|
@@ -34,12 +41,15 @@
 | 0x19 | 機兵 |
 | 0x1A | ？？？ |
 
-## 魔法抗性 + 暴擊率 (job 0x01..0x1A)
+## 魔法抗性 + 暴擊率 (class_id 0x01..0x1C)
 
-職業 0x00 (龍) 沒有魔抗 / 暴擊率資料。`data_fd2_battle_job_magic_resist_table @ 0x51F96`
-為 dword[27]；`data_fd2_battle_job_crit_rate_table @ 0x5239B` 為 byte[27]。
+兩表皆以 `bJob_id − 1` 索引，從 job 0x01 起（job 0x00 無單位使用、永不查表）。魔法抗性表
+`data_fd2_battle_job_magic_resist_table @ 0x51F96` 是 `dword[28]`，服務 class_id 0x01..0x1C；
+暴擊率表 `data_fd2_battle_job_crit_rate_table @ 0x5239B` 是 `byte[27]`，只服務 class_id
+0x01..0x1B（class_id 0x1C 的暴擊索引落在表外的 3-byte 對齊 padding，值 0）。struct 與 entry 數見
+`assets/tables/job_magic_resist.md` 與 `assets/tables/job_crit.md`。
 
-魔法抗性公式：`抗性 = (10 - 數值) / 10`。例如 7 表示 30% 抗性。
+魔法抗性公式：`抗性 = (10 - 表值) / 10`（表值 7 = 30%、5 = 50%、4 = 60%、10 = 0% 抗性）。
 
 | Job | 名稱 | 魔抗 | 暴擊率 |
 |---|---|---|---|
@@ -69,6 +79,12 @@
 | 0x18 | 武聖     | 20%  | 18% |
 | 0x19 | 機兵     | 20%  | 0%  |
 | 0x1A | ？？？   | 60%  | 0%  |
+| 0x1B | 村民 (class)   | 0%  | 0%  |
+| 0x1C | 達克塞 (class) | 30% | 0%※ |
+
+0x1B / 0x1C 是超出名稱表的 class_id：0x1B 為村民類敵人、0x1C 為達克塞（玩家可加入角色）與一隻沼澤
+怪物共用。※ 暴擊表只到 class_id 0x1B，0x1C 的暴擊索引讀到表尾對齊 padding（值 0）。達克塞的顯示職業
+名稱未定（名稱表僅到 0x1A，class_id 0x1C 的名稱頁 `0x1C + 0x96` 內容待佐證）。
 
 ## 轉職物品
 

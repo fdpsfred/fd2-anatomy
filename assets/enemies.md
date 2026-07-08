@@ -3,23 +3,34 @@
 `data_fd2_battle_enemy_data_table @ 0x61AF9` 共 68 entries × 10 bytes = 680 bytes。
 char_id 範圍 0x44..0x87 對應 enemy_id 0..67：`enemy_id = char_id - 0x44`。
 
-## struct layout
+## struct layout（欄位語意）
 
-每 entry 10 bytes：
+每 entry 10 bytes。除 RA/CL/MV 直接複製外，HP/MP/AP/DP/DX/EX 六個欄位都是
+**每等級係數（per-level 值）**，不是最終數值。詳細 struct layout 見 `assets/tables/enemy_data.md`。
 
 ```
-+0  RA = 種族
-+1  CL = 職業
-+2  HP (u16 LE) — 該等級 HP
-+4  MP
-+5  AP
-+6  DP
-+7  DX
-+8  MV
-+9  EX — 擊敗時獲得的經驗值
++0  RA = 種族 (race_id；見 assets/races.md)
++1  CL = 職業 (class_id)
++2  HP (u16 LE) — 每等級 HP 係數；出場 HP = 係數 × level
++4  MP         — 每等級係數；出場 MP = 係數 × level
++5  AP         — 每等級係數；出場 AP = 係數 × level
++6  DP         — 每等級係數；出場 DP = 係數 × level
++7  DX         — 每等級係數；出場 DX = 係數 × level
++8  MV = 移動力 — 直接複製到 runtime_char +0x3B（floodfill/pathfind 的移動預算），不乘 level
++9  EX         — 每等級 XP 係數（非固定經驗值）
 ```
 
-詳 `assets/tables/enemy_data.md`。
+生成公式（`fd2_init_runtime_char_for_battle @ 0x10C50`，char_id ≥ 0x44 走敵人分支）：
+出場屬性 = 表值 × FDFIELD 記錄給的 level；MV/RA/CL 直接複製。
+
+擊殺 XP（EX 為係數）：
+- 法術／間接傷害路徑（`fd2_apply_damage_and_award_xp @ 0x1C81F`）：XP = EX × 敵方 level。
+- 物理攻擊路徑（`fd2_calculate_combat_hit_outcome @ 0x29F72` / `fd2_execute_attack_damage_calculation @ 0x1ECC7`）：
+  XP = EX × 敵方 level ÷ 攻擊者 level（攻擊者為進階職業 class_id 9..0x18 或 char_id 0x1C 時，攻擊者 level 先 +30）。
+- 兩條路徑未擊殺時皆按 `damage / hp_max` 比例折算部分 XP。
+
+下面兩張表的 HP/MP/AP/DP/DX/EX 均為**每等級係數**，實際出場數值 = 係數 × 該章 FDFIELD 記錄的 level
+（MV/RA/CL 直接複製）。例：敵方士兵 HP 係數 14，level 3 出場即 42 HP。
 
 ## 友軍
 
@@ -63,7 +74,7 @@ char_id 範圍 0x44..0x87 對應 enemy_id 0..67：`enemy_id = char_id - 0x44`。
 | 7AC4D | 武術家       | 01 | 08 |  45 |   0 | 22 | 12 |  5 | 5 | 150 |
 | 7AC57 | 黑暗鬥士     | 01 | 10 |  46 |   0 | 24 | 12 |  6 | 5 | 160 |
 | 7AC61 | 獸人         | 08 | 02 |  16 |   0 |  8 |  2 |  1 | 5 |  40 |
-| 7AC6B | 受人隊長     | 08 | 02 |  22 |   0 | 10 |  3 |  2 | 5 |  60 |
+| 7AC6B | 獸人隊長     | 08 | 02 |  22 |   0 | 10 |  3 |  2 | 5 |  60 |
 | 7AC75 | 火龍         | 0A | 1A |  80 |  80 | 20 | 10 |  4 | 0 | 250 |
 | 7AC7F | 雷龍         | 0A | 1A |  80 |  80 | 20 | 10 |  4 | 0 | 250 |
 | 7AC89 | 龍人戰士     | 04 | 02 |  25 |   0 | 13 |  8 |  3 | 6 | 100 |

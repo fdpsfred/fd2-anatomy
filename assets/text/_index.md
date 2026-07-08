@@ -4,18 +4,16 @@
 
 ## 檔案
 
-- `global_text.md` — entry 0 全遊戲共用對話庫 (661 pages)。`SUB_DIALOG_A` /
-  `SUB_DIALOG_B` opcode 從 chapter dialogs 遞迴到此；`fd2_play_final_chapter_30_ending`
-  用 `char.identity+1` (角色名) 與 `char.bJob_id+0x96` (職業名) 動態 page 索引
-  拿系統文字。
-- `endgame_text.md` — entry 31..33 結局文字。entry 31 是 first epilogue dialogue
-  (46 pages)；entry 32 (11 pages) 與 entry 33 (6 pages) 推測為 staff roll 與
-  final ending screen。
-- `glyph_table.md` — 1824 glyph_id ↔ 中文字 lookup table (FDOTHER.DAT[4]
-  字模 atlas 的索引對應)。
+- `global_text.md` — entry 0 全遊戲共用文字庫（661 pages）：角色 / 職業 / 種族 / 道具 /
+  法術名表、章號與場景副標、各章勝敗條件、商店與升級系統提示。各 page 的語意分區與其 src
+  消費端見該檔的「Page 語意分區」表。
+- `endgame_text.md` — FDTXT entries 31–33。entry 31 為結局 epilogue（46 pages）；
+  entry 32（11 pages）與 entry 33（6 pages）其實是第 1 章 prologue 對話，播放順序
+  entry 33 → entry 32 → entry 1，由 `fd2_chapter_01_init` 的三個 phase 載入。
+- `glyph_table.md` — 1824 筆 glyph_id ↔ 中文字 lookup table（FDOTHER.DAT[4] 字模 atlas
+  的索引對應）。
 
 ## 編碼說明
 
-對話文字非 Big5 / GB 編碼。每個 u16 是 `chinese_font_sheet @ 0x53A75` 內 16×16
-1bpp 字模 sprite 的索引。詳 `resource_info/fdtxt.md` 與
-`resource_info/chinese_glyph_encoding.md`。
+對話文字不是 Big5 / GB 編碼；每個 u16 是一個中文字模 sprite 的 glyph_id。編碼規則與字模
+atlas 佈局詳 `resource_info/fdtxt.md` 與 `resource_info/chinese_glyph_encoding.md`。
