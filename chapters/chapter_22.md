@@ -40,13 +40,13 @@
 
 ## 商店
 
-無章內商店；本章後連戰多場無商店。
+本章 intro_metadata entry 為空，無商店品項。
 
 ## 特殊機制
 
 - **失敗條件**：索爾死亡，或希爾法 (char[1]) 死亡。Post-action handler 為 `fd2_chapter_22_27_28_post_action_shared`，與第 27、28 章共用同一份 slot-1 存活檢查結構 (見下方 Post-action handler)。
 - **白屏 fade-to-black 結尾**：FD2 全 30 章中唯一以「全螢幕白屏 → palette fade → 黑屏」收尾的章節。End handler 在 page 6 播完後，先呼 `fd2_cast_screen_wide_spell_with_fade` 播大範圍法術視覺 → 等待 500ms → `memset(0xA0000, 0xFF, 64000)` 把整個 framebuffer 填成白 → `fd2_play_palette_fade_to_black` 漸暗 → `memset(0xA0000, 0, 64000)` 轉黑。
-- **連戰無商店**：本章與後續章節之間由 `fd2_chapter_transition_menu` 抑制商店出現，四場連戰後才會恢復。
+- **後續章節無商店**：接續的 ch23/24/25 為 battle 章，依章別分類 (category gate) 不走 intro 商店選單；程式並無「連戰計數」，商店有無純由各章章別決定。
 - **第 3、7 回合三角魔鬼 spawn**：由 FDFIELD turn-event hook 控制 (見下方 FDFIELD event script)。
 
 ## Handler 流程
@@ -108,8 +108,6 @@
 9. `fd2_play_palette_fade_to_black` — palette 漸暗
 10. `memset(0xA0000, 0, 64000)` — 黑屏
 11. `fd2_save_runtime_char_to_template` + `current_chapter_id += 1`
-
-「連戰四場後才有商店」屬 `fd2_chapter_transition_menu @ 0x2CAD7` 處理 (與 end handler 解耦)。
 
 ## FDFIELD event script
 

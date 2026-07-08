@@ -32,6 +32,14 @@
 - 道具：星之眼 (0xD2)、飛龍卵 (0xCD)、精靈弓 (0x30)、金鋼手臂 (0x49)、突擊裝甲 (0xB3)、力量藥水 (0xC6)、藍寶石 (0xCB)、聖之槍 (0x1E)
 - 金錢：15000、10000、5000、3000
 
+## 商店
+
+story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵（Ctrl+F1）開啟的神秘商店。品項（chapter_intro_metadata entry 10）：
+
+- **武器店**：黑暗劍 (0x04)、斬馬刀 (0x18)、巨斧 (0x24)、槤枷 (0x37)、皇帝指環 (0x40)、盜賊之衣 (0x88)、連環鋼甲 (0x93)、武鬥裝 (0xAD)
+- **道具店**：草藥 (0xC0)、回復劑 (0xC1)
+- **神秘商店（Ctrl+F1）**：再生藥 (0xC2)、魔法水 (0xCE)
+
 ## 特殊機制
 
 - **珊跟隨貝克威（NPC follow AI）**：攻略「珊會跟著貝克威走」屬 NPC follow AI behavior（NPC class 0xB heal/follow logic），由戰鬥 AI 分派，不在 post-action handler 內處理。

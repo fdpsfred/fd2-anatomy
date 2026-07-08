@@ -13,8 +13,8 @@ Ghidra type `chapter_intro_metadata_entry[26]`。每筆對應一個走 intro 畫
 | offset | size | 欄名 | 意義 |
 |---|---|---|---|
 | +0  | 1  | bCategory | intro 畫面**外觀變體碼**（0/1/2），非 story/battle 旗標，見下節 |
-| +1  | 1  | bHotkey_state | 觸發特殊 commit hotkey 的 `chapter_intro_menu_cursor_state` 值 |
-| +2  | 1  | bHotkey_scancode | 該特殊 hotkey 的鍵盤 scancode |
+| +1  | 1  | bHotkey_state | 神秘商店隱藏 hotkey 對應的 `chapter_intro_menu_cursor_state` 值 |
+| +2  | 1  | bHotkey_scancode | 開啟神秘商店的鍵盤 scancode（F-key 組合，見下節）|
 | +3  | 12 | bWeapons[12] | 武器店 item ID（0xFF = 空 slot）|
 | +15 | 8  | bItems[8] | 道具店 item ID（0xFF = 空）|
 | +23 | 8  | bMystery[8] | 神秘商店 item ID（0xFF = 空）|
@@ -40,6 +40,13 @@ src_offset 0x17），逐 byte 讀到 0xFF terminator，餵給 `fd2_run_buy_item_
 `fd2_run_sell_item_menu` / `fd2_run_give_item_menu`（`src/ui_menu/shop.c`）。逐章商店品項見
 各 `chapters/chapter_NN.md` §商店。
 
+- **神秘商店**（mystery，+23 段）由 `+2 bHotkey_scancode` 的隱藏 hotkey 開啟；scancode 是 F-key 組合，
+  逐章不同（Shift+F1..F10 = 0x54..0x5D、Ctrl+F1..F10 = 0x5E..0x67、Alt+F1..F10 = 0x68..0x71）。
+- **entry ↔ 章映射 = `entry_index = chapter_n − 1`**（entry0 = 第 1 章起始裝備、entry25 = 第 26 章末期裝備）。
+- **只有 story 章顯示商店**：`fd2_chapter_transition_menu` 依 `data_fd2_chapter_per_chapter_category_table`
+  對 story 章（category = 0）才走 intro 主選單與商店；battle 章（ch23/24/25/28/29/30）跳過 intro，即使 entry
+  有值也不出商店。第 22 章雖為 story 章，其 entry 為全零（無商店品項）。
+
 位址 `0x62390`（= `0x6238D + 3`）落在本表 entry[0] 的 bWeapons slot 中段，並非獨立的商店表
 ——FD2 沒有獨立的 28×28 商店表。商店資料一律以本表 entry 的內嵌欄位（+3 / +15 / +23）為準。
 
@@ -50,7 +57,7 @@ Entry 0（chapter 1）：
 
 ```
 bCategory=00（intro 變體 0：panel 資源 0x0B、pose row 0）
-bHotkey_state=00  bHotkey_scancode=0x54 (F11)
+bHotkey_state=00  bHotkey_scancode=0x54（Shift+F1，神秘商店 hotkey）
 weapons: 0x80 0x81 0x84 0xA5
 items:   0xC0
 mystery: 0x01 0x16 0x35 0xC0 0xC1 0x84

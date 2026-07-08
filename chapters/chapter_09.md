@@ -36,6 +36,14 @@
 - 道具：回復劑 (0xC1)、速度藥水 (0xC8)、紅寶石 (0xCA)、魔法水 (0xCE)
 - 金錢：1000
 
+## 商店
+
+story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵（Alt+F9）開啟的神秘商店。品項（chapter_intro_metadata entry 8）：
+
+- **武器店**：巨劍 (0x03)、戰鎚 (0x23)、黑暗弓 (0x2E)、巨鎚 (0x36)、鐵爪 (0x3F)、魔法皮甲 (0x87)、鱗甲 (0x92)、祭師袍 (0xA7)
+- **道具店**：草藥 (0xC0)、回復劑 (0xC1)、解毒劑 (0xC4)
+- **神秘商店（Alt+F9）**：生命之實 (0x5E)、魔力水晶 (0x5F)
+
 ## 特殊機制
 
 - **Init 強制面朝 north**：`fd2_chapter_09_init` 進入對話前，迴圈把前 11 個 char（`runtime_char_array[0..0xA]`）的 sprite facing 全設為 2 (north)，作為章首 cutscene 排隊的視覺效果。

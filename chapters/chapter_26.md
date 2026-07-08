@@ -42,7 +42,11 @@
 
 ## 商店
 
-本章商店品項內嵌於 chapter_intro_metadata（見 assets/tables/chapter_intro_metadata.md）。
+story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵（Ctrl+F6）開啟的神秘商店。品項（chapter_intro_metadata entry 25）：
+
+- **武器店**：龍神劍 (0x0A)、巨神戟 (0x1F)、大地之鎚 (0x2A)、火神弓 (0x68)、龍之杖 (0x3C)、鬥神指環 (0x69)、雷神服 (0x8F)、惡魔鱗甲 (0x9A)、大地鎧甲 (0xA2)、天之袍 (0xAB)、武神鬥服 (0xB1)
+- **道具店**：神聖之水 (0xC3)、水晶粒 (0xCF)
+- **神秘商店（Ctrl+F6）**：神聖之水 (0xC3)、水晶粒 (0xCF)
 
 ## 特殊機制
 

@@ -45,6 +45,14 @@
 
 索菲亞（NPC，char 0x0B）身上持有關鍵道具「黃金徽章」，由 FDFIELD char_spawn_record 的 inventory_slots 設置。
 
+## 商店
+
+story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵（Shift+F10）開啟的神秘商店。品項（chapter_intro_metadata entry 9）：
+
+- **武器店**：巨劍 (0x03)、黑暗劍 (0x04)、先鋒矛 (0x17)、斬馬刀 (0x18)、皇帝指環 (0x40)、盜賊之衣 (0x88)、連環鋼甲 (0x93)、武鬥裝 (0xAD)
+- **道具店**：草藥 (0xC0)、回復劑 (0xC1)
+- **神秘商店（Shift+F10）**：再生藥 (0xC2)、魔法水 (0xCE)
+
 ## 特殊機制
 
 - **兩 NPC 起始睡眠鎖定**：`fd2_chapter_10_init` 把 `runtime_char_array[0x32]`（卡納恩三世）與 `runtime_char_array[0x33]`（索菲亞）的 `bStatus_sleep_flag` 設為 100，兩人於戰鬥開場即處於睡眠（不可動）狀態，作為 cutscene 與失敗判定的鎖定機制，需保護到援軍抵達；`fd2_chapter_10_end` 才把兩人的 sleep flag 清 0 解除。

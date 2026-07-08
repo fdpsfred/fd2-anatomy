@@ -48,6 +48,14 @@
 
 此外，獸人運送的「光之眼」/「魔眼寶石」可於對話中得知（page 11）。
 
+## 商店
+
+story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵（Alt+F5）開啟的神秘商店。品項（chapter_intro_metadata entry 14）：
+
+- **武器店**：巨魔劍 (0x06)、惡魔之矛 (0x19)、血之斧 (0x25)、精靈弓 (0x30)、忍者裝 (0x89)、合金鎖甲 (0x94)、霧之袍 (0xA9)
+- **道具店**：回復劑 (0xC1)、再生藥 (0xC2)、解毒劑 (0xC4)、退麻藥 (0xC5)
+- **神秘商店（Alt+F5）**：生命之實 (0x5E)、魔力水晶 (0x5F)、力量藥水 (0xC6)、耐力藥水 (0xC7)
+
 ## 特殊機制
 
 - **Conditional dialog branch**：`fd2_chapter_15_init` 與 `fd2_chapter_15_end` 都呼叫 `fd2_check_party_has_char_id(0xC)`（凱麗，char_id 0xC，ch7 章末雙條件加入的武者，職業武者 job 0x08），依結果切兩組互斥對話：

@@ -29,6 +29,14 @@
 
 - 金錢：2000、5000、6000、8000
 
+## 商店
+
+story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵（Ctrl+F4）開啟的神秘商店。品項（chapter_intro_metadata entry 13）：
+
+- **武器店**：巨魔劍 (0x06)、惡魔之矛 (0x19)、血之斧 (0x25)、精靈弓 (0x30)、忍者裝 (0x89)、合金鎖甲 (0x94)、聖者袍 (0xA8)、鬥士服 (0xAE)
+- **道具店**：回復劑 (0xC1)、再生藥 (0xC2)、解毒劑 (0xC4)、退麻藥 (0xC5)
+- **神秘商店（Ctrl+F4）**：神聖之水 (0xC3)、水晶粒 (0xCF)
+
 ## 特殊機制
 
 - **失敗條件**：索爾（char_id 0）死亡即敗。ch14 用 default post-action handler `fd2_check_battle_end_default_handler`，判定全敵死 = 勝、索爾死 = 敗。
