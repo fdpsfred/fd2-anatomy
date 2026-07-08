@@ -25,6 +25,11 @@ block 內 declaration 必須在第一個 statement 前。混 declaration/stateme
 
 不支援 multi-line `if () else ()` block。必須用 `goto :label`。
 
+命令列長度上限約 176 字元：當 batch 把編譯旗標經環境變數（如 `%CF%`）展開到 `wcc386` 的呼叫行、
+整行超過此上限時，COMMAND.COM 會**靜默截斷**尾端（曾把 `-fo=<obj>` 的 obj 名截毀，導致 replay+asm
+建置失敗）。修法：改用 Watcom 原生 `WCC386` 環境變數承載旗標，讓命令列本身恆短（旗標不落在呼叫行上）。
+機制切換前後 production obj 逐 byte 相同。
+
 ## Watcom `rename` 不允許 dst 已存在
 
 DOSBox-X COMMAND.COM 的 `rename` 若 dst 已存在會 silent fail。

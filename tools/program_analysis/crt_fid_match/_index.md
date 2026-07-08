@@ -29,9 +29,28 @@ Ghidra Function ID 比對 pipeline，識別 FD2.LE 內的 Watcom CRT 函式。
 | `build_final_lookup.py` | 整合 `auto_candidates.json` + manual observations + 衝突解決 → `lookup_9.5a.json`（rejected entry 拒絕原因 inline 到 `notes`） |
 | `find_crt_to_nongame_calls.py` | 對 lookup CRT function audit 它們呼叫的 non-CRT callee（catch FidDb misses + misclassifications） |
 
-每個 lookup entry 標 `verified` ∈ `{auto_threshold, conflict_resolved, manual}`。
+每個 lookup entry 標 `verified` ∈ `{auto_threshold, conflict_resolved, manual, byte_match, byte_match_disputed}`。
 observation 中加 `manual_verdict: "REJECT" + manual_reason` 可顯式覆寫 PASS
 結果。
+
+## Generated view
+
+| script | 用途 |
+|---|---|
+| `gen_matched_sources.py` | 讀 `rebuild_info/crt/lookup_9.5a.json` 的 `by_address`，生成 `rebuild_info/crt/matched_function_sources.md`（逐列 address ↔ lib symbol 表 + 依 source lib/版本的彙總表）。表格內容全由 JSON 機械產生，勿手改。 |
+
+```bash
+# 重生 matched_function_sources.md（lookup_9.5a.json 更新後要跑）
+python tools/program_analysis/crt_fid_match/gen_matched_sources.py
+
+# regression：確認現檔與重生結果一致（不寫檔）
+python tools/program_analysis/crt_fid_match/gen_matched_sources.py --check
+```
+
+逐列表的 `lib symbol` 欄用 entry 的凍結 `name`（disputed entry 的現用名記在
+`current_name`）；`source lib(s) / versions` 欄直接取 `source_summary`；彙總每個
+function 依其 `source_libs` 內每個唯一 (lib, version) 計一次。正典計數以
+`by_address` 條目數為準。
 
 ## 典型 session
 

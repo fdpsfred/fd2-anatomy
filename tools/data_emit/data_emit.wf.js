@@ -52,7 +52,7 @@ const SOP = [
 
 const NEED_KB = [
   '需要時才讀（不要全文預載）：src/include/types.h（struct 定義如 item_effect_entry / spell_learning_entry / runtime_char）、',
-  'rebuild_info/emission/pipeline_spec.md、program_info/ 對應子系統（語意）。',
+  'rebuild_info/equivalence/rules.md、program_info/ 對應子系統（語意）。',
 ].join('\n')
 
 function symHead(sym) {

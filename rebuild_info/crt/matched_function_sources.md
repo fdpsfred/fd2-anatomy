@@ -9,7 +9,7 @@ primitive 具名清單在 `symbol_inventory.md`。
 
 Total entries（= `lookup_9.5a.json` 的 `by_address` 條目數）: **194**
 
-> 本檔的逐列表與彙總數字是 `lookup_9.5a.json` 的生成檢視，正典計數以該 JSON 為準（`by_address` = 194）。表格由 `tools/program_analysis/crt_fid_match/` 的產生器重生（見該 `_index.md`）；重生前若逐列/彙總與 194 有出入，以 JSON 與 `fid_match.md` 為準。
+> 本檔的逐列表與彙總數字是 `lookup_9.5a.json` 的生成檢視，正典計數以該 JSON 為準（`by_address` = 194）。表格由 `tools/program_analysis/crt_fid_match/gen_matched_sources.py` 重生（見該 `_index.md`）；重生後逐列/彙總必與 194 一致。
 
 | FD2 addr | lib symbol | body | verified | source obj | source lib(s) / versions |
 |---|---|---:|---|---|---|
@@ -56,6 +56,7 @@ Total entries（= `lookup_9.5a.json` 的 `by_address` 條目數）: **194**
 | `0x0003c927` | `L$1_rand_seed_ptr` | 6 | manual | `e64bae7e23f3_rand.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c |
 | `0x0003c92d` | `rand` | 34 | manual | `e64bae7e23f3_rand.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c |
 | `0x0003c94f` | `srand` | 19 | manual | `e64bae7e23f3_rand.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c |
+| `0x0003c964` | `_cstart_` | 557 | manual | `ec67ee7a9d15_cstart.obj` | CLIB3S:9.5+9.5a (cstart.obj, source CSTART3S.ASM; obj-mates __exit/__exit_with_msg/__GETDS) |
 | `0x0003cb91` | `__exit` | 2 | byte_match | `ec67ee7a9d15_cstart.obj` | CLIB3S:9.5+9.5a |
 | `0x0003cb93` | `__exit_with_msg` | 49 | byte_match | `ec67ee7a9d15_cstart.obj` | CLIB3S:9.5+9.5a |
 | `0x0003cbc4` | `__GETDS` | 8 | byte_match | `73721e07b4f4_cstart.obj` | CLIB3S:9.5+9.5a+9.5b+9.5c (also in adiestrt/adifstrt/adsstart variants) |
@@ -212,16 +213,16 @@ Total entries（= `lookup_9.5a.json` 的 `by_address` 條目數）: **194**
 subroutine，無獨立 PUBDEF，靠連結同一 `__int7` module 解析，不 emit C source。
 歸屬詳見 `symbol_inventory.md` 的 fptan worker 段。
 
-## Aggregate by source lib + version
+## 依 source lib + 版本彙總
 
-Each (lib, version) pair lists the FD2 functions that came from a obj in that lib for that Watcom 9.5x sub-version.
+每個 (lib, 版本) 列出「該 lib 在該 Watcom 9.5x 子版本內有一個 obj 貢獻」的 FD2 function。
 
 | lib | version | function count | examples |
 |---|---|---:|---|
-| CLIB3S | 9.5 | 133 | `L$1_stk_save_ss`, `__CHK`, `__GRO`, `__STK`, `__STKOVERFLOW` (+128 more) |
-| CLIB3S | 9.5a | 157 | `L$1_stk_save_ss`, `__CHK`, `__GRO`, `__STK`, `__STKOVERFLOW` (+152 more) |
-| CLIB3S | 9.5b | 142 | `L$1_stk_save_ss`, `__CHK`, `__GRO`, `__STK`, `__STKOVERFLOW` (+137 more) |
-| CLIB3S | 9.5c | 129 | `L$1_stk_save_ss`, `__CHK`, `__GRO`, `__STK`, `__STKOVERFLOW` (+124 more) |
+| CLIB3S | 9.5 | 135 | `L$1_stk_save_ss`, `__CHK`, `__GRO`, `__STK`, `__STKOVERFLOW` (+130 more) |
+| CLIB3S | 9.5a | 159 | `L$1_stk_save_ss`, `__CHK`, `__GRO`, `__STK`, `__STKOVERFLOW` (+154 more) |
+| CLIB3S | 9.5b | 143 | `L$1_stk_save_ss`, `__CHK`, `__GRO`, `__STK`, `__STKOVERFLOW` (+138 more) |
+| CLIB3S | 9.5c | 130 | `L$1_stk_save_ss`, `__CHK`, `__GRO`, `__STK`, `__STKOVERFLOW` (+125 more) |
 | EMU387 | 9.5 | 1 | `__int7` |
 | EMU387 | 9.5a | 1 | `__int7` |
 | MATH387R | 9.5 | 6 | `__CHP`, `__sys_init_387_emulator`, `__sys_fini_387_emulator`, `__CmpBigInt`, `__Rnd2Int` (+1 more) |

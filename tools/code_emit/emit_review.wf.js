@@ -63,8 +63,8 @@ const EMULATE_GUIDE = [
 ].join('\n')
 
 const NEED_KB = [
-  '需要時才讀（不要全文預載）：rebuild_info/emission/calling_convention.md（cc 判定）、',
-  'rebuild_info/emission/pipeline_spec.md（fall-through pattern A–F、EAX-bug 慣例）、',
+  '需要時才讀（不要全文預載）：rebuild_info/equivalence/watcom_abi.md（cc 判定）、',
+  'rebuild_info/equivalence/rules.md（fall-through pattern A–F）、',
   'src/include/types.h（runtime_char 等 struct）、program_info/overview.md（語意）。',
 ].join('\n')
 

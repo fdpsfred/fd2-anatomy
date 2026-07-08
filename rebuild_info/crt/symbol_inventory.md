@@ -63,6 +63,15 @@ Ghidra 以 `search_functions_enhanced(name_pattern="^crt_equivalent_", regex=tru
 - `crt_equivalent_matherr_default_return_zero @ 0x4D8EA` — 上者 JMP 的目標，
   「return 0」primitive（`push ebp; mov ebp,esp; xor eax,eax; pop ebp; ret`）。
 
+CRT XI 建構子表 `@ 0x539A0..0x539F1`（82 bytes，`_DATA` 最後一筆，見 `../link/le_layout.md`）——
+`__InitRtns` / `__FiniRtns` 走訪的 startup constructor chain：**16-byte header**（`0x4CBCE`
+sentinel dword ×2 + matherr handler slot `@0x539A8`（預設值 = 上述 `_matherr_default_thunk @ 0x4D340`）
++ control-flag dword `0x11`）＋ **10 個 6-byte ctor entry**（2-byte priority + 4-byte fn ptr）
+＋ **6-byte NULL 終止**。10 個 fn ptr 指向 CRT 啟動期 init 常式（如 `__InitFiles @ 0x468F8` /
+`__setenvp @ 0x4CBFD` / `__full_io_exit @ 0x4693D` / `__Init_Argv @ 0x46114`，以及 sys_init/fini_387
+emulator 的 jmp thunk `@0x3CBCC` / `@0x3CBD1`），完整 10 筆依位址對回 `matched_function_sources.md`。
+emit_action = link_vendor_lib（各 entry 的 fn 由其 `.obj` 經 wlink XI 段 merge，不 emit C source）。
+
 上述兩個 thunk（`_get_eflags_thunk` / `_matherr_default_thunk`）在原 binary 是
 tail-JMP 進另一個獨立符號，其相對位移無法用純 `#pragma aux` 位元組編碼；`src/`
 以只被呼叫、不被取址的 in-line `#pragma aux` helper 承載原始 opcode / JMP，再由

@@ -210,6 +210,12 @@ Function entity 存在，重建時 iterate function 自然跳過。switch jump t
 自行從 C 的 `switch` 生成、align pad 由 wlink 重新對齊、CRT MATH387S 常數池走 `link_vendor`。
 這些 fragment 的具名清單與 data 型別見 `pool_classification.md`。
 
+> **遊戲端 codegen 佐證**：全 binary 僅 63 個 indirect JMP，全部落在 CRT（59）/ AIL（4），
+> **遊戲端 0 個**——FD2 的遊戲 `switch` 一律編成 if/else 鏈、不生 compiler jump table；章節與
+> 施法的 function-pointer dispatch 表走 indirect CALL（非 JMP，見 `watcom_abi.md` §dispatch callees）。
+> 故模式 E 的 jump-table fragment 只出現在 CRT 段。全 binary indirect-JMP / orphan-code audit 工具與
+> 結論見 `tools/program_analysis/jump_table_audit/`。
+
 ### 模式 F：STATE-MACHINE INIT-ENTRY
 
 prev function 是 state-machine 的「初次進入 setup」（初始化某 reg 為 0），fall-through 進以該

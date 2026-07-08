@@ -217,8 +217,8 @@ python -c "import json; d=json.load(open('tools/code_emit/data/routing.json')); 
 12. **`fd2_noop_stub_b43` (0x10b43) → `<fragment:inline-epilogue>` (skip)**
     DECOMPILER FRAGMENT：純 caller-frame unwind（ADD ESP 0x4+0x8 / POP EBP/EDI/ESI/EBX / RET），
     被 `fd2_load_chapter_battle_data` (fall-through) + `fd2_play_rising_pre_cast_effect` / `fd2_play_variant_b_slide_pre_effect`
-    (tail-JMP, +0x00) + 26 個 +0x03 tail-JMP 共用。依 `rebuild_info/emission/calling_convention.md`
-    §「Decompiler fragments」epilogue cluster + `pipeline_spec.md` 模式A rule A-1，**不**獨立 emit 為 C function；
+    (tail-JMP, +0x00) + 26 個 +0x03 tail-JMP 共用。依 `rebuild_info/equivalence/watcom_abi.md`
+    §「Shared epilogue / out-of-line tail」epilogue cluster + `equivalence/rules.md` §模式 A，**不**獨立 emit 為 C function；
     epilogue 由 compiler 在各 parent 重新生成。routing.json 標 `skip:true`，不進 emit/review queue。
 
 13. **`fd2_noop_stub_c49` (0x10c49) → `<fragment:inline-epilogue>` (skip)**
@@ -226,8 +226,8 @@ python -c "import json; d=json.load(open('tools/code_emit/data/routing.json')); 
     被 `fd2_convert_battle_tiles_to_24px` (JMP @0x13a3f) / `fd2_equip_unequip_inventory_menu` (JMP @0x1c13d) /
     `fd2_open_party_status_overview_screen` (JMP @0x1b418) 三個 tail-JMP（各為 parent 最後一條指令）共用。
     Ghidra `get_xrefs_to` 把這三個 JMP 標為 `UNCONDITIONAL_CALL` 是 display quirk，opcode 實為 JMP。
-    依 `rebuild_info/emission/calling_convention.md` §「Decompiler fragments」epilogue cluster 0x10c49
-    + `pipeline_spec.md` 模式A rule A-1，**不**獨立 emit 為 C function（原 `util/noop.c` 路由為誤判，已更正）；
+    依 `rebuild_info/equivalence/watcom_abi.md` §「Shared epilogue / out-of-line tail」epilogue cluster 0x10c49
+    + `equivalence/rules.md` §模式 A，**不**獨立 emit 為 C function（原 `util/noop.c` 路由為誤判，已更正）；
     epilogue 由 compiler 在各 parent 重新生成。routing.json 標 `skip:true`，不進 emit/review queue。
 
 14. **`fd2_noop_stub_1011` (0x11011) → `<fragment:inline-epilogue>` (skip)**
@@ -236,8 +236,8 @@ python -c "import json; d=json.load(open('tools/code_emit/data/routing.json')); 
     其前一條 `MOV EAX,EBP` (@0x14ee9) 先把回傳值載入 EAX 再跳入 epilogue。
     Ghidra `get_xrefs_to` 把此 JMP 標為 `UNCONDITIONAL_CALL` 是 display quirk，opcode 實為 JMP。
     parent prologue `PUSH EBX/ESI/EDI/EBP` + `SUB ESP,0x34` (@0x14b82) 為此 epilogue 的精確逆操作。
-    依 `rebuild_info/emission/calling_convention.md` §「Decompiler fragments」epilogue cluster 0x11011
-    + `pipeline_spec.md` 模式A rule A-1，**不**獨立 emit 為 C function（原 `util/noop.c` 路由為誤判，已更正）；
+    依 `rebuild_info/equivalence/watcom_abi.md` §「Shared epilogue / out-of-line tail」epilogue cluster 0x11011
+    + `equivalence/rules.md` §模式 A，**不**獨立 emit 為 C function（原 `util/noop.c` 路由為誤判，已更正）；
     epilogue 由 compiler 在 parent 重新生成（`return ebp_value;`）。routing.json 標 `skip:true`，不進 emit/review queue。
 
 15. **`fd2_noop_stub_1452` (0x11452) → `<fragment:inline-epilogue>` (skip)**
@@ -246,8 +246,8 @@ python -c "import json; d=json.load(open('tools/code_emit/data/routing.json')); 
     parent 共用（各有 `PUSH EBX/ESI/EDI/EBP` + `SUB ESP,0x20` prologue）：`fd2_animate_spell_projectile_paths`
     (JZ @0x1df7f + JMP @0x1e0d6) / `fd2_assemble_dialog_frame_layered` (JGE @0x16b39) / `fd2_render_inventory_item_grid`
     (JGE @0x186e4)；+0x03 alt-entry (0x11455，跳過 ADD ESP，無 local frame) 被 `fd2_save_runtime_char_to_template`
-    (JGE @0x1151f，prologue 僅 `PUSH EBX/ESI/EDI/EBP`、無 SUB ESP) 共用。依 `rebuild_info/emission/calling_convention.md`
-    §「Decompiler fragments」epilogue cluster 0x11452 + `pipeline_spec.md` rule A-1，**不**獨立 emit 為 C function
+    (JGE @0x1151f，prologue 僅 `PUSH EBX/ESI/EDI/EBP`、無 SUB ESP) 共用。依 `rebuild_info/equivalence/watcom_abi.md`
+    §「Shared epilogue / out-of-line tail」epilogue cluster 0x11452 + `equivalence/rules.md` §模式 A，**不**獨立 emit 為 C function
     （原 `util/noop.c` 路由為誤判，已更正）；epilogue 由 compiler 在各 parent 重新生成。routing.json 標 `skip:true`，不進 emit/review queue。
 
 16. **`fd2_noop_stub_13994` (0x13994) → `<fragment:inline-epilogue>` (skip)**
@@ -256,8 +256,8 @@ python -c "import json; d=json.load(open('tools/code_emit/data/routing.json')); 
     該 JMP 為 parent 最後一條指令，其前一條 `MOV EAX,EBP` (@0x1ff72) 先把回傳值載入 EAX 再跳入 epilogue。
     site bytes @0x1ff72 = `89 e8 e9 1b 3a ff ff`：opcode `0xE9` 為 near JMP、非 `0xE8` CALL（Ghidra `get_xrefs_to` 標
     `UNCONDITIONAL_CALL` 是 display quirk，opcode 實為 JMP）。parent prologue `PUSH EBX/ESI/EDI/EBP` + `SUB ESP,0x5c`
-    (@0x1f89e) 為此 epilogue 的精確逆操作。依 `rebuild_info/emission/calling_convention.md` §「Decompiler fragments」
-    epilogue cluster 0x13994 + `pipeline_spec.md` 模式A rule A-1，**不**獨立 emit 為 C function（原 `util/noop.c` 路由為誤判，已更正）；
+    (@0x1f89e) 為此 epilogue 的精確逆操作。依 `rebuild_info/equivalence/watcom_abi.md` §「Shared epilogue / out-of-line tail」
+    epilogue cluster 0x13994 + `equivalence/rules.md` §模式 A，**不**獨立 emit 為 C function（原 `util/noop.c` 路由為誤判，已更正）；
     epilogue 由 compiler 在 parent 重新生成（`return ebp_value;`）。routing.json 標 `skip:true`，不進 emit/review queue。
 
 17. **`fd2_score_item_candidate_tail_15983` (0x15983) → `<fragment:inline-epilogue>` (skip)**
@@ -268,8 +268,8 @@ python -c "import json; d=json.load(open('tools/code_emit/data/routing.json')); 
     @0x15880（主要；3 條 early-exit conditional jump：JGE @0x158e5 / JNZ @0x15936 / JGE @0x15959，此處 EDI=total_score，
     即 `return total_score;`）；(2) `fd2_alloc_and_blit_indexed_sprite_chunk` @0x15f0e（tail-JMP @0x15f7f，為 parent 最後一條指令；
     Ghidra `get_xrefs_to` 標 `UNCONDITIONAL_CALL` 是 display quirk、opcode 實為 JMP/0xE9；此處 EDI=malloc 出的 buffer pointer，
-    來自 `MOV EDI,EAX` @0x15f51）。依 `rebuild_info/emission/calling_convention.md` §「Decompiler fragments」
-    + `pipeline_spec.md` 模式A rule A-1，**不**獨立 emit 為 C function（原 `util/noop.c` 路由 + `fd2_noop_stub_15983` 命名為誤判，已更正）；
+    來自 `MOV EDI,EAX` @0x15f51）。依 `rebuild_info/equivalence/watcom_abi.md` §「Shared epilogue / out-of-line tail」
+    + `equivalence/rules.md` §模式 A，**不**獨立 emit 為 C function（原 `util/noop.c` 路由 + `fd2_noop_stub_15983` 命名為誤判，已更正）；
     `MOV EAX,EDI` 回傳值載入 + epilogue 由 compiler 在各 parent 的 `return` 重新生成。routing.json 標 `skip:true`，不進 emit/review queue。
 
 18. **大 subsystem 依子功能切成多個 ≤~1000 行的 .c（routing 規劃準則）**

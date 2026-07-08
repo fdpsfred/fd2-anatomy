@@ -168,7 +168,14 @@ ret_type AIL_xxx(args) {
   `_register_mix_globals`)
 - INI driver-config 解析路徑 (`AIL_API_read_INI` +
   `AIL_internal_API_read_INI_inner`)
-- Timer-slot 配發 (`AIL_register_timer` + slot table)
+- Timer-slot 配發 (`AIL_register_timer` + slot table)：slot 表宣告 16 格，但
+  `AIL_internal_register_timer_inner @ 0x3eee6` 的分配迴圈 bound `< 0x3c` 只填 slot 0..14。
+  slot 15（offset 0x3c）不作計時器用——`data_ail_timer_slot_pending_trigger_count_16 @ 0x52B54`
+  的第 16 格 [15]（+0x3c）位址剛好等於 `data_ail_isr_nested_pending_count @ 0x52B90`，是 vendor
+  刻意的 overflow-array 佈局（陣列末格重用為 master ISR 的巢狀-pending scalar）。
+  `AIL_internal_timer_isr_master @ 0x3e73e` 的 accumulate 迴圈掃 16 格（`< 0x40`）、dispatch 迴圈
+  只掃 15 格（`< 0x3c`），故 slot 15 永遠只當 nested-pending 計數、不被當 timer 觸發。rebuild 需
+  保留這段 array-緊鄰-scalar 相鄰性（見 `tools/ail_extract/_index.md` 的 `MERGE_GROUPS`）。
 
 ### Logging & ISR re-entry guard
 
