@@ -10,11 +10,27 @@
 
 ## 敵人配置
 
-由 FDFIELD.DAT entry 31 的 char_spawn_records 決定（chapter_id × 3 + 1, chapter_id = 10）。詳見 `resource_info/fdfield.md`。
+本章 FDFIELD entry 31 共 26 個會生成的 spawn 記錄（另有 14 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 34 | 獸人 | LV14 | ×20 | item_pickup |
+| 35 | 獸人隊長 | LV14 | ×5 | item_pickup |
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| char 0x0E | 珊 | LV15 | ×1 |
+
+珊（char 0x0E）以友軍身分自走跟隨貝克威，戰後加入隊伍（見 §加入角色 / §特殊機制）。
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：星之眼 (0xD2)、飛龍卵 (0xCD)、精靈弓 (0x30)、金鋼手臂 (0x49)、突擊裝甲 (0xB3)、力量藥水 (0xC6)、藍寶石 (0xCB)、聖之槍 (0x1E)
+- 金錢：15000、10000、5000、3000
 
 ## 特殊機制
 

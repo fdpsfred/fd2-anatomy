@@ -10,15 +10,33 @@
 
 ## 敵人配置
 
-- LV2 盜賊 × 10 (HP28, AP24, DP4, DX2, MV4)
-- LV2 盜賊 × 6
-- 友方 LV3 男村民 × 3 + LV3 女村民 × 3 = 6 NPC
+本章 FDFIELD entry 4 共 23 個會生成的 spawn 記錄（另有 17 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
 
-敵人配置寫在 FDFIELD.DAT entry 4 (chapter_id × 3 + 1)，不在 init handler。
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 28 | 盜賊 | LV2 | ×10 | default_attacker |
+| 28 | 盜賊 | LV3 | ×6 | default_attacker |
+
+友軍 NPC（team 1，戰場自走）——即失敗條件保護對象（chars[5..10]，任一死亡則敗；6 名全數存活則章末獲力量藥水獎勵，見 §特殊機制）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| 66 | 女村民 | LV3 | ×3 |
+| 65 | 男村民 | LV3 | ×3 |
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup（位置寫在 FDFIELD.DAT[4] tile event 區段）。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：草藥 (0xC0)、旅行裝 (0x81)、綠寶石 (0xC9)、回復劑 (0xC1)、光之杖 (0x3D)、光之斧 (0x28)
+- 空寶箱（0 金錢誘餌）×1
+
+（tile_pickup 另有 1 筆 kind≥2 = 劇情事件觸發點（tile[12]），非寶物，見 §FDFIELD event script。）
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：草藥 (0xC0)
+- 金錢：1000
 
 ## 商店
 

@@ -10,11 +10,33 @@
 
 ## 敵人配置
 
-LV13 黑暗法師×4 (HP507, 炎龍術, 地震術, 毒擊術, 麻痺術) 等。第 3、第 7 回合敵方左下/右下角各 spawn 3 隻魔鬼 (FDFIELD turn-event 0x31 兩次觸發)；第 5 回合 reinforcement (event 0x32)。配置寫在 FDFIELD.DAT entry 64。
+本章 FDFIELD entry 64 共 63 個會生成的 spawn 記錄（另有 7 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 56 | 風魔神 | LV15 | ×1 | aggressive_physical |
+| 26 | 黑暗僧侶 | LV13 | ×4 | aggressive_physical |
+| 12 | 黑暗戰士 | LV12 | ×6 | aggressive_physical / default_attacker |
+| 33 | 黑暗鬥士 | LV12 | ×9 | aggressive_physical / default_attacker |
+| 17 | 黑暗騎士 | LV15 | ×12 | aggressive_physical / defensive_kiter |
+| 23 | 黑暗法師 | LV13 | ×4 | defensive_kiter / aggressive_physical |
+| 20 | 黑暗射手 | LV13 | ×6 | aggressive_physical / defensive_kiter |
+| 31 | 黑暗殺手 | LV14 | ×8 | default_attacker |
+| 40 | 魔鬼 | LV13 | ×12 | default_attacker |
+
+魔鬼 (enemy_data 40 LV13 ×12) 於第 3、7 回合敵方回合各在地圖左下／右下角 spawn 3 隻，第 5 回合另有一波 reinforcement（波次時序見 §FDFIELD event script）。
 
 ## 寶物
 
-待 FDFIELD.DAT entry 64 確認。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：鑽石 (0xCC)、水晶粒 (0xCF)、力量藥水 (0xC6)、生命之實 (0x5E)、魔力水晶 (0x5F)、風精之羽 (0x60)、雷神服 (0x8F)
+- 金錢：10000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：魔力水晶 (0x5F)、妖魔鬥服 (0xB0)、耐力藥水 (0xC7)、鑽石 (0xCC)、水晶粒 (0xCF)
+- 金錢：10000、13000、18000
 
 ## 商店
 

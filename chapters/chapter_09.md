@@ -8,11 +8,33 @@
 
 ## 敵人配置
 
-由 FDFIELD.DAT entry 25 的 char_spawn_records 決定（chapter_id × 3 + 1, chapter_id = 8）。詳見 `resource_info/fdfield.md`。
+本章 FDFIELD entry 25 共 37 個會生成的 spawn 記錄（另有 23 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 50 | 萊汀 | LV18 | ×1 | aggressive_physical |
+| 15 | 突擊騎兵 | LV14 | ×2 | aggressive_physical |
+| 10 | 鎧甲武士 | LV8 | ×6 | aggressive_physical |
+| 22 | 魔法師 | LV11 | ×6 | aggressive_physical |
+| 25 | 僧侶 | LV11 | ×4 | aggressive_physical |
+| 19 | 弓箭手 | LV12 | ×4 | aggressive_physical |
+| 15 | 突擊騎兵 | LV16 | ×1 | default_attacker |
+| 14 | 騎兵 | LV14 | ×4 | default_attacker |
+| 10 | 鎧甲武士 | LV10 | ×6 | default_attacker |
+| 19 | 弓箭手 | LV14 | ×2 | default_attacker |
+| 8 | 士兵 | LV5 | ×1 | default_attacker |
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：生命之實 (0x5E)、魔力水晶 (0x5F)、回復劑 (0xC1)、解毒劑 (0xC4)、精靈披風 (0x82)
+- 金錢：5000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：回復劑 (0xC1)、速度藥水 (0xC8)、紅寶石 (0xCA)、魔法水 (0xCE)
+- 金錢：1000
 
 ## 特殊機制
 

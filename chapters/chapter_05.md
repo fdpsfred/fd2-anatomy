@@ -10,14 +10,37 @@
 
 ## 敵人配置
 
-- LV8 卡特那 (HP240, AP90)
-- LV7 盜賊頭目 × 3 (HP168)
+本章 FDFIELD entry 13 共 45 個會生成的 spawn 記錄（另有 5 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
 
-敵人配置寫在 FDFIELD.DAT entry 13。
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 28 | 盜賊 | LV7 | ×20 | aggressive_physical / default_attacker |
+| 49 | 卡特那 | LV8 | ×1 | aggressive_physical |
+| 29 | 盜賊頭目 | LV7 | ×3 | aggressive_physical / default_attacker |
+| 22 | 魔法師 | LV6 | ×4 | default_attacker / aggressive_physical |
+| 25 | 僧侶 | LV7 | ×2 | aggressive_physical / default_attacker |
+| 34 | 獸人 | LV7 | ×4 | default_attacker |
+
+卡特那（enemy_data 49，LV8）為盜賊團首領，是本章 boss。
+
+友軍 NPC（team 1，戰場自走）——瑪琳的護衛，屬王國正規軍援軍，於戰鬥中途各回合波次抵達：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| 0 | 士兵 | LV7 | ×4 |
+| 1 | 王國正規軍 | LV7 | ×6 |
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：回復劑 (0xC1)、長劍 (0x02)、力量藥水 (0xC6)、淬毒刀 (0x0E)
+- 金錢：10000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：回復劑 (0xC1)、解毒劑 (0xC4)、綠寶石 (0xC9)、紅寶石 (0xCA)
+- 金錢：1000、2000、5000
 
 ## 商店
 

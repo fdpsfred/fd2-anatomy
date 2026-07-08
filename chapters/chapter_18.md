@@ -11,11 +11,38 @@
 
 ## 敵人配置
 
-LV8 巫師×6 (HP232, 炎龍術, 毒擊術) 等死亡骷髏傭兵團成員。第 8 回合敵援軍從後方出現左右夾擊。配置寫在 FDFIELD.DAT entry 52。
+本章 FDFIELD entry 52 共 59 個會生成的 spawn 記錄（另有 11 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 15 | 突擊騎兵 | LV21 | ×18 | default_attacker / aggressive_physical |
+| 10 | 鎧甲武士 | LV22 | ×12 | default_attacker / aggressive_physical |
+| 21 | 狙擊手 | LV8 | ×10 | default_attacker / aggressive_physical |
+| 24 | 巫師 | LV8 | ×6 | default_attacker / aggressive_physical |
+| 40 | 魔鬼 | LV7 | ×8 | default_attacker |
+| 17 | 黑暗騎士 | LV10 | ×1 | aggressive_physical |
+| 27 | 大祭師 | LV8 | ×2 | default_attacker |
+
+單隻的 LV10 黑暗騎士 (17) 即死亡骷髏傭兵團 boss（runtime char[0x34]），擊殺即勝（見 §特殊機制）。第 8 回合敵援軍從地圖後方登場，與橋上部隊左右夾擊。
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| char 0x15 | 約拿 | LV5 | ×1 |
+| char 0x07 | 蘭斯洛特 | LV4 | ×1 |
 
 ## 寶物
 
-待 FDFIELD.DAT entry 52 確認。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：暗殺服 (0x8C)、殭屍爪 (0x42)、鑽石 (0xCC)、退麻藥 (0xC5)、再生藥 (0xC2)、水晶弓 (0x62)
+- 金錢：10000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：再生藥 (0xC2)、神聖之水 (0xC3)、水晶粒 (0xCF)
+- 金錢：5000
 
 ## 商店
 

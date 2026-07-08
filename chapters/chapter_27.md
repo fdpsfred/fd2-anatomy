@@ -8,11 +8,22 @@
 
 ## 敵人配置
 
-FDFIELD.DAT[27]：機甲衛兵 + ASR-07 控制單元。
+本章 FDFIELD entry 79 共 80 個會生成的 spawn 記錄。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 45 | 光束炮座 | LV15 | ×10 | aggressive_physical |
+| 48 | 機甲隊長 | LV32 | ×3 | aggressive_physical |
+| 47 | 機甲守衛 | LV23 | ×4 | targeted_approach / aggressive_physical |
+| 46 | 機甲突擊兵 | LV23 | ×16 | aggressive_physical / default_attacker |
+| 44 | 機甲射手 | LV23 | ×20 | aggressive_physical / default_attacker |
+| 43 | 機甲兵 | LV23 | ×27 | aggressive_physical / default_attacker |
 
 ## 寶物
 
-待解：寶物清單需從 FDFIELD.DAT tile_event 解析。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：力量藥水 (0xC6)、耐力藥水 (0xC7)、風精之羽 (0x60)、速度藥水 (0xC8)、生命之實 (0x5E)、魔力水晶 (0x5F)
 
 ## 商店
 

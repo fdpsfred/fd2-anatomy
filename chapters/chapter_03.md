@@ -10,16 +10,29 @@
 
 ## 敵人配置
 
-- LV3 士兵 × 8 (HP42)
-- LV5 精英戰士 (HP90)
-- LV3 士兵 × 5
-- LV3 士兵 × 6
+本章 FDFIELD entry 7 共 21 個會生成的 spawn 記錄（另有 19 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
 
-敵人配置寫在 FDFIELD.DAT entry 7。
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 8 | 士兵 | LV3 | ×19 | default_attacker |
+| 9 | 精英戰士 | LV5 | ×1 | default_attacker |
+
+友軍 NPC（team 1，戰場自走）——鐵諾為條件式招募對象，戰鬥中存活則章末加入隊伍（見 §特殊機制）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| char 0x02 | 鐵諾 | LV4 | ×1 |
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：長弓 (0x2D)
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：草藥 (0xC0)、綠寶石 (0xC9)
+- 金錢：1500、2000
 
 ## 商店
 

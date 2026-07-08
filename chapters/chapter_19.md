@@ -10,11 +10,30 @@
 
 ## 敵人配置
 
-死亡骷髏殘部。具體配置寫在 FDFIELD.DAT entry 55。
+本章敵軍為死亡骷髏傭兵團殘部。FDFIELD entry 55 共 49 個會生成的 spawn 記錄（另有 21 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 13 | 狂戰士 | LV11 | ×1 | aggressive_physical |
+| 15 | 突擊騎兵 | LV21 | ×6 | aggressive_physical |
+| 21 | 狙擊手 | LV9 | ×4 | aggressive_physical |
+| 11 | 傭兵 | LV11 | ×14 | aggressive_physical |
+| 24 | 巫師 | LV10 | ×6 | hard_skip / aggressive_physical |
+| 27 | 大祭師 | LV10 | ×6 | hard_skip / aggressive_physical |
+| 32 | 武術家 | LV12 | ×8 | aggressive_physical |
+| 30 | 影之忍者 | LV8 | ×3 | item_pickup |
 
 ## 寶物
 
-待 FDFIELD.DAT entry 55 確認。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：力量藥水 (0xC6)、生命之實 (0x5E)、再生藥 (0xC2)、魔力水晶 (0x5F)
+- 金錢：10000、5000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：生命之實 (0x5E)、再生藥 (0xC2)、耐力藥水 (0xC7)、速度藥水 (0xC8)、鑽石 (0xCC)
+- 金錢：10000
 
 ## 商店
 

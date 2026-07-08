@@ -8,12 +8,30 @@
 
 ## 敵人配置
 
-LV30 火龍 / 雷龍 / 暗黑龍 (HP 2400-3600, MP 2400, 天火 / 神雷 / 咒殺術) — FDFIELD.DAT[29]。
-三條巨龍即為要塞防衛中樞，須以武器攻擊摧毀。
+本章 FDFIELD entry 85 共 74 個會生成的 spawn 記錄（另有 2 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 36 | 火龍 | LV30 | ×1 | aggressive_physical |
+| 59 | 暗黑龍 | LV30 | ×1 | aggressive_physical |
+| 37 | 雷龍 | LV30 | ×1 | aggressive_physical |
+| 45 | 光束炮座 | LV20 | ×6 | aggressive_physical |
+| 44 | 機甲射手 | LV24 | ×19 | default_attacker / aggressive_physical |
+| 43 | 機甲兵 | LV25 | ×25 | default_attacker / aggressive_physical |
+| 48 | 機甲隊長 | LV34 | ×5 | aggressive_physical / default_attacker |
+| 46 | 機甲突擊兵 | LV23 | ×6 | aggressive_physical |
+| 47 | 機甲守衛 | LV24 | ×5 | aggressive_physical |
+| 46 | 機甲突擊兵 | LV25 | ×2 | default_attacker |
+| 44 | 機甲射手 | LV25 | ×2 | default_attacker |
+| 58 | 空魔神 | LV34 | ×1 | default_attacker |
+
+三條巨龍（火龍 enemy_data 36 / 雷龍 37 / 暗黑龍 59）即要塞防衛中樞 boss，須以直接攻擊摧毀；實際勝利判定走 tile_event 旗標（見 §特殊機制）。
 
 ## 寶物
 
-待解：寶物清單需從 FDFIELD.DAT tile_event 解析。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：神聖之水 (0xC3)、神聖之水 (0xC3)、神聖之水 (0xC3)、神聖之水 (0xC3)、神聖之水 (0xC3)、神聖之水 (0xC3)
 
 ## 商店
 

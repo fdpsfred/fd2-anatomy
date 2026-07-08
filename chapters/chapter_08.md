@@ -10,12 +10,28 @@
 
 ## 敵人配置
 
-寫在 FDFIELD.DAT entry 22。城門為主戰場，配合 turn 2-7 每回合 2 名敵騎兵的
-reinforcement event。
+本章 FDFIELD entry 22 共 39 個會生成的 spawn 記錄（另有 21 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。城門為主戰場，敵騎兵援軍於 turn 2-7 每回合投入 2 名。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 15 | 突擊騎兵 | LV15 | ×1 | aggressive_physical |
+| 10 | 鎧甲武士 | LV8 | ×5 | aggressive_physical |
+| 22 | 魔法師 | LV11 | ×6 | aggressive_physical |
+| 25 | 僧侶 | LV11 | ×4 | aggressive_physical |
+| 19 | 弓箭手 | LV13 | ×2 | aggressive_physical |
+| 14 | 騎兵 | LV12 | ×20 | default_attacker |
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：耐力藥水 (0xC7)、再生藥 (0xC2)、風精之羽 (0x60)
+- 金錢：3000、2500
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：巨劍 (0x03)、回復劑 (0xC1)、紅寶石 (0xCA)、魔法水 (0xCE)
+- 金錢：2200、2800、3000
 
 ## 商店
 

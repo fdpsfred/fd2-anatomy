@@ -12,11 +12,38 @@
 
 ## 敵人配置
 
-LV9 黑暗法師×7 (HP351, MP180, AP228, DP195, 炎龍術) 等。配置寫在 FDFIELD.DAT entry 49。
+本章 FDFIELD entry 49 共 46 個會生成的 spawn 記錄（另有 14 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 55 | 水魔神 | LV10 | ×1 | aggressive_physical |
+| 17 | 黑暗騎士 | LV10 | ×3 | aggressive_physical |
+| 12 | 黑暗戰士 | LV9 | ×15 | aggressive_physical / defensive_kiter |
+| 23 | 黑暗法師 | LV9 | ×7 | aggressive_physical |
+| 35 | 獸人隊長 | LV21 | ×10 | default_attacker |
+
+單隻的 LV10 水魔神 (55) 為本章 boss，即劇情中的冰魔神。
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| 0 | 士兵 | LV25 | ×8 |
+| char 0x10 | 凱拉斯 | LV3 | ×1 |
+
+凱拉斯為被囚的龍人族劍士，戰場上以友軍 NPC 出現、章末入隊。若上一章未招募蜜蒂，她另以友軍 NPC (char[0x34]) 出戰（見 §特殊機制）。
 
 ## 寶物
 
-待 FDFIELD.DAT entry 49 確認。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：神聖之水 (0xC3)、控制中樞 (0xD0)、鑽石 (0xCC)、護手刀 (0x11)、神聖之水 (0xC3)、力量藥水 (0xC6)、生命之實 (0x5E)、再生藥 (0xC2)、風精之羽 (0x60)、心眼之書 (0x5C)
+- 金錢：10000、10000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：再生藥 (0xC2)、神聖之水 (0xC3)、藍寶石 (0xCB)
+- 金錢：18000
 
 ## 商店
 

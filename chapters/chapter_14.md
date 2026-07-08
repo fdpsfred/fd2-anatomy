@@ -8,11 +8,26 @@
 
 ## 敵人配置
 
-由 FDFIELD.DAT entry 40 的 char_spawn_records 決定（chapter_id × 3 + 1, chapter_id = 13）。詳見 `resource_info/fdfield.md`。
+本章 FDFIELD entry 40 共 52 個會生成的 spawn 記錄（另有 18 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 35 | 獸人隊長 | LV17 | ×8 | hard_skip |
+| 34 | 獸人 | LV17 | ×25 | hard_skip |
+| 20 | 黑暗射手 | LV7 | ×8 | hard_skip |
+| 23 | 黑暗法師 | LV7 | ×5 | hard_skip |
+| 26 | 黑暗僧侶 | LV7 | ×5 | hard_skip |
+| 34 | 獸人 | LV5 | ×1 | hard_skip |
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：閃電鎚 (0x26)
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 金錢：2000、5000、6000、8000
 
 ## 特殊機制
 

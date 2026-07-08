@@ -8,12 +8,22 @@
 
 ## 敵人配置
 
-空魔神 (chars[0x14], char_id 0x7E, data_fd2_battle_enemy_data_table entry 58 @ `0x7AD51`)、水魔神 (id 0x7B)、地魔神 (id 0x7A)、風魔神 (id 0x7C)、火魔神 (id 0x7D)、機甲 — FDFIELD.DAT[30]。
-init 階段以 7× cinematic warp 將魔神群傳送進場（4 個上方 + 3 個下方）。
+本章 FDFIELD entry 88 共 13 個會生成的 spawn 記錄（另有 57 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 58 | 空魔神 | LV40 | ×1 | hard_skip |
+| 57 | 火魔神 | LV30 | ×1 | hard_skip |
+| 56 | 風魔神 | LV30 | ×1 | hard_skip |
+| 55 | 水魔神 | LV32 | ×1 | hard_skip |
+| 54 | 地魔神 | LV30 | ×1 | default_attacker |
+| 48 | 機甲隊長 | LV28 | ×8 | default_attacker |
+
+最終 boss 空魔神即隊伍中偽裝的 chars[0x14]（char_id 0x7E，enemy_data entry 58 @ `0x7AD51`），擊殺即勝。五魔神 runtime char_id 對照：地魔神 0x7A、水魔神 0x7B、風魔神 0x7C、火魔神 0x7D、空魔神 0x7E（char_id - 0x44 = enemy_data index）。init 階段以 7× cinematic warp 將魔神群分兩批傳送進場（4 個上方 + 3 個下方，見 §特殊機制）。
 
 ## 寶物
 
-最終章無寶箱。
+最終章 tile_pickup 表無道具 / 金錢寶物。
 
 ## 商店
 

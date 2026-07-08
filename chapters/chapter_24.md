@@ -8,16 +8,33 @@
 
 ## 敵人配置
 
-LV23 龍人戰士 ×12 + LV21 龍騎士 ×4 + 多 wave 援軍 — FDFIELD.DAT[24]。
-援軍於第 2、4、7、10 回合敵方 turn intro 從地圖四個角落出現。
+本章 FDFIELD entry 70 共 60 個會生成的 spawn 記錄（另有 10 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 41 | 惡魔 | LV11 | ×15 | default_attacker |
+| 41 | 惡魔 | LV10 | ×1 | default_attacker |
+| 38 | 龍人戰士 | LV23 | ×32 | default_attacker |
+| 18 | 龍騎士 | LV21 | ×4 | default_attacker |
+| 39 | 龍人法師 | LV22 | ×4 | default_attacker |
+| 42 | 大惡魔 | LV12 | ×4 | default_attacker |
+
+援軍於第 2、4、7、10 回合敵方 turn intro 從地圖四個角落出現（波次時序見 §FDFIELD event script；四個角落座標即 init 開場鏡頭巡場的四點，詳 §特殊機制）。
 
 ## 寶物
 
-待解：寶物清單需從 FDFIELD.DAT tile_event 解析。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：風精之羽 (0x60)
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：流水劍 (0x08)、龍之槍 (0x1B)、生命之實 (0x5E)、魔力水晶 (0x5F)、風精之羽 (0x60)、力量鎖甲 (0x99)、地獄鎧甲 (0xA0)、再生藥 (0xC2)、神聖之水 (0xC3)、力量藥水 (0xC6)、耐力藥水 (0xC7)、速度藥水 (0xC8)、水晶粒 (0xCF)
+- 金錢：1000、2000、3000
 
 ## 商店
 
-待解：詳細 enemy/item 配置需從 FDFIELD.DAT entry 解析。
+無章內商店。
 
 ## 特殊機制
 

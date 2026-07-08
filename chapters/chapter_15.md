@@ -12,11 +12,41 @@
 
 ## 敵人配置
 
-由 FDFIELD.DAT entry 43 的 char_spawn_records 決定（chapter_id × 3 + 1, chapter_id = 14）。詳見 `resource_info/fdfield.md`。
+本章 FDFIELD entry 43 共 62 個會生成的 spawn 記錄（另有 18 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 51 | 薩卡 | LV10 | ×1 | hard_skip |
+| 13 | 狂戰士 | LV5 | ×8 | hard_skip / aggressive_physical |
+| 23 | 黑暗法師 | LV9 | ×4 | hard_skip / aggressive_physical |
+| 26 | 黑暗僧侶 | LV9 | ×4 | hard_skip / aggressive_physical |
+| 20 | 黑暗射手 | LV9 | ×4 | hard_skip / aggressive_physical |
+| 34 | 獸人 | LV19 | ×26 | hard_skip / pass_turn / aggressive_physical / charge_dash |
+| 35 | 獸人隊長 | LV20 | ×5 | pass_turn / aggressive_physical |
+
+薩卡（enemy_data[51]）為本章 boss、獸人首領。
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| char 0x0F | 塞可邦勒 | LV23 | ×1 |
+| 3 | 豹人 | LV16 | ×9 |
+
+塞可邦勒（char 0x0F）戰後加入；豹人（enemy_data[3]）9 名為並肩作戰的豹人族援軍（見 §特殊機制）。
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup。獸人運送的「光之眼」/「魔眼寶石」可於對話中得知（page 11）。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：精靈契印 (0x5A)、精靈披風 (0x82)、毒爪 (0x41)、再生藥 (0xC2)、魔力水晶 (0x5F)、霧之袍 (0xA9)、耐力藥水 (0xC7)
+- 金錢：10000、8000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：聖者之戒 (0x58)、回復劑 (0xC1)、再生藥 (0xC2)、解毒劑 (0xC4)、退麻藥 (0xC5)、力量藥水 (0xC6)、速度藥水 (0xC8)、飛龍卵 (0xCD)
+
+此外，獸人運送的「光之眼」/「魔眼寶石」可於對話中得知（page 11）。
 
 ## 特殊機制
 

@@ -11,18 +11,35 @@
 
 ## 敵人配置
 
-FDFIELD.DAT[23]：古代機兵守衛，含機甲隊長 boss (char[0x12])。後段戰場由 end handler 中段 `fd2_load_dat_resource("FDFIELD.DAT", 0x45)` 載入新地圖。
+本章 FDFIELD entry 67 共 70 個會生成的 spawn 記錄。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 48 | 機甲隊長 | LV22 | ×1 | aggressive_physical |
+| 47 | 機甲守衛 | LV17 | ×2 | aggressive_physical |
+| 43 | 機甲兵 | LV17 | ×19 | aggressive_physical |
+| 44 | 機甲射手 | LV17 | ×2 | aggressive_physical |
+| 44 | 機甲射手 | LV19 | ×6 | default_attacker |
+| 46 | 機甲突擊兵 | LV19 | ×6 | default_attacker |
+| 44 | 機甲射手 | LV21 | ×6 | default_attacker |
+| 46 | 機甲突擊兵 | LV21 | ×6 | default_attacker |
+| 44 | 機甲射手 | LV23 | ×6 | default_attacker |
+| 46 | 機甲突擊兵 | LV23 | ×6 | default_attacker |
+| 44 | 機甲射手 | LV25 | ×8 | default_attacker |
+
+機甲隊長 (enemy_data 48) 為 boss，對應 runtime char 0x12（勝負判定見 §Post-action handler）。end handler 中段 `fd2_load_dat_resource("FDFIELD.DAT", 0x45)` 載入第二戰場新地圖（詳 §特殊機制）。
 
 ## 寶物
 
-待解：寶物清單需從 FDFIELD.DAT tile_event 解析。**「天空之鑰」(item 100)** 為跨章兌換鏈關鍵物：
-- ch21 結束時可由 6 件物品集齊兌換
-- 持有此物 → ch23 卡里斯加入
-- 持有此物 → ch27 GOOD ENDING fork (進 ch28+)
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：破魔槍 (0x1C)、光之斧 (0x28)、封魔弓 (0x32)、黑暗杖 (0x3B)、裂刃爪 (0x45)、黑暗之衣 (0x8D)、黑暗之衣 (0x8D)、黑暗鱗甲 (0x98)、黑暗鱗甲 (0x98)、重鎧甲 (0x9F)、天之袍 (0xAB)、黑暗之袍 (0xAA)、龍鱗甲 (0x9B)
+
+天空之鑰 (item 0x64/100) 為跨章兌換鏈關鍵物；其取得與跨章影響見本章 §特殊機制及 `chapters/_index.md` 天空之鑰段。
 
 ## 商店
 
-待解：詳細 enemy/item 配置需從 FDFIELD.DAT entry 解析。
+無章內商店。
 
 ## 特殊機制
 

@@ -10,11 +10,35 @@
 
 ## 敵人配置
 
-寫在 FDFIELD.DAT entry 16。具體配置請參照該檔案。
+本章 FDFIELD entry 16 共 40 個會生成的 spawn 記錄。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 9 | 精英戰士 | LV9 | ×1 | aggressive_physical |
+| 8 | 士兵 | LV8 | ×8 | aggressive_physical |
+| 22 | 魔法師 | LV7 | ×4 | aggressive_physical |
+| 25 | 僧侶 | LV7 | ×4 | aggressive_physical |
+| 19 | 弓箭手 | LV8 | ×4 | aggressive_physical |
+| 50 | 萊汀 | LV10 | ×1 | default_attacker |
+| 15 | 突擊騎兵 | LV10 | ×12 | default_attacker |
+| 8 | 士兵 | LV5 | ×1 | default_attacker |
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| 2 | 傭兵 | LV7 | ×4 |
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：魔法水 (0xCE)、紅寶石 (0xCA)
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：長劍 (0x02)、回復劑 (0xC1)、紅寶石 (0xCA)
+- 金錢：2000
 
 ## 商店
 

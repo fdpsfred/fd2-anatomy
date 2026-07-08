@@ -10,11 +10,38 @@
 
 ## 敵人配置
 
-LV9 黑暗法師等冰原敵軍。蜜蒂以友軍 NPC (char[0x41]) 自走，下方 8 個部下 (chars[0x42..0x49]) 同樣為自走 NPC。具體配置寫在 FDFIELD.DAT entry 46。
+本章 FDFIELD entry 46 共 60 個會生成的 spawn 記錄。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 35 | 獸人隊長 | LV21 | ×4 | aggressive_physical |
+| 34 | 獸人 | LV21 | ×10 | aggressive_physical / targeted_approach |
+| 13 | 狂戰士 | LV5 | ×18 | aggressive_physical / targeted_approach |
+| 20 | 黑暗射手 | LV9 | ×9 | aggressive_physical / targeted_approach |
+| 23 | 黑暗法師 | LV9 | ×6 | targeted_approach / aggressive_physical |
+| 26 | 黑暗僧侶 | LV9 | ×2 | aggressive_physical |
+| 30 | 影之忍者 | LV3 | ×2 | item_pickup |
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| char 0x12 | 蜜蒂 | LV1 | ×1 |
+| 0 | 士兵 | LV24 | ×8 |
+
+其中 8 名士兵為蜜蒂的部下（runtime slots chars[0x42..0x49]），與蜜蒂 (char[0x41]) 一同以友軍 NPC 自走協戰。
 
 ## 寶物
 
-待 FDFIELD.DAT entry 46 確認。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：藍寶石 (0xCB)、暗殺服 (0x8C)、領悟之書 (0x5B)、耐力藥水 (0xC7)、力量藥水 (0xC6)
+- 金錢：10000、18000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：生命之實 (0x5E)、回復劑 (0xC1)、再生藥 (0xC2)、解毒劑 (0xC4)、藍寶石 (0xCB)、水晶粒 (0xCF)
+- 金錢：10000、20000
 
 ## 商店
 

@@ -8,15 +8,27 @@
 
 ## 敵人配置
 
-- LV6 盜賊頭目
-- LV5 盜賊 × 12
-- LV3 僧侶 × 2 (有治療術)
+本章 FDFIELD entry 10 共 21 個會生成的 spawn 記錄（另有 19 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
 
-敵人配置寫在 FDFIELD.DAT entry 10。
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 28 | 盜賊 | LV5 | ×12 | default_attacker |
+| 29 | 盜賊頭目 | LV6 | ×1 | default_attacker |
+| 25 | 僧侶 | LV3 | ×2 | default_attacker |
+| 22 | 魔法師 | LV3 | ×2 | default_attacker |
+| 34 | 獸人 | LV6 | ×4 | default_attacker |
+
+僧侶（enemy_data 25）帶治療術，可為盜賊方補血。
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup（攻略本提及共 10 件）。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：綠寶石 (0xC9)、草藥 (0xC0)、草藥 (0xC0)、闊劍 (0x01)、風精之羽 (0x60)、力量藥水 (0xC6)
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：回復劑 (0xC1)、綠寶石 (0xC9)、紅寶石 (0xCA)、魔法水 (0xCE)
 
 ## 商店
 

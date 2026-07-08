@@ -10,11 +10,33 @@
 
 ## 敵人配置
 
-由 FDFIELD.DAT entry 34 的 char_spawn_records 決定（chapter_id × 3 + 1, chapter_id = 11）。詳見 `resource_info/fdfield.md`。
+本章 FDFIELD entry 34 共 31 個會生成的 spawn 記錄（另有 29 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 35 | 獸人隊長 | LV16 | ×1 | default_attacker |
+| 34 | 獸人 | LV15 | ×21 | default_attacker |
+| 20 | 黑暗射手 | LV6 | ×4 | default_attacker |
+| 23 | 黑暗法師 | LV6 | ×4 | default_attacker |
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| char 0x11 | 米亞斯多德 | LV18 | ×1 |
+
+米亞斯多德（char 0x11）為戰場需保護的 NPC，其陣亡即判敗（見 §特殊機制），戰後加入隊伍。
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：魔法杖 (0x38)
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：魔力水晶 (0x5F)、風精之羽 (0x60)、回復劑 (0xC1)、再生藥 (0xC2)、解毒劑 (0xC4)、耐力藥水 (0xC7)、紅寶石 (0xCA)、魔法水 (0xCE)
+- 金錢：5000
 
 ## 特殊機制
 

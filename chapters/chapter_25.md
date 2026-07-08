@@ -11,15 +11,46 @@
 
 ## 敵人配置
 
-LV24 龍騎士 ×2 (HP744)、LV25 龍人戰士 ×16、LV24 龍人法師 ×4 (咒殺術)、LV16 火龍 (HP1280) — FDFIELD.DAT[25]。boss = 火魔神 (FDFIELD enemy 編組)。
+本章 FDFIELD entry 73 共 55 個會生成的 spawn 記錄（另有 15 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 39 | 龍人法師 | LV24 | ×4 | aggressive_physical |
+| 38 | 龍人戰士 | LV25 | ×15 | aggressive_physical / defensive_kiter |
+| 18 | 龍騎士 | LV24 | ×2 | default_attacker |
+| 41 | 惡魔 | LV14 | ×9 | default_attacker / defensive_kiter |
+| 42 | 大惡魔 | LV13 | ×2 | defensive_kiter |
+| 38 | 龍人戰士 | LV26 | ×1 | defensive_kiter |
+| 16 | 地獄騎士 | LV17 | ×4 | aggressive_physical |
+| 57 | 火魔神 | LV19 | ×1 | aggressive_physical |
+| char 0x1D | 亞齊梅吉（玩家職模板） | LV21 | ×1 | default_attacker |
+
+火魔神 (enemy_data 57) 為 boss。表末 char 0x1D 為以亞齊梅吉角色模板生成的敵方單位；亞齊梅吉本人於戰後自願加入我方（見 §加入角色）。
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| 36 | 火龍 | LV16 | ×1 |
+| 5 | 龍劍士 | LV16 | ×14 |
+
+友軍為龍人族生力軍（火龍 ×1、龍劍士 ×14），與龍人族王聖寇拉斯會師後投入戰場自走。
 
 ## 寶物
 
-待解：寶物清單需從 FDFIELD.DAT tile_event 解析。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：大地裝甲 (0xBF)、風精之羽 (0x60)、魔力水晶 (0x5F)、衝擊手臂 (0x4B)、神聖之水 (0xC3)
+- 金錢：20000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：再生藥 (0xC2)、神聖之水 (0xC3)
+- 金錢：10000、15000
 
 ## 商店
 
-待解：詳細 enemy/item 配置需從 FDFIELD.DAT entry 解析。
+無章內商店。
 
 ## 特殊機制
 

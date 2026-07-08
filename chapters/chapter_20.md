@@ -11,11 +11,41 @@
 
 ## 敵人配置
 
-沼澤怪物 + 「死亡骷髏」傭兵 + 多群敵兵；精靈族 8 名 (chars[0x35..0x3D]) 為友軍 NPC 自走。配置寫在 FDFIELD.DAT entry 58。
+本章 FDFIELD entry 58 共 68 個會生成的 spawn 記錄（另有 2 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 53 | 沼澤怪物 | LV10 | ×20 | aggressive_physical |
+| 31 | 黑暗殺手 | LV11 | ×12 | default_attacker / aggressive_physical |
+| 32 | 武術家 | LV11 | ×12 | default_attacker / aggressive_physical |
+| 17 | 黑暗騎士 | LV13 | ×4 | aggressive_physical |
+| 13 | 狂戰士 | LV10 | ×4 | aggressive_physical |
+| 21 | 狙擊手 | LV12 | ×2 | aggressive_physical |
+| 24 | 巫師 | LV12 | ×2 | aggressive_physical |
+| 27 | 大祭師 | LV12 | ×2 | aggressive_physical |
+| char 0x1C | 達克塞（玩家職模板） | LV5 | ×1 | default_attacker |
+
+隱形的沼澤怪物 (53) 為本章招牌威脅。下等魔族達克塞 (char 0x1C) 以玩家職模板作 team 0 單位登場，15 回合內速戰達成後於章末入隊。
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| 4 | 精靈 | LV13 | ×8 |
+
+8 名精靈為守護聖靈之塔的亞述森林精靈族（runtime slots chars[0x35..0x3D]），戰場自走；忍者謝多 (char[0x34]) 亦以友軍 NPC 參戰（見 §特殊機制）。
 
 ## 寶物
 
-待 FDFIELD.DAT entry 58 確認。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：特殊裝甲 (0xB5)、雷神手臂 (0x4A)、水晶粒 (0xCF)、鑽石 (0xCC)、神聖之水 (0xC3)、速度藥水 (0xC8)、暗之眼 (0xD4)
+- 金錢：30000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：大地之劍 (0x09)、神聖之水 (0xC3)、退麻藥 (0xC5)、力量藥水 (0xC6)、鑽石 (0xCC)
+- 金錢：18000、25000
 
 ## 商店
 

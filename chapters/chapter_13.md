@@ -10,11 +10,37 @@
 
 ## 敵人配置
 
-由 FDFIELD.DAT entry 37 的 char_spawn_records 決定（chapter_id × 3 + 1, chapter_id = 12）。詳見 `resource_info/fdfield.md`。
+本章 FDFIELD entry 37 共 57 個會生成的 spawn 記錄（另有 13 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 34 | 獸人 | LV16 | ×29 | item_pickup / default_attacker |
+| 23 | 黑暗法師 | LV7 | ×5 | default_attacker |
+| 20 | 黑暗射手 | LV7 | ×9 | default_attacker |
+| 35 | 獸人隊長 | LV18 | ×1 | default_attacker |
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| 4 | 精靈 | LV5 | ×12 |
+| char 0x03 | 哈瓦特 | LV23 | ×1 |
+
+精靈（enemy_data[4]）12 名即需保護的精靈族倖存戰士（對應 post-action chars[0xF..0x1A]）；哈瓦特（char 0x03）為第 4 回合登場的條件援軍，戰後無條件加入（見 §特殊機制）。
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup。哈斯米爾鎮中含「火焰之眼」寶石（依 page 0 / page 11 對話線索）。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：心眼之書 (0x5C)、金鋼手臂 (0x49)、回復劑 (0xC1)、飛龍卵 (0xCD)、突擊裝甲 (0xB3)、精靈弓 (0x30)、火之眼 (0xD6)、風精之羽 (0x60)
+- 金錢：30000、20000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：回復劑 (0xC1)、速度藥水 (0xC8)、藍寶石 (0xCB)
+- 金錢：10000
+
+此外，對白線索（page 0）提及哈斯米爾鎮藏有「火焰之眼」寶石。
 
 ## 商店
 

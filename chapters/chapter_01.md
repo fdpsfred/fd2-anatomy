@@ -14,23 +14,37 @@
 
 ## 敵人配置
 
-- LV2 盜賊 × 7 (HP28, AP24, DP4, DX2, MV4)
-- LV2 盜賊 × 4
-- LV3 海盜頭目 (HP72, AP34, DP11, DX6, MV4)
-- LV2 盜賊 × 4
-- LV2 士兵 × 4 (HP36, AP20, DP6, DX2, MV4) — 友方海防隊
+本章 FDFIELD entry 1 共 30 個會生成的 spawn 記錄。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
 
-敵人配置寫在 FDFIELD.DAT entry 1（chapter_id × 3 + 0 的 tile_map 與 +1 的
-char_spawn_records），不在 init handler。
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 28 | 盜賊 | LV2 | ×16 | default_attacker |
+| 29 | 盜賊頭目 | LV3 | ×1 | default_attacker |
+| 35 | 獸人隊長 | LV1 | ×3 | default_attacker |
+| 8 | 士兵 | LV1 | ×4 | default_attacker |
+
+友軍 NPC（team 1，戰場自走）——亞克斯王國海防隊士兵：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| 0 | 士兵 | LV2 | ×4 |
+
+哈瓦特（char 0x03）、哈諾（char 0x01）為 team 2 玩家班底 record，不列於上表；哈諾在第 3 回合援軍波次登場，戰後加入隊伍（見 §特殊機制 / §FDFIELD event script）。
 
 ## 寶物
 
-- 5000 元
-- 3000 元
-- 藥草
-- 1000 元
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
 
-由 FDFIELD tile_event_id 觸發 pickup，章首 `party_total_gold = 0` 重置。
+- 道具：草藥 (0xC0)、光之杖 (0x3D)、光之斧 (0x28)
+- 金錢：3000、5000
+- 空寶箱（0 金錢誘餌）×1
+
+（tile_pickup 另有 1 筆 kind≥2 = 劇情事件觸發點（tile[12]），非寶物，見 §FDFIELD event script。）
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：草藥 (0xC0)
+- 金錢：1000
 
 ## 特殊機制
 

@@ -8,11 +8,22 @@
 
 ## 敵人配置
 
-FDFIELD.DAT[28]：要塞防衛機甲部隊（多 wave）。
+本章 FDFIELD entry 82 共 44 個會生成的 spawn 記錄（另有 16 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 48 | 機甲隊長 | LV33 | ×2 | aggressive_physical |
+| 47 | 機甲守衛 | LV23 | ×2 | targeted_approach |
+| 43 | 機甲兵 | LV23 | ×18 | aggressive_physical / default_attacker |
+| 45 | 光束炮座 | LV18 | ×4 | aggressive_physical / default_attacker |
+| 44 | 機甲射手 | LV23 | ×8 | default_attacker / aggressive_physical |
+| 46 | 機甲突擊兵 | LV23 | ×10 | default_attacker / aggressive_physical |
 
 ## 寶物
 
-待解：寶物清單需從 FDFIELD.DAT tile_event 解析。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：衝擊手臂 (0x4B)、神聖之水 (0xC3)、神聖之水 (0xC3)、神聖之水 (0xC3)、水晶粒 (0xCF)、神聖之水 (0xC3)、神聖之水 (0xC3)、神聖之水 (0xC3)
 
 ## 商店
 

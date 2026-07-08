@@ -13,11 +13,37 @@
 
 ## 敵人配置
 
-由 FDFIELD.DAT entry 28 的 char_spawn_records 決定（chapter_id × 3 + 1，chapter_id = 9）。詳見 `resource_info/fdfield.md`。
+本章 FDFIELD entry 28 共 50 個會生成的 spawn 記錄（另有 10 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 54 | 地魔神 | LV5 | ×1 | aggressive_physical |
+| 12 | 黑暗戰士 | LV4 | ×16 | pass_turn / aggressive_physical |
+| 20 | 黑暗射手 | LV4 | ×8 | aggressive_physical |
+| 23 | 黑暗法師 | LV4 | ×8 | aggressive_physical |
+| 26 | 黑暗僧侶 | LV4 | ×6 | aggressive_physical |
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| 67 | 村民類 NPC（enemy_data[67]，class_id 0x1B 村民） | LV5 | ×1 |
+| char 0x0B | 索菲亞 | LV16 | ×1 |
+| 1 | 王國正規軍 | LV14 | ×8 |
 
 ## 寶物
 
-由 FDFIELD tile_event_id 觸發 pickup。索菲亞身上持有「黃金徽章」（inventory_slots 設置在 FDFIELD char_spawn_record）。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：黑暗劍 (0x04)、再生藥 (0xC2)、草藥 (0xC0)、紅寶石 (0xCA)、解毒劑 (0xC4)、回復劑 (0xC1)
+- 金錢：10000、10000、10000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：槤枷 (0x37)、生命之實 (0x5E)、回復劑 (0xC1)、再生藥 (0xC2)、魔法水 (0xCE)
+- 金錢：10000
+
+索菲亞（NPC，char 0x0B）身上持有關鍵道具「黃金徽章」，由 FDFIELD char_spawn_record 的 inventory_slots 設置。
 
 ## 特殊機制
 

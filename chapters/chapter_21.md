@@ -11,11 +11,44 @@
 
 ## 敵人配置
 
-「死亡骷髏」首領瑪爾 + 大量傭兵。第 2、4、6、8 回合己方結束時，地圖四個角落各 spawn 一隻魔鬼 (FDFIELD turn-event 0x2F 重複觸發 4 次)。配置寫在 FDFIELD.DAT entry 61。
+本章 FDFIELD entry 61 共 75 個會生成的 spawn 記錄（另有 5 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 52 | 瑪爾 | LV16 | ×1 | aggressive_physical |
+| 32 | 武術家 | LV11 | ×6 | default_attacker / aggressive_physical |
+| 27 | 大祭師 | LV11 | ×2 | default_attacker |
+| 31 | 黑暗殺手 | LV11 | ×6 | default_attacker / aggressive_physical |
+| 24 | 巫師 | LV11 | ×2 | aggressive_physical |
+| 24 | 巫師 | LV12 | ×4 | aggressive_physical |
+| 13 | 狂戰士 | LV10 | ×4 | aggressive_physical |
+| 27 | 大祭師 | LV12 | ×2 | aggressive_physical |
+| 21 | 狙擊手 | LV12 | ×2 | aggressive_physical |
+| 17 | 黑暗騎士 | LV12 | ×16 | targeted_approach / aggressive_physical |
+| 21 | 狙擊手 | LV11 | ×4 | targeted_approach |
+| 40 | 魔鬼 | LV10 | ×16 | default_attacker |
+
+boss 為「死亡骷髏」集團首領瑪爾 (enemy_data 52)。40 魔鬼 (LV10 ×16) 為第 2、4、6、8 回合地圖四個角落各 spawn 一隻的援軍波次（時序見 §FDFIELD event script）。
+
+友軍 NPC（team 1，戰場自走）：
+
+| enemy_data | 單位 | 等級 | 數量 |
+|---|---|---|---|
+| 4 | 精靈 | LV13 | ×8 |
+
+戰場自走的精靈 (enemy_data 4 ×8) 即受圍困待援的精靈族人。
 
 ## 寶物
 
-待 FDFIELD.DAT entry 61 確認。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
+
+- 道具：生命之實 (0x5E)、風精之羽 (0x60)、耐力藥水 (0xC7)、再生藥 (0xC2)、光之斧 (0x28)
+- 金錢：20000
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：魔力水晶 (0x5F)、重鎧甲 (0x9F)、再生藥 (0xC2)、水晶粒 (0xCF)
+- 金錢：10000
 
 ## 商店
 

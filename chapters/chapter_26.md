@@ -10,18 +10,39 @@
 
 ## 敵人配置
 
-LV28 龍騎士 ×8/×3/×3/×3 + LV29 龍人戰士 ×8 + LV24 龍人法師 ×5 — FDFIELD.DAT[26]。
-援軍 9 階段密集 spawn：第 2、4、6、8、10、12、15、16、17 回合 enemy turn intro。
+本章 FDFIELD entry 76 共 69 個會生成的 spawn 記錄（另有 1 筆 race_id 0xFF 保留記錄不生成）。含初始佈署與各回合援軍波次（波次時序見 §FDFIELD event script）。
+
+| enemy_data | 敵人 | 等級 | 數量 | AI |
+|---|---|---|---|---|
+| 48 | 機甲隊長 | LV28 | ×1 | aggressive_physical |
+| 47 | 機甲守衛 | LV22 | ×2 | aggressive_physical |
+| 16 | 地獄騎士 | LV19 | ×2 | defensive_kiter |
+| 39 | 龍人法師 | LV24 | ×5 | aggressive_physical |
+| 18 | 龍騎士 | LV28 | ×17 | defensive_kiter / default_attacker |
+| 43 | 機甲兵 | LV21 | ×18 | aggressive_physical / hardcoded_attack |
+| 38 | 龍人戰士 | LV29 | ×8 | default_attacker |
+| 44 | 機甲射手 | LV21 | ×1 | hardcoded_attack |
+| 46 | 機甲突擊兵 | LV21 | ×2 | hardcoded_attack |
+| 42 | 大惡魔 | LV14 | ×6 | default_attacker |
+| 41 | 惡魔 | LV14 | ×6 | default_attacker |
 
 ## 寶物
 
-**畫面最上方 5 個寶箱**：均為最強武器，但只能選 1 個。`tile_event_consumed_flags[0xC]` 紀錄玩家拿了哪一個 (0-4)，影響 end handler 的 dialog page。
+地圖寶物（走上寶物 tile 拾取，來源 FDFIELD tile_pickup 表）：
 
-其他寶物待解：寶物清單需從 FDFIELD.DAT tile_event 解析。
+- 道具：水晶粒 (0xCF)、神聖之水 (0xC3)、力量藥水 (0xC6)、速度藥水 (0xC8)、魔力水晶 (0x5F)
+- 金錢：50000、50000
+
+畫面最上方 5 個最強武器寶箱是 tile_pickup 表的 5 筆 kind≥2 事件 tile（tile[0..4]）：五者只能取其一，`tile_event_consumed_flags[0xC]`（值 0-4）記錄取哪一個並影響 end handler 對話分支（見 §特殊機制與 §FDFIELD event script）。
+
+敵人掉落（擊殺帶有掉落的敵人可得）：
+
+- 道具：生命之實 (0x5E)、神聖之水 (0xC3)
+- 金錢：50000
 
 ## 商店
 
-待解：詳細 enemy/item 配置需從 FDFIELD.DAT entry 解析。
+本章商店品項內嵌於 chapter_intro_metadata（見 assets/tables/chapter_intro_metadata.md）。
 
 ## 特殊機制
 
