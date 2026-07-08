@@ -1,13 +1,17 @@
-2f2e12da2205f917175ba676722ee5d3355814446d7f302c74914c115c44958d
+3b3a045373c7d3b1b18364b4c0d7245aa69584ad00c0d0829612edecee036036
 # FD2.EXE production build sha256 (sha256sum of workspace/fd2_build/exe/out/FD2.EXE)
-# ADVANCED 2026-06-25 (src_refine closeout ISS-0019/0020): const applied to the 5
-#   data_fd2_ui_*_menu_state_template arrays (0x53EF2/F02/F12/F22/F32, verified read-only,
-#   zero game write-xref). Logic-neutral data relocation (zero-init arrays -> CONST segment),
-#   0 undefined symbols, code/instructions unchanged. User-approved: semantic correctness
-#   (const) > byte-equivalence-with-original.
-# Prior baseline: ab5f110af02608462a1da464732c098ef4dc8e17e6dc43252b535ed1cbf3bd9b
-#   (src commit f83ec3c977835a8a121296868b082f22900ca1d3), byte-identical to the original
-#   FD2.EXE. The new build differs from the original ONLY by the const-template relocation.
-# FD2.EXE size: 349189 bytes; 0 undefined symbols; built with tools/fd2_build/build_fd2.py (Watcom 9.5a, DOSBox-X)
-# The eqcheck gate uses baseline_eq.json; this hash file is the legacy hash_check.py reference.
+# ADVANCED 2026-07-08: HEAD build after two intentional semantic-correctness commits
+#   that were not previously reflected in the baseline:
+#     15d32073 -- disable math.h intrinsics so sqrt/sin/cos match the original CRT call
+#                 form; drops the unused IF@DSQRT paths, -12520 bytes.
+#     395221d7 -- restore vendor stack-probe layout; fix sound-init Stack Overflow.
+#   Advancing so the eqcheck/hash_check gate tracks HEAD again. 336669 bytes,
+#   0 undefined symbols, built with tools/fd2_build/build_fd2.py (Watcom 9.5a, DOSBox-X).
+#   User-approved.
+# Prior baseline: 2f2e12da2205f917175ba676722ee5d3355814446d7f302c74914c115c44958d
+#   (const-template build, 349189 bytes, src_refine closeout ISS-0019/0020, 2026-06-25).
+# Baseline chain before that: ab5f110af02608462a1da464732c098ef4dc8e17e6dc43252b535ed1cbf3bd9b
+#   (src commit f83ec3c977835a8a121296868b082f22900ca1d3), byte-identical to the original FD2.EXE.
+# The eqcheck gate uses baseline_eq.json (regenerated from this same HEAD build); this hash
+#   file is the legacy hash_check.py reference.
 # tracked location (workspace/ is gitignored) so refine worktrees inherit it.

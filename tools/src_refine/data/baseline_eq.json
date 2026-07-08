@@ -1,11 +1,10 @@
 {
-  "size": 349189,
-  "fixup_lo": 11232,
-  "fixup_hi": 68368,
-  "outside_sha256": "1ee8cac3cfedff5bed150296119d3145530a8340bd87a0c3094d095ec5f6bfae",
-  "fixup_multiset_sha256": "02a5a70e9546babe975210237e34b2b3afdfb473e73c9a139c69388c57d9e9d2",
-  "fixup_len": 57136,
-  "residual_sha256": "0066a75e4d30bf5239071516d19e9528107f713351a788088cf97b1e678abb87",
-  "_doc": "Baseline functional-equivalence profile for Stage-2. outside_sha256 = sha256 of the EXE minus the LE fixup record table (STRICT: must stay identical). fixup_multiset_sha256 = sha256 of the sorted fixup-table bytes (same relocation set, order may differ after renames). residual_sha256 = sha256 of the EXE with every fixup site value AND the fixup record table blanked (RELOC: stays identical under pure COMDEF relocation; any real code/data edit breaks it). From the (now const-advanced) baseline build -- see _advance_note.",
-  "_advance_note": "ADVANCED 2026-06-25 (src_refine closeout ISS-0019/0020). Prior baseline = original-equivalent production build (sha256 ab5f110a..., src commit f83ec3c9), byte-identical to the original FD2.EXE. New baseline = const-applied build (sha256 2f2e12da...): the 5 data_fd2_ui_*_menu_state_template arrays (0x53EF2/F02/F12/F22/F32) are verified read-only (zero game write-xref; the game copies each into a local stack buffer and mutates only the copy) and were made const per the project const-data policy. The change is a LOGIC-NEUTRAL data relocation (zero-init arrays move from the writable segment to the CONST segment; no code/instruction change, 0 undefined symbols). User-approved: verified semantic correctness (const) takes priority over byte-equivalence-with-original. The rebuild now intentionally differs from the original FD2.EXE ONLY by this const-template relocation; everything else stays byte-faithful."
+  "size": 336669,
+  "fixup_lo": 11216,
+  "fixup_hi": 64414,
+  "outside_sha256": "1206047605e59cb77e47b8144c66ed63b5a7905529188e04e2ae6a3c9b751baf",
+  "fixup_multiset_sha256": "70e945912c2489e5c5dc7a333a91880ce623c23c0836ea48af9bae019bbb09f5",
+  "fixup_len": 53198,
+  "residual_sha256": "56a78b7fefdafc2eff9c78df7d3c9cd3a192ca64edbff9c8059a1cd9416075d1",
+  "_doc": "Baseline functional-equivalence profile for Stage-2. outside_sha256 = sha256 of the EXE minus the LE fixup record table (STRICT: must stay identical). fixup_multiset_sha256 = sha256 of the sorted fixup-table bytes (same relocation set, order may differ after renames). residual_sha256 = sha256 of the EXE with every fixup site value AND the fixup record table blanked (RELOC: stays identical under pure COMDEF relocation; any real code/data edit breaks it). From the byte-identical baseline build."
 }
