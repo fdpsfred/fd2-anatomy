@@ -42,7 +42,7 @@ runtime_char 佈好之後，靠 `main` 外迴圈反覆呼叫 `fd2_game_main_loop
 
 - 演算法：`seed = ROL16(seed + 0x9014, 3)` —— 16-bit 先加 0x9014，再向左循環移位 3 bit。
 - 回傳的是新 seed **零擴展**成的 32-bit 值：函式進入時先 `XOR EAX,EAX` 再 `MOV AX,seed`，故高 16 bit
-  恆為 0、回傳值恆非負。這正是升級 roll `gain = min + rng % range` 必落在 `[min, range)` 的前提。
+  恆為 0、回傳值恆非負。這正是升級 roll `gain = min + rng % range` 必落在 `[min, min+range)` 的前提。
 - 狀態存 `data_fd2_shared_rng_seed @ 0x627B8`，`fd2_advance_rng_state` 是唯一存取者；BSS 清 0 起始，
   第一次前進得 `ROL16(0x9014, 3) = 0x80A4`。
 
@@ -207,7 +207,7 @@ return fd2_apply_damage_and_award_xp(target, damage);
 ### 物理評分公式
 
 ```
-effective_AP/target_DP = 各自 base + 地形 % 修正（僅在該單位非狀態免疫時套用）
+effective_AP/target_DP = 各自 base + 地形 % 修正（僅在該單位「狀態免疫」時套用）
 raw_dmg     = effective_AP - target_DP
 score_class = 0     若 raw_dmg <= 2
             = 8     一般命中
@@ -216,6 +216,8 @@ score_class = 0     若 raw_dmg <= 2
 主角加成: 若 target.char_id(+8) == 0（主角索爾）→ raw_dmg = raw_dmg * 3 / 2
 best 由 (score_class, 再 raw_dmg tie-break) 決定
 ```
+
+注意：此 scorer 的地形修正只在 `fd2_check_char_status_immunity != 0`（該單位狀態免疫，如 job 0x13）時套用，與實際傷害函式 `fd2_execute_attack_damage_calculation`（免疫則跳過、未免疫才套地形）方向相反——AI 評分與真正傷害結算對地形加成的處理並不一致。
 
 ### 三類 executor
 
@@ -338,7 +340,7 @@ Path 1 是「玩家踩到 tile → 下回合 dispatch」的 deferred 模式，�
 `fd2_roll_stat_gain_and_show_message @ 0x1E529` roll 5 個 stat 槽、學會該等級的法術、`recalculate_combat_stats`，
 再扣 100 XP。成長 roll：`range = growth_pair[1] - growth_pair[0]`（第二 byte 是 exclusive 上界＝最大成長
 +1）；`range == 0` 時不抽 RNG、`gain` 恆為 min，否則 `gain = min + fd2_advance_rng_state() % range`，落在
-`[min, range)`。剩餘 XP 存 runtime_char +0x3C（EX carry）帶到下次。growth 表欄位語意與數值見
+`[min, min+range)`。剩餘 XP 存 runtime_char +0x3C（EX carry）帶到下次。growth 表欄位語意與數值見
 assets/tables/character_growth.md。
 
 ## Battle lifecycle（章節層）

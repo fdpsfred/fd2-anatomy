@@ -9,7 +9,7 @@ src 檔、主要 Ghidra 對象（函數名@位址）與相關資源檔，方便�
 |---|---|---|
 | `overview.md` | `life/main.c` | 整體架構、FD2.LE 記憶體佈局、entry chain（`_cstart_` → `main`）、生命週期主迴圈、runtime_char 80-byte 佈局、子系統地圖 |
 | `battle.md` | `battle/` | 戰鬥數值 pipeline、敵 AI 三層評分、回合 phase 時序、RNG 演算法與暖機、升級成長 |
-| `spell.md` | `spell/` | 法術三層：24-entry dispatch、cinematic（召喚／必殺技）、effect applier；移動 XOR 施法 |
+| `spell.md` | `spell/` | 法術三層：28-slot dispatch、cinematic（召喚／必殺技）、effect applier；移動 XOR 施法 |
 | `pathfind.md` | `util/pathfnd.c` | 移動範圍 flood fill 與尋路、per-job 移動成本表 |
 | `field.md` | `field/` | 30 章 init/end/post handler、chapter jump table、FDFIELD turn-event／tile-step hook 派遣、勝負判定 |
 | `dialog.md` | `dialog/dialog.c` | `fd2_display_dialog_scene` VM、portrait 快取、1bpp 字模、9-slice 對話框、speaker blit |

@@ -60,9 +60,9 @@
   spell_id > 0x1B` 走 `fd2_play_spell_cast_sequence`（大運鏡總指揮）；其餘（狀態／輔助帶 9..0x1B，
   0x18 除外）先載入狀態 SFX、播放 `fd2_play_spell_palette_flash_with_sfx`，再呼叫
   `handler_table[spell_id]`。
-- 敵方 AI `fd2_execute_ai_offensive_spell` @ 0x15311：`spell_id < 10 && game_speed_flag
+- 敵方 AI `fd2_execute_ai_offensive_spell` @ 0x15311：`spell_id < 10 && data_fd2_ui_game_speed_flag
   (@0x53AF9) == 0` 走 `fd2_play_spell_cast_sequence`；否則走 `handler_table[spell_id]`。因此
-  快速模式（game_speed_flag != 0）下連基本攻擊法術（0-8）也改走表內的簡化 handler（略過大運鏡），
+  快速模式（`data_fd2_ui_game_speed_flag` != 0）下連基本攻擊法術（0-8）也改走表內的簡化 handler（略過大運鏡），
   這正是 slot 0-8 存在的原因——玩家端永遠給基本法術完整運鏡，AI 快速模式則用表內精簡版。
 
 `fd2_play_spell_cast_sequence` 自身再做第二層分派：`spell_id >= 0x20` -> 召喚系
@@ -178,13 +178,15 @@ carry byte。（runtime_char 佈局正典見 overview.md；+0x3B = MV 移動力�
 
 ### 各 worker 的判定與 XP 給法
 
-狀態／buff 類 worker 皆有共通結構：`level_mod = status_flags_block[0]`（等級 byte），若
+狀態／buff 類 worker 多有共通結構：`level_mod = status_flags_block[0]`（等級 byte），若
 `job_id` 落在進階職業區間（9..0x18）再 +30，然後把 `level_mod × 倍率` 累加進
-`data_fd2_battle_pending_xp_credit` @ 0x53EC8。倍率分層：
+`data_fd2_battle_pending_xp_credit` @ 0x53EC8。唯一例外是狀態施加 worker
+`fd2_cast_status_inflict_spell`（封咒／毒擊／麻痺）：它**不套 +30**，直接以原始
+`status_flags_block[0] × 8` 給分。倍率分層：
 
 - buff（AP／DP／速度）：×2
 - 狀態解除（解毒／祛麻）：×4
-- 狀態施加、行動術：×8（最高層）
+- 狀態施加、行動術：×8（最高層；其中行動術套 +30 職業加成，狀態施加不套）
 - 傳送 `fd2_cast_spell_17_teleport`：×10
 
 AP／DP／速度 buff（`fd2_cast_ap_boost_spell` @ 0x22721、`_dp_boost_spell` @ 0x22866、
