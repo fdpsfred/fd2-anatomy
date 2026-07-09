@@ -33,7 +33,7 @@
 - 道具：水晶粒 (0xCF)、神聖之水 (0xC3)、力量藥水 (0xC6)、速度藥水 (0xC8)、魔力水晶 (0x5F)
 - 金錢：50000、50000
 
-畫面最上方 5 個最強武器寶箱是 tile_pickup 表的 5 筆 kind≥2 事件 tile（tile[0..4]，皆 consequence 0x3A）：五者只能取其一，由 consequence 0x3A handler 處理（見 §FDFIELD event script）。（注意：end handler 的對話分支由 `tile_event_consumed_flags[0xC]` = 渥德招募旗標驅動，與寶箱選擇無關，見 §特殊機制。）
+畫面最上方 5 個最強武器寶箱是 tile_pickup 表的 5 筆 kind≥2 事件 tile（tile[0..4]，皆 consequence 0x3A → handler `@ 0x354FE`）：五格各對應一件 AP 400 武器（戰神戟 0x1D／魔神斧 0x2B／風神弓 0x33／光之杖 0x3D／魔龍爪 0x47；item-id 表 @ 0x5274E），依踩上的 tile 屬性決定拿哪一件。**踩任一格即取得該武器，並把 `tile_event_consumed_flags[0..4]` 一次全設 1**（其餘四格同時鎖定）；全程只顯示單一「取得道具」對話（`_all_game_text` page 0x1A6）——不會有五種對話。（注意：end handler 的對話分支由**另一個** flag `tile_event_consumed_flags[0xC]`（渥德招募旗標）驅動，與這 5 寶箱選擇完全無關，見 §特殊機制。）
 
 敵人掉落（擊殺帶有掉落的敵人可得）：
 
@@ -118,17 +118,14 @@ runtime char index 隨章節而變，由編成畫面 per-chapter pin 決定：ch
 11. `fd2_display_dialog_scene(page=11)`
 12. `fd2_save_runtime_char_to_template` + `current_chapter_id += 1`
 
-flag 值與 dialog page 對應：
+flag[0xC] 為 binary 渥德招募旗標（唯一 writer 為 pickup handler `fd2_chapter_event_handler_3d__ch26_pickup @ 0x356B7`，攜鑰匙道具 0xD0 踩 pickup tile 時設常數 1），故只有 0 / 1 兩種取值：
 
 | `tile_event_consumed_flags[0xC]` | Dynamic #1 (page) | Dynamic #2 (page) |
 |---|---|---|
-| 0 | 5 | 8 |
-| 1 | 6 | 9 |
-| 2 | 7 | 10 |
-| 3 | 8 | 11 |
-| 4 | 9 | 12 |
+| 0（未招募渥德） | 5 | 8 |
+| 1（已招募渥德） | 6 | 9 |
 
-對應「5 個寶箱選 1」的 5 條對話路線。
+畫面上「5 個寶箱選 1」與此 flag 無關（寶箱是獨立的 tile_pickup consequence 0x3A，見上文 §敵人/寶物配置）。
 
 ## FDFIELD event script
 

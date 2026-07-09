@@ -7,7 +7,7 @@
 用腳本 scancode 驅動重建版遊戲在 DOSBox-X silent 全自動跑真實內容，在邏輯檢查點擷取
 framebuffer + 遊戲狀態，對照 golden 與 KB 推導的期望值。這是行為等同原版的主要驗證手段。
 
-- 程式：`tests/play/`（`replay.c` / `capture.c` / `playharn.h`，只進 replay build）。詳見
+- 程式：`tests/play/`（`replay.c` / `capture.c` / `probe.c` / `playharn.h`，只進 replay build）。詳見
   `tests/play/_index.md`。
 - 工具：`tools/fd2_play/`（`build_replay.py` / `run_play.py` / `compare.py` / `expect.py` /
   `run_all.py` …）。詳見 `tools/fd2_play/_index.md`。
@@ -51,5 +51,6 @@ scenario 承擔。新文件不引用 `legacy/`。
 | `testglob.c` | logic-net 連結所需的共用 fake 全域與 stub（仍含退役套件用的 stub，無害；redefinition 為 W1027 警告，不影響 leaf 測試解析到真函數） |
 | `genbuild.py` / `naming.py` / `where.py` | 掃 `src/` 與 `tests/` 重生 `build.bat` / `test.lnk` / `testmain.c`（嚴禁手改這三個生成檔） |
 | `dosbox.conf` | DOSBox-X 設定：autoexec 只 mount + 設環境，再呼叫 `build.bat` |
+| `dosbox_dbg.conf` | 前者的可視 debug 變體（`output=surface` 非 silent）：mount 後直接跑已建好的 `out/TEST.EXE` 供人工觀察，未被自動化工具引用 |
 
 新建或移除 logic-net 測試檔後，跑 `python tests/genbuild.py --apply` 重接 build，再 `build_test.py` 過 gate。

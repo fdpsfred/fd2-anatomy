@@ -42,11 +42,13 @@ disasm / 分類證據見 `tools/code_emit/data/emit_issues.json` 的 `0002935b` 
 + 把約 25 個依賴套件改成用真實演算法結果斷言）。orchestrator 在 entry 寫入的 secondary cost-table base 由
 `data_fd2_battle_pathfind_move_cost_table_ptr @ 0x6006A` 交回。
 
-**#35 le_layout DPMI extender 標籤對齊 CSTART3S.ASM** — `rebuild_info/link/le_layout.md` §入口流程把 INT 21h
-AX=3000h 回傳的高 16-bit signature 標成 `'DX'`=DOS/4G、`'BC'`=DOS/4GW，但 Watcom 9.5a `CSTART3S.ASM` 的 `_cstart_`
-原註解是 `'DX'`=Phar Lap 386|DOS、`'BC'`=Intel CodeBuilder、`INT 21h AX=FF00h DX=78h`=Rational DOS/4G（FD2 實走此
-路徑）。純文字精確性，不影響 emit / link。解：照 CSTART3S.ASM 改正三路標籤，並以 emulator / DOSBox trace 確認 FD2
-runtime 確實走 FF00h。
+**#35 le_layout DPMI extender 偵測路徑 runtime 確認 + signature 對映補全** — `rebuild_info/link/le_layout.md`
+§入口點目前泛述 `_cstart_` 的 extender 偵測（DOS/4G、Phar Lap 386|DOS、Intel Code Builder），並由綁定的 DOS4GW
+stub 與 `RATIONAL DOS/4G` 字串推論「FD2 走 DOS/4G 這條路徑」，此推論尚未經 emulator / DOSBox trace 實機確認。另
+Watcom 9.5a `CSTART3S.ASM` 的 `_cstart_` 對 INT 21h AX=3000h 高 16-bit signature 與 AX=FF00h/DX=78h 的三路
+signature→extender 對映（`'DX'`=Phar Lap 386|DOS、`'BC'`=Intel CodeBuilder、FF00h/78h=Rational DOS/4G）尚未寫入
+le_layout.md。純文字精確性，不影響 emit / link。解：emulator / DOSBox trace 確認 FD2 runtime 走 FF00h 路徑，並把
+CSTART3S.ASM 三路 signature 對映補進 le_layout.md。
 
 **#29 3 個無法 import 的 .obj** — 770 個 dedup 後的 Watcom CRT .obj 中 3 個觸發 Ghidra OmfLoader 的 EOF bug 而 import
 失敗（`fpeinth.obj`、`font8x8.obj` ×2）。FD2 都不連結這 3 個，對版本判定與 CRT 識別無影響，但理論完整度仍是缺口。
