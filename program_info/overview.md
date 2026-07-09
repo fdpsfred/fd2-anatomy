@@ -231,7 +231,7 @@ inventory 見 `rebuild_info/crt/lookup_9.5a.json` 與 `matched_function_sources.
 | `data_fd2_chapter_intro_metadata_table` | 31 B | 26 | `assets/tables/chapter_intro_metadata.md` |
 | `data_fd2_battle_spell_learning_table` | 12 B | 20 | `assets/tables/spell_learning.md` |
 | `data_fd2_battle_job_magic_resist_table` | dword × 28 | 28 | `assets/tables/job_magic_resist.md` |
-| `data_fd2_battle_job_crit_rate_table` | byte × 27 | 27 | `assets/tables/job_crit.md` |
+| `data_fd2_battle_job_crit_rate_table` | byte × 28 | 28 | `assets/tables/job_crit.md` |
 
 資料表模組級索引（哪張表在哪個 src 檔、誰在用、accessor 清單）見 `table.md`。
 

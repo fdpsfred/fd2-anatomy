@@ -242,8 +242,8 @@
   "data_fd2_battle_job_crit_rate_table": {
     "addr": "5239b",
     "segment": ".object2",
-    "len": 27,
-    "datatype": "byte[27]",
+    "len": 28,
+    "datatype": "byte[28]",
     "kind": "byte_data",
     "emit_class": "const",
     "needs_bytes": true,

@@ -445,7 +445,7 @@ const uint8 data_fd2_battle_miss_indicator_sprite_ids[4] = {
 };
 
 /* ----------------------------------------------------------------
- * data_fd2_battle_job_crit_rate_table @ 0x5239B  (27 bytes, uint8[27])
+ * data_fd2_battle_job_crit_rate_table @ 0x5239B  (28 bytes, uint8[28])
  *
  * Per-job base critical-hit rate, in percent (read-only). Indexed by job_id,
  * which is 1-based, so the accessor uses (job_id - 1); element 0 is job 0x01.
@@ -457,21 +457,23 @@ const uint8 data_fd2_battle_miss_indicator_sprite_ids[4] = {
  *         -> stride 1, element = uint8, zero-extended (unsigned), index =
  *            bJob_id - 1. The value seeds total_crit_pct for the crit roll.
  *
- * Extent is 27 bytes: entries 0..25 map to jobs 0x01..0x1A (the 26 defined
- * jobs); byte 26 (@ 0x523B5) is a trailing 0 pad. The table sits immediately
- * after the "TAI.DAT" string (NUL-terminated @ 0x5239A) and is followed by
- * 3 bytes of alignment padding @ 0x523B6 before the next table @ 0x523B9.
- * No writers.
+ * Extent is 28 bytes: entries 0..27 map to class_id 0x01..0x1C, parallel to
+ * data_fd2_battle_job_magic_resist_table (dword[28], same job domain and
+ * table[job_id-1] accessor). Entries 24..27 (jobs 0x19..0x1C) are 0 -- real
+ * "never crits" entries, not padding: class_id 0x1C (Dakuse and the shared
+ * swamp monster) does physical attacks and reads element 27. The table sits
+ * immediately after the "TAI.DAT" string (NUL-terminated @ 0x5239A) and is
+ * followed by 2 bytes of alignment padding @ 0x523B7 before the next table
+ * @ 0x523B9. No writers.
  * ---------------------------------------------------------------- */
-/* Non-const: read-only in-game, but seeded by test fixtures. */
-const uint8 data_fd2_battle_job_crit_rate_table[27] = {
+const uint8 data_fd2_battle_job_crit_rate_table[28] = {
     /* job 0x01 */  5, /* job 0x02 */  3, /* job 0x03 */  3, /* job 0x04 */  5,
     /* job 0x05 */  3, /* job 0x06 */  3, /* job 0x07 */  0, /* job 0x08 */ 18,
     /* job 0x09 */  5, /* job 0x0a */  3, /* job 0x0b */  3, /* job 0x0c */ 12,
     /* job 0x0d */  3, /* job 0x0e */  3, /* job 0x0f */ 12, /* job 0x10 */ 10,
     /* job 0x11 */  6, /* job 0x12 */  3, /* job 0x13 */  3, /* job 0x14 */  7,
     /* job 0x15 */  3, /* job 0x16 */  3, /* job 0x17 */ 30, /* job 0x18 */ 18,
-    /* job 0x19 */  0, /* job 0x1a */  0, /* idx 26   */  0
+    /* job 0x19 */  0, /* job 0x1a */  0, /* job 0x1b */  0, /* job 0x1c */  0
 };
 
 /* ----------------------------------------------------------------

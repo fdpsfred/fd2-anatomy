@@ -563,7 +563,7 @@ extern uint16 data_fd2_shared_rng_seed;                                 /* 0x627
 
 /* ---- battle misc const tables ---- */
 extern const uint32 data_fd2_battle_job_magic_resist_table[28];               /* 0x51F96 */
-extern const uint8  data_fd2_battle_job_crit_rate_table[27];                  /* 0x5239B */
+extern const uint8  data_fd2_battle_job_crit_rate_table[28];                  /* 0x5239B */
 
 /* ---- .object3 tables accessed by table accessors (live sub-regions of former orphan blob) ---- */
 extern uint32 data_fd2_battle_pathfind_tile_cost_table_ptr;               /* 0x60060 */

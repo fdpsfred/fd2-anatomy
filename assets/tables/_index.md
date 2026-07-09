@@ -8,17 +8,27 @@ struct 欄名** ↔ **攻略本縮寫** 對齊起來。本資料夾只放 **stru
 ## 位址空間換算
 
 每張表的表頭位址一律是 **Ghidra VA**（Ghidra code browser 顯示、`list_globals` 回報的
-位址，本專案的位址正典）。另外兩個位址空間由固定的 per-segment delta 換算，不必逐檔重列：
+位址，本專案的位址正典），同時就是**執行期 linear 虛擬位址**：LE loader 把三個 object
+載到 linear `0x10000` / `0x50000` / `0x60000`，正是 Ghidra 的 object 基底，故 runtime VA
+就等於 Ghidra VA（delta 0）。其餘三個檔案位址空間由固定的 per-segment delta 換算，不必逐檔重列：
 
 | 位址空間 | `.object2` 小表（位於 `0x5xxxx`） | `.object3` 大表（位於 `0x6xxxx`） |
 |---|---|---|
-| Ghidra VA（正典，各檔表頭） | 表頭值 | 表頭值 |
-| FD2.LE 檔案 offset | Ghidra VA − `0x200` | Ghidra VA − `0xC200` |
-| FD2.EXE runtime VA | Ghidra VA + `0x25014` | Ghidra VA + `0x19014` |
+| Ghidra VA（正典 = 執行期 VA） | 表頭值 | 表頭值 |
+| 獨立 `FD2.LE` 檔案 offset | Ghidra VA − `0x2AB8` | Ghidra VA − `0xEAB8` |
+| `fd2_game_files/FD2.EXE` 檔案 offset | Ghidra VA − `0x200` | Ghidra VA − `0xC200` |
+| 另一發行版 FD2.EXE 檔案 offset（跨版本，未複核） | Ghidra VA + `0x25014` | Ghidra VA + `0x19014` |
 
-換算範例（`.object3`）：item_effect Ghidra VA `0x602AC` → FD2.LE 檔案 offset `0x540AC`
-→ FD2.EXE `0x792C0`。換算範例（`.object2`）：job_crit Ghidra VA `0x5239B` → FD2.LE
-`0x5219B` → FD2.EXE `0x773AF`。
+各欄意義：**獨立 `FD2.LE`** 是 Ghidra 載入的 LE 模組檔（data pages 起於 file `0xE548`）；
+**`fd2_game_files/FD2.EXE`** 是出貨的 MZ-bind 版，FD2.LE 模組嵌在 file `0x28B8`，故其
+檔案 offset = 獨立 FD2.LE offset ＋ `0x28B8`（即 `−0x200` / `−0xC200` 欄）。最後一欄指向
+**另一個 FD2 發行版**的 FD2.EXE 檔案 offset，未在本專案獨立複核，僅供跨版本定位（詳
+`rebuild_info/link/le_layout.md`）。
+
+換算範例（`.object3`）：item_effect Ghidra VA `0x602AC` → 獨立 FD2.LE `0x517F4`
+→ `fd2_game_files/FD2.EXE` `0x540AC`（跨版本另一發行版 `0x792C0`）。換算範例（`.object2`）：
+job_crit Ghidra VA `0x5239B` → 獨立 FD2.LE `0x4F8E3` → `fd2_game_files/FD2.EXE` `0x5219B`
+（跨版本 `0x773AF`）。
 
 一張表屬 `.object2` 還是 `.object3` 由它落在哪個 segment 決定（看 Ghidra VA 的高位）：
 魔抗 / 暴擊 / 章節分類等小表在 `0x5xxxx`（`.object2`）；道具 / 敵人 / 角色 / 法術 / 章節
@@ -56,8 +66,8 @@ intro 等大表在 `0x6xxxx`（`.object3`）。
   20 entries × 12 B。配對 character_growth.spell_learning_idx 使用的升級習得表。
 
 ### 職業屬性
-- `job_crit.md` — `data_fd2_battle_job_crit_rate_table` `.object2 @ 0x5239B`，byte[27]。
-  每 byte = job_id 對應的暴擊率 %。
+- `job_crit.md` — `data_fd2_battle_job_crit_rate_table` `.object2 @ 0x5239B`，byte[28]，
+  服務 class_id 0x01..0x1C（`table[job_id − 1]`，與魔抗表平行）。每 byte = job 的暴擊率 %。
 - `job_magic_resist.md` — `data_fd2_battle_job_magic_resist_table` `.object2 @ 0x51F96`，
   dword[28]，服務 class_id 0x01..0x1C（`table[job_id − 1]`）。每 job 的魔法傷害縮放係數。
 - `job_allowed_items.md` — `data_fd2_battle_job_allowed_items_table` `.object3 @ 0x6188A`，

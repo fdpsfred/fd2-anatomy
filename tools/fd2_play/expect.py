@@ -49,7 +49,7 @@ LE_FILE = ROOT / "fd2_game_files" / "FD2.LE"
 # types.h) and verified against the binary below. Only ADDRESSES live here;
 # every VALUE is read live from FD2.LE / the captures.
 ADDR_ITEM_TABLE = 0x602AC   # item_effect[215], 23 bytes/entry (globals.h)
-ADDR_CRIT_TABLE = 0x5239B   # job_crit_rate_table[27], 1 byte/entry
+ADDR_CRIT_TABLE = 0x5239B   # job_crit_rate_table[28], 1 byte/entry
 ADDR_TILE_AP_MOD = 0x51A12  # tile_attr_mv_modifier_table[6], int32 (AP %)
 ADDR_TILE_DP_MOD = 0x51A2A  # tile_attr_def_modifier_table[6], int32 (DP %)
 ITEM_STRIDE = 23

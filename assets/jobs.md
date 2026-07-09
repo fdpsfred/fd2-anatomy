@@ -44,10 +44,11 @@
 ## 魔法抗性 + 暴擊率 (class_id 0x01..0x1C)
 
 兩表皆以 `bJob_id − 1` 索引，從 job 0x01 起（job 0x00 無單位使用、永不查表）。魔法抗性表
-`data_fd2_battle_job_magic_resist_table @ 0x51F96` 是 `dword[28]`，服務 class_id 0x01..0x1C；
-暴擊率表 `data_fd2_battle_job_crit_rate_table @ 0x5239B` 是 `byte[27]`，只服務 class_id
-0x01..0x1B（class_id 0x1C 的暴擊索引落在表外的 3-byte 對齊 padding，值 0）。struct 與 entry 數見
-`assets/tables/job_magic_resist.md` 與 `assets/tables/job_crit.md`。
+`data_fd2_battle_job_magic_resist_table @ 0x51F96` 是 `dword[28]`，暴擊率表
+`data_fd2_battle_job_crit_rate_table @ 0x5239B` 是 `byte[28]`，兩表同服務 class_id 0x01..0x1C
+（各 28 entries）。class_id 0x19..0x1C 的暴擊值皆 0（不暴擊的真 entry，非 padding；達克塞
+class 0x1C 物理攻擊實讀 idx27）。struct 與 entry 數見 `assets/tables/job_magic_resist.md`
+與 `assets/tables/job_crit.md`。
 
 魔法抗性公式：`抗性 = (10 - 表值) / 10`（表值 7 = 30%、5 = 50%、4 = 60%、10 = 0% 抗性）。
 
@@ -80,11 +81,13 @@
 | 0x19 | 機兵     | 20%  | 0%  |
 | 0x1A | ？？？   | 60%  | 0%  |
 | 0x1B | 村民 (class)   | 0%  | 0%  |
-| 0x1C | 達克塞 (class) | 30% | 0%※ |
+| 0x1C | 達克塞 (class) | 30% | 0% |
 
 0x1B / 0x1C 是超出名稱表的 class_id：0x1B 為村民類敵人、0x1C 為達克塞（玩家可加入角色）與一隻沼澤
-怪物共用。※ 暴擊表只到 class_id 0x1B，0x1C 的暴擊索引讀到表尾對齊 padding（值 0）。達克塞的顯示職業
-名稱未定（名稱表僅到 0x1A，class_id 0x1C 的名稱頁 `0x1C + 0x96` 內容待佐證）。
+怪物共用。暴擊表與魔抗表同為 28 entries（class_id 0x01..0x1C）：達克塞 class 0x1C 物理攻擊時實讀
+暴擊率 idx27（值 0，即不暴擊），是真 entry 非表外 padding。達克塞的顯示職業名：class_id 0x1C 的
+名稱頁 `0x1C + 0x96`（page 178）解碼為「？？？」，與 0x1A（page 176）同一 placeholder（0x1B/page 177
+為全形空白），見 `assets/text/global_text.md` page 178。
 
 ## 轉職物品
 
