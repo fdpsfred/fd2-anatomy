@@ -203,8 +203,10 @@ script (`[n_groups][group: walk_count|step_count|{char_idx,dir}*N]+`)。
 ## FDFIELD event script
 
 FDFIELD entry idx **1**（= chapter_id × 3 + 1，chapter_id = 0），entry size 937 bytes；
-`party_member_count` = 4，`char_spawn_count` = 30（loader 迭代上限；file 實含 31 records，
-末筆 race_id=0xFF 為 reserved，永不 load）。header layout 見 `resource_info/fdfield.md`。
+`party_member_count` = 4，`char_spawn_count` = 30（loader 依此 count 迭代，不靠 race_id sentinel）；
+file 實含 31 個 record slot，末筆（idx 30）是與已載入 record 26–29 相同的重複士兵 record
+（char_id 0x4C = enemy_data[8]、race_id 0x0A），因 count 上限 30 而永不 load。
+header layout 見 `resource_info/fdfield.md`。
 
 4 / 16 active turn-event hooks（其餘 12 為 sentinel）：
 

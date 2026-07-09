@@ -381,7 +381,7 @@ void fd2_chapter_08_end(void)
  *   chapter-end handler pointer table @ 0x51DE9)
  *
  * Chapter 9「騎士的抉擇」end handler. Revives runtime char #11 by clearing all
- * of its status flags (flags = 0; the char was previously asleep/disabled —
+ * of its status flags (flags = 0; the char was previously disabled —
  * this re-enables it rather than recruiting a new member), pans the view window
  * to (6,1), refreshes the portrait cache for race 4, fires cutscene event 0x24,
  * shows the chapter-end dialog page 4, persists the party's runtime-character
@@ -420,8 +420,8 @@ void fd2_chapter_09_end(void)
  *   stack and places the 11 party units (chars 0..0xA) at those tiles, each
  *   with sprite_state[1] (facing) = 2.
  *   It then revives/repositions the rescued NPCs that started the battle
- *   asleep or disabled: char 0x32 (索菲亞) -> (15,35) sleep flag cleared;
- *   char 0x33 (卡納恩三世) -> (14,35) sleep flag cleared; char 0x34 -> (16,35)
+ *   paralyzed or disabled: char 0x32 (卡納恩三世) -> (15,35) paralysis flag cleared;
+ *   char 0x33 (索菲亞) -> (14,35) paralysis flag cleared; char 0x34 -> (16,35)
  *   flags cleared; char 5 flags cleared.
  *   Resets battle_anim_phase, sets the view window origin and cursor-world to
  *   (9,34) and cursor-screen to (0,0), composites one battle frame, fades the
@@ -433,7 +433,7 @@ void fd2_chapter_09_end(void)
  *   current-chapter id by 1.
  *
  * Paired init handler: fd2_chapter_10_init @ 0x3332B (sets chars 0x32/0x33
- *   sleep flag = 100 so they start the battle asleep).
+ *   paralysis flag = 100 so they start the battle paralyzed).
  * Post-action handler: fd2_chapter_10_post_action @ 0x20707 (extra lose if
  *   char 0x32 OR char 0x33 is dead).
  * Walkthrough: chapters/chapter_10.md.

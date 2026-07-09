@@ -89,7 +89,7 @@ Init handler 內無 `fd2_init_runtime_char_from_base_growth` 呼叫；End handle
 
 `fd2_chapter_14_end @ 0x238DC`：
 
-1. 從 scene tables（`chapter_14_end_scene_pos_x/y/facing_table`）讀 4 chars 位置
+1. 從 scene tables（`data_fd2_chapter_ch14_end_scene_char_pos_x_table` / `_pos_y_table` / `_facing_table`，各 @0x52153/0x52163/0x52173）讀 4 chars 位置
 2. `fd2_load_chapter_portraits_and_dump_tmp(1)`
 3. `fd2_setup_chars_and_camera_for_intro(0xF, 0, 0, 0, 0, 0xC, 10)`
 4. `fd2_display_dialog_scene(page=2)`

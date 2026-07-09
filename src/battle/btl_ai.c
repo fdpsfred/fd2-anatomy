@@ -18,7 +18,7 @@
  *
  * Iterates runtime chars [0 .. party_member_count). Skips a char
  * unless: bTeam(+6)==1, (bFlags(+5) & 0x81)==0 (not dead 0x01 /
- * not acted-this-turn 0x80), and sleep flag(+0x26)==0. Eligible
+ * not acted-this-turn 0x80), and paralysis flag(+0x26)==0. Eligible
  * chars run through fd2_enemy_turn_action_dispatcher(i, 1).
  *
  * After each char (whether it acted or not):
@@ -66,7 +66,7 @@ void fd2_npc_turn_phase_team1(void)
  * Enemy-phase entry point per turn. Two-pass AI over runtime chars
  * [0 .. party_member_count). Eligibility filter (both passes): team
  * 0 (TEAM_ENEMY) and (bFlags(+5) & 0x81)==0 (not dead 0x01 / not
- * acted-this-turn 0x80) and sleep flag(+0x26)==0.
+ * acted-this-turn 0x80) and paralysis flag(+0x26)==0.
  *
  * Pass 1 -- smart casters first: score offensive spell + item; only
  * if best spell score >= 6 OR best item score >= 6 dispatch the

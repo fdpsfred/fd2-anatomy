@@ -43,7 +43,7 @@
 - 道具：槤枷 (0x37)、生命之實 (0x5E)、回復劑 (0xC1)、再生藥 (0xC2)、魔法水 (0xCE)
 - 金錢：10000
 
-索菲亞（NPC，char 0x0B）身上持有關鍵道具「黃金徽章」，由 FDFIELD char_spawn_record 的 inventory_slots 設置。
+索菲亞（NPC，char 0x0B）的 FDFIELD spawn record inventory 僅含其裝備（巨鎚 0x36、祭師袍 0xA7）。劇情關鍵道具「黃金徽章」(0xD1) 不由本章任何 FDFIELD spawn record 或 tile_pickup 給予（實測全 60 records inventory 與 16 tile_pickup 皆無 0xD1），而是在敵首戰敗對話（FDTXT entry 10 pages 2/3）中揭露其為飛天戰車之鑰；黃金徽章與 5 顆魔法寶石合成天空之鑰的機制見第 21 章。
 
 ## 商店
 
@@ -55,7 +55,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 ## 特殊機制
 
-- **兩 NPC 起始睡眠鎖定**：`fd2_chapter_10_init` 把 `runtime_char_array[0x32]`（卡納恩三世）與 `runtime_char_array[0x33]`（索菲亞）的 `bStatus_sleep_flag` 設為 100，兩人於戰鬥開場即處於睡眠（不可動）狀態，作為 cutscene 與失敗判定的鎖定機制，需保護到援軍抵達；`fd2_chapter_10_end` 才把兩人的 sleep flag 清 0 解除。
+- **兩 NPC 起始麻痹鎖定**：`fd2_chapter_10_init` 把 `runtime_char_array[0x32]`（卡納恩三世）與 `runtime_char_array[0x33]`（索菲亞）的 `bStatus_paralysis_flag`（+0x26）設為 100，兩人於戰鬥開場即處於麻痹（不可動）狀態，作為 cutscene 與失敗判定的鎖定機制，需保護到援軍抵達；`fd2_chapter_10_end` 才把兩人的 paralysis flag 清 0 解除。（FD2 無獨立睡眠狀態，+0x26 即麻痹。）
 - **失敗條件**：由 `fd2_chapter_10_post_action` 判定，索爾死亡、`chars[0x32]`（卡納恩三世）死亡、或 `chars[0x33]`（索菲亞）死亡，任一發生即敗。
 - **援軍出場**：「第五回合己方結束時援軍出現」對應 FDFIELD entry 28 的 turn = 5 / phase = 1（end_of_player_turn）dialog_only turn-event hook（handler `0x00034BE2`）。
 - **End cutscene 大型轉場**：`fd2_chapter_10_end` 讓多名角色復活與重新定位，`chars[0..0xA]`（11 名）從 end-scene 位置表讀座標並面朝北，`chars[0x32]`／`chars[0x33]`／`chars[0x34]`／`chars[5]` 復活並重新放置（詳見 Handler 流程的 End handler events）。
@@ -66,7 +66,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `fd2_chapter_10_init @ 0x0003332B` | 90 B |
+| Init | `fd2_chapter_10_init @ 0x0003332B` | 60 B |
 | End | `fd2_chapter_10_end @ 0x000235F9` | 407 B |
 | Post-action | `fd2_chapter_10_post_action @ 0x00020707` | (custom) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[9]` |  |
@@ -76,8 +76,8 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 1. `fd2_init_battle_state_for_chapter`
 2. `fd2_pan_cursor_and_window(10, 0)`
-3. `runtime_char_array[0x32].bStatus_sleep_flag = 100` — 卡納恩三世起始睡眠
-4. `runtime_char_array[0x33].bStatus_sleep_flag = 100` — 索菲亞起始睡眠
+3. `runtime_char_array[0x32].bStatus_paralysis_flag = 100` — 卡納恩三世起始麻痹
+4. `runtime_char_array[0x33].bStatus_paralysis_flag = 100` — 索菲亞起始麻痹
 5. `fd2_display_dialog_scene(page=0)`
 6. `fd2_pan_cursor_to_char(0)`
 
@@ -108,7 +108,7 @@ End handler 中：
 - default 判定（全敵死 = win，索爾死 = lose）
 - 額外 lose 條件：`chars[0x32]` 死亡 OR `chars[0x33]` 死亡
 
-對應「失敗條件：索爾死亡、卡納恩三世死亡、索菲亞死亡」，其中 `chars[0x32]` = 卡納恩三世、`chars[0x33]` = 索菲亞（即起始睡眠的兩人）。
+對應「失敗條件：索爾死亡、卡納恩三世死亡、索菲亞死亡」，其中 `chars[0x32]` = 卡納恩三世、`chars[0x33]` = 索菲亞（即起始麻痹的兩人）。
 
 「第五回合己方結束時援軍出現」由 FDFIELD turn-event 處理（見下方 FDFIELD event script）。
 
@@ -116,12 +116,12 @@ End handler 中：
 
 `fd2_chapter_10_end @ 0x235F9`（大型轉場 + 多 char 復活）：
 
-1. 從 `data_fd2_chapter_ch10_end_scene_char_pos_x_table_chars_0_6` 與 `data_fd2_chapter_ch10_end_scene_char_pos_y_table` 讀位置
+1. 從 `data_fd2_chapter_ch10_end_scene_char_pos_x_table` 與 `data_fd2_chapter_ch10_end_scene_char_pos_y_table` 讀位置
 2. `fd2_play_palette_fade_to_black` + `fd2_clear_all_chars_acted_flag`
 3. Reposition `chars[0..0xA]`（11 chars）：每個 char 設 bPos_x/y from table、sprite_state[1] = 2（face north）
 4. Special chars revival/repositioning：
-   - `chars[0x32]`：bPos_x = 0xF、bPos_y = 0x23、`bStatus_sleep_flag = 0`（解除卡納恩三世睡眠）
-   - `chars[0x33]`：bPos_x = 0xE、bPos_y = 0x23、`bStatus_sleep_flag = 0`（解除索菲亞睡眠）
+   - `chars[0x32]`：bPos_x = 0xF、bPos_y = 0x23、`bStatus_paralysis_flag = 0`（解除卡納恩三世麻痹）
+   - `chars[0x33]`：bPos_x = 0xE、bPos_y = 0x23、`bStatus_paralysis_flag = 0`（解除索菲亞麻痹）
    - `chars[0x34]`：bPos_x = 0x10、bPos_y = 0x23、`bFlags = 0`（revive）
    - `chars[5].bFlags = 0`（revive char[5]）
 5. Reset battle camera：`battle_window_origin_x/y = 9, 0x22`；`cursor_world/screen_x/y = 9/0x22/0/0`

@@ -33,10 +33,10 @@ index（非 char_id），實際對應角色隨章而異，詳見各章檔與下�
 | 17 | `fd2_chapter_17_init @ 0x335AA` | `fd2_chapter_17_end @ 0x23B5F` | `fd2_chapter_17_post_action`（gated lose） |
 | 18 | `fd2_chapter_18_init @ 0x335DA` | `fd2_chapter_18_end @ 0x23CD5` | `fd2_chapter_18_post_action`（char[0x34] boss-kill = win） |
 | 19 | `fd2_chapter_19_20_21_init_shared @ 0x33674`（三章共用） | `fd2_chapter_19_end @ 0x23E39` | `fd2_chapter_19_post_action @ 0x20926`（gated lose char[0x40]） |
-| 20 | （共用 init） | `fd2_chapter_20_end @ 0x23E74`（646 B） | default（win override in end） |
+| 20 | （共用 init） | `fd2_chapter_20_end @ 0x23E74`（646 B） | `fd2_chapter_20_post_action @ 0x20957`（多陣營：殲滅敵組 = 勝、char[0]/[0x34] 或 NPC 組全滅 = 敗） |
 | 21 | （共用 init） | `fd2_chapter_21_end @ 0x240FA`（572 B） | `fd2_chapter_21_post_action @ 0x20A51`（char[0x10]/[0x11]） |
 | 22 | `fd2_chapter_22_init @ 0x3367E` | `fd2_chapter_22_end @ 0x244B6`（白屏 fade-to-black） | `fd2_chapter_22_27_28_post_action_shared @ 0x20A87`（char[1]） |
-| 23 | `fd2_chapter_23_init @ 0x336A0`（548 B，最大） | `fd2_chapter_23_end @ 0x24754`（960 B，最大） | default（mid-handler FDFIELD reload） |
+| 23 | `fd2_chapter_23_init @ 0x336A0`（548 B，最大） | `fd2_chapter_23_end @ 0x24754`（960 B，最大；Phase 2 mid-handler reload FDFIELD.DAT 0x45 切第二戰場） | `fd2_chapter_23_post_action @ 0x20AAF`（保護 0/1/0x10/0x11 + 殺 boss[0x12] = 勝） |
 | 24 | `fd2_chapter_24_init @ 0x338C4` | `fd2_chapter_24_end @ 0x24C1E`（text-scroll cinematic） | default |
 | 25 | `fd2_chapter_25_init @ 0x3396A` | `fd2_chapter_25_end @ 0x24DF2` | `fd2_chapter_25_post_action @ 0x20B14`（char[0x10]） |
 | 26 | `fd2_chapter_26_init @ 0x33AAE` | `fd2_chapter_26_end @ 0x24E80` | `fd2_chapter_26_post_action @ 0x20B3C`（char[1]/[2]） |
@@ -49,7 +49,7 @@ index（非 char_id），實際對應角色隨章而異，詳見各章檔與下�
 
 - **ch19/20/21 init**：共用 `fd2_chapter_19_20_21_init_shared @ 0x33674`（10 B stub）；三章開場流程完全相同，差異全在 post-action handler 與各自的 FDFIELD entry。
 - **ch22/27/28 post_action**：共用 `fd2_chapter_22_27_28_post_action_shared @ 0x20A87`（default + 保護 slot 1）。三章共用的是 slot-1 檢查結構，**不是**同一角色：ch22 的 chars[1] 是希爾法、ch27/28 的 chars[1] 是悠妮（見下方招募矩陣）。
-- **default post_action**：ch1、ch3..ch9、ch11、ch14、ch23、ch24 走 `fd2_check_battle_end_default_handler @ 0x205B4`（全敵死 = 勝、索爾 char_id 0 死 = 負）。
+- **default post_action**：ch1、ch3..ch9、ch11、ch14、ch24 走 `fd2_check_battle_end_default_handler @ 0x205B4`（全敵死 = 勝、索爾 char_id 0 死 = 負）。共 11 章（dispatch table @ 0x51B19 entry 0/2/3/4/5/6/7/8/10/13/23）。
 
 ## 30 章內容總表
 
@@ -64,7 +64,7 @@ index（非 char_id），實際對應角色隨章而異，詳見各章檔與下�
 | 07 | 往王城的途中 | end +12（凱麗，雙條件） | 凱麗 = char 0xC，武者，tile_event[0x11] AND char[0x2B] 存活 |
 | 08 | 王城前的戰鬥 | end +5（洛娜） | 每回合騎兵援軍 6 波；章末黑屏 fade |
 | 09 | 騎士的抉擇 | end revive char[11] | 萊汀敗 → 援軍 state machine（flag[0x10]） |
-| 10 | 洞窟中的激戰 | end +11 +6（索菲亞 + 萊汀） | 兩 NPC 起始睡眠：char[0x32] 卡納恩三世、char[0x33] 索菲亞 |
+| 10 | 洞窟中的激戰 | end +11 +6（索菲亞 + 萊汀） | 兩 NPC 起始麻痹：char[0x32] 卡納恩三世、char[0x33] 索菲亞 |
 | 11 | 幻之森林 | end +14（珊） | — |
 | 12 | 北山道 | end +17（米亞斯多德） | cutscene 先於 dialog；保護 char[0xE] |
 | 13 | 哈斯米爾之戰 | end +3（哈瓦特） | init 17 B / post_action 189 B 工作量倒置 |
@@ -107,8 +107,8 @@ ch27_end：fd2_any_char_has_item(100)
   ↓
 ch28–29 戰鬥序列
   ↓
-ch30_end：殺空魔神（char[0x14]） → game_event_flag = 2
-  → fd2_load_chapter_battle_data(0x1E) 載入 epilogue map + fd2_play_game_ending_cinematic + 無限迴圈（🏆 GOOD ENDING）
+ch30 戰鬥勝利：fd2_chapter_30_post_action @ 0x20BF5 殺空魔神（char[0x14]） → game_event_flag = 2
+  → ch30_end @ 0x25757：fd2_load_chapter_battle_data(0x1E) 載入 epilogue map + fd2_play_game_ending_cinematic + 無限迴圈（🏆 GOOD ENDING）
 ```
 
 ### 條件招募矩陣
