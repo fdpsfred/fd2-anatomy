@@ -69,8 +69,10 @@ ai_post_action_consequence，最後清鍵盤緩衝。
 | 0x53AC5 | `data_fd2_battle_map_height_tiles` | 上限 |
 
 `fd2_cursor_move_up/down/left/right`（cursor.c，起 0x11B48）維護三層座標同步：靠近視窗邊緣時
-自動 scroll window origin，否則只動 screen cursor；每次都 trigger `fd2_composite_battle_frame`
-（動畫進行中除外）。
+自動 scroll window origin，否則只動 screen cursor。composite 重繪的 gating 是：只有在「inner-step
+分支且無動畫進行中（`battle_anim_phase @ 0x51A83 == 0`）」時才略過重繪，交給主迴圈下一 tick 自動重畫
+游標；其餘情形（scroll 分支、動畫進行中、或頂／左邊界 world 座標已達 0）都一律立即 trigger
+`fd2_composite_battle_frame`。
 
 `cursor_screen_x/y` 是**有號 int**（move handler 以 JGE/JLE 有號分支和視窗邊緣比較）。當游標
 或行走中的角色捲到地圖頂／左邊緣（origin 已到 0、walk-step 的 scroll 分支被 `origin != 0`

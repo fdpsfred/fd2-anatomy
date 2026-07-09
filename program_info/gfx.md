@@ -21,7 +21,7 @@ mode13h primary。工作 buffer 多用 0x140 (320)、0x1C8 (456) 或 0x280 (640)
 
 ```
 0xA0000     VGA mode13h primary (visible)
-0x53A49     large_game_state_buffer (0x25680 = 152 KB)
+0x53A49     large_game_state_buffer (0x25680 = 153216 bytes, ~150 KiB)
 0x53A5D     data_fd2_battle_scene_tile_gfx_ptr (FDSHAP.DAT)
 0x53AFF     static_bg_buffer (chapter background)
 0x53B03     animated_bg_buffer (cycling chapters 9 / 0x18 / ...)

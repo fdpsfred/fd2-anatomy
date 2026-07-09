@@ -34,7 +34,7 @@ FD2.LE 是 Watcom C/C++ 9.5a 編譯的 DOS 32-bit Linear Executable（見
                                                  runtime_char 陣列指標 @ 0x53A45、
                                                  party_member_count @ 0x53BEB 等）
 0x00060000  .object3  0x00060000 - 0x000634D1   initialization image（遊戲資料表）
-  0x000602AD data_fd2_battle_item_effect_table[215]        (0x17 B/entry)
+  0x000602AC data_fd2_battle_item_effect_table[215]        (0x17 B/entry)
   0x000619FD data_fd2_battle_spell_effect_table[36]        (7 B/entry)
   0x00061AF9 data_fd2_battle_enemy_data_table[68]          (0xA B/entry)
   0x00061DA1 data_fd2_battle_character_base_table[32]      (0x18 B/entry)
@@ -174,7 +174,7 @@ inventory 見 `rebuild_info/crt/lookup_9.5a.json` 與 `matched_function_sources.
                       [2] DP buff flag (fd2_recalculate_combat_stats DP × 1.15, 截斷)
                       [3] DX buff flag (+0xF)
                       [4] 狀態 A (毒？AI fd2_score_spell_candidate spell 0x14 檢查)
-+0x26 bStatus_sleep_flag  spell 0x15 解；scorer +6 if non-zero
++0x26 bStatus_paralysis_flag  麻痹狀態旗標；spell 0x15 解；scorer +6 if non-zero
 +0x27 pCombat_aux_block[21]
                       [0]      bSilence_flag
                       [1..9]   reserved padding (9 bytes)。AI / combat /
@@ -210,7 +210,7 @@ inventory 見 `rebuild_info/crt/lookup_9.5a.json` 與 `matched_function_sources.
 +0x48 wAP             AP after equipment + status
 +0x4A wDP             DP after equipment + status
 +0x4C wDX_current     DX_total = base + status[3]*0xF + sum item.short@+3
-+0x4E wStat4_current  4th derived stat (init = DX_total + sum item.short@+7)
++0x4E wEvade          回避 EV (init = DX_total + sum item.short@+7)
 ```
 
 `runtime_char` 詳細欄位語意與如何被各個 scorer / 動畫 / damage 函式使用，見
@@ -230,7 +230,7 @@ inventory 見 `rebuild_info/crt/lookup_9.5a.json` 與 `matched_function_sources.
 | `data_fd2_battle_character_growth_table` | 11 B | 68 | `assets/tables/character_growth.md` |
 | `data_fd2_chapter_intro_metadata_table` | 31 B | 26 | `assets/tables/chapter_intro_metadata.md` |
 | `data_fd2_battle_spell_learning_table` | 12 B | 20 | `assets/tables/spell_learning.md` |
-| `data_fd2_battle_job_magic_resist_table` | dword × 27 | 27 | `assets/tables/job_magic_resist.md` |
+| `data_fd2_battle_job_magic_resist_table` | dword × 28 | 28 | `assets/tables/job_magic_resist.md` |
 | `data_fd2_battle_job_crit_rate_table` | byte × 27 | 27 | `assets/tables/job_crit.md` |
 
 資料表模組級索引（哪張表在哪個 src 檔、誰在用、accessor 清單）見 `table.md`。
@@ -248,7 +248,7 @@ inventory 見 `rebuild_info/crt/lookup_9.5a.json` 與 `matched_function_sources.
    melee 第二輪。AI 戰術設計，不是 bug。詳 `battle.md`。
 5. **Mirror dialog blit** (`fd2_dialog_sprite_blit_mirrored`)：友軍對話用右→左
    pixel order blit，產生「兩人面對面」視覺效果。詳 `dialog.md`。
-6. **20-bit pitch state** (AIL mixer)：`ail_mix_pitch_int/_low/_int_plus_one`
+6. **20-bit pitch state** (AIL mixer)：`data_ail_mix_pitch_low`（byte[12] parent，含 alt-label `ail_mix_pitch_int` @+4／`ail_mix_pitch_int_plus_one` @+8）
    是 16.16 fixed-point pitch increment；雙倍 stereo / 16-bit 時 left-shift 一次。
    詳 `audio.md`。
 7. **Save data obfuscation** (`fd2_save_crypt_buffer`)：XOR-style involution

@@ -65,8 +65,9 @@ return buf;
 
 `data_fd2_resource_last_loaded_resource_size @ 0x53BFF` 在每次載入時被寫入 `end -
 start`，呼叫端不必自行追蹤 size；`fd2_set_bgm_track_with_fade` 就直接讀它，把剛載入
-的 FDMUS 序列長度傳給 DPMI lock。兩個錯誤路徑（開檔失敗、記憶體不足）都尾跳到 `main`
-的共用 `printf`+`exit(1)` stub。
+的 FDMUS 序列長度傳給 DPMI lock。兩個錯誤路徑（開檔失敗、記憶體不足）各自 inline 呼叫 `printf`
+（File not found／Out of Memory）後，跳到 `fd2_load_save_and_init_engine` 內近函式開頭的共用
+`exit(1)` stub（`@0x1005E`：`PUSH 1; JMP exit`）；僅 `exit(1)` tail 共用，`printf` 不共用、也與 `main` 無關。
 
 ## 章節資源總管 `fd2_load_chapter_battle_data @ 0x1088D`
 
@@ -99,7 +100,7 @@ FDOTHER.DAT）：
   sprite 進 static 緩衝區並另配一塊 320×200 工作緩衝區。
 - 寬幅雙圖：章 0x11/0x15/0x16/0x1B；依章決定 `bg_width*bg_height`，配 static 緩衝區後把上半
   圖（y=0）與下半圖（y=bg_height/2）兩張 sprite 拼上去。
-- 捲動過場：章 0x17；配 312×200 緩衝區、blit sheet idx 0x2A，並啟動文字捲動過場
+- 捲動過場：章 0x17；配 312×192 緩衝區（malloc 0xEA00 = 59904 bytes）、blit sheet idx 0x2A，並啟動文字捲動過場
   `fd2_scroll_text_screen_up_by_lines`。
 
 static/animated 兩個緩衝區指標由本函式獨占管理（`data_fd2_graphics_static_bg_buffer_ptr

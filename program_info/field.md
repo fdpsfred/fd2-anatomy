@@ -54,16 +54,16 @@ end handler 收尾與 main loop 的章節切換路徑。
 
 | ID | 位址 | 名稱 | 大小 |
 |---|---|---|---|
-| 1 | `0x3231B` | `fd2_chapter_01_init` | 1625 B（含獨家 prologue） |
-| 2 | `0x32D18` | `fd2_chapter_02_init` | 402 B |
-| 3 | `0x32E8C` | `fd2_chapter_03_init` | 324 B |
-| 4 | `0x32FB2` | `fd2_chapter_04_init` | 181 B |
+| 1 | `0x3231B` | `fd2_chapter_01_init` | 1626 B（含獨家 prologue） |
+| 2 | `0x32D18` | `fd2_chapter_02_init` | 372 B |
+| 3 | `0x32E8C` | `fd2_chapter_03_init` | 294 B |
+| 4 | `0x32FB2` | `fd2_chapter_04_init` | 151 B |
 | 5 | `0x33049` | `fd2_chapter_05_init` | 258 B |
-| 6 | `0x3314B` | `fd2_chapter_06_init` | 79 B |
+| 6 | `0x3314B` | `fd2_chapter_06_init` | 30 B |
 | 7 | `0x33169` | `fd2_chapter_07_init` | 176 B |
 | 8 | `0x33219` | `fd2_chapter_08_init` | 100 B |
 | 9 | `0x3327D` | `fd2_chapter_09_init` | 174 B |
-| 10 | `0x3332B` | `fd2_chapter_10_init` | 90 B |
+| 10 | `0x3332B` | `fd2_chapter_10_init` | 60 B |
 | 11 | `0x33367` | `fd2_chapter_11_init` | 142 B |
 | 12 | `0x333F5` | `fd2_chapter_12_init` | 118 B |
 | 13 | `0x3346B` | `fd2_chapter_13_init` | 17 B |
@@ -94,16 +94,16 @@ end handler 收尾與 main loop 的章節切換路徑。
 |---|---|---|---|
 | 1 | `0x22EF6` | `fd2_chapter_01_end` | 65 B |
 | 2 | `0x22F37` | `fd2_chapter_02_end` | 443 B |
-| 3 | `0x230F2` | `fd2_chapter_03_end` | 214 B |
+| 3 | `0x230F2` | `fd2_chapter_03_end` | 202 B |
 | 4 | `0x231BC` | `fd2_chapter_04_end` | 61 B |
 | 5 | `0x231F9` | `fd2_chapter_05_end` | 157 B |
 | 6 | `0x23296` | `fd2_chapter_06_end` | 82 B |
 | 7 | `0x232E8` | `fd2_chapter_07_end` | 222 B |
-| 8 | `0x234BB` | `fd2_chapter_08_end` | 140 B |
+| 8 | `0x234BB` | `fd2_chapter_08_end` | 257 B |
 | 9 | `0x235BC` | `fd2_chapter_09_end` | 61 B |
 | 10 | `0x235F9` | `fd2_chapter_10_end` | 407 B |
 | 11 | `0x23790` | `fd2_chapter_11_end` | 69 B |
-| 12 | `0x237D5` | `fd2_chapter_12_end` | 214 B |
+| 12 | `0x237D5` | `fd2_chapter_12_end` | 202 B |
 | 13 | `0x2389F` | `fd2_chapter_13_end` | 61 B |
 | 14 | `0x238DC` | `fd2_chapter_14_end` | 225 B |
 | 15 | `0x239BD` | `fd2_chapter_15_end` | 77 B |
@@ -120,7 +120,7 @@ end handler 收尾與 main loop 的章節切換路徑。
 | 26 | `0x24E80` | `fd2_chapter_26_end` | 466 B |
 | 27 | `0x250CC` | `fd2_chapter_27_end` | 920 B |
 | 28 | `0x25464` | `fd2_chapter_28_end` | 40 B |
-| 29 | `0x2548C` | `fd2_chapter_29_end` | 451 B |
+| 29 | `0x2548C` | `fd2_chapter_29_end` | 715 B |
 | 30 | `0x25757` | `fd2_chapter_30_end` | 544 B |
 
 ## Chapter handler 共用 helpers
@@ -462,7 +462,7 @@ ch28/29/30 以同型 state-machine-mutator handler 控制變身序列、final bo
 
    cut content 集中在 endgame（idx ≥ 0x4D 連續 5 個 sentinel 0x55..0x59 + 散布的
    0x49/0x4D/0x4E），顯示 dispatch 表預留了更多 endgame variant slot，發行版只用了部分。
-   idx 0x05（`ch13_thunk`）是 `fd2_chapter_event_handler_07__ch13_dialog_with_state` 的 thunk。
+   idx 0x05（`ch13_thunk`）是 `fd2_show_chapter_dialog_with_portrait_set_1` @ 0x34BE7 的 thunk（`PUSH 0x28; JMP 0x34BE7`）。
 
 ## 跨章節隱藏機制鏈
 

@@ -161,7 +161,8 @@ sprite tile 組出任意 (n_cols, n_rows) 大小的對話框，來源 sheet
 
 - `fd2_text_dialog_typewriter_loop @ 0x19953`：打字機式逐字動畫 + 輸入迴圈。以 BIOS tick 節流
   （相差 >= 2 tick 才推進），左右鍵移游標 `data_fd2_ui_menu_cursor_idx`（正典見 `ui_menu.md`），
-  Enter/Space/`0x39` 回 1（Yes/確定）、Esc/`0x53` 回 -1（取消）。
+  Enter(`0x1C`)／Space(`0x39`)／延伸鍵 `0xE0`／小鍵盤 0 `0x52` 回 1（Yes/確定）、Esc(`0x01`)／`0x53`
+  回 -1（取消）。
 - `fd2_animate_dialog_page_advance_collapse @ 0x197E5`：確定後播 4 幀「兩角落向中內折」過場，
   底層戰場 / 下一頁同時重繪。
 

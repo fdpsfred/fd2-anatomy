@@ -103,7 +103,7 @@ SFX 掛勾與家族專屬結算。每個召喚的目標色由三張表以 `spell
 朝目標色 (R, G, B) 混合，係數為 `blend / 0x28`（blend = 0x28 → 純原色，blend = 0 → 純目標色），
 經 DAC port 0x3C8/0x3C9 寫入。它本身只做一趟寫入，動畫的「逐幀漸變」由呼叫端的迴圈負責：召喚的
 strobe 段以 blend 由 0x28 每步 -4 呼叫它，收尾的淡入段以 blend 0..0x28（共 0x29 次、涵蓋整段
-palette 範圍 [0, 0xFF)）逐幀呼叫產生召喚色淡入。結局過場
+palette 範圍 [0, 0xFF)）逐幀呼叫產生召喚色淡入。標題／主選單畫面
 `fd2_title_attract_and_main_menu @ 0x1F894`（標題吸引 cinematic + 主選單，重用結局／credit 美術，
 main 每次回到頂層都會執行）也用它做紅／青 tint 漸變。
 
@@ -112,8 +112,8 @@ main 每次回到頂層都會執行）也用它做紅／青 tint 漸變。
 `fd2_play_death_animation_and_mark_dead @ 0x1DB65`：
 
 - 先掃全隊，把「HP 歸零、`bFlags` bit0 尚未設、且位於可視戰鬥視窗內」的角色收進 on-screen 陣列；
-  若沒有任何一個在畫面內，直接把所有 HP 歸零者設 `bFlags |= 1` 靜默判死並返回。
-- 第一段 13-frame 閃爍（blink key = frame % 4）；閃爍結束後把 HP 歸零者 `bFlags |= 1`（永久死亡）。
+  若沒有任何一個在畫面內，直接把所有 HP 歸零者設 `bFlags = 1` 靜默判死並返回。
+- 第一段 13-frame 閃爍（blink key = frame % 4）；閃爍結束後把 HP 歸零者 `bFlags = 1`（永久死亡）。
 - 第二段 12-frame 消散（分 0..5 與 6..11 兩半），puff 精靈取自
   `data_fd2_ui_anim_sprite_sheet_ptr @ 0x53A81`，index `[6 + (frame + 0x44) * 4]`；
   死亡音效為 `fd2_play_sfx_with_handle(FDOTHER bank, 3, 1)`。
@@ -136,7 +136,8 @@ main 每次回到頂層都會執行）也用它做紅／青 tint 漸變。
 - `aniwalk.c`：角色四方向走一步（`fd2_walk_step_up/down/left/right`）與沿路徑走的
   `fd2_walk_path_animation_loop`，以及 tile 事件動畫 tick。
 - `anisummn.c`：召喚動畫各 variant 的 tick state machine（`fd2_tick_summon_anim_variant_a..e` 等）。
-- `aniend.c`：標題吸引畫面＋主選單、過關 fanfare、隱藏關解鎖過場、遊戲結局 cinematic。
+- `aniend.c`：標題吸引畫面＋主選單、遊戲結束（戰敗）過場（`fd2_play_game_over_sequence`：主角索爾
+  runtime_char[0] 死亡時播 2 幀 game-over sprite）、隱藏關解鎖過場、遊戲結局 cinematic。
 - `anicine.c`：戰鬥 hit cinematic、必殺技／召喚前置 cinematic、章節登場 FIGANI 動畫。
 
 ## 待機回復動畫

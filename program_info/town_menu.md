@@ -95,7 +95,8 @@ metadata 表的 `bCategory` 欄位語意與 26-entry 逐章值見 `assets/tables
 `data_fd2_chapter_intro_menu_cursor_state`（0..4，特殊 hotkey 提交時為 5；左右鍵循環、Enter/Space
 提交），提交時呼叫 `fd2_chapter_transition_with_intro`（chtrans.c，見 `field.md`）依 cursor_state
 分派到下述三個 intro 服務選單變體之一：state 3/5 走 main、state 0 走 typeB、state 4 走 typeC、
-state 2 是存檔（不開服務選單）。
+state 2 則走劇情推進分支（顯示 portrait 0x4B + FDTXT `0x201` 確認對話、晚期章再觸發出戰編成），
+不開服務選單也不存檔。
 
 ## 三個 intro 服務選單變體
 
@@ -167,7 +168,7 @@ AP/DP/命中/迴避：以候選道具類別 byte <= 0x14 為武器、> 0x14 為�
 持有對應轉職道具時改 portrait_id+0x32；悠妮 portrait_id==9 持精靈契印 0x5A 時改召喚師 0x34）。
 玩家經 `fd2_promote_member_select_loop` 選人、確認後，扣除對應轉職道具（tier-1 升級不耗物）、
 播轉職過場，寫回新 job_id / portrait_id、重建 portrait 快取，最後呼叫
-`fd2_execute_class_promotion_with_dialog` 結算。轉職候選的等級/職業細節見 `assets/classes.md`。
+`fd2_execute_class_promotion_with_dialog` 結算。轉職候選的等級/職業細節見 `assets/jobs.md`。
 
 `fd2_execute_class_promotion_with_dialog` @ 0x31602 的結算順序：
 
