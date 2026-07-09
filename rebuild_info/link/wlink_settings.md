@@ -69,9 +69,13 @@ wcc386 -bt=dos4g          # build target = DOS/4G（LE format）
   `#ifdef FD2_ASM_PRIMITIVES` 之下，預設不編（見下）。
 - **math intrinsic 必須停用**。`math.h` 預設 `#pragma intrinsic` 標記 sqrt/sin/cos 等，
   wcc386（`-fpi` 與 `-fpi87` 皆然）會對它們 emit `IF@D*` helper call、把引數留在 ST(0) 跨
-  call 邊界。原版遊戲碼一律呼叫 CRT `sqrt` / `sin` / `cos` 真函數（引數走堆疊、double 以
-  EDX:EAX 回傳；原 binary 內 IF@* stub 零 xref，僅隨 sqrt387 / trig387 module 連帶進入）。
-  其中 IF@SQRT 的 FTST/FSTSW/SAHF 負數檢查是原版從未執行的指令路徑，在 86Box-macOS dynarec
+  call 邊界。原版遊戲碼一律呼叫 CRT `sqrt` / `sin` / `cos` named 真函數（引數走堆疊、double 以
+  EDX:EAX 回傳；遊戲碼對 `IF@*` intrinsic stub 零直接 xref）。8 個 `IF@*` stub 中只有 `IF@SQRT`
+  與 `IF@DABS` 真正 0 xref；其餘六個（`IF@SIN` / `IF@COS` / `IF@TAN` / `IF@LOG` / `IF@LOG10` /
+  `IF@LOG2`）各帶 1 個來自同 module stack-arg sibling wrapper 的 xref，其中 `sin` / `cos` wrapper
+  被遊戲碼呼叫，故 `IF@SIN` / `IF@COS` runtime 實際會執行（`tan` / `log*` wrapper 本身 0 game
+  xref、不執行）。`IF@SQRT`（`MOV AL,3` header，fall-through 進 `__@DSQRT` 的 FTST/FSTSW/SAHF
+  負數檢查）是原版從未執行的指令路徑（兩段皆 0 xref），在 86Box-macOS dynarec
   上會誤執行（sqrt 回傳 0.0 -> 白光柱 remap count 變 0 -> runaway page fault，見
   `../build_test/playtest_bugs.md` F 類）。重建以在 `#include <math.h>` 前定義
   `__NO_MATH_OPS` 對齊（`src/gfx/rndscene.c`、`src/spell/spellcin.c`、`src/anim/anisummn.c`）。

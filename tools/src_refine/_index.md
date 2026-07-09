@@ -2,7 +2,8 @@
 
 對 `src/` 內每個 symbol（function + global）逐一解析用途/邏輯，refine 名稱判定與註解，並把結論
 同步回 Ghidra（src/ 為準、一致即可）。**只改名稱與註解，遊戲邏輯不動**；硬性驗收＝重建的
-production FD2.EXE 與 baseline byte-identical。
+production FD2.EXE 與 baseline 功能等價（Stage 1 只改註解＝byte-identical；Stage 2 rename 會擾動
+LE fixup 順序/COMDEF 位置、破 byte-identical 但經 `eqcheck.py` 證功能等價）。
 
 ## 元件
 
@@ -12,7 +13,8 @@ production FD2.EXE 與 baseline byte-identical。
 | `partition.py` | 把 worklist 以 .c 檔為單位、weight-balanced 切 N(預設4) 個 file-disjoint partition manifest（可重生暫存；確定性 LPT）。 |
 | `scout.py` | 某 partition 的「下一批未 refine」work-list → args（餵給 workflow）。done 判定＝該 symbol 的 shard 檔已存在；可重跑續做。 |
 | `src_refine.wf.js` | **Stage 1 workflow**（一 worktree 一實例）。serial 逐檔逐 symbol，每 symbol 一個 refiner agent：分析→refine src 註解+同步 Ghidra plate（**更新/建立 plate 後立即 save_program() 落地**，避免 Ghidra wedge/被 kill 時遺失）→**只記錄** 符號名與**每個參數名**改名判定（不 rename）→記 logic issue→寫 per-symbol shard→per-symbol commit（含 clobber 防線）。參數名改名同 protos.h/簽章（跨檔）故與符號名一樣延 Stage 2 套用。 |
-| `hash_check.py` | build gate：sha256(build 出的 FD2.EXE) 必 == `data/baseline_hash.txt`。byte-identical＝沒改到 code。 |
+| `hash_check.py` | **Stage 1 build gate**：sha256(build 出的 FD2.EXE) 必 == `data/baseline_hash.txt`。byte-identical＝沒改到 code（只改註解時適用）。 |
+| `eqcheck.py` | **Stage 2 build gate**：rename 擾動 LE fixup 順序/COMDEF 位置（破 byte-identical），故用功能等價 gate。STRICT（Fixup Record Table 外 byte-identical + 該表同 byte multiset）或 RELOC（blank 每個 fixup site + 整張 fixup table 後 residual 相同）任一過即 PASS。baseline `data/baseline_eq.json`。 |
 | `merge_shards.py` | 所有 shard → `data/src_info.json`(address 主鍵) + `data/src_info_by_name.json`(name→addr，current+final) + `data/src_issues.json`(ISS-####) + global 的 reader/writer_fns 反向關聯。 |
 
 ## 狀態 source of truth / 續跑
@@ -30,11 +32,11 @@ production FD2.EXE 與 baseline byte-identical。
 5. 每個 partition、每批：`scout.py --partition rpN --root <worktree> --shards-dir <worktree>/tools/src_refine/data/shards/rpN --limit 50` → `Workflow({scriptPath:"tools/src_refine/src_refine.wf.js", args:<scout 輸出>})` → 前景 `build_fd2.py` + `hash_check.py` gate（須 ==baseline）→ 下一批。每 50 symbol hard-stop。
 6. partition 全完成且 build gate 過 → merge `refine-pN` 回 main。
 7. 四 partition 都 merge 後：`merge_shards.py` 彙整 → src_info / src_issues。
-8. **Stage 2（序列，在 main，手動 per-item）**：套用所有 rename（兩類，皆 byte-identical）：
+8. **Stage 2（序列，在 main，手動 per-item）**：套用所有 rename（兩類）。rename 擾動 LE fixup 順序/COMDEF 位置、破 byte-identical 但功能等價，故 build gate 改用 `eqcheck.py`（非 `hash_check.py`）：
    - **符號名** `name_verdict==rename`：個別 `get_xrefs_to` 確認 call site → 改 def+protos.h/globals.h+所有 call site → Ghidra `rename_function`/`rename_global_variable` → 同步 routing.json/worklist lookup。
    - **參數名** `params[].verdict==rename`：改該 function 的 def 簽章 + body 內該參數所有使用處 + protos.h 該 prototype 的參數名 → Ghidra `set_function_prototype`（參數名同步）。
-   per-rename commit → 每 50 build+hash（須 ==baseline）。src_info 的 `name_final` / `params[].proposed` 是清單來源。
-9. 最終：`build_fd2.py`+`hash_check.py` 必 ==baseline；收尾 live Ghidra reconcile 驗 name.final==live；逐筆處理 `src_issues.json`。
+   per-rename commit → 每 50 build + `eqcheck.py`（須功能等價 PASS；baseline `data/baseline_eq.json`）。src_info 的 `name_final` / `params[].proposed` 是清單來源。
+9. 最終：`build_fd2.py`+`eqcheck.py` 必功能等價 PASS；收尾 live Ghidra reconcile 驗 name.final==live；逐筆處理 `src_issues.json`。
 
 ## 硬性注意
 

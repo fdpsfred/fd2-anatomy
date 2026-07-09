@@ -17,7 +17,7 @@ HDIGDRIVER hdig = (HDIGDRIVER)AIL_install_DIG_INI();
 ### 路線 B: 手動 read_INI
 
 ```c
-char buf[264];
+char buf[280];   /* AIL_API_read_INI writes 0x118 = 280 bytes */
 AIL_API_read_INI(buf, "DIG.INI");
 HDIGDRIVER hdig = (HDIGDRIVER)AIL_install_DIG_driver_file(buf + 0x80, buf + 0x100);
 ```
@@ -38,8 +38,11 @@ playback silent fail（無 error code）。
 | 0x102 | 2 | `short IRQ` |
 | 0x104 | 2 | `short DMA_8` |
 | 0x106 | 2 | `short DMA_16` |
+| 0x108 | 16 | reserved（`read_INI` 以 `memset(-1)` 填充，未具名）|
 
-Total 264 bytes。`AIL_install_DIG_driver_file` 第二個參數 = `buf + 0x100`。
+Total 280 bytes（`0x118`；`read_INI` 的 memset 與最終 copy loop 均為 0x118）。tail 區
+（`0x100..0x117`）24 bytes 中僅前 8 具名，其餘 16 為 reserved。`AIL_install_DIG_driver_file`
+第二個參數 = `buf + 0x100`。
 
 ## AIL_delay(N) — N 是 VGA vertical retrace count
 
@@ -61,13 +64,14 @@ retrace ≈ 16.67ms @ 60Hz。
 
 ## AIL_set_sequence_loop_count(handle, N)
 
-N > 0 是 loop 次數（含第一次）。N = 99 常用作「持續播」。
+N > 0 是有限 loop 次數（含第一次）；N = 0 表無限循環（AIL 慣例，wrapper plate 明載
+`0=infinite`；FD2 BGM 一律傳 0）。
 
 ## Sample setup — AIL 預設足以播 FDOTHER 8-bit PCM
 
 FD2 的 `fd2_play_sfx_with_handle` 不呼叫 `AIL_set_sample_type` 或
-`AIL_set_sample_playback_rate`，只用 init + set_address + set_loop_count +
-start_sample。FDOTHER SFX 是 raw 8-bit unsigned mono PCM (~11025 Hz)，
+`AIL_set_sample_playback_rate`，只用 stop + init + set_address + set_loop_count +
+start_sample（`AIL_stop_sample` 無條件先呼叫，與下方 API 使用模式表一致）。FDOTHER SFX 是 raw 8-bit unsigned mono PCM (~11025 Hz)，
 AIL preferences default 已涵蓋此格式。
 
 ## FDOTHER SFX bank container

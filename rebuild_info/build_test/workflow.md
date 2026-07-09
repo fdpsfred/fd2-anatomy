@@ -87,8 +87,8 @@ copy→rename / sleep / 兩段式 session 等 workaround。
 
 ## 真實檔案測試（讀檔 function 鐵則）
 
-`build_test.py` 啟動前把 8 個遊戲檔（FDICON.B24 / FDFIELD / FDSHAP / FDOTHER / FDTXT / FDMUS /
-DATO.DAT / FD2.SAV）從 `fd2_game_files/` stage 到 `tests/OUT`（= cwd，缺或 size 不符才複製）。會
+`build_test.py` 啟動前把 11 個遊戲檔（FDICON.B24 / FDFIELD / FDSHAP / FDOTHER / FDTXT / FDMUS /
+DATO.DAT / FD2.SAV / FIGANI.DAT / BG.DAT / TAI.DAT）從 `fd2_game_files/` stage 到 `tests/OUT`（= cwd，缺或 size 不符才複製）。會
 `fopen` 真檔的 function，測試必須讀這些 staged 真檔並對真實解析值斷言 —— 禁止捏造假檔 stand-in、
 禁止 `remove()` staged 真檔。reviewer checklist 強制此 gate。
 

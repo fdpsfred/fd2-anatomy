@@ -25,10 +25,11 @@ AIL 的 helper 內部 clobber EBX 卻不 push/pop（vendor optimizer 移除了 w
 不用到的 push），而且身為一般呼叫，也會破壞 volatile 的 EAX/ECX/EDX。client 端
 是否出錯，取決於它用哪種 calling convention：
 
-- `-3r`（register-cc，`test_audio.c` / `tau.c` 採用）：EAX/EBX/ECX/EDX 本來就是
+- `-3r`（register-cc，`test_audio.c` 採用）：EAX/EBX/ECX/EDX 本來就是
   傳引數的 volatile 暫存器，編譯器一定把跨呼叫存活的值放到 ESI/EDI/EBP（AIL 有
   保留），所以即使只標 `modify [ebx]` 也安全。
-- `-3s`（stack-cc，**FD2 遊戲採用**）：EBX 預設是 callee-saved，編譯器會把跨呼叫
+- `-3s`（stack-cc，**FD2 遊戲採用**；`tau.c` 的 FD2 usage-scenario 自我測試亦以 -3s 編譯）：
+  EBX 預設是 callee-saved，編譯器會把跨呼叫
   存活的值放進它，AIL 破壞 EBX → 該值損毀。**而且 Watcom 把 modify list 當「精確
   集合」解讀**——只寫 `modify [ebx]` 反而會讓編譯器誤以為 EAX/ECX/EDX 被保留，
   污染只是從 EBX 搬到 EDX/ECX，沒有真正修好（已用三個 pragma 變體實測證實）。

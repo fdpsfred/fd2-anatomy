@@ -74,10 +74,10 @@ Watcom 9.5a compiler 為了讓 hot function 的 entry 對齊 16-byte 邊界，�
 - `8d 80 00 00 00 00` = `LEA EAX,[EAX]`（6-byte NOP）
 - `8d 40 00` = `LEA EAX,[EAX+0]`（3-byte NOP）
 - `8d 92 00 00 00 00` = `LEA EDX,[EDX+0x00000000]`（6-byte NOP）
-- `89 d2` = `MOV EDX,EDX`（2-byte NOP）
-- `89 c0` = `MOV EAX,EAX`（2-byte NOP）
-- `89 c9` = `MOV ECX,ECX`（2-byte NOP）
-- `8b c0` = `MOV EAX,EAX`（2-byte NOP，alternate encoding）
+- `8b c0` = `MOV EAX,EAX`（2-byte NOP）
+- `8b c9` = `MOV ECX,ECX`（2-byte NOP）
+- `8b d2` = `MOV EDX,EDX`（2-byte NOP）
+- `8b db` = `MOV EBX,EBX`（2-byte NOP）
 - `90` = `NOP`（1-byte）
 
 這些位置都緊貼下一個 function 的 entry，且自身 0 caller。建為獨立 Function entity

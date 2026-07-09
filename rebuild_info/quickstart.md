@@ -23,9 +23,11 @@ vendor 目錄，不需手動掛載。
 
 ## Step 2 — 重生 vendor lib（ailv3.lib + fd2common.lib + ailv3.h）
 
-Miles AIL audio library 從 FD2.LE 抽出、重建成 `ailv3.lib` + `ailv3.h` + `fd2common.lib`，放進
-`libs/ailv3/` 供遊戲建置連結。完整 pipeline（Ghidra dump -> OMF emit -> `wlib` 打包 -> header 生成
--> DOSBox 內 build/run 驗證）與跑法見 `tools/ail_extract/_index.md`。
+Miles AIL audio library 從 FD2.LE 抽出、重建成 `ailv3.lib` + `ailv3.h`，放進 `libs/ailv3/` 供遊戲
+建置連結。抽取同時產生副產品 `fd2common.lib`，但**不放進 `libs/ailv3/`、遊戲 FD2.EXE build 也不連
+結它**——它只供 AIL self-test，其 8 個 bare-name symbol 已由 `src/util/dpmi.c` + `src/crt/crt.c`
+提供。完整 pipeline（Ghidra dump -> OMF emit -> `wlib` 打包 -> header 生成 -> DOSBox 內 build/run
+驗證）與跑法見 `tools/ail_extract/_index.md`。
 
 `ailv3.h` 內每個 public AIL 宣告帶 clobber `#pragma aux ... "*" modify [eax ebx ecx edx]`，由
 `src/include/protos.h` `#include`；缺這個 pragma 會使 SFX 全靜音（根因見 playtest_bugs A 類）。

@@ -18,7 +18,7 @@ Layer 3（byte-exact）。
 
 ## 全程式 call graph
 
-四 pool 分類與 emit_action 的 source of truth 是
-`tools/program_analysis/build_call_graph.py` 的 `categorise()`（四 pool 分類的 source of truth；重生步驟見 `tools/program_analysis/_index.md`）。
+四 pool 分類的 source of truth 是 `tools/program_analysis/build_call_graph.py` 的 `categorise()`，
+emit_action 則由同檔的 `emit_action_for()` 產生（重生步驟見 `tools/program_analysis/_index.md`）。
 call graph 不在本資料夾常駐，要用時即時重生 —— 重生步驟與輸出位置見
 `tools/program_analysis/_index.md`。
