@@ -37,7 +37,9 @@ FD2.SAV 存檔、FD2.LE binary 本身，以及 Miles Sound System 用的 .MDI / 
 | ANI.DAT | 2,437,547 | 9 | `ani.md` | 多 frame RLE delta 動畫序列 |
 
 走 `fd2_load_dat_resource` 的 9 個：FDTXT、FDOTHER、FDFIELD、FDSHAP、DATO、FDMUS、
-FIGANI、BG、TAI。走獨立 fopen (但同 LLLLLL 格式) 的 2 個：TITLE、ANI。
+FIGANI、BG、TAI。走獨立 fopen (但同 LLLLLL 格式) 的只有 ANI (`fopen("ANI.DAT","rb")`
+於 `fd2_play_ani_file_animation_sequence`)。TITLE.DAT 從未被任何載入路徑引用 (FD2.LE
+內 0 處 "TITLE" 字串)，是 dead resource。
 
 ## 非 LLLLLL 資源檔
 
@@ -53,7 +55,7 @@ FIGANI、BG、TAI。走獨立 fopen (但同 LLLLLL 格式) 的 2 個：TITLE、A
 
 每個 chapter 開戰前 `fd2_load_chapter_battle_data @ 0x1088D` 載入該章對應的：
 - FDFIELD `chapter_id × 3 + 0` / `+1` / `+2` → tile_map / tile_event / char_spawn_pos_table
-- FDSHAP `shap_id × 2 + 0` / `+1` → data_fd2_battle_scene_tile_gfx_ptr / tile_attribute_flags
+- FDSHAP `shap_id × 2 + 0` / `+1` → data_fd2_battle_scene_tile_gfx_ptr / data_fd2_tile_attribute_flags_buffer_ptr
   (其中 `shap_id = tile_event_data_table[0]`)
 - FDTXT `chapter_id + 1` → data_fd2_current_chapter_text_ptr
 - FDICON.B24 全檔 → portrait cache 載入該章用到的 24×24 icons

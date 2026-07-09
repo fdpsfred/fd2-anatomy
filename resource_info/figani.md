@@ -22,38 +22,45 @@ FIGANI idx = portrait_id × 3 + offset
 
 | Frame slot | 內容 | 計數 | 平均 size |
 |---|---|---|---|
-| frame_a (×3 + 0) | basic animation | 136 active | ~25 KB |
-| frame_b (×3 + 1) | extended (spell cast / special attack) | 128 active + 8 placeholder | ~80 KB |
-| frame_c (×3 + 2) | placeholder (3-byte `00 00 0A`) | 136 placeholder | 3 bytes |
+| frame_a (×3 + 0) | basic animation | 125 active + 11 placeholder | active ~23 KB |
+| frame_b (×3 + 1) | extended (spell cast / special attack) | 122 active + 14 placeholder | active ~88 KB |
+| frame_c (×3 + 2) | mostly placeholder (3-byte `00 00 0A`) | 17 active + 119 placeholder | active ~77 KB |
 
-Total placeholder (3-byte): 144 entries (= 136 frame_c slots + 8 extra slot
-對應沒有 special anim 的 portrait)。
+Total placeholder (3-byte): 144 entries (= 11 frame_a + 14 frame_b + 119 frame_c)。
 
 ## Frame format
 
 每個 active frame 是 byte-stream 動畫 sequence：
 
 ```
-+0x00  u16 LE  pose_count                  (典型 4..16)
-+0x02  u16 LE  ???_count                   (pending: 欄位語意未定案)
-+0x04  u16 LE  sfx_bank_id                 (索引 → 0x525DA → FDOTHER sub-archive)
++0x00  u16 LE  pose_count                  (典型 4..16；作 target 被包夾時的 wrap 界)
++0x02  u16 LE  pose_count (caster 迴圈上界) (`fd2_play_figani_animation_loop` 讀低 byte 當
+                                             pose 迴圈上界，通常 == +0)
++0x04  u16 LE  sfx_bank_id                 (低 byte 由 `fd2_load_figani_sfx_bank` 1-based
+                                             索引 `data_fd2_audio_figani_sfx_bank_fdother_index_lut
+                                             @ 0x525D6` (byte[6] = {30..35}) 得 FDOTHER entry idx)
 +0x06  u16 LE  reserved
 +0x08  u32 LE × pose_count    pose_offsets (each pointing to pose payload)
 +payload                                    per-pose data
 ```
 
-per pose entry (per `fd2_step_figani_pose_animation @ 0x2B9A1`):
+每個 pose entry 本身是一張 sprite block（由 `fd2_blit_indexed_sprite` 解）。欄位 +4/+5/+6
+由 `fd2_play_figani_animation_loop @ 0x2B659` 讀取觸發；`fd2_step_figani_pose_animation
+@ 0x2B9A1` 只負責推進 pose × sub-frame（讀 +0 pose count、+6 sub_frame_count、header +8
+offset 表）：
 
-- byte +4: type (1 = spell-cast frame，會觸發 `deduct_caster_mp` + flash)
+- +0 u16: width
+- +2 u16: height
+- byte +4: type (1 = spell-cast frame，`fd2_play_figani_animation_loop` 觸發 `fd2_deduct_caster_mp` + flash)
 - byte +5: sfx_hook_id (0 = no sfx; non-0 = index into data_fd2_audio_figani_sfx_bank_buf_ptr)
-- byte +6: sub_frame_count
-- byte +8 onwards: sub-frame sprite indices
+- byte +6: sub_frame_count (該 pose 停留的 sub-frame 數；每 sub-frame 重繪整張 pose)
+- byte +9 onwards: RLE-packed pixel stream (由 `fd2_rle_blit_sprite` 解)
 
 idx 0 sample header (portrait 0 frame_a)：
 
 ```
 04 00      pose_count = 4
-04 00      ??? = 4
+04 00      pose_count (caster 迴圈上界) = 4
 00 00      sfx_bank_id = 0
 00 00      reserved
 18 00 00 00  pose_offset[0] = 0x18 (= 24，header 之後)
@@ -73,7 +80,7 @@ A0 3D 00 00  pose_offset[3] = 0x3DA0 (15776)
 | `data_fd2_animation_spell_frame_count_table` | 0x51F54 | frame count |
 | `data_fd2_animation_spell_sfx_id_table` | 0x51F75 | SFX 觸發 frame index |
 
-這三張 table 並非直接 index FIGANI，而是控制 `animate_spell_impact_per_target`
+這三張 table 並非直接 index FIGANI，而是控制 `fd2_animate_spell_impact_per_target`
 內 per-spell sprite frame loop 的參數（FIGANI 載入由 `fd2_play_spell_cast_sequence`
 等 cinematic function 動態做）。
 
@@ -90,7 +97,7 @@ A0 3D 00 00  pose_offset[3] = 0x3DA0 (15776)
 | `fd2_play_full_combat_cinematic` | defender_portrait × 3, attacker_portrait × 3 |
 | `fd2_play_spell_cast_sequence` | char_portrait × 3 (caster), char_portrait × 3 + 2 (alt) |
 | `fd2_play_class_promotion_cinematic` | spell_id × 3 |
-| `fd2_play_figani_char_intro_animation` | figani_idx (caller-passed) |
+| `fd2_play_figani_char_intro_animation` | portrait_id × 3 (+1)；portrait_id 由 char_unit_id 引數內部取 `runtime_char[char_unit_id].bPortrait_id` |
 | `fd2_play_final_chapter_30_ending` | iVar6 (loop-based portrait sequence) |
 
 ## 完整分類

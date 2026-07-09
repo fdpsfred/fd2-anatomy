@@ -33,7 +33,7 @@ TAI.DAT 全 binary 恰好有 6 個載入點，每一點都透過 `fd2_load_dat_r
 | `fd2_execute_special_attack_skill` @ 0x276ec | terrain-indexed：施法者腳下 tile attribute byte（out-buf +6） |
 | `fd2_execute_summon_spell_cast` @ 0x27fc9 | terrain-indexed：施法者腳下 tile attribute byte |
 | `fd2_play_spell_cast_sequence` @ 0x2A6BD | terrain-indexed：施法者／目標 tile attribute byte |
-| `fd2_play_full_combat_cinematic` @ 0x28a6c | terrain-indexed：per-chapter cinematic override byte，override==0 時退回腳下 tile attribute |
+| `fd2_play_full_combat_cinematic` @ 0x28a6c | terrain-indexed：一般類用腳下 tile attribute byte（主路徑）；免疫/飛行類（bClass 0x13 或 archetype 4/5、portrait≠0x1c）改用 per-chapter cinematic override byte（override==0 亦不退回；該退回僅作用於 BG split index，非 TAI index）；scripted event 強制固定值 |
 | `fd2_play_figani_char_intro_animation` @ 0x28784 | 固定 idx 3（角色登場名牌 sprite） |
 | `fd2_play_final_chapter_30_ending` @ 0x2c405 | 固定 idx 3（第 30 章結局 backdrop sprite） |
 

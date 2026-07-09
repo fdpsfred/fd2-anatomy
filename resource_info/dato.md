@@ -29,14 +29,18 @@ self-describing 的 frame：
 
 `DATO idx = portrait_id` (直接對應，全 136 entries 各為 1 個 portrait)。
 
-Caller chain:
-- `fd2_display_dialog_scene @ 0x15F84` — dialog 講者 portrait blit
-- `render_status_screen_static_layout` — status screen char portrait
-- `run_equip_member_menu` / `run_status_screen_member_menu` — menu portraits
-- `fd2_play_final_chapter_30_ending` — endgame char portraits
+Caller chain（6 個消費 `0x51A70` = DATO.DAT 的 function）：
+- `fd2_dialog_open_speaker_portrait @ 0x1956B` — 對話框講者 portrait 開啟（52 caller，主要消費者）
+- `fd2_display_dialog_scene @ 0x15F84` — dialog 內嵌 portrait blit
+- `fd2_render_status_screen_static_layout @ 0x17EEF` — status screen char portrait
+- `fd2_run_equip_member_menu @ 0x2F883` / `fd2_run_status_screen_member_menu @ 0x2FFA5` — menu portraits
+- `fd2_play_final_chapter_30_ending @ 0x2C405` — endgame char portraits
 
-`fd2_display_dialog_scene` 內部用 `portrait_id × 0x50` 做 stride 計算 (80-byte row)，
-但 loader 端傳的 idx 是 `portrait_id` 直接。
+`fd2_display_dialog_scene` 的 by-char portrait opcode 用 `char_id × 0x50`
+(= sizeof(runtime_char)) 索引 `data_fd2_battle_runtime_char_array_ptr`，取該角色的
+`bPortrait_id` (欄位 +7)，再把它直接當 DATO entry idx 傳給 loader；portrait blit 用
+VGA pitch `0x140`。（`× 0x50` 是 runtime_char stride、非像素 row stride，索引鍵是
+char_id 非 portrait_id。）
 
 ## 與 FIGANI 的對應
 
@@ -51,14 +55,14 @@ DATO 提供 dialog / menu / status screen 用的靜態 portrait；FIGANI 提供�
 
 | idx | size | frame offsets | unique colors |
 |---|---|---|---|
-| 0   | 14670 | [0x10, 0xE56, 0x1CA4, 0x2B0A] | 74 |
-| 1   | 12665 | [0x10, 0xC5D, 0x18B8, 0x2528] | 83 |
-| 2   | 15681 | [0x10, 0xF57, 0x1EA1, 0x2DFC] | 72 |
-| 3   | 14059 | [0x10, 0xDC2, 0x1B7D, 0x293A] | 49 |
-| 4   | 13424 | [0x10, 0xD1D, 0x1A3A, 0x276B] | 84 |
-| 50  | 17706 | [0x10, 0x1151, 0x229D, 0x33E9] | 64 |
-| 100 |  6165 | [0x10, 0x61D, 0xC2A, 0x1237] | 71 |
-| 135 | 15083 | [0x10, 0xED8, 0x1D93, 0x2C30] | 101 |
+| 0   | 14670 | [0x10, 0xE56, 0x1CA4, 0x2B0A] | 44 |
+| 1   | 12665 | [0x10, 0xC5D, 0x18B8, 0x2528] | 37 |
+| 2   | 15681 | [0x10, 0xF57, 0x1EA1, 0x2DFC] | 61 |
+| 3   | 14059 | [0x10, 0xDC2, 0x1B7D, 0x293A] | 22 |
+| 4   | 13424 | [0x10, 0xD1D, 0x1A3A, 0x276B] | 52 |
+| 50  | 17706 | [0x10, 0x1151, 0x229D, 0x33E9] | 51 |
+| 100 |  6165 | [0x10, 0x61D, 0xC2A, 0x1237] | 22 |
+| 135 | 15083 | [0x10, 0xED8, 0x1D93, 0x2C30] | 58 |
 
 每個 PGM dump 是 320×80 (4 views side-by-side) 的 8bpp indexed sprite (palette
 為 chapter-dependent VGA palette)。

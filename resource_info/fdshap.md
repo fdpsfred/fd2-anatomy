@@ -57,9 +57,10 @@ FDSHAP[shap_id × 2 + 1] = tile_attribute_flags    (4 bytes/tile)
 特性：33 章 × 2 = 66 FDSHAP idx **完整 1:1 對應**；shap_id 線性連續 0x00..0x20；
 0 unused、0 共用 — 每章獨佔一對。
 
-ch23 mid-switch 切到 ch24 用 ch24 自己的 shap_id 0x17 → FDSHAP[46/47]
-(load `current_chapter_id = 24` 然後 `fd2_load_chapter_battle_data(24)` 讀 FDFIELD ch24
-tile_event[0] = 0x17)。
+ch23 mid-switch 切到 ch24 場景 → FDSHAP[46/47]。機制不走 shap_id 間接：
+`fd2_chapter_23_end` Phase 2 先 `current_chapter_id += 1` (22 → 23)，再直接以
+`fd2_load_dat_resource` 硬編載入 FDFIELD[0x45] / FDSHAP[0x2E]=46 (tile sheet) /
+FDSHAP[0x2F]=47 (attr)，未經 `fd2_load_chapter_battle_data` 或 tile_event[0] shap_id 推導。
 
 ## data_fd2_battle_scene_tile_gfx_ptr (`shap_id × 2 + 0`)
 
@@ -84,16 +85,20 @@ ch1 sample (FDSHAP[0])：147,740 bytes，288 個 24×24 tile。
 ## tile_attribute_flags (`shap_id × 2 + 1`)
 
 - 4 bytes per tile，無 header
-- 每 4-byte 結構：
+- 每 4-byte 結構（3 個 reader `fd2_composite_battle_tile_map @ 0x12247` /
+  `fd2_blit_animated_tile_at_pos @ 0x12AC6` / `fd2_read_tile_attribute_at_pos @ 0x12E86`
+  皆以 `buffer + tile_id × 4` 索引、flag 讀自 byte **+0**）：
 
 ```
-+0  byte  ?
-+1  byte  ?
-+2  byte  animation/palette flag bits:
++0  byte  animation / renderable / event flag bits:
             0x04 = animated frame +1/tick
             0x08 = animated frame +2/tick
             0x10 = palette half-step
-+3  byte  ?
+            0x80 = renderable (gate tile blit)
+            0x20 / 0x40 = event-class (per read_tile_attribute plate；render reader 不消費)
++1  byte  ? (值域 0..5，未解讀)
++2  byte  terrain / animation-group enum (值域 0..0x37，非 bit 組合)
++3  byte  ? (全 tile 恆 0)
 ```
 
 ch1 sample: 1200 bytes / 4 = 300 tiles。

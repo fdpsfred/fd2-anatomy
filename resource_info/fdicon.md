@@ -21,9 +21,13 @@ monotonic non-decreasing。header/height/count 欄位與 offset 表尺寸來源�
 ## 載入方式
 
 由 `fopen("FDICON.B24", "rb")` 直接開檔，不走 LLLLLL `fd2_load_dat_resource`，是全遊戲
-唯一的非 LLLLLL 資源。開檔點為章節 init 的 `fd2_load_chapter_battle_data @ 0x1088d` 與
-portrait 重載的 `fd2_load_chapter_portraits_and_dump_tmp @ 0x10b4e`，開檔後對該章要用到的
-每個 portrait 呼叫 loader，載完即 `fclose`。
+唯一的非 LLLLLL 資源。全遊戲共 **8 處** `fopen("FDICON.B24","rb")`（8 個 plain-filename
+字串 literal），各自開檔後對該章要用到的每個 portrait 呼叫 loader 重建 portrait cache、
+載完即 `fclose`：章節 init `fd2_load_chapter_battle_data @ 0x1088D`、portrait 重載
+`fd2_load_chapter_portraits_and_dump_tmp @ 0x10B4E`，以及 save/load 還原
+（`fd2_load_save_and_init_engine`、`fd2_load_state_from_selected_slot`）、章節轉場
+（`fd2_chapter_transition_menu`）、轉職（`fd2_run_class_promotion_menu_main`）、招募／分歧
+（`fd2_run_recruitment_or_branch_screen`）、必上場角色 pin（`fd2_pin_required_char_to_party_slot1`）。
 
 ## sprite namespace：140 portrait-set × 12 frame
 

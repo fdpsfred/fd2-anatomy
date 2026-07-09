@@ -23,9 +23,9 @@ fseek(file, *frame_buf, SEEK_SET);     // jump to entry start
 fread(header, 173, 1, file);            // 0xAD byte header
 frame_count = *(u16*)(header + 0xA5);
 for i in 0..frame_count:
-    fread(frame_header, 8, 1, file);    // (data_size, decoded_size, ...)
+    fread(frame_header, 8, 1, file);    // (data_size, opcode_count, ...)
     fread(frame_bitmap, data_size, 1, file);
-    fd2_ani_decoder_decode_frame_bytes(decoded_size, bitmap);
+    fd2_ani_decoder_decode_frame_bytes(opcode_count, bitmap);
     delay(ms_per_frame);
     if skip_on_key: check_keyboard_buffer_nonempty break;
 ```
@@ -41,7 +41,8 @@ for i in 0..frame_count:
 +0xAD..   per-frame loop:
     +0x00..+0x07  u8[8]   frame_header
                   +0x00..+0x01  u16  data_size (compressed bytes)
-                  +0x02..+0x03  u16  decoded_size (target buffer bytes)
+                  +0x02..+0x03  u16  opcode_count (傳給 fd2_ani_decoder_decode_frame_bytes 的
+                                       byte_count = 要 dispatch 的 RLE opcode byte 數，非輸出 byte 數)
                   +0x04..+0x07  ?    other frame metadata
     +0x08..       u8[data_size]  RLE-delta encoded bitmap
         經 fd2_ani_decoder_decode_frame_bytes 解到 0xA0000 framebuffer

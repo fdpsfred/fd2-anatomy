@@ -20,9 +20,9 @@ chapter_id × 3 + 2  →  char_spawn_pos_table   (data_fd2_chapter_char_spawn_po
 
 | chapter_id | FDFIELD idx | tile_map | tile_event | spawn_pos | 用途 |
 |---|---|---|---|---|---|
-| 30 (extra) | 90/91/92 | 6304 B | 157 B | 194 B | endgame cinematic map 1 |
-| 31 (extra) | 93/94/95 | 4004 B | 937 B | 182 B | epilogue map (`ch30_end fd2_load_chapter_battle_data(31)` staff roll) |
-| 32 (extra) | 96/97/98 | 3676 B | 1171 B | 182 B | endgame cinematic map 3 |
+| 30 (extra) | 90/91/92 | 6304 B | 157 B | 194 B | 結局 map：`ch30_end`（結局對話背景 + staff roll）與 `fd2_play_final_chapter_30_ending`，皆 `fd2_load_chapter_battle_data(30)` |
+| 31 (extra) | 93/94/95 | 4004 B | 937 B | 182 B | endgame map（載入路徑未確認）|
+| 32 (extra) | 96/97/98 | 3676 B | 1171 B | 182 B | endgame map（載入路徑未確認）|
 
 ## 30 章 idx 對照表
 
@@ -117,7 +117,9 @@ Header total = 3 + 16×3 + 16×2 + 16×3 = **131 bytes = 0x83** ✓
 | endgame_ch31 | 0x1F | 30 | 937 (+1 reserved) | 4 |
 | endgame_ch32 | 0x20 | 30 | 1171 (+10 records) | 0 |
 
-ch1 與 endgame_ch31 各多 1 個 reserved record (race_id=0xFF 永不被 load)。
+ch1 與 endgame_ch31 各多 1 個 reserved record (char_id=0x4C、race_id=0x0A，兩章
+byte-identical)，永不被 load — 其 record idx 30 ≥ char_spawn_count 30，超出 loader
+迴圈上界（與下述 endgame_ch32 dead payload 同機制，非靠 race sentinel）。
 endgame_ch32 的 char_spawn_count = 30 但實際 file payload 含 40 records (10 個
 額外 = 260 bytes)。
 
@@ -149,7 +151,7 @@ struct char_spawn_record {
     uint8_t char_id;            // +0x01 (< 0x44 = player class via char_base/growth;
                                 //        ≥ 0x44 = data_fd2_battle_enemy_data_table[id-0x44])
     uint8_t ai_target_id;       // +0x02 (initial AI target char_idx)
-    uint8_t _pad03;             // +0x03 (always observed = 1 in ch1)
+    uint8_t _pad03;             // +0x03 (unread pad; ch1 值多為 1，亦見 2/11，非固定)
     uint8_t level;              // +0x04
     uint8_t inv_slot_0_special; // +0x05 (若 0xFF, slot 0 takes item from +0x06,
                                 //        slot 1 empty; else slot 0 = +0x05)

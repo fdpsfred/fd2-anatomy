@@ -1,6 +1,6 @@
 # 中文字元編碼 / 字型 (FDOTHER.DAT[4])
 
-`chinese_font_sheet @ 0x53A75` 是由 FDOTHER.DAT[4] 載入的 1bpp 16×16 字模 atlas，
+`data_fd2_chinese_font_sheet @ 0x53A75` 是由 FDOTHER.DAT[4] 載入的 1bpp 16×16 字模 atlas，
 共 1824 glyphs × 32 bytes = 58,368 bytes。FDTXT.DAT bytecode 用 u16 glyph_id
 直接索引這張 atlas。
 
@@ -12,25 +12,26 @@
 
 觀察到的 glyph_id 範圍：`0x0000..0x071F` (1824 distinct atlas slots)。
 
-## ASCII 範圍
+## 英數字區塊
 
-ASCII (`0x20..0x7E`) 在 atlas 中對應 ASCII 字模，可直接用 ASCII 碼作為 glyph_id
-渲染英文字母 / 數字 / 符號。
+atlas **不是** ASCII 對齊。英數字模集中在低索引：glyph_id `0x00..0x09` = 數字
+'0'..'9'、`0x0A..0x23` = 大寫 'A'..'Z'，`0x24` 起即為中文。因此不能拿 ASCII 碼直接
+當 glyph_id（'A' 是 glyph 0x0A 而非 0x41；無小寫、無標點區塊）。
 
-`NUMBER` opcode (FDTXT bytecode `0xFFFA`) 內部從 `0x5014C` 讀 sprintf 結果再
-`digit_buf[i] - 0x30` 換成 0..9，證明 atlas 索引 0..9 對應數字 '0'..'9' 字模
-(數字字模在低索引處，**不**從 ASCII 0x30 起算)。
+`NUMBER` opcode (FDTXT bytecode `0xFFFA`) 把數值交給 `sprintf @ 0x377D9`（格式字串
+`"%d" @ 0x5014C`），再逐位 `digit_buf[i] - 0x30` 換成 atlas 索引 0..9，對應數字
+'0'..'9' 字模（數字在低索引，**不**從 ASCII 0x30 起算）。
 
 ## 字模渲染
 
-由 `fd2_blit_glyph_1bpp_with_outline @ 0x4EA2A` 渲染。命名「2bpp_with_outline」指
-output buffer 是 2bpp (fill + outline 兩 channel)，**input glyph 本身是 1bpp**
-(58368 ÷ 1824 ÷ 32 = 1.0)。
+由 `fd2_blit_glyph_1bpp_with_outline @ 0x4EA2A` 渲染。函式名「1bpp」指 **input glyph**
+是 1bpp (58368 ÷ 1824 ÷ 32 = 1.0)；輸出寫進 VGA mode-13h 8bpp framebuffer（每像素一個
+palette-index byte，非 2bpp channel buffer）。
 
 兩階段：
 1. 可選背景色填 16×16 矩形
-2. scan 16 rows × 16 bits；每 set bit 寫 `fill_color`，並在右下角加
-   `outline_color` 像素 (產生 1-pixel outline 立體效果)
+2. scan 16 rows × 16 bits；每 set bit 寫 `fill_color`，並在其正下方 (`+pitch`) 與
+   左下 (`+pitch-1`) 各寫一個 `outline_color` 像素 (左下 L 形 drop-shadow)
 
 ## glyph_id ↔ 中文字 lookup
 
@@ -43,7 +44,7 @@ pixel-level match + 人工校正：
 | filled (有中文字) | 1824 |
 | unfilled | 0 |
 | blank (字模本身全空) | 0 |
-| multi_char (一格 2+ 字，例 'Lv'/'HP') | 44 |
+| multi_char (一格 2+ 字；未解字模的 placeholder / 雜訊字串) | 43 |
 | user_edited (校正 ET3 自動 pre-fill) | 100 |
 | distinct characters | 1824 |
 
