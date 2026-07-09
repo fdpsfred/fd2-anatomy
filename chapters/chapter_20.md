@@ -33,7 +33,7 @@
 |---|---|---|---|
 | 4 | 精靈 | LV13 | ×8 |
 
-8 名精靈為守護聖靈之塔的亞述森林精靈族（runtime slots chars[0x35..0x3D]），戰場自走；忍者謝多 (char[0x34]) 亦以友軍 NPC 參戰（見 §特殊機制）。
+8 名精靈為守護聖靈之塔的亞述森林精靈族（runtime slots chars[0x35..0x3C]），戰場自走；忍者謝多 (char[0x34]) 亦以友軍 NPC 參戰（見 §特殊機制）。
 
 ## 寶物
 
@@ -57,11 +57,11 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 ## 特殊機制
 
-- **勝利條件**：擊敗沼澤怪物以外的全部敵人。由 `fd2_chapter_20_post_action` Stage C 判定：`chars[0x24..0x33]` 與 `chars[0x3D..0x53]` 兩組敵人全部死亡時 win。
+- **勝利條件**：擊敗沼澤怪物以外的全部敵人。由 `fd2_chapter_20_post_action` Stage C 判定：`chars[0x24..0x33]` 與 `chars[0x3D..0x52]` 兩組敵人全部死亡時 win。
 - **失敗條件**（同 post-action 判定）：
   - 索爾 (`char[0]`) 死亡。
   - 忍者謝多 (`char[0x34]`，NPC) 死亡。
-  - 精靈族 8 名 (`chars[0x35..0x3D]`，NPC) 全滅，會額外播 page 10「糟糕，精靈們被全滅了！」。
+  - 精靈族 8 名 (`chars[0x35..0x3C]`，NPC) 全滅，會額外播 page 10「糟糕，精靈們被全滅了！」。
 - **達克塞限時招募**：15 回合內結束戰鬥 (`data_fd2_battle_turn_counter < 0x10`，即 TURN 1..15) 時，`fd2_chapter_20_end` 走條件分支，播 cutscene 0x3C/0x3D/0x3E ＋ dialog page 0xE/0xF/0x10，並以 `fd2_init_runtime_char_from_base_growth(0x1C)` 讓惡魔族戰士達克塞加入；否則章末僅忍者謝多無條件加入。
 - **共用 init handler**：本章 init 與第 19、21 章共用同一支 `fd2_chapter_19_20_21_init_shared`。
 
@@ -109,23 +109,23 @@ Shared minimal init (同 ch19)：
 `fd2_chapter_20_post_action @ 0x20957` (250 B) — 三段式邏輯：
 
 1. **default 判定先跑**：敵全死=勝、索爾死=負
-2. **Stage A — 精靈 group**：若 `chars[0x35..0x3D]` (8 個 NPC = 精靈) 全死 → `fd2_display_dialog_scene(page=10)` + `game_event_flag = 1` (lose)
+2. **Stage A — 精靈 group**：若 `chars[0x35..0x3C]` (8 個 NPC = 精靈) 全死 → `fd2_display_dialog_scene(page=10)` + `game_event_flag = 1` (lose)
 3. **Stage B — 主角組**：if `char[0]` OR `char[0x34]` 死亡 → `game_event_flag = 1` (lose)
-4. **Stage C — 兩 group win 判定**：if `chars[0x24..0x33]` + `chars[0x3D..0x53]` 兩組敵 chars 全部死亡 → `game_event_flag = 2` (win)。Stage C 為 ch20 真正的勝利條件 (對應「沼澤怪物之外的敵人全滅」)。
+4. **Stage C — 兩 group win 判定**：if `chars[0x24..0x33]` + `chars[0x3D..0x52]` 兩組敵 chars 全部死亡 → `game_event_flag = 2` (win)。Stage C 為 ch20 真正的勝利條件 (對應「沼澤怪物之外的敵人全滅」)。
 
 | char slot | 角色 |
 |---|---|
 | char[0] | 索爾 |
 | char[0x34] | 忍者謝多 (NPC) |
-| chars[0x35..0x3D] | 精靈族 8 名 (NPC) |
+| chars[0x35..0x3C] | 精靈族 8 名 (NPC) |
 | chars[0x24..0x33] | 沼澤怪物 / 死亡骷髏 group A |
-| chars[0x3D..0x53] | group B |
+| chars[0x3D..0x52] | group B |
 
 ### End handler events
 
 `fd2_chapter_20_end @ 0x23E74` (646 B)：
 
-1. 從 `chapter_20_end_scene1_pos_x/y_table` (chars 0..0xF) + `chapter_20_end_scene2_pos_x/y_table` (chars 0x34..0x3C) 讀位置
+1. 從 `data_fd2_chapter_ch20_end_scene1_char_pos_x_table` / `_char_pos_y_table`（各 byte[16] @ 0x521F6/0x52206，chars 0..0xF）+ `data_fd2_chapter_ch20_end_scene2_char_pos_x_table` / `_char_pos_y_table`（各 byte[9] @ 0x52216/0x5221F，chars 0x34..0x3C）讀位置
 2. `fd2_play_palette_fade_to_black` + `fd2_clear_all_chars_acted_flag`
 3. **Reposition 25 chars**：
    - chars[0..0xF] (16 chars)：從 scene1 設 bPos + sprite facing = 1 (west)

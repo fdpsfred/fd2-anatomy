@@ -112,7 +112,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 `fd2_chapter_16_end @ 0x23A0A` (341 B) — 蜜蒂三條件招募：
 
-1. 從 `chapter_16_end_scene_pos_x/y_table` 讀位置
+1. 從 `data_fd2_chapter_ch16_end_scene_char_pos_x_table` / `_char_pos_y_table`（各 byte[16] @ 0x52183/0x52193）讀位置
 2. `fd2_setup_chars_and_camera_for_intro(0xF, 0x41, 0x1C, 0x1E, 2, 0x16, 0x19)` 配置 chars
 3. **Count dead 部下**：迴圈 `chars[0x42..0x49]`（蜜蒂的 8 個部下），每死一個 `local_14++`
 4. 若 `local_14 > 4` → `local_10 = 1`（招募失敗 flag）

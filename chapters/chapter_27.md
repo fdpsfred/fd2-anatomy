@@ -46,7 +46,7 @@
 
 | 角色 | 位址 | 大小 |
 |---|---|---|
-| Init | `fd2_chapter_27_init @ 0x00033AF1` | 428 B（第二大 init） |
+| Init | `fd2_chapter_27_init @ 0x00033AF1` | 428 B（大型 init；ch01 init 1626 B 最大、ch23 init 548 B 次之） |
 | End | `fd2_chapter_27_end @ 0x000250CC` | 920 B |
 | Post-action | `fd2_chapter_22_27_28_post_action_shared @ 0x00020A87` | default + lose if char[1] dead（與 ch22/28 共用） |
 | BGM（player turn） | `data_fd2_audio_per_chapter_player_turn_bgm_track[26]` | |
@@ -102,7 +102,7 @@
 
 `fd2_chapter_27_end @ 0x000250CC`（920 B）— GOOD / BAD ENDING fork：
 
-1. 從 `chapter_27_end_scene_pos_x/y_table` 讀位置（含 1-byte vestigial facing）
+1. 從 `data_fd2_chapter_ch27_end_scene_char_pos_x_table` / `_char_pos_y_table`（各 byte[16] @ 0x52306/0x52316）讀位置（char 0..0xF）；另讀 1-byte `data_fd2_chapter_ch27_end_scene_bad_path_status_flicker_char_idx` @0x52326（BAD 結局路徑用作 status-effect flicker 的角色索引，非 facing 表）
 2. **Revive all**：`chars[0..0xF].bFlags = 0`（16 chars 復活）
 3. `fd2_setup_chars_and_camera_for_intro(0xF, 0, 9, 8)`
 4. `fd2_display_dialog_scene(page=8)` + `fd2_cutscene_event_trigger(0x52)`
@@ -113,8 +113,9 @@
 - `fd2_display_dialog_scene(page=9)` + `fd2_cutscene_event_trigger(0x53)`
 - `fd2_display_dialog_scene(page=10)` + `pan` + `fd2_cutscene_event_trigger(0x54)`
 - `fd2_display_dialog_scene(page=0xB)`
-- **6× `fd2_palette_overbright_settle_step_loop`**：(0x50,5) / (0x50,4) / (0x50,3) / (0x50,2) / (0x50,2) / (0x50,2) + 不同等待時間（additive over-bright 白閃後 settle 回 base palette，非黑屏；真正黑屏在下一行的 memset 0）
-- `fd2_display_dialog_scene(page=0xC)`
+- `fd2_palette_overbright_settle_step_loop(0x50, 5)`（6 次 overbright 的第 1 次）
+- `fd2_display_dialog_scene(page=0xC)`（穿插在第 1 次與第 2 次 overbright 之間）
+- 其餘 5 次 `fd2_palette_overbright_settle_step_loop`：(0x50,4)+500ms / (0x50,3)+250ms / (0x50,2)+100ms / (0x50,2)+50ms / (0x50,2)（additive over-bright 白閃後 settle 回 base palette，非黑屏；真正黑屏在下一行的 memset 0）
 - `fd2_cast_screen_wide_spell_with_fade`（大範圍）
 - 500ms wait + `memset(0xA0000, 0xFF, 64000)`（白屏）+ `fd2_play_palette_fade_to_black` + `memset(0xA0000, 0, 64000)`（黑屏）
 - `fd2_save_runtime_char_to_template` + `current_chapter_id += 1`
@@ -148,7 +149,7 @@ turn-event hook table：2 / 16 active hooks（其餘 14 為 sentinel）：
 
 ## 對話
 
-對話文字 24 pages 來自 FDTXT.DAT entry 27。Init 引用 page 0 /（3 conditional）/ 4 / 5 / 6 / 7；End 依 ending 分歧引用 GOOD：8, 9, 10, 0xB, 0xC，或 BAD：8, 0xD, 0xE, 0xF, 0x10。Page 1 / 2 / 11-23 由 FDFIELD turn-event / tile-step handler 引用。
+對話文字 24 pages 來自 FDTXT.DAT entry 27。Init 引用 page 0 /（3 conditional）/ 4 / 5 / 6 / 7；End 依 ending 分歧引用 GOOD：8, 9, 10, 0xB, 0xC，或 BAD：8, 0xD, 0xE, 0xF, 0x10（合計 page 8-16）。Page 1 / 2 / 17-23 由 FDFIELD turn-event / tile-step handler 引用。
 
 ### Page 0
 

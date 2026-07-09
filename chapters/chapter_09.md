@@ -114,7 +114,7 @@ turn-event hook table：2 / 16 hook entries active（其餘 14 為 sentinel）�
 | 0xFF | 0 (enemy_turn_intro) | 0x1F | `0x00034B5D` | turn=0xFF dormant entry — 不會在初始 hook table 狀態下 fire |
 | 0xFF | 0 (enemy_turn_intro) | 0x1F | `0x00034B5D` | 同上 dormant entry |
 
-兩筆 hook 皆指向 `fd2_chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D`（援軍 state machine，見 §特殊機制）。`fd2_fire_chapter_turn_events_for_phase` 比對 `turn == data_fd2_battle_turn_counter`，0xFF 永遠不會等於回合計數，故初始狀態下不 fire。觸發機制：tile-step-event handler 在某些劇本 tile 被踩到時，動態 rewrite 本章 turn-event hook table 的 turn byte（0xFF → data_fd2_battle_turn_counter 或 +1），把原本 dormant 的 entry 啟動成下一回合 fire 的 event。
+兩筆 hook 皆指向 `fd2_chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D`（援軍 state machine，見 §特殊機制）。`fd2_fire_chapter_turn_events_for_phase` 比對 `turn == data_fd2_battle_turn_counter`，0xFF 永遠不會等於回合計數，故初始狀態下不 fire。觸發機制：兩筆 turn-event hook 初始 turn=0xFF（dormant），`fd2_chapter_event_handler_1f__ch9_reinforcement` 實際經 shared `consequence_table[0x1F]` 觸發（ch9 的 tile-step-event 表 16 筆全為 sentinel，無 ch9 專屬 tile-step handler 改寫 turn byte；動態改寫 turn byte 的 dyn-turn-event rewriter 僅 ch27/28/29 有）。
 
 ## 對話
 

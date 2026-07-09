@@ -101,7 +101,7 @@ End handler 條件式 `fd2_init_runtime_char_from_base_growth(2)` → 鐵諾加�
 
 `fd2_chapter_03_end @ 0x000230F2` (214 B)：
 
-1. 從 `data_fd2_chapter_ch03_end_scene_char_pos_x_table` / `pos_y_table` / `facing_table` (各 8 entries @ 0x520BD/0x520C4/0x520CB) 讀 4 entries → local recruit_block × 3
+1. 從 `data_fd2_chapter_ch03_end_scene_char_pos_x_table` / `_char_pos_y_table` / `_char_facing_table` (各 byte[7] @ 0x520BA/0x520C1/0x520C8) 讀 7 chars（char 0..6）位置 → local recruit_block × 3
 2. `fd2_save_runtime_char_to_template`
 3. **Conditional**：`fd2_check_char_is_dead(6)`
    - 若 char[6] 活著 → `fd2_setup_chars_and_camera_for_intro(...)` + `fd2_display_dialog_scene(page=7)` +

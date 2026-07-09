@@ -46,7 +46,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 - **失敗條件**：主角索爾陣亡即戰敗，由 `fd2_check_battle_end_default_handler`（default
   post-action handler）判定；本章無自訂勝負條件。
 - **每回合騎兵援軍**：城門守軍由 FDFIELD turn-event hook（event_code `0x1B`，handler
-  `0x000349D9`）在 turn 2-7 的 enemy_turn_intro 各觸發一次，共 6 波、每波 2 名敵騎兵。
+  `0x000349D9`）在 turn 2-7 的 enemy_turn_intro 各觸發一次，但該 handler 是**過場 cinematic**（pan 到城門 (8,2) + 依 `data_fd2_battle_turn_counter` 換肖像 + delay），**不負責 spawn**。援軍單位（共 6 波、每波 2 名敵騎兵）由 turn-gated FDFIELD char_spawn records 生成。
   此援軍鏈全由 FDFIELD turn-event hooks 驅動，不經 post-action handler。
 - **章末加入洛娜**：End handler 末段呼叫 `fd2_init_runtime_char_from_base_growth(5)`，
   將洛娜（char_id 5）加入隊伍。
@@ -62,7 +62,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 | 角色 | 位址 | 大小 |
 |---|---|---|
 | Init | `fd2_chapter_08_init @ 0x00033219` | 100 B |
-| End | `fd2_chapter_08_end @ 0x000234BB` | 140 B |
+| End | `fd2_chapter_08_end @ 0x000234BB` | 257 B |
 | Post-action | `fd2_check_battle_end_default_handler @ 0x000205B4` | (default) |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[7]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[7]` |  |
@@ -73,7 +73,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 - `fd2_pan_cursor_and_window(7, 0x20)` + `fd2_cutscene_event_trigger(0x1F)` + `fd2_display_dialog_scene(page=0)`
 - `fd2_pan_cursor_and_window(7, 0x17)` + `fd2_cutscene_event_trigger(0x20)` + `fd2_display_dialog_scene(page=1)`
-- `fd2_pan_cursor_to_char(0)`
+- `fd2_clear_all_chars_facing` + `fd2_pan_cursor_to_char(0)`
 
 ### Dialog page 引用
 
@@ -101,9 +101,9 @@ post-action handler。
 
 ### End handler events
 
-`fd2_chapter_08_end @ 0x000234BB`（140 B）：
+`fd2_chapter_08_end @ 0x000234BB`（257 B）：
 
-1. 從 `data_fd2_chapter_ch08_end_scene_char_pos_x_table` / `pos_y_table`（@ 0x520FC/0x52106，各 4 entries）讀 4 chars 位置
+1. 從 `data_fd2_chapter_ch08_end_scene_char_pos_x_table` / `_char_pos_y_table`（@ 0x520FF/0x52109，各 byte[10]）讀 10 chars（char 0..9）位置，另佈署 1 名（char 0x1C）
 2. `fd2_setup_chars_and_camera_for_intro(...)`
 3. `fd2_display_dialog_scene(page=3)`
 4. `fd2_cutscene_event_trigger(0x21)`
@@ -125,12 +125,12 @@ turn-event hooks 共 7/16 active（其餘 9 為 sentinel）：
 
 | turn | phase | event_code | handler 位址 | 語意 |
 |---|---|---|---|---|
-| 2 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | ch8 reinforcement（turn 2-7 phase 0 各 fire 一次 = 每回合敵騎兵援軍 6 波×2 名） |
-| 3 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | ch8 reinforcement |
-| 4 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | ch8 reinforcement |
-| 5 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | ch8 reinforcement |
-| 6 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | ch8 reinforcement |
-| 7 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | ch8 reinforcement |
+| 2 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | per-turn cinematic（pan (8,2) + 依 turn_counter 換肖像；turn 2-7 phase 0 各 fire 一次。援軍單位由 turn-gated spawn records 生成，非此 handler） |
+| 3 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | per-turn cinematic |
+| 4 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | per-turn cinematic |
+| 5 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | per-turn cinematic |
+| 6 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | per-turn cinematic |
+| 7 | 0 (enemy_turn_intro) | 0x1B | `0x000349D9` | per-turn cinematic |
 | 15 | 0 (enemy_turn_intro) | 0x1C | `0x00034A0E` | ai_setup; ch8_ai_ctrl |
 
 ## 對話

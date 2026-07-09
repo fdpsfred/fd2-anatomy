@@ -107,8 +107,8 @@ End handler 中：
 
 `fd2_chapter_12_end @ 0x237D5`：
 
-1. 從 scene tables（`chapter_12_end_scene_pos_x/y/facing_table`）讀 4 chars 位置
-2. `fd2_setup_chars_and_camera_for_intro(0xD, 0xE, 10, 2, 0, 4, 0)` — 配 6 chars 進場
+1. 從 scene tables（`data_fd2_chapter_ch12_end_scene_char_pos_x_table` / `_char_pos_y_table` / `_char_facing_table`，各 byte[14] @ 0x52129/0x52137/0x52145）讀 14 chars（char 0..0xD）位置，另佈署 1 名（char 0xE 米亞斯多德）
+2. `fd2_setup_chars_and_camera_for_intro(...,0,0xD,0xE,10,2,0,4,0)`（char_start=0、char_end=0xD）— 佈署 char 0..0xD（14 名）+ 額外 char 0xE（米亞斯多德）
 3. `fd2_display_dialog_scene(page=3)`
 4. `fd2_cutscene_event_trigger(0x2D)`
 5. `fd2_display_dialog_scene(page=4)`
@@ -129,7 +129,7 @@ FDFIELD entry idx **34**（= chapter_id × 3 + 1, chapter_id = 11），entry siz
 
 ## 對話
 
-對話文字 5 pages 來自 FDTXT.DAT entry 12（= chapter_id + 1）。Init handler 引用 page 0；End handler 引用 page 3 與 page 4；page 1、2 由 FDFIELD turn-event handler 在戰鬥中引用。
+對話文字 5 pages 來自 FDTXT.DAT entry 12（= chapter_id + 1）。Init handler 引用 page 0；End handler 引用 page 3 與 page 4；page 1、2 為戰鬥中敵人(boss)擊殺觸發的 scripted dialog（FDFIELD spawn 記錄 drop-entry type 3，由 `fd2_process_battle_drop_entries @0x1AA1D` 顯示，text 取自當前章節 FDTXT）；FDFIELD turn-event handler 本身不顯示對白。
 
 ### Page 0
 

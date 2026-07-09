@@ -105,8 +105,8 @@ End handler 條件式 `fd2_init_runtime_char_from_base_growth(0xC)` → 凱麗�
 
 `fd2_chapter_07_end @ 0x000232E8`（222 B）— double-conditional recruit：
 
-1. 從 `data_fd2_chapter_ch07_end_scene_char_pos_x_table` / `pos_y_table` / `facing_table`
-   (@ 0x520E1/0x520EA/0x520F3) 讀 4 chars 位置
+1. 從 `data_fd2_chapter_ch07_end_scene_char_pos_x_table` / `_char_pos_y_table` / `_char_facing_table`
+   (各 byte[9] @ 0x520E4/0x520ED/0x520F6) 讀 9 chars（char 0..8）位置
 2. `fd2_save_runtime_char_to_template`
 3. **Conditional 1**：`tile_event_consumed_flags[0x11] == 1`（某 tile event 已觸發）
    - 若是 → **Conditional 2**：`fd2_check_char_is_dead(0x2B)`（char 43）

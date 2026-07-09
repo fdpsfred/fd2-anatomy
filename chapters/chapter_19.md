@@ -6,7 +6,7 @@
 
 | char_id | 角色 | 加入時機 | 條件 |
 |---|---|---|---|
-| 0x40 | 龍劍士巴拿羅西亞 | 章中 (FDFIELD turn 6 reinforcement) | 巴拿羅西亞在第 6 回合以援軍登場後，須再消滅完全部敵人才會加入；若在他登場前就打完所有敵人，巴拿羅西亞不會加入。 |
+| 0x1B | 龍劍士巴拿羅西亞 | 章中 (FDFIELD turn 6 reinforcement) | roster char_id 0x1B（戰場 runtime slot 0x40 = party base 0x10 + FDFIELD spawn record #48）。巴拿羅西亞在第 6 回合以援軍登場後，須再消滅完全部敵人才會加入；若在他登場前就打完所有敵人，巴拿羅西亞不會加入。 |
 
 ## 敵人配置
 

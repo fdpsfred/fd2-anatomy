@@ -57,7 +57,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 - **蜜蒂條件式出戰**：init handler 以 `fd2_check_party_has_char_id(0x12)` 檢查隊伍是否已含蜜蒂 (char_id 0x12)。若無，呼叫 `fd2_load_chapter_portraits_and_dump_tmp(1)` 載入她的肖像，使她以 NPC (char[0x34]) 形式出戰。
 - **失敗條件**：索爾死亡（default lose）。若蜜蒂未在上一章招募成功，`fd2_chapter_17_post_action` 增加一條 lose 判定：NPC 蜜蒂 (char[0x34]) 死亡也算敗。
-- **章末告別分支**：end handler 依 `fd2_check_party_has_char_id(0x12)` 分歧。若蜜蒂未入隊，走 page 7 + cutscene 0x32/0x33（蜜蒂告別）路徑；若蜜蒂已入隊，直接走 page 5（無告別）。兩路徑合流後共播 page 6 + cutscene 0x35 + page 8，並讓凱拉斯 (char_id 0x10) 加入。
+- **章末告別分支**：end handler 依 `fd2_check_party_has_char_id(0x12)` 分歧。若蜜蒂未入隊，走 page 7 + cutscene 0x32/0x33（蜜蒂告別）路徑；若蜜蒂已入隊，走 page 5（無告別）+ cutscene 0x34。兩路徑合流後（先觸發各自 event_id：無蜜蒂 0x33 / 有蜜蒂 0x34）共播 page 6 + cutscene 0x35 + page 8，並讓凱拉斯 (char_id 0x10) 加入。
 
 ## Handler 流程
 
@@ -100,7 +100,7 @@ fd2_pan_cursor_to_char(0)
 ### Cutscene events
 
 - Init：無
-- End：`0x32`, `0x33`（僅在無蜜蒂分支）, `0x35`（always）
+- End：`0x32`（僅無蜜蒂分支）, `0x33`（僅無蜜蒂分支）, `0x34`（僅有蜜蒂分支）, `0x35`（always）
 
 ### Post-action handler
 
@@ -118,9 +118,9 @@ fd2_pan_cursor_to_char(0)
 1. 從 scene tables 讀位置
 2. `fd2_save_runtime_char_to_template`
 3. **Conditional**：`fd2_check_party_has_char_id(0x12)`
-   - 若 **無蜜蒂** → `fd2_setup_chars_and_camera_for_intro(0xF, 0x34, 0x17, 0x17, 2, 0x11, 0x11)` + `fd2_display_dialog_scene(page=7)` + `fd2_cutscene_event_trigger(0x32)` + pan + `fd2_load_chapter_portraits_and_dump_tmp(3)` + `fd2_cutscene_event_trigger(0x33)`（蜜蒂告別）
-   - 若 **有蜜蒂** → `fd2_display_dialog_scene(page=5)` + pan + `fd2_load_chapter_portraits_and_dump_tmp(3)`
-4. （兩路徑合流）`fd2_display_dialog_scene(page=6)` + `fd2_cutscene_event_trigger(0x35)` + `fd2_display_dialog_scene(page=8)`
+   - 若 **無蜜蒂** → `fd2_setup_chars_and_camera_for_intro(...,0,0xF,0x34,0x17,0x17,2,0x11,0x11)` + `fd2_display_dialog_scene(page=7)` + `fd2_cutscene_event_trigger(0x32)` + pan + `fd2_load_chapter_portraits_and_dump_tmp(3)` + `event_id = 0x33`（蜜蒂告別；於合流時觸發）
+   - 若 **有蜜蒂** → `fd2_display_dialog_scene(page=5)` + pan + `fd2_load_chapter_portraits_and_dump_tmp(3)` + `event_id = 0x34`
+4. （兩路徑合流）`fd2_cutscene_event_trigger(event_id)`（無蜜蒂 0x33 / 有蜜蒂 0x34）+ `fd2_display_dialog_scene(page=6)` + `fd2_cutscene_event_trigger(0x35)` + `fd2_display_dialog_scene(page=8)`
 5. `fd2_init_runtime_char_from_base_growth(0x10=16)` — 凱拉斯加入
 6. `current_chapter_id += 1`
 

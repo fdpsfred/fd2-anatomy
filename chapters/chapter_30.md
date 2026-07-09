@@ -34,8 +34,8 @@
 - **Init 7× cinematic warp 進場**：`fd2_cinematic_warp_char_to_tile` 把 7 個魔神 / boss 從不同方向傳送到戰場（4 個上方 group：char 0x15/0x16/0x17/0x18；3 個下方 group：char 0x18/0x19/0x1A），中間穿插 `fd2_animate_palette_flash_pulse_white` 全螢幕白光閃爍。
 - **GOOD ENDING 路徑**：擊殺空魔神 (chars[0x14]) → post-action 設 `game_event_flag = 2` → end handler 執行：
   - cast spell visual + palette fade
-  - 推進 `current_chapter_id` 到 31 (out-of-range)
-  - `fd2_load_chapter_battle_data(31)` 載入 epilogue map (FDFIELD.DAT entry 30, 0-indexed)
+  - 推進 `current_chapter_id` 到 30 (out-of-range，超出 pointer[30] 表 0..29)
+  - `fd2_load_chapter_battle_data(30)` 載入 epilogue map (FDFIELD tile_map entry 90 = 30×3, 0-indexed)
   - 64-step palette fade-in + 40 frame composite
   - 引用 epilogue dialog page 0/1（屬「chapter 31」FDTXT entry，包含悠妮的真相說明與道別）
   - `fd2_play_game_ending_cinematic` 觸發 staff roll
@@ -116,15 +116,15 @@
 
 `fd2_chapter_30_end @ 0x00025757` (544 B) — GOOD ENDING + staff roll：
 
-1. 從 `chapter_30_end_scene_pos_x/y/facing_table` 讀位置 (5 entries each)
+1. 從 `data_fd2_chapter_ch30_end_scene_char_pos_x_table` / `_char_pos_y_table` / `_char_facing_table`（各 byte[20] @ 0x52327/0x5233B/0x5234F）讀位置（char 0..0x13；二進位以 5 dword MOVSD 複製 20 bytes）
 2. `fd2_setup_chars_and_camera_for_intro(0x13, 0, 0, 0, 0, 0x10, 0x12)`
 3. `fd2_display_dialog_scene(page=9)` + `fd2_cutscene_event_trigger(0x58)`
 4. `fd2_display_dialog_scene(page=10)`
 5. `fd2_pan_cursor_and_window(0x10, 0x12)` + `fd2_pan_cursor_to_tile_animated(0x16, 0x17)`
 6. `fd2_cast_screen_wide_spell_with_fade(cursor, cursor_y+1, 10, 8)` — final boss death spell visual
 7. `fd2_restore_all_chars_full_hp_mp` (×2 重複)
-8. `current_chapter_id += 1` (= 31，out-of-range chapter id)
-9. `fd2_load_chapter_battle_data(current_chapter_id)` — 載入 chapter 31 資料 (epilogue map)
+8. `current_chapter_id += 1` (= 30，out-of-range chapter id)
+9. `fd2_load_chapter_battle_data(current_chapter_id)` — 載入 epilogue map (id=30，FDFIELD tile_map entry 90 = 30×3)
 10. `battle_window_origin = (0xB, 5)`，cursor reset
 11. `fd2_composite_battle_frame(1)` + **64-step palette fade-in** (`for i=0x3E down to 0` + 4ms)
 12. **40 frames composite + wait** — 過場動畫
@@ -134,7 +134,7 @@
 16. `fd2_play_game_ending_cinematic @ 0x2BCE5` — GOOD ENDING / staff roll
 17. **infinite loop** — 結束於此
 
-「chapter 31」是 epilogue scene 而非實際章節：`chapter_init/end_jump_table[30..]` 越界，但 `fd2_load_chapter_battle_data(31)` 仍能載入 FDFIELD.DAT entry 30 (0-indexed) 作為 ending cinematic 的背景地圖。
+「chapter 31」是 epilogue scene 而非實際章節：`chapter_init/end_jump_table[30..]` 越界，但 `fd2_load_chapter_battle_data(30)` 仍能載入 FDFIELD.DAT tile_map entry 90 (=30×3, 0-indexed) 作為 ending cinematic 的背景地圖。
 
 `fd2_play_final_chapter_30_ending @ 0x2C405` 為另一 named function，處理 final chapter 內部 cinematic chain 的動態 page 機制 (`char.identity+1 / bJob_id+0x96 / 0x2d fallback`)。
 
@@ -152,7 +152,7 @@ FDFIELD entry idx 88（= chapter_id × 3 + 1，chapter_id = 29），entry size 1
 
 ## 對話
 
-對話文字 11 pages 來自 FDTXT.DAT entry 30。Init 引用 page 0/1/2；Post-action（悠妮死）引用 page 7；End 引用 page 9/10（chapter 30 text）後切到 chapter 31 epilogue text 的 page 0/1。Page 3-6/8 由 FDFIELD turn-event handler 引用（魔神領命對白、空魔神終章對白）。End handler 推進 `current_chapter_id` 到 31 並 `fd2_load_chapter_battle_data(31)` 後，引用的 epilogue page 0/1 屬 chapter 31 dialog entry，內容為 staff roll 前的最終道別場景，不在 FDTXT entry 30 範圍內。
+對話文字 11 pages 來自 FDTXT.DAT entry 30。Init 引用 page 0/1/2；Post-action（悠妮死）引用 page 7；End 引用 page 9/10（chapter 30 text）後切到 chapter 31 epilogue text 的 page 0/1。Page 3-6/8 由 FDFIELD turn-event handler 引用（魔神領命對白、空魔神終章對白）。End handler 推進 `current_chapter_id` 到 30 並 `fd2_load_chapter_battle_data(30)` 後，引用的 epilogue page 0/1 屬 FDTXT entry 31 (=30+1) dialog entry，內容為 staff roll 前的最終道別場景，不在 FDTXT entry 30 範圍內。
 
 ### Page 0
 
@@ -703,4 +703,4 @@ FDFIELD entry idx 88（= chapter_id × 3 + 1，chapter_id = 29），entry size 1
 
 ### Epilogue (chapter 31 entry, page 0)
 
-End handler 推進 `current_chapter_id` 到 31 後 `fd2_load_chapter_battle_data(31)` 載入 chapter 31 dialog entry，引用其 page 0 與 page 1（內容為 staff roll 前的最終道別場景，未在 FDTXT entry 30 範圍內）。
+End handler 推進 `current_chapter_id` 到 30 後 `fd2_load_chapter_battle_data(30)` 載入 FDTXT entry 31 (=30+1) dialog entry，引用其 page 0 與 page 1（內容為 staff roll 前的最終道別場景，未在 FDTXT entry 30 範圍內）。

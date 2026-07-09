@@ -55,7 +55,7 @@
 ## 特殊機制
 
 - **Init 開場 4 連震 cutscene**：本章是 FD2 唯一在 init 階段自製程式化 cutscene + sfx 的章節。init 用 `fd2_load_dat_resource` 載入 FDOTHER[0x58] 地震音效 wave，接著 `fd2_play_sfx_with_handle` + `fd2_animate_screen_shake` × 4 連震：前 3 次強度 0x14，第 4 次強度 0x3C（三倍長度的 climax 大地震），每次之間等待約 600ms。
-- **Init 從 page 1 開始**：`fd2_display_dialog_scene` 直接由 page 1 起，跳過 page 0（page 0 保留給 alternate dialog beat — 火魔神被打擾的睡眠對白）。
+- **Init 從 page 1 開始**：`fd2_display_dialog_scene` 直接由 page 1 起，跳過 page 0。page 0 由 tile-step handler `fd2_chapter_event_handler_37__ch25_first_time @0x353DA` 引用（領主首次踩上 gated tile → page 0 對白 → 觸發對 char 0x11 的 scripted 戰鬥）；page 0 transcript 為火魔神被打擾的睡眠對白。
 - **Save-split 加入（聖寇拉斯進 template、亞齊梅吉不進）**：end handler 內聖寇拉斯 (char 0x1A) 在 `fd2_save_runtime_char_to_template` 之前 init，因此進入 saved template；亞齊梅吉 (char 0x1D) 在 save 之後才 init，屬 runtime-only，不被 saved template 保留（下章 init 時可能重新加入）。
 - **勝負條件**：`fd2_chapter_25_post_action` 走標準 default 判定（全敵死 = 勝、索爾死 = 負），並加一條額外 lose：聖寇拉斯 (chars[0x10]) 死 → `game_event_flag = 1`（負）。
 - **Turn 6 dialog event**：FDFIELD tile_event 在第 6 回合玩家 turn 結束時（phase 1 end_of_player_turn）觸發 `dialog_with_state` 對話事件，handler @ 0x00035487。
@@ -88,7 +88,7 @@
 8. `fd2_display_dialog_scene(page=2)`
 9. `fd2_pan_cursor_to_char(0)` + `fd2_stop_and_free_status_effect_sfx`
 
-Page 0 在此 init 路徑未被引用，推測保留給 alternate dialog beat（page 0 transcript 為火魔神被打擾的睡眠對白）。
+Page 0 在此 init 路徑未被引用，實際由 tile-step handler `fd2_chapter_event_handler_37__ch25_first_time @0x353DA` 引用（領主首次踩 gated tile 觸發）；page 0 transcript 為火魔神被打擾的睡眠對白。
 
 ### Dialog page 引用
 
@@ -147,7 +147,7 @@ turn-event hook：1 / 16 active（其餘 15 為 sentinel）：
 
 ## 對話
 
-對話文字 8 pages 來自 FDTXT.DAT entry 25。Init 引用 page 1、2，End 引用 page 6、7；page 0 推測保留給 alternate dialog beat（火魔神被打擾的睡眠對白），page 3/4/5 由 FDFIELD turn-event handler 或 post-action 引用。roster／機制欄的名表正名「亞齊梅吉」與對白 transcript 內的「亞奇梅吉」為同一角色的遊戲內部變體。
+對話文字 8 pages 來自 FDTXT.DAT entry 25。Init 引用 page 1、2，End 引用 page 6、7；page 0 由 tile-step handler @0x353DA 引用（火魔神被打擾的睡眠對白）；page 5 由 turn-event handler @0x35487 引用；page 3/4 不由任何 ch25 handler 或 post-action 引用。roster／機制欄的名表正名「亞齊梅吉」與對白 transcript 內的「亞奇梅吉」為同一角色的遊戲內部變體。
 
 ### Page 0
 

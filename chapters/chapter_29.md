@@ -40,7 +40,7 @@
 ## 特殊機制
 
 - **勝利條件（FD2 唯一）**：以 `tile_event_consumed_flags[0x12]`、`[0x13]`、`[0x14]` 全數觸發（= 解除三處防衛系統）判勝，而非擊敗特定敵人。這是全 30 章唯一用 tile_event 旗標而非 char 死活作勝利判定的章節（`fd2_chapter_29_post_action @ 0x00020B72`）。
-- **失敗條件**：索爾 chars[0] 死 → 負；悠妮 chars[1] 死 → 顯示 page 9「不能輸給那傢伙‥索爾‥」對話後判負。
+- **失敗條件**：索爾 chars[0] 死 → 負；哈諾 chars[1]（char_id 1）死 → 顯示 page 9「不能輸給那傢伙‥索爾‥」對話後判負。（悠妮 char_id 9 戰場不上，不會是可擊殺的敗北對象；page 9 死亡對白 portrait tag 為 char_id 1 = 哈諾。）
 - **Init 從 page 7 開始**：跳過 page 0..6（保留給 FDFIELD turn-event / tile-step handler，含護送悠妮到控制中心石碑、巨龍對話等），延續 ch28 結尾劇情。
 - **擊毀第一隻機甲隊長 → 寶箱平台援軍**：tile-step handler 改寫 turn-event hook，使下回合中央左右寶箱平台 spawn 援軍（詳見 FDFIELD event script 節）。
 - **護送悠妮到控制中心石碑**：tile-step 觸發後再過 3 回合，`fd2_fire_chapter_turn_events_for_phase` 觸發三條巨龍 boss 戰。
@@ -54,7 +54,7 @@
 | 角色 | 位址 | 大小 |
 |---|---|---|
 | Init | `fd2_chapter_29_init @ 0x00033DBA` | 130 B |
-| End | `fd2_chapter_29_end @ 0x0002548C` | 451 B |
+| End | `fd2_chapter_29_end @ 0x0002548C` | 715 B |
 | Post-action | `fd2_chapter_29_post_action @ 0x00020B72` | bypass default; tile_event_consumed_flags-based win |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[28]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[28]` |  |
@@ -100,7 +100,7 @@ FD2 唯一用 `tile_event_consumed_flags` 而非 char 死活作勝利判定的�
 
 ### End handler events
 
-`fd2_chapter_29_end @ 0x0002548C` (451 B) — 大 cinematic + char 變身 + 9 連震 + 3 白光：
+`fd2_chapter_29_end @ 0x0002548C` (715 B) — 大 cinematic + char 變身 + 9 連震 + 3 白光：
 
 1. `fd2_display_dialog_scene(page=10)`
 2. `fd2_kill_runtime_chars_from_index_to_end(0x14)` — char[0x14] 操作 helper
@@ -121,7 +121,7 @@ FD2 唯一用 `tile_event_consumed_flags` 而非 char 死活作勝利判定的�
 14. `fd2_display_dialog_scene(page=0xF)`
 15. **64-step palette fade-out**：`for iVar5 in [0, 0x40): fd2_set_vga_palette_range_with_add(0, 0xFF, iVar5)` + 4ms（整螢幕逐步 white-out）
 16. `memset(0xA0000, 0, 64000)` — 黑屏 + 800ms
-17. **64-step palette fade-in (reversed)**：`for iVar5 from 0x3E down to 0` + 4ms
+17. **63-step palette fade-in (reversed)**：`for iVar5 from 0x3E down to 0` + 4ms（0x3E..0 共 63 次）
 18. `fd2_save_runtime_char_to_template` + `current_chapter_id += 1`
 
 ## FDFIELD event script
@@ -132,7 +132,7 @@ turn-event hook table 有 3 / 16 條 active（其餘 13 為 sentinel）：
 
 | turn | phase | event_code | handler 位址 | 語意 |
 |---|---|---|---|---|
-| 0xFF | 0 (enemy_turn_intro) | 0x4A | `0x00035C32` | 動態啟動候選（空魔神 cinematic） |
+| 0xFF | 0 (enemy_turn_intro) | 0x4A | `0x00035C32` | 動態啟動候選（8-stage 旋轉肖像 cinematic 排程器；空魔神 major cinematic 另為 0x4C @0x35D60） |
 | 0xFF | 2 (new_player_turn_intro) | 0x4C | `0x00035D60` | 動態啟動候選 |
 | 0xFF | 0 (enemy_turn_intro) | 0x4F | `0x00035EE6` | 動態啟動候選 |
 

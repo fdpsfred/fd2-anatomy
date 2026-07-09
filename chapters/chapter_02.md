@@ -17,7 +17,7 @@
 | 28 | 盜賊 | LV2 | ×10 | default_attacker |
 | 28 | 盜賊 | LV3 | ×6 | default_attacker |
 
-友軍 NPC（team 1，戰場自走）——即失敗條件保護對象（chars[5..10]，任一死亡則敗；6 名全數存活則章末獲力量藥水獎勵，見 §特殊機制）：
+友軍 NPC（team 1，戰場自走）——章末獎勵關聯對象（chars[5..10]，6 名**全數**死亡才敗；失去 1-5 名不敗、僅喪失獎勵；6 名全數存活則章末獲力量藥水獎勵，見 §特殊機制）：
 
 | enemy_data | 單位 | 等級 | 數量 |
 |---|---|---|---|
@@ -48,7 +48,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 ## 特殊機制
 
-- **失敗條件**：索爾死亡，或 6 名村民 NPC (chars[5..10]) 任一死亡。判定由 `fd2_chapter_02_post_action @ 0x000206C5` 在標準 default（所有敵死＝勝、索爾死＝負）之上，追加「任一 chars[5..10] 死亡 → 敗」。
+- **失敗條件**：索爾死亡，或 6 名村民 NPC (chars[5..10]) **全數**死亡。判定由 `fd2_chapter_02_post_action @ 0x000206C5` 在標準 default（所有敵死＝勝、索爾死＝負）之上，追加「chars[5..10] 全 6 名死亡 → 敗」（迴圈一遇活村民即 return，失去 1-5 名不強制敗）。
 - **隱藏 reward**：6 名村民全活 → end handler 給予 item 0xC6 = 力量藥水 (AP+9)。攻略本「為了保住所有村民，最好幫亞雷斯買長戟」即此機制。
 - **援軍**：第 3 回合結束觸發 FDFIELD turn-event hook（phase 1、event_code 0x06、handler `0x00034422` = reinforcement_spawner），生成第二波強盜（對話 page 4 提到敵人「兵分兩路」，推測即此波援軍，惟兩來源未明載此頁由該 hook 觸發）。
 - **章末加入**：希莉亞 (char 8) 由 end handler `fd2_init_runtime_char_from_base_growth(8)` 加入。
@@ -61,7 +61,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 |---|---|---|
 | Init | `fd2_chapter_02_init @ 0x00032D18` | 402 B |
 | End | `fd2_chapter_02_end @ 0x00022F37` | 443 B |
-| Post-action | `fd2_chapter_02_post_action @ 0x000206C5` | 自訂 — 額外 lose if 任一 chars[5..10] 死 |
+| Post-action | `fd2_chapter_02_post_action @ 0x000206C5` | 自訂 — 額外 lose if chars[5..10] 全 6 名死 |
 | BGM (player turn) | `data_fd2_audio_per_chapter_player_turn_bgm_track[1]` |  |
 | BGM (enemy turn) | `data_fd2_audio_per_chapter_enemy_turn_bgm_track[1]` |  |
 
@@ -107,9 +107,9 @@ End handler 末段 `fd2_init_runtime_char_from_base_growth(8)` → 希莉亞加�
 `fd2_chapter_02_post_action @ 0x000206C5`：
 
 - 標準 default 判定（所有敵死＝勝、索爾死＝負）
-- **額外 lose 條件**：if 任一 chars[5..10] (6 個 villager NPC) 死亡 → `game_event_flag = 1`
+- **額外 lose 條件**：if chars[5..10] (6 個 villager NPC) **全數**死亡 → `game_event_flag = 1`（迴圈一遇活村民即 return，不覆寫 default flag）
 
-對應失敗條件「索爾死亡，或任一村民死亡」——chars[5..10] = 6 個村民 NPC（男×3 + 女×3）。
+對應失敗條件「索爾死亡，或 6 名村民全數死亡」——chars[5..10] = 6 個村民 NPC（男×3 + 女×3）。
 
 ### End handler events
 

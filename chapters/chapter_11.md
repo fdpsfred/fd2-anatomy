@@ -42,7 +42,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 ## 特殊機制
 
-- **珊跟隨貝克威（NPC follow AI）**：攻略「珊會跟著貝克威走」屬 NPC follow AI behavior（NPC class 0xB heal/follow logic），由戰鬥 AI 分派，不在 post-action handler 內處理。
+- **珊跟隨貝克威（NPC follow AI）**：攻略「珊會跟著貝克威走」屬 NPC follow AI behavior（珊 char 0x0E 的 char_spawn record[0] ai_class = 3 = targeted_approach，令其接近/跟隨貝克威），由戰鬥 AI 分派，不在 post-action handler 內處理。
 - **勝負條件**：走 default 判定 `fd2_check_battle_end_default_handler` — 全敵死 = 勝、索爾（char_id 0）死 = 負。
 
 ## Handler 流程
@@ -64,7 +64,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 3. `fd2_pan_cursor_and_window(10, 7)` + `fd2_load_chapter_portraits_and_dump_tmp(1)`
 4. `fd2_cutscene_event_trigger(0x26)` + `fd2_display_dialog_scene(page=1)`
 5. `fd2_cutscene_event_trigger(0x27)` + `fd2_display_dialog_scene(page=2)`
-6. `fd2_pan_cursor_to_char(0)` + `fd2_clear_all_chars_facing`
+6. `fd2_clear_all_chars_facing` + `fd2_pan_cursor_to_char(0)`
 
 ### Dialog page 引用
 

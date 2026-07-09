@@ -1,6 +1,6 @@
 # 第 22 章 — 遠古呼喚
 
-在聖靈之塔頂與敵方支配者的部下決戰，擊敗對手後取得傳送法杖，啟動塔頂的傳送魔法陣，準備直接前往敵人根據地。本章是 FD2 全 30 章中唯一以「全螢幕白屏 → palette 漸暗 → 黑屏」收尾的章節。
+在聖靈之塔頂與敵方支配者的部下決戰，擊敗對手後取得傳送法杖，啟動塔頂的傳送魔法陣，準備直接前往敵人根據地。本章以「全螢幕白屏 → palette 漸暗 → 黑屏」收尾（ch27 好結局路徑亦用相同序列，非本章獨有）。
 
 ## 加入角色
 
@@ -45,7 +45,7 @@
 ## 特殊機制
 
 - **失敗條件**：索爾死亡，或希爾法 (char[1]) 死亡。Post-action handler 為 `fd2_chapter_22_27_28_post_action_shared`，與第 27、28 章共用同一份 slot-1 存活檢查結構 (見下方 Post-action handler)。
-- **白屏 fade-to-black 結尾**：FD2 全 30 章中唯一以「全螢幕白屏 → palette fade → 黑屏」收尾的章節。End handler 在 page 6 播完後，先呼 `fd2_cast_screen_wide_spell_with_fade` 播大範圍法術視覺 → 等待 500ms → `memset(0xA0000, 0xFF, 64000)` 把整個 framebuffer 填成白 → `fd2_play_palette_fade_to_black` 漸暗 → `memset(0xA0000, 0, 64000)` 轉黑。
+- **白屏 fade-to-black 結尾**：以「全螢幕白屏 → palette fade → 黑屏」收尾（與 ch27 好結局路徑同序列，非本章獨有）。End handler 在 page 6 播完後，先呼 `fd2_cast_screen_wide_spell_with_fade` 播大範圍法術視覺 → 等待 500ms → `memset(0xA0000, 0xFF, 64000)` 把整個 framebuffer 填成白 → `fd2_play_palette_fade_to_black` 漸暗 → `memset(0xA0000, 0, 64000)` 轉黑。
 - **後續章節無商店**：接續的 ch23/24/25 為 battle 章，依章別分類 (category gate) 不走 intro 商店選單；程式並無「連戰計數」，商店有無純由各章章別決定。
 - **第 3、7 回合三角魔鬼 spawn**：由 FDFIELD turn-event hook 控制 (見下方 FDFIELD event script)。
 

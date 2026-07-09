@@ -39,7 +39,7 @@
 ## 特殊機制
 
 - **Init 四段鏡頭巡場**：開場後鏡頭依序 pan 過 (0,4)/(0,0x16)/(0x1A,0x18)/(0x1A,2) 四個地圖角落，每停 400ms（`fd2_pan_cursor_and_window`）。這四個座標即為 FDFIELD turn-event 援軍的四個 spawn 角落，init 先讓玩家看到將在何處遭遇援軍。
-- **結尾文字捲動 cinematic**：本章是 FD2 唯一在結尾使用文字向上捲動 + palette fade-out 的章節，`fd2_scroll_text_screen_up_by_lines` 在全遊戲中只被 `fd2_chapter_24_end` 呼叫一次，視覺上呈現飛行岩高度急速下降。
+- **結尾文字捲動 cinematic**：本章結尾使用文字向上捲動 + palette fade-out，視覺上呈現飛行岩高度急速下降。`fd2_scroll_text_screen_up_by_lines` 是通用背景緩衝 cylinder-scroll helper（另被 `fd2_composite_battle_tile_map` / `fd2_load_chapter_background_layers` 呼叫）；chapter handler 中只有 ch24_end 用它做結尾捲動 cinematic（end 內兩處呼叫）。
 - **勝負條件**：走 default handler（`fd2_check_battle_end_default_handler`），全敵死 = 勝；索爾（chars[0]）死 = 負。
 
 ## Handler 流程
@@ -101,14 +101,14 @@
    - `fd2_scroll_text_screen_up_by_lines(line)`
    - 內層 30 frames：`fd2_composite_battle_frame(1)` + `fd2_wait_n_bios_ticks(1)`
 3. `fd2_display_dialog_scene(page=3)`
-4. **Phase 2 文字向上捲動 + palette fade**：迴圈 `for line=9..14`：
+4. **Phase 2 文字向上捲動 + palette fade**：迴圈 `for line=10..14`（EDI 承 Phase 1 結束值 10，未重設）：
    - `fd2_scroll_text_screen_up_by_lines(line)`
    - 內層 12 frames：`fd2_set_vga_palette_range(0, 0xFF, brightness_sub)` 漸暗 + `fd2_composite_battle_frame(0)` + `wait` + `brightness_sub++`
    - 結束時 brightness_sub = 12 × 5 = 60 → 全暗
 5. `memset(0xA0000, 0, 64000)` — 黑屏
 6. `fd2_save_runtime_char_to_template` + `current_chapter_id += 1`
 
-`fd2_scroll_text_screen_up_by_lines` 在全 FD2 中只在 ch24_end 呼叫一次。
+`fd2_scroll_text_screen_up_by_lines` 是通用 background-buffer scroll helper（另有 `fd2_composite_battle_tile_map` / `fd2_load_chapter_background_layers` 兩呼叫者）；chapter handler 中只有 ch24_end 呼叫它（end 內兩處）。
 
 ## FDFIELD event script
 
@@ -118,10 +118,10 @@ FDFIELD entry idx **70**（= chapter_id × 3 + 1，chapter_id = 23），entry si
 
 | turn | phase | event_code | handler 位址 | 語意 |
 |---|---|---|---|---|
-| 2 | 0 (enemy_turn_intro) | 0x36 | `0x0003535D` | 援軍 reinforcement (4 角落) |
-| 4 | 0 (enemy_turn_intro) | 0x36 | `0x0003535D` | 援軍 reinforcement |
-| 7 | 0 (enemy_turn_intro) | 0x36 | `0x0003535D` | 援軍 reinforcement |
-| 10 | 0 (enemy_turn_intro) | 0x36 | `0x0003535D` | 援軍 reinforcement |
+| 2 | 0 (enemy_turn_intro) | 0x36 | `0x0003535D` | cinematic 4-角落 establishing pan（載入該回合 portrait set + 鏡頭掃過 4 角落各停 400ms，無對白、不生成單位；援軍實由 char_spawn race_id/portrait-set filter 生成，見 §敵人配置） |
+| 4 | 0 (enemy_turn_intro) | 0x36 | `0x0003535D` | cinematic 4-角落 establishing pan（同上，不生成單位） |
+| 7 | 0 (enemy_turn_intro) | 0x36 | `0x0003535D` | cinematic 4-角落 establishing pan（同上，不生成單位） |
+| 10 | 0 (enemy_turn_intro) | 0x36 | `0x0003535D` | cinematic 4-角落 establishing pan（同上，不生成單位） |
 
 ## 對話
 

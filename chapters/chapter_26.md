@@ -33,7 +33,7 @@
 - 道具：水晶粒 (0xCF)、神聖之水 (0xC3)、力量藥水 (0xC6)、速度藥水 (0xC8)、魔力水晶 (0x5F)
 - 金錢：50000、50000
 
-畫面最上方 5 個最強武器寶箱是 tile_pickup 表的 5 筆 kind≥2 事件 tile（tile[0..4]）：五者只能取其一，`tile_event_consumed_flags[0xC]`（值 0-4）記錄取哪一個並影響 end handler 對話分支（見 §特殊機制與 §FDFIELD event script）。
+畫面最上方 5 個最強武器寶箱是 tile_pickup 表的 5 筆 kind≥2 事件 tile（tile[0..4]，皆 consequence 0x3A）：五者只能取其一，由 consequence 0x3A handler 處理（見 §FDFIELD event script）。（注意：end handler 的對話分支由 `tile_event_consumed_flags[0xC]` = 渥德招募旗標驅動，與寶箱選擇無關，見 §特殊機制。）
 
 敵人掉落（擊殺帶有掉落的敵人可得）：
 
@@ -50,10 +50,10 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 ## 特殊機制
 
-- **寶箱五選一動態 dialog**：畫面最上方 5 個寶箱均為最強武器，只能選 1 個。`tile_event_consumed_flags[0xC]` (值 0-4) 記錄玩家拿了哪一個，`fd2_chapter_26_end` 據此動態決定兩段 dialog page（Dynamic #1 = 值+5 → page 5..9；Dynamic #2 = 值+8 → page 8..12），對應 5 條寶箱選擇的劇情解說。
+- **渥德招募 + 動態 dialog**：`tile_event_consumed_flags[0xC]` 是 binary 渥德招募旗標（0=未招募、1=已招募）——由 tile-step handler `fd2_chapter_event_handler_3d__ch26_pickup @ 0x356B7`（consequence 0x3D）在玩家攜帶 key item 0xD0 踩上 pickup tile 時，消耗 0xD0 + 播 FDOTHER.DAT[0x2D] cinematic + `fd2_init_runtime_char_from_base_growth(0x1F)` spawn 渥德後設為 1（未帶 0xD0 則顯示 page 2 不消耗、可重試）。`fd2_chapter_26_end` 據此決定兩段 dialog page：Dynamic #1 = flag[0xC]+5 → page 5（未招募渥德）或 6（已招募）；Dynamic #2 = flag[0xC]+8 → page 8 或 9。（此旗標為 binary 0/1，非「5 寶箱 0-4 選擇器」；5 寶箱另由 consequence 0x3A 處理。）
 - **悠妮喚醒機甲兵渥德**：通道內 tile event，悠妮輸入啟動碼 `01E0C244-FE2C5-1932`，機甲兵渥德 (`01279943渥德`) 加入隊伍替己方作戰。此加入由 FDFIELD tile-step / dialog event 處理，非 init/end handler 直接載入（見對話 page 4）。
 - **勝負條件**：標準 default（全敵死 = 勝、索爾死 = 負）外，`fd2_chapter_26_post_action` 另判 chars[1]（亞齊梅吉）或 chars[2]（悠妮）死即負。runtime index 由編成畫面 per-chapter pin 決定（見 Post-action handler）。
-- **援軍密集 turn**：第 2、4、6、8、10、12、15、16、17 回合敵方 turn intro 觸發 reinforcement（event_code 0x39、handler `0x000354DD`），共 9 個 turn-event hook（見 FDFIELD event script）。
+- **援軍密集 turn**：第 2、4、6、8、10、12、15、16、17 回合敵方 turn intro 各觸發一次過場 cinematic（event_code 0x39、handler `0x000354DD`：載入該回合 portrait set + pan (9,0) + 400ms，不生成單位），共 9 個 turn-event hook（見 FDFIELD event script）；援軍單位由 turn-gated FDFIELD spawn records 生成。
 
 ## Handler 流程
 
@@ -78,9 +78,9 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 | 來源 | FDTXT entry | Pages 順序 |
 |---|---|---|
 | Init | 26 | 0 |
-| End (dynamic page #1) | 26 | tile_event_consumed_flags[0xC] + 5 → 5..9 |
+| End (dynamic page #1) | 26 | flag[0xC] + 5 → page 5（無渥德）/ 6（有渥德） |
 | End (固定) | 26 | 7 |
-| End (dynamic page #2) | 26 | tile_event_consumed_flags[0xC] + 8 → 8..12 |
+| End (dynamic page #2) | 26 | flag[0xC] + 8 → page 8 / 9 |
 | End (固定) | 26 | 10, 11 |
 
 ### char_id 初始化序列
@@ -105,14 +105,14 @@ runtime char index 隨章節而變，由編成畫面 per-chapter pin 決定：ch
 
 `fd2_chapter_26_end @ 0x00024E80` (466 B) — `tile_event_consumed_flags[0xC]` 動態 dialog page selection：
 
-1. 從 `chapter_26_end_scene_pos_x/y/facing_table` 讀位置
+1. 從 `data_fd2_chapter_ch26_end_scene_char_pos_x_table` / `_char_pos_y_table` / `_char_facing_table`（各 byte[16] @ 0x522D6/0x522E6/0x522F6）讀位置
 2. **Reposition NPCs**：迴圈 chars[0x10..party_member_count]，若 `bPortrait_id == 0x1F` → 設 bPos = (0x10, 6)
-3. `fd2_setup_chars_and_camera_for_intro(0xF, 0, 0, 0, 0, 9, 5)`
-4. **Dynamic page #1**：`page = tile_event_consumed_flags[0xC] + 5` → `fd2_display_dialog_scene(page = 5..9)`
+3. `fd2_setup_chars_and_camera_for_intro(...,0, 0xF, 0, 0, 0, 0, 9, 5)`（3 表指標後 tail 為 0,0xF,0,0,0,0,9,5）
+4. **Dynamic page #1**：`page = flag[0xC] + 5` → `fd2_display_dialog_scene(page = 5 無渥德 / 6 有渥德)`
 5. `fd2_cutscene_event_trigger(0x4D)`
 6. `fd2_display_dialog_scene(page=7)` (固定)
 7. `fd2_cutscene_event_trigger(0x4E)`
-8. **Dynamic page #2**：`page = tile_event_consumed_flags[0xC] + 8` → `fd2_display_dialog_scene(page = 8..12)`
+8. **Dynamic page #2**：`page = flag[0xC] + 8` → `fd2_display_dialog_scene(page = 8 / 9)`
 9. `fd2_cutscene_event_trigger(0x4F)`
 10. `fd2_display_dialog_scene(page=10)` + `fd2_cutscene_event_trigger(0x50)`
 11. `fd2_display_dialog_scene(page=11)`
@@ -138,19 +138,19 @@ FDFIELD entry idx **76**（= chapter_id × 3 + 1，chapter_id = 25），entry si
 
 | turn | phase | event_code | handler 位址 | 語意 |
 |---|---|---|---|---|
-| 2 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | 援軍 reinforcement |
-| 4 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | 援軍 reinforcement |
-| 6 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | 援軍 reinforcement |
-| 8 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | 援軍 reinforcement |
-| 10 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | 援軍 reinforcement |
-| 12 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | 援軍 reinforcement |
-| 15 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | 援軍 reinforcement |
-| 16 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | 援軍 reinforcement |
-| 17 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | 援軍 reinforcement |
+| 2 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | reinforcement-wave cinematic (portrait + pan (9,0) + 400ms；不生成單位) |
+| 4 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | reinforcement-wave cinematic (portrait + pan (9,0) + 400ms；不生成單位) |
+| 6 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | reinforcement-wave cinematic (portrait + pan (9,0) + 400ms；不生成單位) |
+| 8 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | reinforcement-wave cinematic (portrait + pan (9,0) + 400ms；不生成單位) |
+| 10 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | reinforcement-wave cinematic (portrait + pan (9,0) + 400ms；不生成單位) |
+| 12 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | reinforcement-wave cinematic (portrait + pan (9,0) + 400ms；不生成單位) |
+| 15 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | reinforcement-wave cinematic (portrait + pan (9,0) + 400ms；不生成單位) |
+| 16 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | reinforcement-wave cinematic (portrait + pan (9,0) + 400ms；不生成單位) |
+| 17 | 0 (enemy_turn_intro) | 0x39 | `0x000354DD` | reinforcement-wave cinematic (portrait + pan (9,0) + 400ms；不生成單位) |
 
 ## 對話
 
-對話文字 12 pages 來自 FDTXT.DAT entry 26。Init handler 引用 page 0；End handler 依 `tile_event_consumed_flags[0xC]` 動態引用 page 5..9（Dynamic #1）與 page 8..12（Dynamic #2），另加固定 page 7、10、11。Page 1-4 由 FDFIELD tile-step / dialog event 引用（page 4 = 悠妮輸入啟動碼喚醒渥德）。roster 與機制描述用正名「亞齊梅吉」，對話 transcript 內維持「亞奇梅吉」係遊戲內部變體，不改。
+對話文字 12 pages 來自 FDTXT.DAT entry 26。Init handler 引用 page 0；End handler 依 `tile_event_consumed_flags[0xC]`（渥德招募旗標 0/1）動態引用 page 5或6（Dynamic #1）與 page 8或9（Dynamic #2），另加固定 page 7、10、11。Page 1-4 由 FDFIELD tile-step / dialog event 引用（page 4 = 攜 key item 0xD0 踩 pickup tile 招募渥德，handler 0x356B7）。roster 與機制描述用正名「亞齊梅吉」，對話 transcript 內維持「亞奇梅吉」係遊戲內部變體，不改。
 
 ### Page 0
 

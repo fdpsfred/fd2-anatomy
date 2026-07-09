@@ -116,7 +116,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 `fd2_chapter_18_end @ 0x23CD5` (356 B)：
 
-1. 從 scene tables (`chapter_18_end_scene_pos_x/y_table` + `facing_table`) 讀 5 entries
+1. 從 scene tables (`data_fd2_chapter_ch18_end_scene_char_pos_x_table` / `_char_pos_y_table` / `_char_facing_table`，各 byte[17] @ 0x521C3/0x521D4/0x521E5) 讀 17 chars（char 0..0x10）位置
 2. `fd2_save_runtime_char_to_template`
 3. `fd2_setup_chars_and_camera_for_intro(0x10, 0x11, 0x19, 8, 1, 0x12, 4)`
 4. `fd2_display_dialog_scene(page=7)` + `fd2_cutscene_event_trigger(0x38)`
