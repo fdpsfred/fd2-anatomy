@@ -162,11 +162,15 @@ linker 把字串擺到別處 → 這些寫死的 immediate 指到錯誤記憶體
 LOOP 下溢跑到 ESI/EDI 撞未映射頁。DOSBox-X 與 86Box interpreter（關 recompiler）皆正常，原版在同一
 環境免疫。remap 迴圈體以 `#pragma aux` 對齊 byte-for-byte 後 crash 依舊 —— 腐蝕點不在迴圈，在上游。
 
-**根因（一句）**：math.h 預設的 intrinsic pragma 令 wcc386 把 `sqrt()` emit 成 `CALL IF@DSQRT`
-（引數留在 ST(0) 跨 call 邊界，含原版從未執行的 FTST/FSTSW/SAHF 負數檢查路徑）；86Box-macOS dynarec
-誤執行該路徑 → sqrt 回傳 matherr DOMAIN 預設值 0.0 → half_width = 0 → remap count = 0 下溢。原版
-遊戲碼一律呼叫 CRT `sqrt` 真函數（IF@* stub 在原 binary 零 xref、只隨 sqrt387/trig387 module 連帶
-進入）。sin/cos 的 `IF@DSIN` / `IF@DCOS` 是同類地雷。
+**根因（一句）**：math.h 預設的 intrinsic pragma 令 wcc386 把 `sqrt()` emit 成 `CALL __@DSQRT`
+（`__@DSQRT @ 0x3c738`；引數留在 ST(0) 跨 call 邊界，含原版從未執行的 FTST/FSTSW/SAHF 負數檢查
+路徑）；86Box-macOS dynarec 誤執行該路徑 → sqrt 回傳 matherr DOMAIN 預設值 0.0 → half_width = 0
+→ remap count = 0 下溢。原版遊戲碼一律呼叫 named CRT `sqrt @ 0x3c6fc` 真函數（call form：整數
+sign-bit 檢查 + `FSQRT`）；其 intrinsic 變體 `IF@SQRT @ 0x3c736` / `__@DSQRT @ 0x3c738` 在原
+binary 零 xref、只隨 sqrt387/trig387 module 連帶進入、從不執行。sin/cos 的對應 intrinsic stub
+真名是 `IF@SIN @ 0x3c7cf` / `IF@COS @ 0x3c7b6`（非 `IF@DSIN` / `IF@DCOS`）；但與 sqrt 不同，
+named `sin @ 0x3c898` / `cos @ 0x3c885` 內部本就 `CALL IF@SIN` / `IF@COS`，故該 stub 在原版有
+xref、會執行（未觀察到 86Box crash），`__NO_MATH_OPS` 仍對 sin/cos 一併套用作預防。
 
 **修法**（commit `15d32073`）：在 `#include <math.h>` 前定義 `__NO_MATH_OPS`（src/gfx/rndscene.c、
 src/spell/spellcin.c、src/anim/anisummn.c），sqrt/sin/cos 全部回到真 CRT 呼叫、與原版逐指令同形。

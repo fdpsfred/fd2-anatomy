@@ -141,8 +141,10 @@ call-graph 工具的 EMU387 internal-subroutine 清單導向 link_vendor_lib（�
 少數 helper 因 Watcom RTL 內多個 .obj 各帶一份而在 FD2.LE 出現多個 address。
 Ghidra 以 name+address 為 unique key，接受同名 function，KB 不另加 suffix：
 
-- `__delay @ 0x3DCCD`（71 callers，active）/ `fd2_delay_ms @ 0x375B2`（0 caller，
-  dead）— Watcom CRT delay（DOS 21h tick wait）兩份 obj 各帶一份。
+- `fd2_delay_ms @ 0x375B2`（72 callers，active；5-byte JMP thunk，轉入 `__delay`）/
+  `__delay @ 0x3DCCD`（0 direct caller，唯一 xref 是該 thunk 的 JMP）— Watcom CRT
+  delay（DOS 21h tick wait）：一份實作（`__delay`）+ 一份 JMP thunk（`fd2_delay_ms`）
+  轉入，非兩份完整 copy。
 - `__exit @ 0x3CB91` / `__exit_with_msg @ 0x3CB93` — terminate wrapper 系列，
   連結 Watcom CRT 後對 binary 影響為 0。
 - `crt_equivalent_get_eflags @ 0x3ED58`（0 caller）/

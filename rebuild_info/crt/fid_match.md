@@ -63,7 +63,7 @@ ASCFONT.15），byte pattern 搜尋在 FD2.LE 內也搜不到對應 signature。
     "0003cbd6": {
       "name":         "memcpy",             // Watcom lib PUBDEF 名（主鍵）
       "current_name": "memcpy",             // Ghidra 內現有名
-      "score":        346.4,
+      "score":        346.35,
       "body_size":    42,
       "source_obj":   "59aa526358b1_memcpy.obj",
       "verified":     "auto_threshold",     // auto_threshold / conflict_resolved
@@ -83,7 +83,7 @@ ASCFONT.15），byte pattern 搜尋在 FD2.LE 內也搜不到對應 signature。
 |---|---|---:|
 | `auto_threshold` | FidDB score ≥ 30 且 current_name 與 matched_name 無語意衝突 | 102 |
 | `conflict_resolved` | FidDB score ≥ 30，name 衝突經行為驗證 | 3 |
-| `manual` | FidDB score < 30 / 漏抓 / callee match 等逐筆讀 disasm + callees 後 PASS | 35 |
+| `manual` | FidDB score < 30 / 漏抓 / callee match 等逐筆讀 disasm + callees 後 PASS | 36 |
 | `byte_match` | FIXUPP-aware byte-exact 比對全 LIB386 obj × lib func 後 PASS | 52 |
 | `byte_match_disputed` | byte_match 命中但語意 disputed（如 immediate masking 後 PUSH/PUSH/JMP 多 obj 通用）| 1 |
 

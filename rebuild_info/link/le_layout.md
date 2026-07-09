@@ -106,13 +106,14 @@ cmdline + env path 的 4 KB 緩衝區。它的虛擬地址 `0x546B0..0x556AF` �
 | `0x6017D..0x602AB` | orphan / padding（303 byte）|
 | `0x602AC..0x615FC` | `data_fd2_battle_item_effect_table`（215 entries × 23 byte = 4945 byte）|
 | `0x615FD..0x61954` | orphan dead payload（856 byte）|
-| `0x61955..0x619A8` | `data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21`（21 × 4）+ `_script_pool_84b`（84 byte）|
-| `0x619A9..0x619FC` | weapon attack anim script pool 尾 + 對齊 |
+| `0x61955..0x619A8` | `data_fd2_battle_weapon_attack_anim_pattern_ptr_table_21`（21 × 4 = 84 byte）|
+| `0x619A9..0x619FC` | `data_fd2_battle_weapon_attack_anim_pattern_script_pool_84b`（byte[84]；緊接 spell_effect_table，無對齊）|
 | `0x619FD..0x61AF8` | `data_fd2_battle_spell_effect_table`（36 × 7）|
 | `0x61AF9..0x61DA0` | `data_fd2_battle_enemy_data_table`（68 × 10）|
 | `0x61DA1..0x620A0` | `data_fd2_battle_character_base_table`（32 × 24）|
-| `0x620A1..0x626B2` | `data_fd2_battle_character_growth_table`（68 × 11）|
-| `0x626B3..0x627A2` | `data_fd2_battle_spell_learning_table`（20 × 12）+ 對齊 |
+| `0x620A1..0x6238C` | `data_fd2_battle_character_growth_table`（68 × 11 = 748 byte）|
+| `0x6238D..0x626B2` | `data_fd2_chapter_intro_metadata_table`（26 × 31 = 806 byte，各章商店/hotkey metadata）|
+| `0x626B3..0x627A2` | `data_fd2_battle_spell_learning_table`（20 × 12 = 240 byte）|
 | `0x627A3..0x627C4` | `data_fd2_graphics_glyph_blit_state` + RNG seed |
 | `0x627D8..0x6297F` | `data_fd2_chapter_cutscene_event_script_ptr_table_106`（106 × 4 = 424 byte，無尾端對齊）|
 | `0x62980..0x634D1` | 106 個 cutscene script blob 連續排放（共 2898 byte，緊接表尾，entry 0 = 0x62980），至 object 3 結尾 |
@@ -145,13 +146,16 @@ Object 3 內的 pointer table（cutscene script ptr table、weapon attack anim p
 
 ## Fixup 統計
 
-- 大宗 src_type = `0x07`（32-bit offset，flat memory model 標準）+ `0x17`（帶 src list 的
-  32-bit offset，wlink 對同一 target 多 source 的批次紀錄）。
-- Target type 幾乎全為 `internal ref`（low 2 bits = 00）-- 沒有 imported by name / ordinal
-  （與 `import_mod_count=0` 一致）。
-- Internal ref 的 target obj 分布：obj 1 <- obj 2 / obj 3（function pointer tables）；
-  obj 1 <- obj 1（data pointers 嵌在 code 內的 const）；obj 2 <-> obj 3（cutscene script
-  ptr table 等）。
+- 全部 7944 筆 fixup 的 source byte 均為 `0x07`（single-source 32-bit offset，flat memory
+  model 標準）；無 `0x17`（alias bit）、無 `0x27`（source list）-- wlink 未產生任何多-source
+  批次紀錄。
+- Target type 全為 `internal ref`（low 2 bits = 00，共 7944 筆）-- 沒有 imported by name /
+  ordinal（與 `import_mod_count=0` 一致）。
+- Internal ref 的 source->target object 分布：obj1->obj2 = 6752（主流 ~85%，code 參照 DGROUP
+  data）、obj1->obj1 = 641（data pointer 嵌在 code 內的 const）、obj2->obj1 = 249（DGROUP data
+  內的 function pointer table 指回 code）、obj1->obj3 = 139、obj3->obj3 = 127（cutscene script
+  ptr table 106 + weapon-anim ptr table 21，皆 obj3 內部自我參照；127 × 7 byte = 889，與上表
+  obj3 fixup 大小一致）、obj2->obj2 = 36。無 obj2<->obj3 交叉、無 obj3->obj1。
 
 ## 入口點
 

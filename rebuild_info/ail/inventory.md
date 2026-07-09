@@ -88,7 +88,7 @@ alignment NOP padding。這些 NOP block 建為獨立 function、歸 `binary_art
 pool（`binary_artifact_align_nop_<addr>`）；NOP encoding 表（6-byte
 `8D 80 00 00 00 00` / 6-byte `8D 92 00 00 00 00` / 3-byte `8D 40 00` /
 2-byte `8B C0` 等）見 `rebuild_info/equivalence/pool_classification.md`
-「Watcom compiler alignment NOP」段。
+「Compiler alignment NOP」段。
 
 判定某段 byte 是否為 alignment NOP，須以 `read_memory` 的實際 byte 對照
 encoding 表，**不可從 Ghidra mnemonic 推**——同 mnemonic 可能對應多種

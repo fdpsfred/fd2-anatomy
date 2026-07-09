@@ -62,9 +62,12 @@ probe 完成後 callee 才接 callee-saved register push（`PUSH EBX/ESI/EDI/EBP
 local-variable allocation（`SUB ESP, N`）。**辨識 prologue 時要跳過這 2 條 stack
 probe 指令** —— 它們不是 cc 訊號。
 
-`CALL __CHK` 會 clobber EAX/EDX/ECX/EBX（caller-saved + watcall reg arg 全在內），
-所以 prologue 偵測「callee 在 frame setup 前讀取 EAX/EDX/EBX/ECX」時，必須把每個 CALL
-視為對這 4 個 register 的 implicit write。
+`CALL __CHK` 本身 **preserve** EAX/EDX/ECX/EBX 全部四個：EAX 由 `XCHG [ESP+0x4],EAX` 存進
+stack、`CALL __STK` 之後再 `MOV EAX,[ESP+0x4]` 還原，而 `__STK` 只讀寫 EAX/AX、EDX/ECX/EBX 從
+不碰。這是刻意設計，讓 watcall register 引數安然通過 entry stack-probe（也正是下方判斷規則能靠
+register 存活反推 cc 的前提）。因此 prologue 偵測「callee 在 frame setup 前讀取 EAX/EDX/EBX/ECX」
+時，把 CALL 視為那 4 個 register 之 implicit write 的假設**只適用一般 prologue CALL，不適用
+`__CHK` probe**。
 
 （`src/` 的 stack-check 分布與 `__CHK` 誤觸 Stack Overflow 的來龍去脈見
 `../build_test/`；本檔只描述 helper 的 ABI 機制。）
@@ -180,8 +183,9 @@ JMP target 落在 function entry 上的 display quirk。Watcom C 對相同 frame
 
 還原成 C source 時：把這些 fragment 的 logic 收回各 parent 末尾（epilogue 的
 `ADD ESP / POP regs / RET` 由各 parent 自己的 frame layout 重新生成，帶回傳值者由
-各 parent 的 `return` 重新生成），**不**把 fragment 宣告成獨立 function。每個 fragment
-的 plate comment 標了 `DECOMPILER FRAGMENT — DO NOT DECLARE INDEPENDENTLY`。
+各 parent 的 `return` 重新生成），**不**把 fragment 宣告成獨立 function。這些 fragment 的 plate
+comment 都帶「NOT a callable C function」警告；其中四個（`0x10b43` / `0x11452` / `0x17ee8` /
+`0x15983`）用完整標記 `DECOMPILER FRAGMENT — DO NOT DECLARE INDEPENDENTLY`，其餘用等義措辭。
 
 完整清單（合併純 RET-only shared epilogue stub 與帶少量 logic 的 out-of-line tail）：
 
@@ -192,9 +196,9 @@ JMP target 落在 function entry 上的 display quirk。Watcom C 對相同 frame
 | `0x11011` | `fd2_noop_stub_1011` | fd2 | ADD ESP 0x34 + POP EBP/EDI/ESI/EBX + RET（locals=0x34 + 4 saved regs） | 多 source 共用 |
 | `0x11452` | `fd2_noop_stub_1452` | fd2 | ADD ESP 0x20 + POP EBP/EDI/ESI/EBX + RET（locals=0x20 + 4 saved regs） | 多 source 共用 |
 | `0x13994` | `fd2_noop_stub_13994` | fd2 | ADD ESP 0x5C + POP EBP/EDI/ESI/EBX + RET（locals=0x5C + 4 saved regs） | 多 source 共用 |
-| `0x35c15` | `fd2_set_battle_anim_phase_to_1` | fd2 | RET-only shared epilogue | 多 source 透過 fall-through / tail-JMP |
-| `0x37f05` | `AIL_internal_log_decrement_nesting` | ail | RET-only shared epilogue | 多 source 透過 fall-through / tail-JMP |
-| `0x3cbc4` | `__GETDS` | crt | RET-only shared epilogue（byte-match Watcom CLIB3S `cstart.obj`，vendor-linked） | 多 source；此段隨 vendor lib 連入，不重寫 |
+| `0x35c15` | `fd2_set_battle_anim_phase_to_1` | fd2 | ADD ESP 0xc + MOV battle_anim_phase(0x51a83)=1 + RET | 多 source 透過 fall-through / tail-JMP |
+| `0x37f05` | `AIL_internal_log_decrement_nesting` | ail | ADD ESP 0xc + DEC nesting(0x54178) + POP EBP/EDI/ESI + RET | 多 source 透過 fall-through / tail-JMP |
+| `0x3cbc4` | `__GETDS` | crt | MOV DS,CS:[0x3c9d8] + RET（DS-selector reloader thunk，經 CALL 呼叫、非 fall-through epilogue；byte-match Watcom CLIB3S `cstart.obj`，vendor-linked） | 1 caller：`__int7`（2 CALL sites）；此段隨 vendor lib 連入，不重寫 |
 | `0x114fb` | `fd2_set_runtime_char_evade` | fd2 | 1 logic op + ADD ESP 0x10 + POP EDI/ESI/EBX + RET | tail of `fd2_recalculate_combat_stats`（locals=0x10） |
 | `0x17ee8` | `fd2_wrapper_clear_keyboard_buffer` | fd2 | `CALL fd2_clear_keyboard_buffer` + POP EBX + RET（locals=0 + 1 saved reg EBX） | `fd2_open_status_screen_with_slide_in @ 0x17e0b`（JL fall-through at 0x17ec8）+ `fd2_init_battle_state_for_chapter @ 0x205da`（tail JMP at 0x20678） |
 | `0x15983` | `fd2_score_item_candidate_tail_15983` | fd2 | `MOV EAX,EDI` + `JMP 0x22bbe`（帶回傳值 tail）| `fd2_score_item_candidate @ 0x15880`（EDI=total_score）+ `fd2_alloc_and_blit_indexed_sprite_chunk @ 0x15f0e`（tail JMP at 0x15f7f，EDI=malloc buffer pointer） |

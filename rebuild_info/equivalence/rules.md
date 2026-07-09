@@ -62,11 +62,15 @@ emit 成 `>>7`（2 指令）而非原版 `/128`（6 指令），每像素少約 
 
 ### math intrinsic 呼叫形式
 
-原版遊戲碼一律呼叫 CRT `sqrt` / `sin` / `cos` 真函數（`IF@*` intrinsic stub 在原 binary
-零 xref、從未執行）。`math.h` 預設會把這些標成 compiler intrinsic，使 wcc386 emit `IF@D*`
-helper call —— ST(0) 跨 call 邊界、且含原版從未走過的 FTST/FSTSW/SAHF 檢查路徑；
-86Box-macOS 的 dynarec 會誤執行這條死路徑，令 `sqrt` 回傳 0.0、進而 `count=0` 觸發白光柱
-特效的 runaway page fault crash。
+原版遊戲碼一律呼叫 CRT `sqrt` / `sin` / `cos` 的 named 真函數（`sqrt @ 0x3c6fc`、
+`sin @ 0x3c898`、`cos @ 0x3c885`，皆被遊戲碼呼叫）。危險的是 `sqrt` 的 compiler-intrinsic
+變體 `__@DSQRT @ 0x3c738`：它在原 binary 零 xref、從未執行，其負數 domain 檢查走
+FTST/FSTSW/SAHF，而 named `sqrt` 改用整數 sign-bit 檢查 + `FSQRT`、不走這條。`math.h` 預設會把
+`sqrt` 標成 compiler intrinsic，使 wcc386 改 emit `CALL __@DSQRT` —— ST(0) 跨 call 邊界、
+且走原版從未執行的 FTST/FSTSW/SAHF 路徑；86Box-macOS 的 dynarec 會誤執行這條死路徑，令
+`sqrt` 回傳 0.0、進而 `count=0` 觸發白光柱特效的 runaway page fault crash。（`sin` / `cos` 的
+named wrapper 內部本就 `CALL IF@SIN` / `IF@COS`，故那兩個 stub 有 xref、會執行，不同於零 xref
+的 `__@DSQRT`；`__NO_MATH_OPS` 對三者一併強制 named call form。）
 
 `src/` 在每個用到 math 的 .c 於 `#include <math.h>` 前 `#define __NO_MATH_OPS`，強制走真
 CRT call form。實作見 `src/anim/anisummn.c`、`src/gfx/rndscene.c`、`src/spell/spellcin.c`。
@@ -173,7 +177,8 @@ cleanup + RET），其他 function 也以 tail-JMP 進同一 epilogue；典型�
 （`CALL free; ADD ESP,4; RET`）。`src/` 不把 epilogue 獨立 emit 成 C function，而是把它的
 stack-cleanup / free 效果直接 reproduce 在每個 source function 末尾（多為一句 return，或一個
 plain `free()` call）。共用 epilogue fragment 的完整具名清單見 `watcom_abi.md`。實作範例見
-`src/anim/anicombt.c`、`src/anim/aniend.c` 的 "reproduced here as the return" 註解。
+`src/anim/anicombt.c` 的 "reproduced here as the return" 與 `src/anim/aniend.c` 的
+"the plain call below is the functional equivalent" 註解。
 
 ### 模式 B：MULTIPLE ENTRY POINTS / SHARED BODY
 
@@ -210,7 +215,8 @@ Function entity 存在，重建時 iterate function 自然跳過。switch jump t
 自行從 C 的 `switch` 生成、align pad 由 wlink 重新對齊、CRT MATH387S 常數池走 `link_vendor`。
 這些 fragment 的具名清單與 data 型別見 `pool_classification.md`。
 
-> **遊戲端 codegen 佐證**：全 binary 僅 63 個 indirect JMP，全部落在 CRT（59）/ AIL（4），
+> **遊戲端 codegen 佐證**：全 binary 僅 63 個 indirect JMP，全部落在 CRT（57，全在 `__int7`）/
+> AIL（6，含 dpmi use32 save/restore 兩個 register-indirect `JMP EDX`/`ECX` thunk），
 > **遊戲端 0 個**——FD2 的遊戲 `switch` 一律編成 if/else 鏈、不生 compiler jump table；章節與
 > 施法的 function-pointer dispatch 表走 indirect CALL（非 JMP，見 `watcom_abi.md` §dispatch callees）。
 > 故模式 E 的 jump-table fragment 只出現在 CRT 段。全 binary indirect-JMP / orphan-code audit 工具與
