@@ -24,7 +24,7 @@ entry 31 是結局內容，entry 32/33 其實是第 1 章的序章對白。
 ## Notation
 
 - `[OPCODE]` / `[OPCODE=0xNNNN]` — dialog VM control code (詳見 `resource_info/fdtxt.md`)
-- `{ascii char}` — 直接渲染的 ASCII glyph (font atlas indices 0x20–0x7E)
+- `{ascii char}` — 直接渲染的英數字模（atlas glyph_id 0x00–0x23：0x00–0x09 為 '0'–'9'、0x0A–0x23 為 'A'–'Z'；atlas 非 ASCII 對齊，無小寫與標點，'A' 是 glyph 0x0A 非 0x41）
 - 中文字 — glyph_id 已從 `assets/text/glyph_table.md` 替換為實際字符
 - `〈NNNN〉` — 該 glyph_id 無 lookup entry 時的 fallback
 

@@ -18,7 +18,7 @@
 
 ## tables/ — 橋接層資料表
 
-binary `.object3` data table 的 struct layout：把 binary 位址對應到 `src/include/types.h`
+binary data table（`.object2` / `.object3`）的 struct layout：把 binary 位址對應到 `src/include/types.h`
 的欄名與攻略縮寫，只放 struct / 位址 / 邊界，數值內容一律引用上面的正典檔。涵蓋角色出場屬性、
 升級成長、道具、法術、敵人、法術習得、章 intro metadata、職業暴擊率與魔抗，以及地形移動花費
 （`movement_cost.md`）、職業可裝備（`job_allowed_items.md`）、轉職資料（`class_promotion.md`）、

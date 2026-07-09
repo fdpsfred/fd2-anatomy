@@ -21,7 +21,8 @@ byte[1]   promotion_mv_bonus     升職移動力加成（0 = 無）
 Accessor `fd2_get_class_promotion_data_entry @ 0x4E48D` 回傳 `&table[(class_id − 0x20) × 2]`
 （stride 2），`class_id` 是轉職目標的 portrait id，範圍 [0x20, 0x43]（→ index 0..35）。上界
 0x43 由 `fd2_build_promotion_candidates_with_targets @ 0x31793` 決定（目標 class =
-portrait_id + 0x20 / +0x32 / 或 0x34 Lord，portrait_id ∈ [0, 0x12)）。最後兩筆
+portrait_id + 0x20 / +0x32 / 或 0x34；0x34 僅在 portrait_id 9 悠妮持精靈契印 0x5A 時出現，
+轉職為召喚師 job 0x15，portrait_id ∈ [0, 0x12)）。最後兩筆
 （class 0x42 / 0x43）是 alt-path 專用的轉職。
 
 ## 讀取端（3，皆經 accessor）

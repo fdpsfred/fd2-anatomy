@@ -22,7 +22,8 @@ Accessor `fd2_get_job_allowed_items_table_entry @ 0x4E53E` 回傳 `&table[job_id
 唯一消費者 `fd2_check_job_can_equip_item @ 0x1C1C3`：取得 row 指標後，以單 byte 讀掃描
 offset 0..5（迴圈上界 `5 < type_iter`），把每個 allowed type 比對目標 item 的 `type` 欄
 （`item_effect` struct +1，`fd2_get_item_effect_entry` 回傳指標指到的分類 byte）。命中即可
-裝備。買 / 裝備 / 使用道具路徑都經此檢查。
+裝備。買（`fd2_run_buy_item_menu`）與裝備（`fd2_equip_unequip_inventory_menu`）兩條路徑經此檢查
+（僅 2 caller，消費道具的使用路徑不經此檢查）。
 
 ## entry sample
 

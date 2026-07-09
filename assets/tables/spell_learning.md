@@ -19,7 +19,7 @@ struct spell_learn_pair {
 
 ## 用途
 
-`character_growth_entry.spell_learning_idx` 指向本表。角色升到 `lv` 時，遊戲把 `spell_id`
+`character_growth.spell_learning_idx` 指向本表。角色升到 `lv` 時，遊戲把 `spell_id`
 加進 `runtime_char.spells_known_bitmap`。
 
 ## entry sample
