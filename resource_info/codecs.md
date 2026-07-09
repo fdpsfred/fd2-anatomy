@@ -7,10 +7,10 @@ figani / fdicon / dato) 只描述自己專屬的 header / stride / index，像�
 
 兩種編碼互不相容，不可混用：
 
-| 編碼 | decoder | 專用 | 消費資源 |
+| 編碼 | decoder | 典型用途 | 消費資源 |
 |------|---------|------|---------|
 | RLE 4-op | `fd2_rle_blit_sprite @ 0x4E63D` | 一般 sprite / tile / 背景 | FDOTHER sprite、FIGANI、BG、TAI、FDSHAP tile、FDICON |
-| dialog-pixel | `fd2_decode_dialog_pixel_byte @ 0x4E916` | 80×80 對話 portrait | DATO |
+| dialog-pixel | `fd2_decode_dialog_pixel_byte @ 0x4E916` | 對話 portrait + 戰鬥/動畫 sprite | DATO 對話 portrait、FDOTHER 及戰鬥/動畫 sprite |
 
 ---
 
@@ -99,12 +99,16 @@ FDOTHER sprite、FIGANI、BG、TAI、FDSHAP tile、FDICON 都是這套 RLE 4-op 
 
 ---
 
-## B. DATO dialog-pixel 編碼
+## B. dialog-pixel 編碼
 
-80×80 對話 portrait 專用，解碼器是 `fd2_decode_dialog_pixel_byte @ 0x4E916`
+逐像素 run 編碼，解碼器是 `fd2_decode_dialog_pixel_byte @ 0x4E916`
 (blitspr.c:779)。它是逐像素 state machine，每次回傳一個 16-bit 打包值
 `(run_remain << 8) | pixel`：高 byte 是這個像素之後還有幾個像素沿用同值、低 byte
 是本次要寫的像素。呼叫端把回傳值當下一次的 `state` 續傳，逐像素寫低 byte。
+
+矩形尺寸不寫死：由每個 sprite 自己的 header 決定（`+0 u16 width / +2 u16 height /
++4 stream`，與 RLE 同一套 header 佈局），所以同一套 codec 能解任意大小的圖，80×80
+對話 portrait 只是其中一種消費者。
 
 ### stream byte 語意 (blitspr.c:790-796)
 
@@ -118,9 +122,16 @@ FDOTHER sprite、FIGANI、BG、TAI、FDSHAP tile、FDICON 都是這套 RLE 4-op 
 
 ### 消費資源
 
-只有 DATO.DAT 用這套編碼；每個 portrait 有 4 個表情 frame，每 frame 自帶
-`+0 u16 width / +2 u16 height / +4 dialog-pixel stream`。archive 與 entry 佈局見
-`dato.md`。
+`fd2_decode_dialog_pixel_byte` 有 3 個直接 caller，此編碼**不限 DATO**：
+
+- DATO 對話 portrait 走 `fd2_dialog_sprite_blit_normal @ 0x4E8AF` 與
+  `fd2_dialog_sprite_blit_mirrored @ 0x4E8E1`；每個 portrait 有 4 個表情 frame，每
+  frame 自帶 `+0 u16 width / +2 u16 height / +4 dialog-pixel stream`，archive 與
+  entry 佈局見 `dato.md`。
+- 第三個 caller `fd2_blit_sprite_with_decoded_pixels @ 0x4E85B` 是通用矩形 painter
+  （尺寸讀自 sprite header），另有 8 個戰鬥／動畫 caller 用它解非 DATO sprite——法術
+  命中／彈道／疊染特效、傳送門開啟／崩解、陣亡動畫、以及新角色登場的爆炸 sprite
+  （`fd2_animate_party_addition_with_appear_effect` 以 `FDOTHER.DAT[9]` 經此 codec 解）。
 
 ---
 

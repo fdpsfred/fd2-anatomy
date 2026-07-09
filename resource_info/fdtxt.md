@@ -96,11 +96,11 @@ LLLLLL archive (詳 `overview.md`):
 | `0xFFFF` | `END` | 0 | 終止 page (return from `fd2_display_dialog_scene`) |
 | `0xFFFE` | `LINE_ADVANCE` | 0 | 推進到下一行 (line_count++ 後重算 render 位置)，不等待按鍵；portrait active 且 line_count==3 時觸發 cinematic scroll |
 | `0xFFFD` | `PAGE_BREAK` | 0 | 推進到下一行後 paint portrait (若 active) 並等待玩家按鍵 (`fd2_wait_for_input_dialog_with_blink(1)`)；同樣有 line_count==3 的 cinematic scroll |
-| `0xFFFC` | `SUB_DIALOG_A` | 0 | 遞迴呼叫 `fd2_display_dialog_scene` 載入 `data_fd2_all_game_text_ptr[last_action_sprite_id]` 的 page |
-| `0xFFFB` | `SUB_DIALOG_B` | 0 | 遞迴載入 `data_fd2_all_game_text_ptr[drop_dialog_swap_text_id]` 的 page |
-| `0xFFFA` | `NUMBER` | 0 | runtime 數字代入 (sprintf via `0x5014C`，digit-by-digit blit) |
-| `0xFFEF` | `PORTRAIT_LEFT_BY_ID` | 1 (portrait_id) | 左側 portrait (`dialog_portrait_mode = 0x728`) |
-| `0xFFEE` | `PORTRAIT_RIGHT_BY_ID` | 1 (portrait_id) | 右側 portrait (`dialog_portrait_mode = 0x9017`) |
+| `0xFFFC` | `SUB_DIALOG_A` | 0 | 遞迴呼叫 `fd2_display_dialog_scene` 載入 `data_fd2_all_game_text_ptr[data_fd2_dialog_last_action_text_id_param]` 的 page |
+| `0xFFFB` | `SUB_DIALOG_B` | 0 | 遞迴載入 `data_fd2_all_game_text_ptr[data_fd2_dialog_drop_swap_text_id_param]` 的 page |
+| `0xFFFA` | `NUMBER` | 0 | runtime 數字代入（`sprintf @ 0x377D9` 以格式字串 `"%d" @ 0x5014C` 格式化 `data_fd2_dialog_last_action_value_param`，再逐位 blit 數字字模）|
+| `0xFFEF` | `PORTRAIT_LEFT_BY_ID` | 1 (portrait_id) | 左側 portrait (`data_fd2_dialog_active_portrait_blit_offset = 0x728`) |
+| `0xFFEE` | `PORTRAIT_RIGHT_BY_ID` | 1 (portrait_id) | 右側 portrait (`data_fd2_dialog_active_portrait_blit_offset = 0x9017`) |
 | `0xFFED` | `PORTRAIT_LEFT_BY_CHAR` | 1 (runtime_char_array idx) | 左側 portrait (用 `runtime_char[idx].bPortrait_id`) |
 | `0xFFEC` | `PORTRAIT_RIGHT_BY_CHAR` | 1 (runtime_char_array idx) | 右側 portrait (同上) |
 
@@ -128,8 +128,9 @@ LLLLLL archive (詳 `overview.md`):
 
 任何 < `0xFFEC` 的 u16 (TEXT_CHARACTER) 就是 glyph_id，直接索引
 `data_fd2_chinese_font_sheet @ 0x53A75` (= FDOTHER.DAT[4]) 這張 atlas 的 fixed-size sprite。
-`NUMBER` opcode (`0xFFFA`) 由 `0x5014C` 讀 sprintf 結果、逐位轉成 atlas 索引 0..9 的
-數字字模。
+`NUMBER` opcode (`0xFFFA`) 把 `data_fd2_dialog_last_action_value_param` 交給
+`sprintf @ 0x377D9`（格式字串 `"%d" @ 0x5014C`），再把輸出 buffer 逐位（char − 0x30）
+轉成 atlas 索引 0..9 的數字字模。
 
 編碼性質 (direct atlas index、非 Big5)、glyph_id 範圍、ASCII 對應、字模 16×16 1bpp
 規格，以及完整 glyph_id ↔ 中文字 lookup，統一見 `chinese_glyph_encoding.md`。

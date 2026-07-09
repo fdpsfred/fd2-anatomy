@@ -25,7 +25,7 @@ FD2.SAV 存檔、FD2.LE binary 本身，以及 Miles Sound System 用的 .MDI / 
 | 檔案 | size | entries | 格式詳細 | 內容 |
 |---|---|---|---|---|
 | FDTXT.DAT | 120,502 | 34 | `fdtxt.md` | 對話文字 (中文 dialog VM bytecode) |
-| FDOTHER.DAT | 3,382,481 | 103 (+166 nested) | `fdother.md` | UI sprite / portrait / SFX / cinematic image / palette |
+| FDOTHER.DAT | 3,382,481 | 103 (+176 nested) | `fdother.md` | UI sprite / portrait / SFX / cinematic image / palette |
 | FDFIELD.DAT | 243,169 | 99 | `fdfield.md` | 章節地圖 + tile_event + char spawn |
 | FDSHAP.DAT | 3,557,794 | 66 | `fdshap.md` | 戰鬥地形 24×24 tile sheet + tile attribute |
 | DATO.DAT | 1,979,029 | 136 | `dato.md` | 80×80 4-表情 portrait (dialog-pixel) |

@@ -61,14 +61,15 @@ hardcoded immediate（字串 / data / call target ptr）抽出，比對對應 li
 ### [資源檔格式未解]（data-only；caller 不對 unknown byte 做條件分支，不影響 emission）
 
 - **TAI.DAT payload** — 每 entry `+0x00..0x03` = width/height（u16 LE ×2），後續 opcode / payload 序列未解碼。
-- **FDOTHER nested sub-entry** — 29 個 outer 各為 sub-archive、共 166 個 sub-entries；已對應 9 個具體 caller，其餘
-  dynamic-recovered / confirmed-dead 未逐一分析。
+- **FDOTHER nested sub-entry** — 29 個 outer 各為 sub-archive、共 176 個 sub-entries；多數已對應具體 caller，
+  各 sub-entry 的 payload 內容（RLE sprite / SFX 樣本）未逐一 dump 分析。
 - **ANI.DAT header** — 0xAD-byte entry header 只解出 `+0xA5..0xA6` = frame_count（其餘無條件分支）；per-frame
   header `+0x04..0x07`（4 bytes）用途未確認。
 - **FD2.SAV slot trailer `+0xA0A..0xA28`（30 bytes）** — 未細分 sub-field；save / load 走 memcpy 整段保留。
 - **tile_attribute_flags `+0/+1/+3` byte** — 只 `+2` byte 的 animation / palette flag bits 已解（0x04 / 0x08 / 0x10）。
 - **FIGANI per-pose `+7..`** — `+4 type` / `+5 sfx_hook_id` / `+6 sub_frame_count` 已解，其後 inter-frame timing 未細究。
-- **FDOTHER 21 個 confirmed_dead idx content** — no-ref proof 確認 dead，內容未解看有無 cut content 線索。
+- **FDOTHER 12 個 confirmed_dead idx content** — no-ref proof 確認 dead（已排除 8 個 table/LUT-driven live idx），
+  內容未解看有無 cut content 線索。
 - **ANI.DAT 9 個 entry 對應的 in-game cinematic 場景** — idx 1 = intro animation，其餘 8 個未對應。
 
 （各項多需 in-game trace caller 消費 buffer 時的行為 / 統計 byte 分布推測，屬 backlog。）
