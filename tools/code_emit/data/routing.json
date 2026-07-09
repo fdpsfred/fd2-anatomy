@@ -4245,7 +4245,7 @@
     "reviewed": true
   },
   "000354fe": {
-    "name": "fd2_chapter_event_handler_3a__unref_pickup",
+    "name": "fd2_chapter_event_handler_3a__ch26_pickup",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,

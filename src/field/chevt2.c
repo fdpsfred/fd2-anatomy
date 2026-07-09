@@ -484,11 +484,12 @@ void fd2_chapter_event_handler_39__ch26_cinematic(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_3a__unref_pickup @ 0x354FE  (0 direct callers)
+ * fd2_chapter_event_handler_3a__ch26_pickup @ 0x354FE  (no direct call; via table)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x3A (table entry
- * @ 0x51C79). No chapter FDFIELD turn-event / tile-step hook references this
- * slot (unref / possibly cut content). Category: item pickup at cursor tile.
+ * @ 0x51C79). A ch26 tile-pickup tile (kind>=2, consequence 0x3A) reaches this slot via the
+ * tile-pickup event dispatch (data_fd2_battle_ai_post_action_consequence_table
+ * [event_value]) in menufld.c -- live ch26 "choose 1 of 5 class-best weapons". Category: item pickup at cursor tile.
  * Dispatch-table signature is 1-arg cdecl (the stepping char id under the
  * tile-step ABI); this handler uses it as the pickup recipient.
  *
@@ -519,7 +520,7 @@ void fd2_chapter_event_handler_39__ch26_cinematic(uint32 event_arg)
 static const unsigned char data_fd2_chapter_event_handler_3a_pickup_item_id_table_inline[5] =
     { 0x1D, 0x2B, 0x33, 0x3D, 0x47 };
 
-void fd2_chapter_event_handler_3a__unref_pickup(uint32 stepping_char_id)
+void fd2_chapter_event_handler_3a__ch26_pickup(uint32 stepping_char_id)
 {
     unsigned char item_id_table[5];
     uint8 tile_read_buf[8];

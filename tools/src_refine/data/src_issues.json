@@ -10,8 +10,7 @@
     "title": "runtime_char field bStatus_sleep_flag (offset 0x26) is a misnomer -- it is paralysis (麻痹), not sleep",
     "description": "The runtime_char struct field at offset 0x26 is named bStatus_sleep_flag in Ghidra, but FD2 has no sleep ailment. Per fd2-knowledge (memory_hack.htm layout, which has a +8 header offset vs the Ghidra struct: KB 0x2E == Ghidra 0x26), offset 0x2E is 麻痹狀態 = paralysis status (set by 麻痹術 / Paralyze spell). A future Stage-2 struct cleanup should rename this field to e.g. bStatus_paralysis_flag and update all readers. Out of scope for this single-symbol refine (struct field, not the assigned function); recorded for follow-up. This refine corrected the src comment + plate annotation to say 'paralysis' without renaming the field.",
     "evidence": "fd2-knowledge: query.py struct -> '0x2E XA: 麻痹狀態' (KB layout); KB-to-Ghidra +8 offset confirmed via team/job/HP fields; query.py grep '睡眠'/'沉睡' -> 'No match'; query.py grep '麻痹' -> 麻痹術 spell '2-4回合使敵人麻痹', 祛麻術 '解麻痹'. Ghidra get_struct_layout runtime_char: offset 38 (0x26) bStatus_sleep_flag, offset 33 (0x21) pStatus_flags_block[5].",
-    "resolution": "RESOLVED (closeout). Verified via fd2-knowledge (no 睡眠/沉睡 ailment; memory_hack 0x2E=麻痹狀態; +8 KB->Ghidra offset confirmed by poison 0x2D->0x25, paralysis 0x2E->0x26, silence 0x2F->0x27) and in-code semantics (battle.c counter-attack gate, chinit.c ch10 sets char 0x32/0x33=100, chend1.c clears, rndscene.c shake/palette). Renamed src field status_sleep_flag -> status_paralysis_flag across types.h + 8 .c (incl. awake/asleep/sleep-counter prose) and Ghidra runtime_char field bStatus_sleep_flag -> bStatus_paralysis_flag (offset 0x26); home plate 0x13fd4 de-misnomered. btl_aitg.c uses raw pChar[0x26] (already paralysis-commented), no change. Build PASS[RELOC] (field rename not emitted -> zero new binary delta).",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0002": {
     "id": "ISS-0002",
@@ -24,8 +23,7 @@
     "title": "Ghidra plate listed non-existent callers",
     "description": "The prior Ghidra plate claimed this scan was 'used everywhere' and named fd2_ai_score_physical_attack, fd2_ai_score_offensive_spell and render_threat_overlay as callers. Verified xrefs show exactly one caller (fd2_wait_for_action_target_input @ call site 0001175f). Updated the plate to state the single real caller; no code change needed.",
     "evidence": "get_xrefs_to(0x00014742) and get_function_callers both return only 'fd2_wait_for_action_target_input @ 000115b6' (UNCONDITIONAL_CALL from 0001175f).",
-    "resolution": "RESOLVED (closeout, verify-only). get_xrefs_to(0x14742) + get_function_callers confirm EXACTLY one caller: fd2_wait_for_action_target_input @ 0x115b6 (UNCONDITIONAL_CALL from 0x1175f). The old plate's phantom callers (fd2_ai_score_physical_attack / fd2_ai_score_offensive_spell / render_threat_overlay) do not reference it. Live Ghidra plate already states the single real caller correctly (survived the wedge); no change needed.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0003": {
     "id": "ISS-0003",
@@ -38,8 +36,7 @@
     "title": "Stale plate note about an 'alt-entry' / extra callers corrected (not a logic bug)",
     "description": "The prior Ghidra plate described an 'Alt-entry at +0x2b4 labelled L_execute_ai_item_use_alt_2b4: 2 callers (display_dialog_scene, draw_spell_selection_list)'. Verified that +0x2b4 (0x15309) is this function's epilogue (ADD ESP,0x24; POP EBP/EDI/ESI/EBX; RET). fd2_display_dialog_scene (JMP @0x164e3) and fd2_draw_spell_selection_list (Jcc @0x1cfa8) only branch into that shared return sequence (Watcom tail-merged epilogue); they are not callers or an alternate entry of the item-use logic. Plate corrected. No source/logic impact (Layer-2 rebuild does not replicate byte-level epilogue merging).",
     "evidence": "read_memory(0x15309)=83 c4 24 5d 5f 5e 5b c3; get_xrefs_to(0x15309)=JMP from 0x164e3 (fd2_display_dialog_scene, body 0x15f84-0x164e7) and Jcc from 0x1cfa8 (fd2_draw_spell_selection_list, body 0x1ceed-0x1cfef); both function bodies end before 0x15309. fd2_execute_ai_item_use body = 0x15055-0x15310, single entry, single RET.",
-    "resolution": "RESOLVED (closeout, verify-only). read_memory(0x15309)=83 c4 24 5d 5f 5e 5b c3 (ADD ESP,0x24; POP EBP/EDI/ESI/EBX; RET) = this function's epilogue. get_xrefs_to(0x15309) returns only two JUMPs (not calls): UNCONDITIONAL_JUMP from 0x164e3 (fd2_display_dialog_scene) + CONDITIONAL_JUMP from 0x1cfa8 (fd2_draw_spell_selection_list) = Watcom tail-merged epilogue sharing. Live plate already documents this in its 'Epilogue note' (NOT callers, NOT an alt-entry); no change needed. Layer-2 rebuild does not replicate byte-level epilogue merging.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0004": {
     "id": "ISS-0004",
@@ -52,8 +49,7 @@
     "title": "Ghidra plate calls the handler table at 0x51B91 '256 slots' but src globals.h declares it as [90]",
     "description": "The chapter-event / post-action handler function-pointer table at 0x51B91 is indexed here by entry[4], a byte (potential range 0..255). The Ghidra plate for this function describes that table as a 256-slot 32-bit pointer array, whereas src/include/globals.h declares 'void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32)'. This is a cross-cutting table-extent question (shared by fd2_handle_tile_event_interaction and fd2_process_battle_drop_entries), not a defect in this function's control flow, and the src comment makes no size claim, so nothing is changed at this stage. Flagged so the table's true allocated extent can be confirmed (data layout at 0x51B91) when the shared table is refined; if 90 is correct, this function's plate '256' wording is over-stated.",
     "evidence": "globals.h:515 'extern void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32); /* 0x51B91 */'. get_xrefs_to(0x51B91) returns 3 code indexers: fd2_handle_tile_event_interaction@0x19511, fd2_fire_chapter_turn_events_for_phase@0x1a85a, fd2_process_battle_drop_entries@0x1ac1a. Ghidra plate text: 'fix_off32_00051b91 = 章節事件 handler table (256 槽位 32-bit function pointer 陣列 @ 0x51B91)'.",
-    "resolution": "RESOLVED (closeout). True extent = 90 entries, verified three ways: (1) next symbol data_fd2_battle_teleport_dest_world_x @ 0x51CF9 = 0x51B91 + 90*4 = 0x51B91+0x168, with no symbol in between; (2) btltab.c def comment '360 bytes = 90 x 32-bit function pointers, indexed by an 8-bit event id'; (3) Ghidra data PLATE+PRE at 0x51B91 both already say '90 x void(*)(uint32)' / '360B pointer[90], idx 0x00..0x59'. So 256 was wrong (256*4=0x400 would overlap teleport_dest+). Fixed: only the fd2_fire_chapter_turn_events_for_phase @ 0x1a813 function plate said '256 槽位' -> corrected to '90 槽位' + clarified event_id is a byte but only 90 slots allocated. The other two indexer plates were already fine (0x190ac no size claim; 0x1aa1d already '90 entries'). 8-bit-index-into-90-slot-table is the same vendor faithful-to-binary pattern as ISS-0014/0016.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0005": {
     "id": "ISS-0005",
@@ -66,8 +62,7 @@
     "title": "Duplicate prototype declarations in protos.h",
     "description": "fd2_blit_scaled_tile_map_view is declared twice in src/include/protos.h (line 706 with params src_cx/src_cy and line 720 with src_cx_fp/src_cy_fp). The sibling fd2_blit_24x24_tile_to_battle_grid_position is likewise declared twice (lines 703 and 722). The declarations are compatible (only param spelling differs) so they compile, but the redundancy should be de-duplicated. Out of this symbol's comment-refine scope; not fixed here.",
     "evidence": "Grep of protos.h: line 706 'void fd2_blit_scaled_tile_map_view(uint32 src_cx, uint32 src_cy, uint32 scale, uint32 tile_data_table);' and line 720 'void fd2_blit_scaled_tile_map_view(uint32 src_cx_fp, uint32 src_cy_fp, uint32 scale, uint32 tile_data_table);'.",
-    "resolution": "RESOLVED (closeout) -- the duplication was systematic, NOT just these 4 functions: 47 fd2_* functions were declared 2-3x in protos.h (the emit pipeline added each prototype to every section it associated with). User approved a full dedup. Wrote tools/src_refine/dedup_protos.py (plan/apply): for each duplicated function it keeps the declaration whose param names best match the authoritative src_info.json signature, else the named version, and removes the rest; refuses to touch any function whose occurrences disagree on param count. Removed 60 lines / 52 spans -> re-scan shows 0 duplicates. Build 0-undefined + eqcheck PASS[RELOC] (prototypes emit no code -> zero binary delta). This function: kept line 720 (src_cx_fp/src_cy_fp, matches blittile.c:170 def); sibling fd2_blit_24x24_tile_to_battle_grid_position kept the dst_row_stride decl (matches blittile.c:344).",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0006": {
     "id": "ISS-0006",
@@ -80,8 +75,7 @@
     "title": "Ghidra param 2 mislabeled origin_x (is the sprite atlas)",
     "description": "The live Ghidra signature/plate names param 2 'origin_x', but the disassembly shows Stack[0x8] is pushed as the sheet_ptr (first) argument of fd2_blit_indexed_sprite, i.e. it is the sprite-sheet/atlas pointer, not an x-coordinate. The src already names it 'sprite_atlas' correctly. Recorded for Stage 2 to rename the Ghidra param (param-name only; not a symbol rename). No code/logic change.",
     "evidence": "disasm @ 0x27632 PUSH dword ptr [ESP+0x18] (= original Stack[0x8] after 4 pushes) is blit arg0=sheet_ptr; protos.h:455 fd2_blit_indexed_sprite(uint32 sheet_ptr, uint32 sprite_idx, uint32 dst_buf, ...). The old plate body even passed 'sprite_handle' as the blit's first arg, which was internally inconsistent; corrected in the updated plate.",
-    "resolution": "RESOLVED (closeout). get_function_variables(0x275d6) confirmed Ghidra param ordinal 1 was still 'origin_x' (ordinals 0/2/3/4 sprite_handle/origin_y/row_stride/state_code already matched src). Renamed ordinal 1 origin_x -> sprite_atlas (rename_variables), matching anisummn.c:71 def where param 2 is the sprite-sheet/atlas pushed as fd2_blit_indexed_sprite arg0=sheet_ptr. Ghidra-only param rename; no src/binary change.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0007": {
     "id": "ISS-0007",
@@ -94,8 +88,7 @@
     "title": "Duplicate fd2_play_char_intro_zoom_anim prototype in protos.h with divergent param names",
     "description": "protos.h declares fd2_play_char_intro_zoom_anim twice: line 190 (params caster_idx, mode_flag, caster_figani_a, target_figani0, workbuf2, workbuf1, tai_resource) and lines 524-527 (char_unit_id, mode_flag, char_sprite, char_sprite2, workspace, bg_sprite, weapon_sprite). Both have identical types (7x uint32, void) so it compiles, but the duplicate + divergent names are an inconsistency. Recommend removing the line-190 copy during Stage 2 (when the param rename to name_banner_sprite is also applied) so a single canonical declaration remains. Not modified this stage (declaration-level change reserved for Stage 2).",
     "evidence": "src/include/protos.h:190 and src/include/protos.h:524-527",
-    "resolution": "RESOLVED by the full protos.h dedup (see ISS-0005 for the tool + method + build/eqcheck gate). fd2_play_char_intro_zoom_anim: both occurrences (line 190, lines 524-527) had identical param names incl. the Stage-2 'name_banner_sprite'; kept the line-190 single-line copy, removed lines 524-527.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0008": {
     "id": "ISS-0008",
@@ -108,8 +101,7 @@
     "title": "Pose-table global names read inverted vs their actual axis use",
     "description": "The two per-chapter portrait pose-byte tables used to position the portrait icon have Ghidra/C symbol names whose X/Y axis semantics are swapped relative to their actual use. data_fd2_chapter_intro_portrait_pose_y_row_table @0x52635 is added DIRECTLY to the destination (within-row / X contribution), while data_fd2_chapter_intro_portrait_pose_x_column_table @0x52647 is MULTIPLIED by the 0x1C8 row pitch (row / Y contribution). The names therefore suggest the opposite axes. These are shared globals (also referenced by fd2_chapter_transition_with_intro, fd2_run_chapter_intro_menu_main/typeB/typeC), so this is NOT in scope for renaming under this single-function refine task; recorded for a future global-rename pass.",
     "evidence": "Disassembly @0x2CF71: 0002d031 'MOVZX EDX,byte ptr [EAX + 0x52635]' then 0002d044 'ADD EDX,EBX' (direct add, no multiply); 0002d046 'MOVZX EAX,byte ptr [EAX + 0x52647]' then 0002d04d 'IMUL EAX,EAX,0x1c8' (multiplied by row pitch). Ghidra primary symbols: 0x52635 => data_fd2_chapter_intro_portrait_pose_y_row_table, 0x52647 => data_fd2_chapter_intro_portrait_pose_x_column_table.",
-    "resolution": "RESOLVED (closeout). The paired swap was already applied in Stage 2 (handoff n=168/169): current Ghidra + src names are axis-correct -- 0x52635 = ..._pose_x_column_table (ADD direct @ 0x2D031 = X/within-row), 0x52647 = ..._pose_y_row_table (IMUL 0x1C8 @ 0x2D046 = Y/row). What remained was stale doc only: rewrote both Ghidra data PLATEs (headers still had the old names + 'NAME IS A MISNOMER/queued for rename' wording; the 0x52647 PRE even claimed 0x52647=X), cleared the contradictory 0x52647 PRE, and fixed the swapped chtrans.c:477 src comment. See ISS-0017.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0009": {
     "id": "ISS-0009",
@@ -122,8 +114,7 @@
     "title": "Duplicate prototype for fd2_count_selected_chars in protos.h",
     "description": "protos.h declares fd2_count_selected_chars twice: line 784 (int fd2_count_selected_chars(uint32 sel_state);) and line 796 (int  fd2_count_selected_chars(uint32 selection_state);). The two declarations are C-compatible (same return/param type, only the param name differs) so it still compiles, but the redundant + name-divergent prototype should be deduplicated. The sibling functions fd2_reorder_party_by_selection (lines 785/797) and fd2_pin_required_char_to_party_slot1 (lines 786/799) have the same duplicate-prototype situation. Not a logic issue; deferred to declaration/Stage-2 cleanup, not fixed this phase.",
     "evidence": "grep protos.h: line 784 'int fd2_count_selected_chars(uint32 sel_state);' and line 796 'int  fd2_count_selected_chars(uint32 selection_state);'",
-    "resolution": "RESOLVED by the full protos.h dedup (see ISS-0005). fd2_count_selected_chars: kept line 784 (sel_state, matches misc.c def), removed line 796 (selection_state).",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0010": {
     "id": "ISS-0010",
@@ -136,8 +127,7 @@
     "title": "Duplicate prototypes for fd2_reorder_party_by_selection (and siblings) in protos.h",
     "description": "protos.h declares fd2_reorder_party_by_selection twice: line 785 'void fd2_reorder_party_by_selection(uint32 sel_state);' and line 797 'void fd2_reorder_party_by_selection(uint32 selection_state);'. The duplication also covers fd2_count_selected_chars (lines 784 vs 796) and fd2_pin_required_char_to_party_slot1 (lines 786 vs 799), spanning two adjacent prototype blocks. The signatures are compatible (only the cosmetic param name differs), so this compiles, but the redundant block should be de-duplicated and the param name standardized to the definition's sel_state. Out of scope for this single-symbol comment-refine stage; flagged for a separate protos.h cleanup.",
     "evidence": "src/include/protos.h lines 783-786 vs 795-799; misc.c definition at line 272 uses param name 'sel_state'.",
-    "resolution": "RESOLVED by the full protos.h dedup (see ISS-0005). The whole sibling block deduped: fd2_reorder_party_by_selection kept line 785 (sel_state), fd2_count_selected_chars line 784, fd2_pin_required_char_to_party_slot1 line 786; the line 795-799 copies removed. All kept decls match their .c defs.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0011": {
     "id": "ISS-0011",
@@ -150,22 +140,20 @@
     "title": "char_id 6 mis-attributed to 沃斯 (corrected to 鐵諾)",
     "description": "Both the src comment block and the Ghidra plate named runtime char #6 as '沃斯', an unverified name absent from the KB 32-char roster. Cross-checking fd2-knowledge (chapter 3 events/recruitment, portraits 02h, code_hacks '22 = 劍聖鐵諾') and the sibling fd2_chapter_03_end handler (chend1.c, same fd2_check_char_is_dead(6) gate -> recruits char #2 劍士鐵諾) establishes char #6 as the in-battle ally swordsman 鐵諾. Fixed in this refine (src comment + plate). This is a comment/attribution correction only; no game logic changed (the code uses literal index 6, which is correct).",
     "evidence": "KB chapter 3: '加入：劍士鐵諾若未死時加入' and '索爾及亞雷斯前去幫助鐵諾'; KB portraits 02h=鐵諾, code_hacks '22 = 劍聖鐵諾'; chend1.c fd2_chapter_03_end @0x230F2 gates on fd2_check_char_is_dead(6)==0 then fd2_init_runtime_char_from_base_growth(2) recruiting 劍士鐵諾; '沃斯' has zero matches in the KB (query.py grep).",
-    "resolution": "RESOLVED (closeout, verify-only). Both the src comment (chevt1.c:453-460) and Ghidra plate (0x344c2) now correctly attribute runtime char #6 to the ch3 ally swordsman 鐵諾 (plate explicitly flags 沃斯 as unverified / not in the roster). KB re-check: grep 沃斯 = No match (non-existent); 鐵諾 = real char (劍士/劍聖 data rows present); surviving char #6 is recruited as permanent party char #2 (劍士鐵諾), gated on the same fd2_check_char_is_dead(6). The separate 萊汀 'char_id 6' in another handler is the char_id VALUE (identity), not the runtime ARRAY index 6 -- no conflict. No change needed.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0012": {
     "id": "ISS-0012",
     "symbol_address": "000354fe",
-    "symbol_name": "fd2_chapter_event_handler_3a__unref_pickup",
+    "symbol_name": "fd2_chapter_event_handler_3a__ch26_pickup",
     "kind": "function",
     "home": "src/field/chevt2.c",
     "category": "equivalence",
     "severity": "low",
     "title": "Out-of-bounds frame read when terrain class exceeds the 5-entry table",
-    "description": "The handler indexes the 5-byte local item_id_table by tile_attr = tile_read_buf[2], the low byte of the +2 ushort terrain_class field, whose range is 0..0x1F. Only classes 0..4 select a defined table entry; classes 5..0x1F read past item_id_table[5] into adjacent stack-frame bytes. In the binary this is the literal frame read *(byte*)((int)&var_14 + var_1a); the emitted C item_id_table[tile_attr] reads whatever Watcom lays out after the 5-byte array, which is frame-layout dependent and not guaranteed bit-identical for out-of-range indices. Already tracked in tools/code_emit/data/emit_issues.json '000354fe' (type frame_layout_oob_index, severity low) and referenced by the source comment. Recording here for refine traceability; NOT fixing in this stage (it is a cut/unreferenced path -- no chapter FDFIELD hook reaches this slot with live tile data, so classes 0..4 are byte-identical and the OOB case is unreachable in real play).",
+    "description": "The handler indexes the 5-byte local item_id_table by tile_attr = tile_read_buf[2], the low byte of the +2 ushort terrain_class field, whose range is 0..0x1F. Only classes 0..4 select a defined table entry; classes 5..0x1F read past item_id_table[5] into adjacent stack-frame bytes. In the binary this is the literal frame read *(byte*)((int)&var_14 + var_1a); the emitted C item_id_table[tile_attr] reads whatever Watcom lays out after the 5-byte array, which is frame-layout dependent and not guaranteed bit-identical for out-of-range indices. Already tracked in tools/code_emit/data/emit_issues.json '000354fe' (type frame_layout_oob_index, severity low) and referenced by the source comment. Recording here for refine traceability; NOT fixing in this stage (ch26's box tiles use terrain classes 0..4 only, so classes 0..4 are byte-identical and the OOB case is unreachable in real play; the slot is LIVE (reached via tile_pickup consequence 0x3A dispatched by menufld.c), not cut -- see the name/notes correction above).",
     "evidence": "disasm 0x355AF MOV BL,[ESP+0x2]; 0x355B6 MOVZX EAX,byte ptr [ESP+EAX*0x1+0x8] (frame-relative index past the 5-byte item_id_table). Table = {0x1D,0x2B,0x33,0x3D,0x47} @ 0x5274E (5 entries). Only xref to 0x354FE is the DATA handler-table slot 0x51C79 (no tile-step/turn-event hook). emit_issues.json:756-766.",
-    "resolution": "RESOLVED (closeout; faithful-to-binary, no fix). Re-verified get_xrefs_to(0x354fe) = exactly ONE ref: DATA from 0x51c79 (the handler-table slot idx 0x3a). No CALL, no tile-step/turn-event hook reaches it; handler name __unref_pickup marks idx 0x3a as never dispatched by any chapter. The frame-relative OOB read for terrain classes 5..0x1F is faithfully reproduced and already tracked in emit_issues.json['000354fe'] (frame_layout_oob_index, low). Classes 0..4 byte-identical; OOB path unreachable in real play. By-design; conclusion recorded here + emit_issues.json.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0013": {
     "id": "ISS-0013",
@@ -178,8 +166,7 @@
     "title": "Unconditional close(handle) on LX magic mismatch ignores mode bit0",
     "description": "On LX magic mismatch the function calls close(handle) without testing mode_byte&1. When called in in-memory mode (bit0==1), arg0 is a base address rather than a real file descriptor, so close() is invoked on a non-handle value. This is faithfully reproduced from the original binary (disassembly 0x363ea: PUSH EBP; CALL close at 0x3d01c is unconditional) and MUST NOT be changed -- the CRT-equivalent logic is verified to match FD2.LE. Recorded for awareness only. Practically unreachable: the sole (itself-dead) caller crt_equivalent_lx_module_loader_3647b only loads a valid LE image. The success-path close() at the end is correctly gated by bit0; only the mismatch error path is not.",
     "evidence": "disassemble_function 0x00036344: at 0x363e8 JZ skips to 0x363f5 (match path); fall-through 0x363ea PUSH EBP / 0x363eb CALL 0x0003d01c (close) then JMP 0x3638a (return 0), with no TEST of [ESP+0xe0]&1 guarding it -- contrast the success-path close at 0x36451 TEST byte ptr [ESP+0xe0],0x1 / JNZ 0x36464.",
-    "resolution": "RESOLVED (closeout; faithful-to-binary CRT-equivalent, MUST NOT change). Disasm re-verified: mismatch path 0x363e8 JZ 0x363f5 else fall-through 0x363ea PUSH EBP / 0x363eb CALL 0x3d01c (close) is UNCONDITIONAL (no mode-bit0 test) then JMP return 0; success-path close at 0x36451 IS gated (TEST [ESP+0xe0],0x1 / JNZ 0x36464). Entry 0x3635b tests bit0 -> in-memory mode (bit0=1) makes EBP a base address not a handle. Exactly matches FD2.LE; intentionally preserved (Layer-2 equivalence). Reachability: sole caller crt_equivalent_lx_module_loader @ 0x3647b has 0 callers (dead) and only loads valid LE images, so the mismatch path never triggers. No fix.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0014": {
     "id": "ISS-0014",
@@ -192,8 +179,7 @@
     "title": "Dispatch table indexed by full byte (0-255) but emitted as a 10-entry array",
     "description": "chunk_type is a uint8 (0-255) used to index data_fd2_animation_ani_decoder_frame_dispatch_table, which the Layer-2 port declares as [10] (src/table/anitab.c, src/include/globals.h). The original binary's table at 0x5276A is also exactly 10 pointers (verified: the 10th pointer ends at 0x52792, followed by 4 zero bytes then the 'Stack Overflow!' literal -- not an 11th entry). So both binary and port assume well-formed ANI.DAT streams emit only opcodes 0-9; a malformed byte >= 10 would read past the array in both. This is faithful to the original (not a port-introduced regression) and ANI.DAT is a trusted bundled asset, so it is informational only -- no change in this stage.",
     "evidence": "Decoder: src/anim/anidec.c L74-77 indexes table[chunk_type] with chunk_type from *g_ani_cursor++. Table decl: src/include/globals.h L527 'extern void (*...frame_dispatch_table[10])(void);' and src/table/anitab.c L480. Binary extent: read_memory(0x52792,48) = 00 00 00 00 'Stack Overflow!\\r\\n' confirming exactly 10 entries; first entries 0x36AE7,0x36B01,... match handler addresses.",
-    "resolution": "RESOLVED (closeout; faithful-to-binary, info-only, no fix). read_memory(0x5276a,48) re-verified: exactly 10 LE dword pointers (0x36AE7/0x36B01/0x36B0F/0x36B51/0x36B8A/0x36BB2/0x36BCE/0x36C13/0x36C2C/0x36C56) spanning 0x5276a..0x52791, then 4 zero bytes at 0x52792 + 'Stack Overflow!' literal -> no 11th entry. src declares [10] (globals.h:527, anitab.c:481). Decoder indexes table[chunk_type] by a full byte; both binary and port assume ANI.DAT emits only opcodes 0-9 (trusted bundled asset), so a >=10 byte over-reads in both -> faithful, not a port regression. No fix.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0015": {
     "id": "ISS-0015",
@@ -206,8 +192,7 @@
     "title": "Run-length prose was off by one and used a byte-overflowing expression (now corrected)",
     "description": "Both the src comment and the Ghidra plate previously described the 0xC1..0xFF run marker as producing '(b - 0xC1) + 2 pixels total' / 'Run length = (byte + 0x3F) + 1 = 257..319 pixels'. The binary computes run_remain via SUB AH,0xC1 on an 8-bit register, giving (b - 0xC1) in 0..0x3E = the number of ADDITIONAL pixels beyond the one painted at marker time. Total pixels painted of that value = (b - 0xC1) + 1 = 1..63. This was a comment/documentation inaccuracy only; the C statement '((b - 0xC1) << 8) | next' is correct and was not changed. Both the src comment and the Ghidra plate have been corrected during this refine.",
     "evidence": "Disassembly @ 0x4E925-0x4E92B: MOV AH,AL; SUB AH,0xC1; LODSB ESI; RET (AH is 8-bit, result 0..0x3E for b=0xC1..0xFF). State-machine trace: marker call writes 1 pixel and sets run_remain=(b-0xC1); each subsequent call with run_remain!=0 writes 1 pixel and decrements, giving (b-0xC1) further writes; total = (b-0xC1)+1. For b=0xC1 -> run_remain=0 -> exactly 1 pixel.",
-    "resolution": "RESOLVED (closeout, verify-only). Disasm re-confirmed: 0x4e927 SUB AH,0xc1 on 8-bit AH (0..0x3E), 0x4e916 OR AH,AH/JZ run-continuation. Both the Ghidra plate (0x4e916) and src comment (blitspr.c:759-768) now state corrected semantics: run_remain=(b-0xC1)=additional pixels, total painted=(b-0xC1)+1=1..63, via SUB AH,0xC1 on 8-bit (no byte overflow). C statement blitspr.c:796 (((b-0xC1)<<8)|next) correct and unchanged. Plate survived the wedge. No change needed.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0016": {
     "id": "ISS-0016",
@@ -220,8 +205,7 @@
     "title": "Table extent (30) is shorter than the full spell-id index space (max 0x23=35)",
     "description": "Spell IDs reach 0x23 (35), but the table is 30 bytes (indices 0..29) and the reader copies exactly 30 bytes into a 32-byte stack scratch. For spell_id >= 30 (sword skill 音速刃 0x1E=30 and summons 0x20-0x23) the indexed byte load reads beyond the 30 copied bytes (into the upper, uninitialised slots of the 32-byte local). This is the vendor binary's own behaviour, faithfully reproduced: the C array holds the exact 30 vendor bytes and the reader copies exactly 30 as the original does, so it is NOT a rebuild equivalence bug. It is the same buffer-larger-than-table pattern used by the sibling tables in this file (e.g. the 25-byte projectile table in a 28-byte buffer). High-ID offensive effects most likely route through other visual paths; left as-is per Layer-2 functional-equivalence goal. No fix in this stage.",
     "evidence": "Reader @0x1CD2C: MOV ECX,7 / MOV ESI,0x52006 / REP MOVSD / MOVSW = 30 bytes into ESP[32]; index @0x1CDE9 MOVZX EAX,byte[ESP+EBP*1+4] (EBP=spell_id). Next named table data_fd2_battle_spell_bit_mask_lookup_table begins at 0x52024 (=+30). Spell list: IDs 0x00..0x23, max 35.",
-    "resolution": "RESOLVED (closeout; vendor quirk, faithful-to-binary, info-only, no fix). Ghidra confirms 0x52006 = byte[30] (LEN=30), bounded by next table data_fd2_battle_spell_bit_mask_lookup_table @ 0x52024 (=0x52006+30). src declares const ...[30] (globals.h:452, anitab.c:255); reader copies exactly 30 (anicombt.c:348 memcpy(...,30)), matching the binary's REP MOVSD x7 + MOVSW into a 32-byte stack scratch. Spell IDs reach 0x23 (35); for id>=30 the indexed load reads the upper uninitialised stack slots -- vendor's own behaviour, faithfully reproduced (same buffer-larger-than-table pattern as sibling tables in the file). Not a rebuild-equivalence bug. No fix.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0017": {
     "id": "ISS-0017",
@@ -234,8 +218,7 @@
     "title": "pose X/Y table pair (0x52635, 0x52647) names are swapped vs blit math",
     "description": "0x52635 is named '..._pose_y_row_table' but is added directly to the destination (within-row/X); 0x52647 is named '..._pose_x_column_table' but is multiplied by the 0x1C8 row pitch (row/Y). The two names should be swapped together in Stage 2 so each name matches the axis it actually supplies. Recorded as a paired rename: 0x52635 -> '..._pose_x_within_row_table', 0x52647 -> '..._pose_y_row_table'. No logic change.",
     "evidence": "fd2_render_chapter_intro_overlay disassembly: 0x2D031 'MOVZX EDX, byte ptr [EAX + 0x52635]' then 0x2D044 'ADD EDX,EBX' (EBX = base+0x8088) = direct add; 0x2D046 'MOVZX EAX, byte ptr [EAX + 0x52647]' then 0x2D04D 'IMUL EAX,EAX,0x1C8' = multiply by row pitch. The overlay function's own Ghidra plate also notes 'the names read inverted vs their actual use'.",
-    "resolution": "RESOLVED (closeout) with ISS-0008. Names were already swapped-correct in Stage 2: 0x52635=...pose_x_column_table (X, added @ 0x2D031), 0x52647=...pose_y_row_table (Y, *0x1C8 @ 0x2D046) -- verified vs disasm + all 5 readers (rndmenu.c, chtrans.c, chintro.c usage all consistent: x_column->src_cx, y_row->src_cy of fd2_blit_scaled_chapter_pose). No rename needed (x_column/y_row are already axis-correct; the proposed x_within_row was only an alternate wording). Cleanup only: rewrote 0x52635/0x52647 Ghidra PLATEs to clean axis-correct text, cleared stale 0x52647 PRE, fixed chtrans.c:477. Comment/plate-only -> zero binary change.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0018": {
     "id": "ISS-0018",
@@ -248,8 +231,7 @@
     "title": "Loader/freer function comments still call this an SFX bank a 'walk-animation overlay'",
     "description": "The comment blocks of fd2_maybe_load_speed_mode_overlay (menucfg.c lines 395-412) and fd2_maybe_free_speed_mode_overlay (lines 422-436) still describe the resource as a 'fast-walk animation overlay' / claim AI/enemy turns 'swap to the trimmed walk-animation resource at FDOTHER.DAT index 0x40'. This is the same mischaracterization corrected in this global's own comment block: the pointer is an SFX sample bank, not walk-animation data. Those two function comment blocks belong to separate symbols (already refined in shards 0001a7bd.json and 0001a7f1.json) so they were NOT edited here per the one-symbol-per-message rule; they should be corrected (and the load/free function names possibly reconsidered, e.g. *_attack_sfx_bank rather than *_walk/_overlay) when those symbols are revisited. The function names fd2_maybe_load_speed_mode_overlay / fd2_maybe_free_speed_mode_overlay are acceptable (generic 'speed_mode' resource load/free) but their bodies/comments imply animation rather than SFX.",
     "evidence": "fd2_animate_attack_hit_sequence @0x1EA1A passes the pointer only to fd2_play_sfx_with_handle as sfx_table_base; fd2_play_sfx_with_handle plate @0x25A96 documents arg1 as an SFX sample bank (entry=base+id*4, sample off +6, end +10). Sibling FDOTHER SFX banks: data_fd2_audio_fdother_sfx_bank_buf_ptr @0x53EEC=FDOTHER.DAT[0x1F], loaded in main.c:76-79.",
-    "resolution": "RESOLVED (closeout). State was the reverse of the issue's prediction: the src comment blocks (menucfg.c:396-434 loader/freer + 446-464 global) were ALREADY corrected to 'SFX sample bank' during the Stage-2 global rename to ..._sfx_bank_buf_ptr -- no src change needed. The stale ones were the GHIDRA plates: rewrote fd2_maybe_load_speed_mode_overlay (0x1A7BD) + fd2_maybe_free_speed_mode_overlay (0x1A7F1) plates from 'walk-animation overlay' to SFX-sample-bank semantics with the current global name, and rewrote the global 0x53B0F PLATE (had old-name header + 'name should be...' wording) + cleared its fully-stale walk-overlay PRE. Verified it is an SFX bank (sole reader fd2_animate_attack_hit_sequence -> fd2_play_sfx_with_handle sfx_table_base; FDOTHER.DAT[0x40]). Function names *_speed_mode_overlay later renamed _overlay->_sfx_bank in closeout (user-approved 2026-06-25): now fd2_maybe_load/free_speed_mode_sfx_bank across src+tests+Ghidra (2 fn + 6 plate + epilogue label synced); also fixed the tests/ui_menu/menucfg.c gap where this global's rename had not synced. ISS-0018 itself was plate-only (no binary change); the later function rename is identifier-only (eqcheck-gated).",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0019": {
     "id": "ISS-0019",
@@ -262,8 +244,7 @@
     "title": "Read-only state template declared non-const (whole *_menu_state_template family)",
     "description": "data_fd2_ui_player_action_menu_state_template has zero game-side write-xrefs (both xrefs are READ/DATA from fd2_player_action_menu_loop; only the local stack copy is mutated) and lives in a write=false .object2 block, so per the project const-data policy it is a true read-only table and a candidate for const. It is currently declared non-const (int32 ...[4] at uitab.c:233), as are all 5 sibling *_menu_state_template arrays (uitab.c:193/211/233/253/275). The Ghidra annotation even tags emit_action=emit_c_const_zero, corroborating const intent. Changing const-ness is a type/declaration change explicitly out of scope for this comment/name refine stage, so it is recorded only. Note the sibling const option-templates in the same file (e.g. data_fd2_ui_inline_action_menu_template) ARE already const, so the state-template family is inconsistent with them.",
     "evidence": "Ghidra: block .object2 read=true write=false; xrefs_to 0x53f12 = {0x188ac DATA, 0x188b1 READ} both in fd2_player_action_menu_loop; read_memory(0x53f12,16)=all zero. src: uitab.c:233 declares 'int32 data_fd2_ui_player_action_menu_state_template[4] = {0,0,0,0};' (non-const), vs uitab.c:48 'const int32 data_fd2_ui_inline_action_menu_template[4]'. Old Ghidra PRE comment metadata: emit_action=emit_c_const_zero.",
-    "resolution": "ANALYZED; const semantically correct; APPLICATION DEFERRED to final review (user 2026-06-25). Verified all 5 *_menu_state_template @ 0x53EF2/F02/F12/F22/F32 have ZERO game write-xrefs (each only READ+DATA from one menu loop; the game copies the template into a local stack buffer and mutates only the copy), Ghidra block .object2 write=false, emit_action=emit_c_const_zero -> const is correct. Experimentally made the family const: build OK (0 undefined) but eqcheck FAIL = pure data relocation (zero-init arrays move to the CONST segment), code logic unchanged. Per user directive (semantic correctness CAN override baseline functional-equivalence, but do not diverge the binary mid-closeout), kept non-const for now; FINAL (user-approved at the closeout final review 2026-06-25): const APPLIED to all 5 templates (uitab.c defs + globals.h externs); baseline_eq.json + baseline_hash.txt ADVANCED to the const build (logic-neutral data relocation, code unchanged, 0 undefined); eqcheck now PASS[STRICT]. The rebuild intentionally differs from the original FD2.EXE only by this const-template relocation. See memory feedback_semantic_correctness_over_eqcheck.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0020": {
     "id": "ISS-0020",
@@ -276,8 +257,7 @@
     "title": "Game-side read-only global declared non-const (matches sibling family)",
     "description": "The global at 0x53F22 has zero game-side write-xrefs (only a DATA address-load + a READ via MOVSD from the sole reader; all mutation happens on the local stack copy). By the project rule 'zero game write -> const', it could be const. It is currently declared non-const `int32 ... = {0,0,0,0}` in src/table/uitab.c, consistent with the entire *_menu_state_template sibling family (field_command/game_options/player_action/item_command @ 0x53EF2/0x53F02/0x53F12/0x53F32), which are all non-const. Not changed here: const-ness is a declaration change (out of scope for the name/comment refine stage) and would need a coordinated routing emit_class update across the whole family rather than an isolated flip. Flagged for the family-level const audit, not an isolated drift.",
     "evidence": "get_xrefs_to(0x00053f22) returns exactly 2 refs, both from fd2_field_menu_status_save_load_quit_dispatch: 0x00019e1e [DATA] (MOV ESI,0x53f22) and 0x00019e23 [READ] (REP MOVSD source). No write-xref. Block .object2 is initialized; stored bytes are all-zero (read_memory 32 bytes = 0). Siblings at 0x53EF2/0x53F02/0x53F12/0x53F32 declared non-const in src/table/uitab.c.",
-    "resolution": "ANALYZED with ISS-0019 (same *_menu_state_template family). 0x53F22 verified zero game write-xrefs (DATA+READ from fd2_field_menu_status_save_load_quit_dispatch only). const APPLIED with ISS-0019 (user-approved at the final review 2026-06-25; baseline advanced to the const build, eqcheck PASS[STRICT]). See ISS-0019 + memory feedback_semantic_correctness_over_eqcheck.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0021": {
     "id": "ISS-0021",
@@ -290,8 +270,7 @@
     "title": "Co-dead orphan chain is emitted as const data + accessor, but pipeline_spec rule E-7e says it may be skipped",
     "description": "rebuild_info/emission/pipeline_spec.md rule E-7e classifies (data_fd2_orphan_table_60181 + fd2_get_orphan_table_60181_entry) as a co-dead data+accessor chain (accessor has 0 callers / 0 LE-FIXUP targets; Watcom keeps both only via mutual reference) and prescribes skip_unreachable_data + skip_unreachable_code (emit neither). The current src DOES emit both (orphan.c defines the table, table.c defines the accessor). This is functionally safe -- emitting extra unreachable const bytes plus a never-called accessor does not change behaviour -- but it is a discrepancy between the documented emit policy and the actual src. Not a correctness/equivalence bug; flagged for the post-workflow emission-policy reconciliation (decide whether to honor E-7e and drop the chain, or update E-7e to record that this chain is intentionally emitted). Out of scope for this comment/name refine.",
     "evidence": "rebuild_info/emission/pipeline_spec.md lines 283-303 (rule E-7e, names this exact data symbol/accessor); get_xrefs_to(0x60181) => single DATA xref from 0x4DB92 (the accessor's LEA), 0 other readers; get_function_callers / xrefs of fd2_get_orphan_table_60181_entry @ 0x4DB84 => 0 static callers; src/table/orphan.c + src/table/table.c both emit the chain.",
-    "resolution": "RESOLVED (closeout, KB reconciliation). Verified co-dead: get_function_callers(0x4DB84)=0 (accessor fd2_get_orphan_packed3_table_entry dead), get_xrefs_to(0x60181)=only the accessor's LEA @ 0x4DB92 (DATA), 0 other readers. Decision = KEEP emitting (do NOT honor E-7e's skip): the chain is physically present in FD2.LE -- E-7e itself notes Watcom retained both via mutual reference -- so byte-faithful equivalence REQUIRES the rebuild to reproduce it; the current src (orphan.c table + table.c accessor) emits it and eqcheck PASSES, whereas skip would shrink the binary and break eqcheck. Updated pipeline_spec.md E-7e: fixed stale pre-rename names (-> data_fd2_orphan_packed3_table / fd2_get_orphan_packed3_table_entry) and flipped the prescription from skip_unreachable_data/code to EMIT (with the equivalence rationale). Doc-only; no src/binary change.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0022": {
     "id": "ISS-0022",
@@ -304,8 +283,7 @@
     "title": "Live movement_cost_table buried inside a stale 'orphan/dead' byte[856] data unit in Ghidra",
     "description": "In Ghidra the symbol data_fd2_battle_movement_cost_table @0x61646 is only a label inside a single defined Data unit byte[856] spanning 0x615FD..0x61954 whose primary symbol is data_orphan_615fd_856b_leading_prefix_final_unreachable_unknown. The PRE_COMMENT on that unit (at 0x615FD) classifies the whole 0x615FD..0x61954 range as a dead/orphan/unknown leading prefix of a once-1024-byte weapon-animation blob. That classification is wrong for the 0x61646 sub-region (and for the adjacent 0x6188A job_allowed_items_table): both are LIVE, read by real accessors. The 856-byte unit actually covers orphan-prefix (0x615FD..0x61645, 73B) + movement_cost_table (0x61646..0x61889, 580B) + job_allowed_items_table (0x6188A..0x61954, 203B) = 856B exactly. Because the symbol has no code unit of its own at 0x61646, it has no own PLATE/PRE; the only nearby descriptive comment lives on a different symbol (0x615FD), so it is out of scope for this single-symbol refine and not editable here without restructuring the array (a multi-symbol layout change). The C source already represents these correctly as separate typed const arrays, so emit/codegen is unaffected; only the Ghidra annotation is misleading.",
     "evidence": "getCodeUnitContaining(0x61646) -> CU 0x615FD..0x61954, DT byte[856], PLATE=null, PRE='final_unreachable_unknown ... data_orphan_615fd_unknown_blob_1024b ... emit_action: skip_unreachable_data'. Symbols: 0x61646 primary=data_fd2_battle_movement_cost_table; 0x6188A primary=data_fd2_battle_job_allowed_items_table. Accessor disasm @0x4E555: MUL 0x14; LEA EDX,[0x61646]; ADD EAX,EDX (single DATA xref to 0x61646 from 0x4E562). Consumer disasm @0x4E188: SUB CL, byte ptr [ESI+EAX*1] (byte read, stride 1). 0x615FD + 0x358(856) = 0x61955.",
-    "resolution": "RESOLVED (closeout, Ghidra restructure). The byte[856] orphan unit @ 0x615FD mis-classified two LIVE tables as dead/skip_unreachable. Re-verified: movement_cost_table @ 0x61646 has accessor fd2_get_movement_cost_table_for_job (base+job*0x14, DATA xref @0x4E562, 8 callers) and job_allowed_items_table @ 0x6188A has fd2_get_job_allowed_items_table_entry (base+job*7, status.c reader) -- both read by real code; src already emits them as separate const arrays (globals.h:585-586, btltab3.c:450/505). Split the byte[856] into 3 typed units: byte[73] @ 0x615FD (relabeled data_orphan_615fd_73b_leading_prefix_unknown, genuinely dead), byte[580] @ 0x61646 (movement_cost_table + LIVE plate), byte[203] @ 0x6188A (job_allowed_items_table + LIVE plate); cleared the misleading whole-856B-dead PRE. Trailing pointer[21] @ 0x61955 untouched; verified new layout. Ghidra-annotation-only; C source unchanged -> no binary change.",
-    "status": "resolved"
+    "status": "open"
   },
   "ISS-0023": {
     "id": "ISS-0023",
@@ -318,7 +296,6 @@
     "title": "Ghidra struct type name 'spell_entry' differs from src struct name 'spell_effect'",
     "description": "The Ghidra data type applied at 0x619FD is 'spell_entry[36]' (label data_fd2_battle_spell_effect_table, length 252), while src/include/types.h and btltab3.c use the struct name 'spell_effect'. The two structs are byte-identical (7-byte pack(1), same field order/widths), so this is a cosmetic naming divergence only -- no layout or value difference. Not changed in this stage (type renames are out of scope for src-refine). Recorded for later type-name harmonization if desired.",
     "evidence": "Ghidra getDataAt(0x619fd): DT=spell_entry[36], DLEN=252, LABEL=data_fd2_battle_spell_effect_table. src/include/types.h line 80-87 defines 'typedef struct {...} spell_effect;'. btltab3.c line 622: 'const spell_effect data_fd2_battle_spell_effect_table[36]'.",
-    "resolution": "RESOLVED (closeout, Ghidra-only). Verified byte-identical layouts: Ghidra spell_entry (7B: wDA/bHT/bDS/bRN/bMP/bWH) == src spell_effect (7B: damage/hit_rate/cast_range_flags/area/mp_cost/target_side), field-for-field, pack(1). No spell_effect type pre-existed in Ghidra (no collision). Renamed the Ghidra data type spell_entry -> spell_effect (DataType.setName); the array @0x619fd now reports spell_effect[36] (len 252), matching btltab3.c/types.h. Field names kept Hungarian per the Ghidra-vs-src field convention. No src/binary change.",
-    "status": "resolved"
+    "status": "open"
   }
 }

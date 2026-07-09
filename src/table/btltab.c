@@ -260,7 +260,7 @@ void (*data_fd2_battle_ai_post_action_consequence_table[90])(uint32) = {
     fd2_chapter_event_handler_37__ch25_first_time,
     fd2_chapter_event_handler_38__ch25_dialog_with_state,
     fd2_chapter_event_handler_39__ch26_cinematic,
-    fd2_chapter_event_handler_3a__unref_pickup,
+    fd2_chapter_event_handler_3a__ch26_pickup,
     fd2_chapter_event_handler_3b__ch26_ai_ctrl,
     fd2_chapter_event_handler_3c__ch26_ai_ctrl,
     fd2_chapter_event_handler_3d__ch26_pickup,

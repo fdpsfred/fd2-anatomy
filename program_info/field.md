@@ -344,7 +344,10 @@ ch28/29/30 以同型 state-machine-mutator handler 控制變身序列、final bo
 ### 90-entry handler 對照表
 
 命名規則：`fd2_chapter_event_handler_NN__chC_<purpose>` / `__shared_<purpose>` /
-`__unref_<purpose>` / `__sentinel`。「refs」= 該 handler 被 FDFIELD hook 引用的次數。
+`__unref_<purpose>` / `__sentinel`。「refs」= 該 handler 被 FDFIELD 引用的次數：turn-event /
+tile-step hook，或 tile_pickup consequence（後者經 `menufld.c` 的
+`data_fd2_battle_ai_post_action_consequence_table[event_value]` 分派，例：idx 0x3A = ch26 的 5-寶箱
+pickup，5 筆 consequence-0x3A pickup tile 引用，故非 `__unref_`）。
 
 | idx | addr | 名稱 | category | chapters | refs |
 |---|---|---|---|---|---|
@@ -406,7 +409,7 @@ ch28/29/30 以同型 state-machine-mutator handler 控制變身序列、final bo
 | 0x37 | `0x353DA` | `fd2_chapter_event_handler_37__ch25_first_time` | first_time_gated | ch25 | 1 |
 | 0x38 | `0x35487` | `fd2_chapter_event_handler_38__ch25_dialog_with_state` | dialog_with_state | ch25 | 1 |
 | 0x39 | `0x354DD` | `fd2_chapter_event_handler_39__ch26_cinematic` | cinematic_no_dialog | ch26 | 9 |
-| 0x3A | `0x354FE` | `fd2_chapter_event_handler_3a__unref_pickup` | item_pickup | - | 0 |
+| 0x3A | `0x354FE` | `fd2_chapter_event_handler_3a__ch26_pickup` | item_pickup | ch26 | 5 |
 | 0x3B | `0x35641` | `fd2_chapter_event_handler_3b__ch26_ai_ctrl` | ai_setup | ch26 | 1 |
 | 0x3C | `0x35675` | `fd2_chapter_event_handler_3c__ch26_ai_ctrl` | ai_setup | ch26 | 1 |
 | 0x3D | `0x356B7` | `fd2_chapter_event_handler_3d__ch26_pickup` | item_pickup | ch26 | 1 |

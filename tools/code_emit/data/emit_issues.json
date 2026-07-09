@@ -754,12 +754,12 @@
     ]
   },
   "000354fe": {
-    "name": "fd2_chapter_event_handler_3a__unref_pickup",
+    "name": "fd2_chapter_event_handler_3a__ch26_pickup",
     "target": "field/chevt2.c",
     "issues": [
       {
         "type": "frame_layout_oob_index",
-        "desc": "Handler indexes a 5-byte local item-id table by the cursor tile terrain-class byte (item_id_table[tile_attr], 0xb5 sprite offset). The terrain class is the low byte of fd2_read_tile_attribute_at_pos out_buf[+2] (terrain_byte & 0x1F), range 0..0x1F, so classes 5..0x1F index past the 5-entry table. In the binary this is the literal frame read *(byte*)((int)&var_14 + var_1a) into the adjacent stack frame; the emitted C item_id_table[tile_attr] reads whatever the compiler lays out after item_id_table[5]. For real game data only classes 0..4 occur on a pickup tile (and the slot is unreferenced by any chapter FDFIELD hook, so it is never reached with live tile data), making classes 0..4 byte-identical; the out-of-range case is frame-layout dependent and would need a post-build disasm of this frame to confirm bit-identity. Low risk: dead/cut content path, in-range cases exact.",
+        "desc": "Handler indexes a 5-byte local item-id table by the cursor tile terrain-class byte (item_id_table[tile_attr], 0xb5 sprite offset). The terrain class is the low byte of fd2_read_tile_attribute_at_pos out_buf[+2] (terrain_byte & 0x1F), range 0..0x1F, so classes 5..0x1F index past the 5-entry table. In the binary this is the literal frame read *(byte*)((int)&var_14 + var_1a) into the adjacent stack frame; the emitted C item_id_table[tile_attr] reads whatever the compiler lays out after item_id_table[5]. For real game data only classes 0..4 occur on a pickup tile (ch26's 5 box tiles use terrain classes 0..4, one per class-best weapon), making classes 0..4 byte-identical; the out-of-range case is frame-layout dependent and would need a post-build disasm of this frame to confirm bit-identity. Low risk: the slot is LIVE (ch26 5-box pickup, reached via tile_pickup consequence 0x3A dispatched by menufld.c) but only classes 0..4 occur on the box tiles, so in-range cases are exact and the OOB index is unreachable in real play.",
         "severity": "low",
         "verify_method": "compile_and_disasm"
       }

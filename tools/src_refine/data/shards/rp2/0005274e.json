@@ -8,7 +8,7 @@
   "kind": "global",
   "home": "ROOT/src/field/chevt2.c",
   "purpose": "Inline 5-byte const lookup table mapping tile terrain-class index (0..4) to the item id granted by the tile-pickup chapter event handler (dispatch idx 0x3A).",
-  "logic_summary": "5 const bytes { 0x1D, 0x2B, 0x33, 0x3D, 0x47 } copied into a local at handler entry, then indexed by the cursor tile's terrain-class byte to pick which item the pickup tile hands out. Each entry is the class-best ultimate weapon for one job line: 0x1D 戰神戟 (knight), 0x2B 魔神斧 (warrior), 0x33 風神弓 (archer), 0x3D 光之杖 (priest), 0x47 魔龍爪 (samurai). All five are AP-400 items tagged '最強武器' in the item KB. Only reader is fd2_chapter_event_handler_3a__unref_pickup @ 0x354fe (currently unreferenced by any chapter FDFIELD hook).",
+  "logic_summary": "5 const bytes { 0x1D, 0x2B, 0x33, 0x3D, 0x47 } copied into a local at handler entry, then indexed by the cursor tile's terrain-class byte to pick which item the pickup tile hands out. Each entry is the class-best ultimate weapon for one job line: 0x1D 戰神戟 (knight), 0x2B 魔神斧 (warrior), 0x33 風神弓 (archer), 0x3D 光之杖 (priest), 0x47 魔龍爪 (samurai). All five are AP-400 items tagged '最強武器' in the item KB. Only reader is fd2_chapter_event_handler_3a__ch26_pickup @ 0x354fe (ch26's live 5-box treasure pickup, reached via tile_pickup consequence 0x3A dispatched by menufld.c).",
   "datatype": "const unsigned char[5]",
   "element_semantics": "Each byte is an item id (range 00h-D6h) granted for the corresponding tile terrain-class index. [0]=0x1D 戰神戟/knight-best, [1]=0x2B 魔神斧/warrior-best, [2]=0x33 風神弓/archer-best, [3]=0x3D 光之杖/priest-best, [4]=0x47 魔龍爪/samurai-best. Reader adds +0xB5 to derive the dialog sprite id.",
   "is_const": true,
