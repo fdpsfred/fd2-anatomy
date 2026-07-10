@@ -1,16 +1,23 @@
-3b3a045373c7d3b1b18364b4c0d7245aa69584ad00c0d0829612edecee036036
+427bf7857c7b91172950da54ecfd78dd8f423b27c91513901b5d43a55f94d5a4
 # FD2.EXE production build sha256 (sha256sum of workspace/fd2_build/exe/out/FD2.EXE)
-# ADVANCED 2026-07-08: HEAD build after two intentional semantic-correctness commits
-#   that were not previously reflected in the baseline:
-#     15d32073 -- disable math.h intrinsics so sqrt/sin/cos match the original CRT call
-#                 form; drops the unused IF@DSQRT paths, -12520 bytes.
-#     395221d7 -- restore vendor stack-probe layout; fix sound-init Stack Overflow.
-#   Advancing so the eqcheck/hash_check gate tracks HEAD again. 336669 bytes,
-#   0 undefined symbols, built with tools/fd2_build/build_fd2.py (Watcom 9.5a, DOSBox-X).
-#   User-approved.
+# ADVANCED 2026-07-10: current HEAD build (chevt handler audit closeout, e88a30c).
+#   Delta vs the prior baseline = the committed src changes since c6fcda29, which include:
+#     e68665c7 -- data_fd2_battle_job_crit_rate_table [27] -> [28]: reserve the class_id 0x1C
+#                 crit entry (value 0) that the damage code reads via table[job_id-1] (verified:
+#                 the read is an unbounded MOVZX [job_id-1 + 0x5239B]; class 0x1C = Dakuse /
+#                 swamp monster does physical attacks and indexes element 27; the parallel
+#                 job_magic_resist_table[28] has a real value 7 at element 27, fixing the domain
+#                 at 28). A [27] array leaves index 27 reading a neighbour in the freely-linked
+#                 Layer-2 build.
+#     kb-overhaul data/comment refinements and byte-neutral chevt/symbol renames.
+#   Verified: a fresh deterministic rebuild is byte-identical to this sha256, and eqcheck
+#   (baseline_eq.json, regenerated from this same build) is PASS[STRICT]. 336669 bytes,
+#   0 undefined symbols, Watcom 9.5a in DOSBox-X. User-requested advance.
+# Prior baseline: 3b3a045373c7d3b1b18364b4c0d7245aa69584ad00c0d0829612edecee036036
+#   (2026-07-08 HEAD after math.h-intrinsics-off 15d32073 + stack-probe restore 395221d7, 336669 bytes).
 # Prior baseline: 2f2e12da2205f917175ba676722ee5d3355814446d7f302c74914c115c44958d
 #   (const-template build, 349189 bytes, src_refine closeout ISS-0019/0020, 2026-06-25).
-# Baseline chain before that: ab5f110af02608462a1da464732c098ef4dc8e17e6dc43252b535ed1cbf3bd9b
+# Baseline chain root: ab5f110af02608462a1da464732c098ef4dc8e17e6dc43252b535ed1cbf3bd9b
 #   (src commit f83ec3c977835a8a121296868b082f22900ca1d3), byte-identical to the original FD2.EXE.
 # The eqcheck gate uses baseline_eq.json (regenerated from this same HEAD build); this hash
 #   file is the legacy hash_check.py reference.

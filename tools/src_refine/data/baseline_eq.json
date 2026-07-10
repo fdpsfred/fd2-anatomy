@@ -2,9 +2,9 @@
   "size": 336669,
   "fixup_lo": 11216,
   "fixup_hi": 64414,
-  "outside_sha256": "1206047605e59cb77e47b8144c66ed63b5a7905529188e04e2ae6a3c9b751baf",
-  "fixup_multiset_sha256": "70e945912c2489e5c5dc7a333a91880ce623c23c0836ea48af9bae019bbb09f5",
+  "outside_sha256": "3a577e63a67bf2cac0c628d89548cf132a9f8c7b178c4b19d43258fa44dc9553",
+  "fixup_multiset_sha256": "253148d1f209cb40e53d8f5310ae4294b977880c6efe58fb8a7bc9274f032a29",
   "fixup_len": 53198,
-  "residual_sha256": "56a78b7fefdafc2eff9c78df7d3c9cd3a192ca64edbff9c8059a1cd9416075d1",
+  "residual_sha256": "67de4fd914f391e8fec88f580f6346609671e5e058e587567114c52f5010c1e3",
   "_doc": "Baseline functional-equivalence profile for Stage-2. outside_sha256 = sha256 of the EXE minus the LE fixup record table (STRICT: must stay identical). fixup_multiset_sha256 = sha256 of the sorted fixup-table bytes (same relocation set, order may differ after renames). residual_sha256 = sha256 of the EXE with every fixup site value AND the fixup record table blanked (RELOC: stays identical under pure COMDEF relocation; any real code/data edit breaks it). From the byte-identical baseline build."
 }
