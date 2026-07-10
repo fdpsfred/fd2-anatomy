@@ -141,7 +141,11 @@ binary immediate-search（掃「callsite 50 指令內 immediate」+ 排除 3 張
 
 判定：cut content，且三者是**同一個被移除的早期英文前端**——英文標題（0x61）→ 密碼防拷（0x62 錯誤橫幅）→ 以數字（0x60 字模）＋角色小頭像（0x60）呈現的存檔／角色選擇畫面。皆合法資源、binary 零引用，非隨機殘料。
 
-三者解碼後的實圖如下（以 FDOTHER[0] base VGA palette 上色，故整體偏藍、非原版設計配色，但結構與文字清楚；重繪見 `tools/rsrc_unresolved/verify_dead.py` 同目錄的解碼工具）：
+三者解碼後的實圖如下。上色用 FDOTHER[0]（已驗證為 base gameplay VGA palette；`main.c`
+三處把它載入 `data_fd2_vga_palette_data_ptr`）。但這 3 個 entry 是 dead——程式從不載入、
+也從不替它們指定 palette，故**原始顯示配色不可考**：同一份像素換不同 FDOTHER palette
+（實測 0x08→黃、0x4C→深藍、0x00→藍）色調完全不同，此處僅取 base palette 作結構／文字示意，
+圖中顏色不代表設計原色。（解碼工具見 `tools/rsrc_unresolved/`。）
 
 **0x61** — 未用英文標題/選擇畫面「FLAME DRAGON II」（(C) 1994,1995 Dynasty International）：
 
