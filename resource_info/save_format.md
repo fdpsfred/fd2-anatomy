@@ -89,9 +89,12 @@ offset     size      global / 內容
 ```
 
 slot 前 `0xA00` bytes 是選單隊伍 roster template，不是地圖／地形快照；scalar 欄位只到
-`+0xA09`，其後 `0x1E`（30）bytes 為未使用的保留 padding
+`+0xA09`，其後 `0x1E`（30）bytes slot 存讀兩端皆不觸碰
 （`fd2_save_current_state_to_slot` 寫入序列見 `save.c:294..303`，載入序列見
-`fd2_load_state_from_selected_slot @ 0x301F4` `save.c:393..402`）。
+`fd2_load_state_from_selected_slot @ 0x301F4` `save.c:393..402`）。唯一例外是 **slot 3**：
+其 padding 末 4 byte（slot-local `+0xA24..+0xA27`，絕對 `0x59C7..0x59CA`）與整檔 checksum
+u32 位置重疊，故每次存檔仍會經 `pBuf + 0x59C7` 被寫入、載入時經 checksum 比對被讀取（見上
+「整體 layout」註記）。slot 0..2 的 30-byte padding 與 slot 3 的前 26 byte 才是真正未用的保留區。
 
 ## 加密與 checksum
 

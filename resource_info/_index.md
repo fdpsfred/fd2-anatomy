@@ -18,7 +18,7 @@
 - `fdmus.md` — FDMUS.DAT (20 entries: 15 XMI + 5 placeholder)、
   `fd2_set_bgm_track_with_fade` dispatcher、per_chapter BGM 表
 - `fdother.md` — FDOTHER.DAT 103 entries (含 29 nested sub-archive)、
-  分類統計、12 個 confirmed_dead idx
+  分類統計、3 個 confirmed_dead idx（含 9 個舊誤判回收）
 - `dato.md` — DATO.DAT 80×80 portrait sprite (136 entries × 4 view)
 - `figani.md` — FIGANI.DAT (408 entries) 必殺技 / 召喚動畫 byte-stream
 - `bg.md` — BG.DAT (56 entries) 320×100 cinematic / battle BG (`fd2_rle_blit_sprite` RLE)

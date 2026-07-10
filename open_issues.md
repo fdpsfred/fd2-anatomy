@@ -60,21 +60,6 @@ Watcom `__FpAbort`，`current_name` 更正、`verified` 標 `byte_match_disputed
 hardcoded immediate（字串 / data / call target ptr）抽出，比對對應 lib `.obj` 相同 offset FIXUPP 後的真實 target，
 找其他 false positive；可作為 lookup 維護的 regression script。
 
-### [資源檔格式未解]（data-only；caller 不對 unknown byte 做條件分支，不影響 emission）
-
-- **TAI.DAT payload** — 每 entry `+0x00..0x03` = width/height（u16 LE ×2），後續 opcode / payload 序列未解碼。
-- **FDOTHER nested sub-entry** — 29 個 outer 各為 sub-archive、共 176 個 sub-entries；多數已對應具體 caller，
-  各 sub-entry 的 payload 內容（RLE sprite / SFX 樣本）未逐一 dump 分析。
-- **ANI.DAT header** — 0xAD-byte entry header 只解出 `+0xA5..0xA6` = frame_count（其餘無條件分支）；per-frame
-  header `+0x00..0x03` = data_size + opcode_count 已解，`+0x04..0x07`（4 bytes）用途未確認。
-- **FD2.SAV slot trailer `+0xA0A..0xA28`（30 bytes）** — 未細分 sub-field；save / load 走 memcpy 整段保留。
-- **tile_attribute_flags `+1` / `+3` byte** — `+0` flag bitfield（0x04/0x08/0x10 anim、0x80 renderable、0x20/0x40 event）與 `+2` terrain/anim-group enum（值域 0..0x37）已解；`+1`（值域 0..5）與 `+3`（恆 0）未解讀。
-- **FDOTHER 12 個 confirmed_dead idx content** — no-ref proof 確認 dead（已排除 8 個 table/LUT-driven live idx），
-  內容未解看有無 cut content 線索。
-- **ANI.DAT 9 個 entry 對應的 in-game cinematic 場景** — idx 1 = intro animation，其餘 8 個未對應。
-
-（各項多需 in-game trace caller 消費 buffer 時的行為 / 統計 byte 分布推測，屬 backlog。）
-
 ### [Data audit deferred]
 
 - **D8-1 `data_crt_emu387_internal_constant_database_174b @ 0x49a06`** — 174B multi-region const / state table，14 個
@@ -103,6 +88,17 @@ namespace（`< 0x44` player class）/ FDFIELD entry layout（0x83 header + N×0x
 runtime_char 80B layout（+0x09·+0x27 為 reserved padding、+0x4C 命中 / +0x4E 迴避）/ FD2.SAV layout /
 Enemy AI 12 種 behavior class·kill-shot 加權·20% idle heal·two-pass caster / endgame char_spawn_count 控制載入範圍 /
 chinese_glyph 1824 字對照 / 攻略筆誤：ch13「哈瓦諾」＝哈瓦特。
+
+**資源檔格式**（見 `resource_info/`；ground-truth 分析工具 `tools/rsrc_unresolved/`）：
+TAI.DAT payload = RLE 4-op sprite（16 placeholder + 40 sprite 全 round-trip）/ FDOTHER 29 nested
+archive·176 sub-entry 內容分類（3 sprite 群組 65 張 + 26 PCM SFX bank 111 樣本；0x1F/0x4D 更正為
+SFX bank）/ ANI.DAT 0xAD header = AFM 工具檔頭（ASCII banner + 320×200 描述子，只讀 `+0xA5`
+frame_count）·per-frame `+4..+7` 恆 0·9 entry 逐一對應 cinematic 場景 / FD2.SAV slot trailer
+`+0xA0A..` 30 bytes = 0xA28 stride 保留 padding（writer 只寫到 `+0xA09`；slot 3 尾 4 byte 與整檔
+checksum 重疊）/ tile_attribute `+1`（0..5）= 地形戰鬥修正 class（AP%/DP% 表）·`+3` 恆 0 且無 consumer /
+FDOTHER dead idx 由 src 全載入點窮舉重驗＝只 3 個真 dead（0x60 tile sheet / 0x61 全螢幕圖 / 0x62 banner）；
+舊「12 dead」有 9 個誤判，實為 `fd2_play_spell_cast_sequence` function-local 表載入的 caster sprite
+（0x25/0x26/0x2B/0x2C）與 spell-intro SFX bank（0x52/0x53/0x55/0x56/0x57）。
 
 **重建分類／audit**（見 `rebuild_info/crt`·`ail`·`equivalence`·`link` 與 Ghidra plate）：
 全 1342 個 function 端到端 re-review（name / cc / plate）/ 四 pool + emit_action 分類架構 / CRT byte_match lookup

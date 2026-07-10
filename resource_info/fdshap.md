@@ -84,23 +84,34 @@ ch1 sample (FDSHAP[0])：147,740 bytes，288 個 24×24 tile。
 
 ## tile_attribute_flags (`shap_id × 2 + 1`)
 
-- 4 bytes per tile，無 header
-- 每 4-byte 結構（3 個 reader `fd2_composite_battle_tile_map @ 0x12247` /
-  `fd2_blit_animated_tile_at_pos @ 0x12AC6` / `fd2_read_tile_attribute_at_pos @ 0x12E86`
-  皆以 `buffer + tile_id × 4` 索引、flag 讀自 byte **+0**）：
+- 4 bytes per tile，無 header，以 `buffer + tile_id × 4` 索引。
+- `fd2_read_tile_attribute_at_pos @ 0x12E38` 把整整 4 個 byte 抄進一個 8-byte
+  out-buffer（`+0`→`out+4`、`+1`→`out+5`、`+2`→`out+6`、`+3`→`out+7`；另在 `out+0/+2`
+  放 tile-map 的 sprite_idx 與 5-bit terrain_class）。各 byte 的實際消費者：
 
 ```
-+0  byte  animation / renderable / event flag bits:
++0  byte  animation / renderable / event flag bitfield:
             0x04 = animated frame +1/tick
             0x08 = animated frame +2/tick
             0x10 = palette half-step
             0x80 = renderable (gate tile blit)
-            0x20 / 0x40 = event-class (per read_tile_attribute plate；render reader 不消費)
-+1  byte  ? (值域 0..5，未解讀)
-+2  byte  terrain / animation-group enum (值域 0..0x37，非 bit 組合)
-+3  byte  ? (全 tile 恆 0)
+            0x20 / 0x40 = event-class
+          消費者：fd2_blit_animated_tile_at_pos（0x08 動畫、0x80 renderable）、
+          fd2_composite_battle_tile_map、fd2_read_tile_attribute_at_pos。
++1  byte  terrain 戰鬥修正 class (值域 0..5)。索引兩張 const int32[6] 修正表：
+            data_fd2_battle_tile_attr_mv_modifier_table  = {5, 0, -5, -5, -5, 0}  → AP %
+            data_fd2_battle_tile_attr_def_modifier_table = {0, 0, 10, 10, -5, 0}  → DP %
+          攻方 AP、守方 DP 各按站立 tile 的此 class 加成 ±%。消費者（皆讀 out+5）：
+          命中／傷害結算 fd2_calculate_combat_hit_outcome @ 0x29F72 與
+          fd2_execute_attack_damage_calculation @ 0x1ECC7、AI 評分 (btl_aisc.c)、
+          地形 HUD 面板 fd2_render_terrain_info_hud_panel @ 0x1ACF3。
++2  byte  terrain / animation-group enum (值域 0..0x37，非 bit 組合)。cinematic 合成時
+          當 BG.DAT / TAI.DAT 的地形背景 index（施法者腳下 tile 的此 byte 決定底圖／名牌，
+          見 codecs / bg / tai）。消費者讀 out+6（spellcin.c / anicine.c）。
++3  byte  恆 0。reader 雖抄進 out+7，但無任何 consumer 讀取 out+7 → 純結構補齊的第 4 byte。
 ```
 
+值域經全 33 個 attr 表逐 tile 驗證：`+1` 恰落在 0..5、`+2` 落在 0..0x37、`+3` 全 tile 皆 0。
 ch1 sample: 1200 bytes / 4 = 300 tiles。
 
 ## 驗證

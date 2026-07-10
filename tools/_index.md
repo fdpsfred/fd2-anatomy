@@ -20,6 +20,7 @@ import shared lib、不依賴 `legacy/`。CLI 用法看 `python <script> --help`
 | `fd2_play/` | 決定論 playthrough 整合測試工具：`build_replay.py` 編 FD2RP.EXE（src + `-DFD2_REPLAY`）、`run_play`/`run_all` 跑 scenario、`compare`/`expect` 比對 framebuffer+state golden、`gen_scenario`/`sweep_chapters`/`st_dump`/`fb2png` 輔助（詳見 `fd2_play/_index.md`）|
 | `kb_overhaul/` | KB 翻新用產生器：`gen_ch_encounters` / `gen_ch_section3` / `gen_ch_shops` 由 byte-verified FDFIELD 表產各章 §敵人·寶物·商店、`rebase_row_addr` 跨版本資料表位址 rebase |
 | `tests_rename/` | `tests/` 舊 symbol 名批次同步：`sync_rename.py` 依 `rename_old2new.json` 改名、`verify.py` 驗證 |
+| `rsrc_unresolved/` | 資源檔格式 ground-truth 分析：`analyze.py` 對真遊戲檔驗證 FDOTHER nested/dead 內容分類、ANI 檔頭與 per-frame 欄位、FDSHAP tile-attribute 值域、TAI round-trip（結論已整合進 `resource_info/`）|
 
 ## 資料儲放慣例
 

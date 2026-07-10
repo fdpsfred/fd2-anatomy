@@ -17,8 +17,10 @@ LLLLLL archive（統一格式見 `overview.md`）。每個 entry 是一段 RLE 4
 stream：`+0 u16 width`、`+2 u16 height`、`+4` 起為 command byte 串。opcode 表、
 len 公式與 palette_op 模式是所有 RLE sprite 共用的編碼，見 `codecs.md`，此處不重述。
 
-56 個 entry 中有一部分是 7-byte placeholder，內容為常數 `0A 00 03 00 C9 C9 C9`
-（與 BG.DAT 共用同一個 placeholder 常數）；其餘 entry 是可繪製的 sprite。
+56 個 entry 中 16 個是 7-byte placeholder，內容為常數 `0A 00 03 00 C9 C9 C9`
+（與 BG.DAT 共用同一個 placeholder 常數）；其餘 40 個是可繪製的 RLE sprite，
+全數以 `+0 u16 width / +2 u16 height / +4 command 流` 的格式 round-trip 解碼還原無誤
+（payload 無任何未解 opcode，編碼即 `codecs.md` §A 的 RLE 4-op）。
 
 ## 載入與繪製
 
