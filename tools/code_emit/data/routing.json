@@ -3773,7 +3773,7 @@
     "reviewed": true
   },
   "000343e2": {
-    "name": "fd2_chapter_event_handler_04__unref_dialog_with_state",
+    "name": "fd2_chapter_event_handler_04__ch1_hawate_berserk",
     "target": "field/chevt1.c",
     "phase": 7,
     "done": true,
@@ -3813,7 +3813,7 @@
     "reviewed": true
   },
   "00034594": {
-    "name": "fd2_chapter_event_handler_0c__unref_first_time",
+    "name": "fd2_chapter_event_handler_0c__ch4_orc_flee",
     "target": "field/chevt1.c",
     "phase": 7,
     "done": true,
@@ -3853,7 +3853,7 @@
     "reviewed": true
   },
   "00034716": {
-    "name": "fd2_chapter_event_handler_13__unref_char_cond",
+    "name": "fd2_chapter_event_handler_13__ch5_boss_defeat",
     "target": "field/chevt1.c",
     "phase": 7,
     "done": true,

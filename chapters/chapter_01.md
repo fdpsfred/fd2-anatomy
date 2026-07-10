@@ -60,12 +60,22 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
   prologue cutscene 的 FDTXT 對白跨 entry 33（Phase A+B）→ entry 32（Phase C）→
   entry 1（Phase D 正式戰鬥）。
 
-- **哈瓦特暴走**：哈諾（char_id 1）死後，哈瓦特的 AI 因失去 ai_target 自然 fall-through
-  為 default attacker。屬 implicit consequence，非 turn-triggered AI flip。
+- **哈瓦特暴走**：哈諾（char_id 1）陣亡為觸發，效果分「顯式 handler ＋ 隱式 AI fall-through」兩層
+  （皆非 turn-triggered）。
+  - **顯式層（kill-drop consequence handler 0x04）**：record[9] 哈諾的 `pickup_kind=2 param=4`
+    是**死亡 kill-drop**（**非** reinforcement 觸發；此欄由 `fd2_init_runtime_char_for_battle` 拷到
+    runtime_char `+0x31/+0x32` 作 drop type/value）。哈諾被擊殺時 `fd2_collect_pending_death_drops`
+    ＋ `fd2_process_battle_drop_entries` 對 type-2 entry 分派
+    `fd2_chapter_event_handler_04__ch1_hawate_berserk @ 0x343E2`，把哈瓦特（runtime slot 0xD）翻為
+    team 1（脫離玩家操控的自走 NPC）並顯示 entry 1 dialog page 7（哈諾負傷撤退／哈瓦特震怒）。
+  - **隱式層（AI fall-through）**：翻成 NPC 後的哈瓦特，其 default attacker AI 因 ai_target 已 dead
+    而失準四處攻擊（機制見下方 protective 行為說明），即「暴走」。
+  - 哈諾的第 3 回合登場是另一條路徑：turn-event handler 0x00（turn 3 / phase 1）以
+    `base_growth(1)` ＋ `load_chapter_portraits(3/7)` 生成哈諾與哈瓦特，與上述 drop 欄位無關。
   - FDFIELD entry 1 唯二的 `team=2 player_class` record 是 record[8] @+0x153
     (char_id 0x03 哈瓦特, lv3, race=7) 與 record[9] @+0x16D
-    (char_id 0x01 哈諾, lv1, race=3, pickup_kind=2 param=4 = 第 3 回合 reinforcement
-    觸發)；其餘為 enemy_class 與 team=1 NPC（友方海防隊士兵 ×4 @ record[19..22]）。
+    (char_id 0x01 哈諾, lv1, race=3, pickup_kind=2 param=4 = 上述死亡 kill-drop)；其餘為
+    enemy_class 與 team=1 NPC（友方海防隊士兵 ×4 @ record[19..22]）。
   - **三 byte AI override**（char_spawn_record `+0x11/+0x12/+0x13` =
     `ai_class_flags / ai_aux / ai_target_pos`，由 `fd2_init_runtime_char_for_battle @ 0x10C50`
     拷到 runtime_char `+0x34/+0x35/+0x36` = `pCombat_aux_block[0xD/E/F]`）對哈瓦特與哈諾

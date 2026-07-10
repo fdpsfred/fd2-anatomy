@@ -5505,21 +5505,21 @@
   },
   "000343e2": {
     "address": "000343e2",
-    "name_current": "fd2_chapter_event_handler_04__unref_dialog_with_state",
-    "name_final": "fd2_chapter_event_handler_04__unref_dialog_with_state",
-    "name_verdict": "keep",
-    "name_proposed": null,
-    "name_reason": "Follows fd2_<domain>_<descriptor>. The '04' is the per-event handler dispatch-table index (table at 0x51B91; verified this function is entry idx 4 there), a meaningful domain ID that must be preserved, NOT an address residue. 'unref' accurately marks it as unreferenced by any FDFIELD turn-event/tile-step hook (no chapter wires to slot 4 -- likely cut content). 'dialog_with_state' matches the body: it mutates runtime-char team state then shows a dialog page. No hex address suffix.",
+    "name_current": "fd2_chapter_event_handler_04__ch1_hawate_berserk",
+    "name_final": "fd2_chapter_event_handler_04__ch1_hawate_berserk",
+    "name_verdict": "rename",
+    "name_proposed": "fd2_chapter_event_handler_04__ch1_hawate_berserk",
+    "name_reason": "Compliant fd2_<domain>_<descriptor>. '_04' is the per-event handler-table dispatch index (0x04) from the table at 0x51B91 (slot 0x51BA1 holds this function's address), a meaningful domain ID, not Ghidra address residue. Descriptor corrected from '__unref_dialog_with_state' to '__ch1_hawate_berserk': the slot is LIVE, reached via the ch1 kill-drop path -- ch1 char_spawn_record[9] (哈諾, char_id 0x01) carries pickup_kind=2 param=0x04, so when 哈諾 falls fd2_process_battle_drop_entries dispatches consequence[0x04]. The body is the explicit trigger of the 哈瓦特暴走 beat (flips 哈瓦特 to auto-NPC + retreat/rage dialog). The earlier 'unref/cut content' verdict only scanned turn-event/tile-step hooks and missed the kill-drop path.",
     "kind": "function",
     "home": "src/field/chevt1.c",
-    "purpose": "Chapter event handler dispatched as index 0x04 of the per-event handler table at 0x51B91 (unreferenced by any chapter hook -- likely cut content): flips 哈瓦特 (char_id 0xD) to team 1 (npc/ally) and shows dialog page 7.",
-    "logic_summary": "__CHK(0x28) compiler stack-probe prologue; sets data_fd2_battle_runtime_char_array_ptr[0xD].team = 1 (0xD*0x50 stride = +0x410, .team at +0x6); calls fd2_display_dialog_scene(data_fd2_current_chapter_text, page=7, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) then returns. In the original binary the dialog call is the head of a shared tail at 0x343FA reused (JMP target) by fd2_chapter_event_handler_11 @ 0x346C8 for its page-7 dialog; reproduced inline in src for Layer-2 equivalence. event_arg is never read.",
-    "signature": "void __cdecl fd2_chapter_event_handler_04__unref_dialog_with_state(uint32 event_arg)",
+    "purpose": "Chapter 1's 哈瓦特暴走 explicit trigger (per-event handler-table dispatch idx 0x04, reached via the ch1 kill-drop consequence path): when 哈諾 (char_id 0x01, spawn record[9], pickup_kind=2 param=0x04) falls, this flips 哈瓦特 (runtime slot 0xD, the only other team-2 FDFIELD unit) from player control to auto-NPC (team = 1) and shows dialog page 7 (哈諾 retreat / 哈瓦特 rage).",
+    "logic_summary": "__CHK(0x28) compiler stack-probe prologue; sets data_fd2_battle_runtime_char_array_ptr[0xD].team = 1 (0xD*0x50 stride = +0x410, .team at +0x6 -- runtime slot 0xD is 哈瓦特, not char_id 0xD); calls fd2_display_dialog_scene(data_fd2_current_chapter_text, page=7, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) then returns. In the original binary the dialog call is the head of a shared tail at 0x343FA reused (JMP target) by fd2_chapter_event_handler_11 @ 0x346C8 for its page-7 dialog; reproduced inline in src for Layer-2 equivalence. event_arg (the killer_idx) is never read.",
+    "signature": "void __cdecl fd2_chapter_event_handler_04__ch1_hawate_berserk(uint32 event_arg)",
     "params": [
       {
         "name": "event_arg",
         "type": "uint32",
-        "semantics": "Single uniform-cdecl argument passed by the dispatch table at 0x51B91; the body never reads it (cast to void in src). Present only to match the table's 1-arg calling convention.",
+        "semantics": "Single uniform-cdecl argument passed by the dispatch table at 0x51B91 (the kill-drop recipient/killer idx); the body never reads it (cast to void in src). Present only to match the table's 1-arg calling convention.",
         "verdict": "keep",
         "proposed": null,
         "reason": "Descriptive of its role (the dispatched event argument), accurate (unused per disasm/decomp), no address residue."
@@ -5534,11 +5534,11 @@
       "data_fd2_current_chapter_text (0x53A79) -- chapter text/dialog source passed to fd2_display_dialog_scene"
     ],
     "writes_globals": [
-      "data_fd2_battle_runtime_char_array_ptr[0xD].team (via the pointer; sets char_id 0xD 哈瓦特 team = 1)"
+      "data_fd2_battle_runtime_char_array_ptr[0xD].team (via the pointer; sets runtime slot 0xD 哈瓦特 team = 1 = auto-NPC)"
     ],
-    "comment_original_issue": null,
-    "comment_verdict": "keep",
-    "ghidra_plate_action": "none",
+    "comment_original_issue": "Source comment (chevt1.c) previously stated the slot was unreferenced / possibly cut content and labeled the flipped unit 'char_id 0xD'. Corrected: the slot is LIVE via the ch1 kill-drop path (record[9] 哈諾 pickup_kind=2 param=0x04), and index 0xD is a runtime-char slot (哈瓦特), not a char_id. Rewrote to describe the 哈瓦特暴走 trigger.",
+    "comment_verdict": "edit",
+    "ghidra_plate_action": "edit",
     "issues": [],
     "processed": true,
     "committed": true,
@@ -5546,7 +5546,7 @@
     "status": "done",
     "ghidra_unreachable": false,
     "ghidra_error_detail": "",
-    "notes": "Source body (chevt1.c:314-321) matches decompiled logic exactly: team=1 write + 9-arg fd2_display_dialog_scene with page=7. Globals confirmed in globals.h (0x53A45 / 0x53A79) and runtime_char.team at +0x06 (types.h: 0=enemy 1=npc 2=player) -- consistent with disasm MOV byte ptr [EAX+0x6],1 and the 0x410 offset. Source comment (lines 293-313) and Ghidra plate are both accurate, precise, and mutually consistent; no Edit and no plate update needed. xref-to confirms single DATA ref from 0x51BA1 (the handler table slot).",
+    "notes": "Source body (chevt1.c) matches decompiled logic exactly: team=1 write + 9-arg fd2_display_dialog_scene with page=7. Globals confirmed in globals.h (0x53A45 / 0x53A79) and runtime_char.team at +0x06 (types.h: 0=enemy 1=npc 2=player). CLASSIFICATION CORRECTION (renamed unref_dialog_with_state -> ch1_hawate_berserk): the earlier 'unref/cut content' verdict was WRONG -- it only checked turn-event/tile-step hooks and missed that a spawn record's +0x16 pickup_kind==2 drop dispatches consequence[param] on death (fd2_init_runtime_char_for_battle copies record+0x16/+0x17 to runtime_char+0x31/+0x32; fd2_collect_pending_death_drops + fd2_process_battle_drop_entries dispatch type-2 entries). ch1 record[9] (哈諾, char_id 0x01, race 0x03) has pickup_kind=2 param=0x04, so 哈諾's fall dispatches this slot -- the explicit 哈瓦特暴走 trigger (dialog page 7 = 哈諾 retreat / 哈瓦特 rage, matches FDTXT). xref-to still shows only the DATA table slot 0x51BA1 (the FDFIELD reference is runtime-computed [param*4+0x51B91], not a static xref). Rename verified byte-equivalent by eqcheck.",
     "_shard": "src_refine/data/shards/rp1/000343e2.json"
   },
   "00034422": {
@@ -5695,21 +5695,21 @@
   },
   "00034594": {
     "address": "00034594",
-    "name_current": "fd2_chapter_event_handler_0c__unref_first_time",
-    "name_final": "fd2_chapter_event_handler_0c__unref_first_time",
-    "name_verdict": "keep",
-    "name_proposed": null,
-    "name_reason": "Follows fd2_<domain>_<descriptor> convention. The '0c' is a domain ID = index 0x0C of the per-event handler dispatch table at 0x51B91 (valid table-index range 0x00..0x2E), NOT a Ghidra address residue (the function's own address is 0x34594, unrelated to 0x0C). The '__unref_first_time' descriptor accurately captures both observed properties: the slot is unreferenced by any chapter FDFIELD turn-event/tile-step hook (0 direct callers; only DATA xref is the table slot at 0x51BC1), and the body is first-time-gated (runs once, then consumes tile_event_consumed_flags[0x10]). No address residue anywhere in the name.",
+    "name_current": "fd2_chapter_event_handler_0c__ch4_orc_flee",
+    "name_final": "fd2_chapter_event_handler_0c__ch4_orc_flee",
+    "name_verdict": "rename",
+    "name_proposed": "fd2_chapter_event_handler_0c__ch4_orc_flee",
+    "name_reason": "Follows fd2_<domain>_<descriptor>. '0c' is a domain ID = index 0x0C of the per-event handler dispatch table at 0x51B91, NOT a Ghidra address residue. Descriptor corrected from '__unref_first_time' to '__ch4_orc_flee': the slot is LIVE, reached via the ch4 kill-drop path -- each of the 4 半獸人 (enemy_data 34, char_id 0x66, ch4 char_spawn_records[17..20]) carries pickup_kind=2 param=0x0C, so any orc's death dispatches consequence[0x0C]. The body arms AI mode 7 on those orcs (runtime slots 0x18..0x1B) and shows the page-3 'we quit' dialog -- the orc-group panic/flee beat. The earlier 'unref' verdict only scanned turn-event/tile-step hooks and missed the kill-drop path.",
     "kind": "function",
     "home": "src/field/chevt1.c",
-    "purpose": "Unreferenced first-time-gated chapter event handler (dispatch table slot 0x0C): on its first invocation it arms AI control flag 7 on four enemy runtime-char slots (chars 0x18..0x1B) and shows dialog page 3, then consumes its trigger so every later call is a no-op.",
-    "logic_summary": "Gate: if tile_event_consumed_flags[0x10] (byte at *data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) == 0, then (1) fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x18, 0x1B, 7) -- writes low nibble 7 into combat_aux_block[0xD] (absolute runtime_char offset 0x34, the per-event AI/dialog control flag) for the inclusive char range 0x18..0x1B (4 chars); (2) fd2_display_dialog_scene(data_fd2_current_chapter_text, page=3, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) with the fixed dialog geometry shared across this file's handlers; (3) set tile_event_consumed_flags[0x10] = 1 to consume the trigger. Straight-line single-branch body; no RNG, no numeric computation, and no CALL return value used. __CHK(0x28) is the compiler-injected stack-probe prologue; EBX is not touched (disasm has no PUSH/POP EBX).",
-    "signature": "void __cdecl fd2_chapter_event_handler_0c__unref_first_time(uint32 event_arg)",
+    "purpose": "Chapter 4 orc-group panic/flee beat (dispatch table slot 0x0C, reached via the ch4 kill-drop path): first time any of the 4 半獸人 (enemy_data 34, records[17..20], each pickup_kind=2 param=0x0C) is killed, it arms AI mode 7 (charge_dash) on the orc group at runtime slots 0x18..0x1B and shows dialog page 3 (0x66 'we quit'), then consumes its trigger so later orc deaths are a no-op.",
+    "logic_summary": "Gate: if tile_event_consumed_flags[0x10] (byte at *data_fd2_field_map_tile_event_consumed_flags_ptr + 0x10) == 0, then (1) fd2_set_combat_aux_block_byte_d_low4_for_char_range(0x18, 0x1B, 7) -- writes low nibble 7 (AI mode charge_dash) into combat_aux_block[0xD] (absolute runtime_char offset 0x34, the per-event AI/dialog control flag) for the inclusive char range 0x18..0x1B (the 4 orcs, matching their page-2 portraits); (2) fd2_display_dialog_scene(data_fd2_current_chapter_text, page=3, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) = 0x66 '好可怕！不玩了！'; (3) set tile_event_consumed_flags[0x10] = 1 to consume the trigger. Straight-line single-branch body; no RNG, no numeric computation, no CALL return value used. __CHK(0x28) is the compiler-injected stack-probe prologue; EBX is not touched.",
+    "signature": "void __cdecl fd2_chapter_event_handler_0c__ch4_orc_flee(uint32 event_arg)",
     "params": [
       {
         "name": "event_arg",
         "type": "uint32",
-        "semantics": "The uniform 1-arg cdecl argument supplied by the per-event handler dispatch table at 0x51B91. The body never reads it (declared (void)event_arg in src). Matches the live Ghidra name.",
+        "semantics": "The uniform 1-arg cdecl argument supplied by the per-event handler dispatch table at 0x51B91 (the kill-drop recipient/killer idx). The body never reads it (declared (void)event_arg in src).",
         "verdict": "keep",
         "proposed": null,
         "reason": "Name reflects its role as the dispatch-table event argument; the table is uniform 1-arg cdecl and this handler ignores the value. No address residue, no placeholder; identical in src and Ghidra."
@@ -5717,16 +5717,16 @@
     ],
     "returns": {
       "type": "void",
-      "semantics": "No return value. Visible side effects (only on first call): AI flag 7 armed on chars 0x18..0x1B, dialog page 3 shown, and the consume byte tile_event_consumed_flags[0x10] set to 1."
+      "semantics": "No return value. Visible side effects (only on first orc death): AI mode 7 armed on chars 0x18..0x1B, dialog page 3 shown, and the consume byte tile_event_consumed_flags[0x10] set to 1."
     },
     "reads_globals": [
       "data_fd2_field_map_tile_event_consumed_flags_ptr",
       "data_fd2_current_chapter_text"
     ],
     "writes_globals": [],
-    "comment_original_issue": null,
-    "comment_verdict": "keep",
-    "ghidra_plate_action": "none",
+    "comment_original_issue": "Source comment (chevt1.c) previously stated the slot was unreferenced / possibly cut content. Corrected: it is LIVE via the ch4 kill-drop path (the 4 半獸人 records[17..20] pickup_kind=2 param=0x0C), and identifies the beat as the orc-group panic/flee.",
+    "comment_verdict": "edit",
+    "ghidra_plate_action": "edit",
     "issues": [],
     "processed": true,
     "committed": true,
@@ -5734,7 +5734,7 @@
     "status": "done",
     "ghidra_unreachable": false,
     "ghidra_error_detail": "",
-    "notes": "Verified via disassemble_function (0x34594): PUSH 0x28 / CALL __CHK; MOV EAX,[0x53ad5]; MOVZX byte[EAX+0x10]; TEST/JNZ to RET; CALL 0x3419c(0x18,0x1B,7); 9-arg CALL 0x15f84 with [0x53a79]=data_fd2_current_chapter_text, page 0x3; MOV byte[EAX+0x10],1; RET. Disasm matches the decompilation and the src body operation-for-operation; no equivalence concern -> issues=[]. Callee 0x3419c (fd2_set_combat_aux_block_byte_d_low4_for_char_range) decompile confirms it ORs the raw low-byte arg into the low nibble of combat_aux_block[0xD] (= abs offset 0x34) over an inclusive char range; value 7 is a valid 4-bit AI/dialog control code. writes_globals=[] because the only write is through the consumed-flags POINTER (byte at *ptr + 0x10), not to any named global itself; data_fd2_field_map_tile_event_consumed_flags_ptr and data_fd2_current_chapter_text are read-only here. 0 direct callers (get_function_callers); sole xref is DATA from 0x51BC1 = dispatch-table slot 0x0C, and 0x51BC1 itself has no references -> the table is data-only, confirming 'unref'. fd2-knowledge struct doc covers only the first 0x50 player-facing runtime_char bytes (labels 0x0D as action-state); offset 0x34 (combat_aux_block[0xD]) is in the 0x50+ derived/runtime region and is this file's established AI-control-flag field model -- no conflict. src comment (chevt1.c lines 521-552) is already accurate, precise, and ASCII-clean (correctly states the gate, the 4-char AI-flag range, page 3, the consume, the cdecl/EBX/__CHK prologue facts, and the consumed-flags pointer model) -> comment_verdict=keep, file left untouched (no Edit). Ghidra plate is consistent with src (same facts plus literal call args), neither contradictory/outdated/empty -> ghidra_plate_action=none. Per keep+keep, only the shard file is staged for this symbol; chevt1.c is intentionally not modified.",
+    "notes": "Verified via disassemble_function (0x34594): PUSH 0x28 / CALL __CHK; MOV EAX,[0x53ad5]; MOVZX byte[EAX+0x10]; TEST/JNZ to RET; CALL 0x3419c(0x18,0x1B,7); 9-arg CALL 0x15f84 with [0x53a79]=data_fd2_current_chapter_text, page 0x3; MOV byte[EAX+0x10],1; RET. Disasm matches src operation-for-operation; no equivalence concern. Callee 0x3419c ORs the raw low-byte arg into the low nibble of combat_aux_block[0xD] (= abs offset 0x34) over an inclusive char range; value 7 = charge_dash AI mode. CLASSIFICATION CORRECTION (renamed unref_first_time -> ch4_orc_flee): the earlier 'unref/cut content' verdict was WRONG -- it only checked turn-event/tile-step hooks and missed that a spawn record's +0x16 pickup_kind==2 dispatches consequence[param] on death. ch4 char_spawn_records[17..20] are all enemy_data 34 (半獸人, char_id 0x66, race 2) with pickup_kind=2 param=0x0C (decoder-confirmed), so any orc's death dispatches this slot; the affected runtime slots 0x18..0x1B are the same orcs (their page-2 portraits use PORTRAIT_BY_CHAR 0x18..0x1B) and page 3 (0x66 '好可怕！不玩了！') is their flee line. get_function_callers still returns none; sole xref is DATA from the dispatch-table slot 0x51BC1 (the FDFIELD reference is runtime-computed, not a static xref). Rename verified byte-equivalent by eqcheck.",
     "_shard": "src_refine/data/shards/rp1/00034594.json"
   },
   "000345ea": {
@@ -5914,24 +5914,24 @@
   },
   "00034716": {
     "address": "00034716",
-    "name_current": "fd2_chapter_event_handler_13__unref_char_cond",
-    "name_final": "fd2_chapter_event_handler_13__unref_char_cond",
-    "name_verdict": "keep",
-    "name_proposed": null,
-    "name_reason": "Follows fd2_<domain>_<descriptor> convention. domain=chapter_event_handler; '13' is the per-event handler-table dispatch index 0x13 (verified: table base 0x51B91 + 0x13*4 = 0x51BDD, the sole xref to this function, holding LE pointer 0x00034716) -- a meaningful domain ID, not address residue. 'unref' is accurate: the ONLY reference is the dispatch-table slot itself (no FDFIELD turn-event/tile-step hook points at idx 0x13), so no chapter actually invokes it. 'char_cond' is accurate: the second dialog page (0xB) is gated on a char-conditional scan (any of runtime chars 0x07..0x24 still alive). No Ghidra address residue in the name.",
+    "name_current": "fd2_chapter_event_handler_13__ch5_boss_defeat",
+    "name_final": "fd2_chapter_event_handler_13__ch5_boss_defeat",
+    "name_verdict": "rename",
+    "name_proposed": "fd2_chapter_event_handler_13__ch5_boss_defeat",
+    "name_reason": "Follows fd2_<domain>_<descriptor>. '13' is the per-event handler-table dispatch index 0x13 (table base 0x51B91 + 0x13*4 = 0x51BDD holds this function's pointer), a meaningful domain ID, not address residue. Descriptor corrected from '__unref_char_cond' to '__ch5_boss_defeat': the slot is LIVE, reached via the ch5 kill-drop path -- ch5 char_spawn_record[5] = 卡特那 (the boss, enemy_data 49, char_id 0x75, lv8) carries pickup_kind=2 param=0x13, so 卡特那's death dispatches consequence[0x13]. The body is 卡特那's defeat / bandit-rout beat (defeat line + enemy AI rout + retreat call). The earlier 'unref' verdict only scanned turn-event/tile-step hooks and missed the kill-drop path.",
     "kind": "function",
     "home": "src/field/chevt1.c",
-    "purpose": "Unreferenced chapter-event handler slot 0x13: arm a per-event AI/dialog control flag (low nibble of combat_aux_block[0xD]) to 7 across runtime chars 0x07..0x24 (30 chars), show dialog page 8 unconditionally, then re-scan the same 30-char band and, if ANY of them is still alive, show a second dialog page 0xB.",
-    "logic_summary": "any_alive=0. fd2_set_combat_aux_block_byte_d_low4_for_char_range(7,0x24,7) -> sets low 4 bits of runtime_char[i].combat_aux_block[0xD] (abs runtime_char offset 0x34) to 7 for i in [7,0x24] inclusive (30 chars). fd2_display_dialog_scene(current_chapter_text, page=8, fixed geometry 0xA0000,0x140,0xCD,0x4C,0x4A,0x13,1). for (i=7; (int)i<0x25; i++): if fd2_check_char_is_dead(i)==0 (alive: runtime_char[i].bFlags bit0 clear at abs offset +5) set any_alive=1 -- NO early break, loop walks all 30 chars and just keeps re-setting the flag. if any_alive: fd2_display_dialog_scene(current_chapter_text, page=0xB, same fixed geometry). No RNG, no numeric computation; the sole branch is the any_alive gate driven by fd2_check_char_is_dead's return value. The dialog calls' uint32 return is discarded.",
-    "signature": "void __cdecl fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg)",
+    "purpose": "Chapter 5 boss (卡特那) defeat / bandit-rout beat (dispatch table slot 0x13, reached via the ch5 kill-drop path): when 卡特那 (record[5], enemy_data 49, pickup_kind=2 param=0x13) dies, arm AI mode 7 (charge_dash) across the enemy band (chars 0x07..0x24), show 卡特那's defeat line (page 8), then re-scan the band and, if ANY enemy is still alive, show a bandit's retreat call (page 0xB).",
+    "logic_summary": "any_alive=0. fd2_set_combat_aux_block_byte_d_low4_for_char_range(7,0x24,7) -> sets low 4 bits of runtime_char[i].combat_aux_block[0xD] (abs runtime_char offset 0x34) to 7 (charge_dash AI) for i in [7,0x24] inclusive (30 chars). fd2_display_dialog_scene(current_chapter_text, page=8, fixed geometry 0xA0000,0x140,0xCD,0x4C,0x4A,0x13,1) = 0x75 卡特那's defeat line. for (i=7; (int)i<0x25; i++): if fd2_check_char_is_dead(i)==0 (alive: runtime_char[i].bFlags bit0 clear at abs offset +5) set any_alive=1 -- NO early break, loop walks all 30 chars. if any_alive: fd2_display_dialog_scene(current_chapter_text, page=0xB, same geometry) = 0x60 '首領被打倒了！快逃啊！'. No RNG, no numeric computation; the sole branch is the any_alive gate.",
+    "signature": "void __cdecl fd2_chapter_event_handler_13__ch5_boss_defeat(uint32 event_arg)",
     "params": [
       {
         "name": "event_arg",
         "type": "uint32",
-        "semantics": "The uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91. This handler never reads it (cast to void); for invoked turn-event handlers the arg carries the event context, but slot 0x13 is unreferenced so the value is moot here.",
+        "semantics": "The uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91 (the kill-drop recipient/killer idx). This handler never reads it (cast to void).",
         "verdict": "keep",
         "proposed": null,
-        "reason": "Name matches the established convention used across all sibling handlers in this file for the unread uniform dispatch arg. No address residue; accurately reflects its role (the dispatch-table arg) even though unread."
+        "reason": "Name matches the established convention used across all sibling handlers in this file for the unread uniform dispatch arg. No address residue; accurately reflects its role."
       }
     ],
     "returns": {
@@ -5943,9 +5943,9 @@
       "data_fd2_battle_runtime_char_array_ptr"
     ],
     "writes_globals": [],
-    "comment_original_issue": "The handler_13 comment block (chevt1.c lines 773-823) was already accurate, precise, and consistent with both the decompilation and the Ghidra plate, but contained 3 non-ASCII em-dashes (U+2014) at lines 775, 778, 799, violating the code-text-ASCII-only rule.",
-    "comment_verdict": "augment",
-    "ghidra_plate_action": "none",
+    "comment_original_issue": "Source comment (chevt1.c) previously stated the slot was unreferenced / possibly cut content. Corrected: it is LIVE via the ch5 kill-drop path (record[5] 卡特那 pickup_kind=2 param=0x13), and identifies the beat as 卡特那's defeat / bandit rout.",
+    "comment_verdict": "edit",
+    "ghidra_plate_action": "edit",
     "issues": [],
     "processed": true,
     "committed": true,
@@ -5953,7 +5953,7 @@
     "status": "done",
     "ghidra_unreachable": false,
     "ghidra_error_detail": "",
-    "notes": "Verified the function via decompile + full disassembly + both key callees' plates. Disasm at 0x34716 confirms: __CHK(0x30) prologue; any_alive stored at [ESP]; set_combat_aux_block call (start=7,end=0x24,value=7); page-8 dialog; loop EBX=7..0x24 with TEST EAX,EAX / JNZ skipping the flag-set on dead (no early break -- both paths fall to INC EBX); MOVZX/CMP EAX,1 gate; page-0xB dialog. Note: the original pushes EAX (=1 at that point) as the dialog's trailing arg whereas src passes literal 1 -- value-identical since the gate guarantees any_alive==1, so no equivalence concern. Callee semantics confirmed from their Ghidra plates: fd2_set_combat_aux_block_byte_d_low4_for_char_range writes low4 of combat_aux_block[0xD] = abs runtime_char offset 0x34 (NOT the strategy-guide 'action state' byte at struct offset 0x0D -- distinct byte; the codebase's combat_aux_block member starts at 0x27 so [0xD]=0x34); fd2_check_char_is_dead reads bFlags bit0 at abs offset +5. The char range 0x07..0x24 are runtime-char slot indices (combat slots into data_fd2_battle_runtime_char_array_ptr), and the constants 7/0x24 (range bounds) and 7 (AI flag value) are domain values -- preserved, not address residue. name_verdict=keep, param event_arg keep. Only change: converted the 3 em-dashes to '--' (comment_verdict=augment) to satisfy ASCII rule; comment substance unchanged. Ghidra plate is consistent with src (not contradictory/outdated/empty) so left as-is (ghidra_plate_action=none). writes_globals=[] because the only memory writes go through fd2_set_combat_aux_block_byte_d_low4_for_char_range (offset writes via the runtime_char_array_ptr base, not a write to the pointer global itself). reads_globals: data_fd2_current_chapter_text (dialog text base, [0x53A79]) and data_fd2_battle_runtime_char_array_ptr (read by both callees). Clobber-defense: staged diff for chevt1.c removed exactly the 3 em-dash comment lines and added their '--' replacements -- no other handler's content touched. Staged set limited to src/field/chevt1.c and this shard; 4 other refiners' shard edits sitting in the worktree were left unstaged.",
+    "notes": "Verified via decompile + full disassembly + both key callees' plates. Disasm at 0x34716 confirms: __CHK(0x30); set_combat_aux_block(7,0x24,7); page-8 dialog; loop EBX=7..0x24 (no early break); MOVZX/CMP EAX,1 gate; page-0xB dialog. Callee semantics: fd2_set_combat_aux_block_byte_d_low4_for_char_range writes low4 of combat_aux_block[0xD] = abs offset 0x34 (value 7 = charge_dash AI mode); fd2_check_char_is_dead reads bFlags bit0 at abs offset +5. CLASSIFICATION CORRECTION (renamed unref_char_cond -> ch5_boss_defeat): the earlier 'unref/cut content' verdict was WRONG -- it only checked turn-event/tile-step hooks and missed that a spawn record's +0x16 pickup_kind==2 dispatches consequence[param] on death. ch5 record[5] = 卡特那 (enemy_data 49, char_id 0x75, the boss) has pickup_kind=2 param=0x13 (decoder-confirmed), so 卡特那's death dispatches this slot; page 8 (0x75 '..被一群小鬼打敗了，我不甘心') is 卡特那's defeat line and page 0xB (0x60 '首領被打倒了！快逃啊！') is the bandits' retreat call, both matching FDTXT entry 5. get_function_callers still returns none; sole xref is DATA from the dispatch-table slot 0x51BDD (the FDFIELD reference is runtime-computed, not a static xref). Rename verified byte-equivalent by eqcheck.",
     "_shard": "src_refine/data/shards/rp1/00034716.json"
   },
   "000347b1": {
@@ -10378,7 +10378,7 @@
       "fd2_chapter_29_end",
       "fd2_chapter_event_handler_06__ch2_reinforcement",
       "fd2_chapter_event_handler_0d__ch15_dialog_with_state",
-      "fd2_chapter_event_handler_13__unref_char_cond",
+      "fd2_chapter_event_handler_13__ch5_boss_defeat",
       "fd2_chapter_event_handler_1c__ch8_ai_ctrl",
       "fd2_chapter_event_handler_1e__unref_major_cinematic",
       "fd2_chapter_event_handler_21__ch10_dialog_with_state",
@@ -33363,7 +33363,7 @@
       "fd2_chapter_29_post_action",
       "fd2_chapter_event_handler_08__ch13_first_time",
       "fd2_chapter_event_handler_0a__ch14_first_time",
-      "fd2_chapter_event_handler_0c__unref_first_time",
+      "fd2_chapter_event_handler_0c__ch4_orc_flee",
       "fd2_chapter_event_handler_1e__unref_major_cinematic",
       "fd2_chapter_event_handler_37__ch25_first_time",
       "fd2_chapter_event_handler_40__unref_dyn_turn_event",

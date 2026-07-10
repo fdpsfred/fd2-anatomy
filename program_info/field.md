@@ -344,10 +344,18 @@ ch28/29/30 以同型 state-machine-mutator handler 控制變身序列、final bo
 ### 90-entry handler 對照表
 
 命名規則：`fd2_chapter_event_handler_NN__chC_<purpose>` / `__shared_<purpose>` /
-`__unref_<purpose>` / `__sentinel`。「refs」= 該 handler 被 FDFIELD 引用的次數：turn-event /
-tile-step hook，或 tile_pickup consequence（後者經 `menufld.c` 的
-`data_fd2_battle_ai_post_action_consequence_table[event_value]` 分派，例：idx 0x3A = ch26 的 5-寶箱
-pickup，5 筆 consequence-0x3A pickup tile 引用，故非 `__unref_`）。
+`__unref_<purpose>` / `__sentinel`。「refs」= 該 handler 被 FDFIELD 資料引用而可被分派到的次數，
+共四條分派路徑，index 皆取自各章 `tile_event_data_table` 的不同子區：
+
+- **turn-event hook**（`fd2_fire_chapter_turn_events_for_phase`，+0x03 區的 event_id）
+- **tile-step latch**（`fd2_check_tile_event_post_action`，+0x33 區的 consequence_idx）
+- **tile_pickup consequence**（`fd2_handle_tile_event_interaction`，+0x53 區 kind∉{0,1} 的 value；
+  例 idx 0x3A = ch26 的 5-寶箱 pickup，5 筆引用）
+- **kill-drop consequence**（單位 spawn record +0x16 pickup_kind==2 → 該單位陣亡時
+  `fd2_collect_pending_death_drops` + `fd2_process_battle_drop_entries` 對 type-2 entry 分派
+  `consequence[param]`；例 idx 0x04 = ch1 哈諾陣亡觸發哈瓦特暴走）
+
+早期只掃前兩條 hook 的分析，把一批實際經 tile_pickup / kill-drop 到達的 handler 誤標為 `__unref_`。
 
 | idx | addr | 名稱 | category | chapters | refs |
 |---|---|---|---|---|---|
@@ -355,7 +363,7 @@ pickup，5 筆 consequence-0x3A pickup tile 引用，故非 `__unref_`）。
 | 0x01 | `0x342B5` | `fd2_chapter_event_handler_01__ch1_dialog_with_state` | dialog_with_state | ch1 | 1 |
 | 0x02 | `0x3431D` | `fd2_chapter_event_handler_02__ch1_dialog_with_state` | dialog_with_state | ch1 | 1 |
 | 0x03 | `0x34377` | `fd2_chapter_event_handler_03__ch1_dialog_with_state` | dialog_with_state | ch1 | 1 |
-| 0x04 | `0x343E2` | `fd2_chapter_event_handler_04__unref_dialog_with_state` | dialog_with_state | - | 0 |
+| 0x04 | `0x343E2` | `fd2_chapter_event_handler_04__ch1_hawate_berserk` | dialog_with_state | ch1 | 1 |
 | 0x05 | `0x34D68` | `fd2_chapter_event_handler_05__ch13_thunk` | thunk | ch13 | 1 |
 | 0x06 | `0x34422` | `fd2_chapter_event_handler_06__ch2_reinforcement` | reinforcement_spawner | ch2 | 1 |
 | 0x07 | `0x34D72` | `fd2_chapter_event_handler_07__ch13_dialog_with_state` | dialog_with_state | ch13 | 1 |
@@ -363,14 +371,14 @@ pickup，5 筆 consequence-0x3A pickup tile 引用，故非 `__unref_`）。
 | 0x09 | `0x344C2` | `fd2_chapter_event_handler_09__ch3_char_cond` | char_conditional | ch3 | 1 |
 | 0x0A | `0x34E3B` | `fd2_chapter_event_handler_0a__ch14_first_time` | first_time_gated | ch14 | 1 |
 | 0x0B | `0x34565` | `fd2_chapter_event_handler_0b__ch4_dialog` | dialog_only | ch4 | 1 |
-| 0x0C | `0x34594` | `fd2_chapter_event_handler_0c__unref_first_time` | first_time_gated | - | 0 |
+| 0x0C | `0x34594` | `fd2_chapter_event_handler_0c__ch4_orc_flee` | first_time_gated | ch4 | 4 |
 | 0x0D | `0x34E90` | `fd2_chapter_event_handler_0d__ch15_dialog_with_state` | dialog_with_state | ch15 | 1 |
 | 0x0E | `0x345EA` | `fd2_chapter_event_handler_0e__ch5_dialog_with_state` | dialog_with_state | ch5 | 1 |
 | 0x0F | `0x3462E` | `fd2_chapter_event_handler_0f__ch5_dialog_with_state` | dialog_with_state | ch5 | 1 |
 | 0x10 | `0x34696` | `fd2_chapter_event_handler_10__ch5_dialog` | dialog_only | ch5 | 1 |
 | 0x11 | `0x346C8` | `fd2_chapter_event_handler_11__ch5_dialog_with_state` | dialog_with_state | ch5 | 1 |
 | 0x12 | `0x34F02` | `fd2_chapter_event_handler_12__ch15_dialog_with_state` | dialog_with_state | ch15 | 1 |
-| 0x13 | `0x34716` | `fd2_chapter_event_handler_13__unref_char_cond` | char_conditional | - | 0 |
+| 0x13 | `0x34716` | `fd2_chapter_event_handler_13__ch5_boss_defeat` | char_conditional | ch5 | 1 |
 | 0x14 | `0x347B1` | `fd2_chapter_event_handler_14__ch6_dialog` | dialog_only | ch6 | 1 |
 | 0x15 | `0x347D9` | `fd2_chapter_event_handler_15__ch6_char_cond` | char_conditional | ch6 | 1 |
 | 0x16 | `0x34819` | `fd2_chapter_event_handler_16__ch6_char_cond` | char_conditional | ch6 | 1 |

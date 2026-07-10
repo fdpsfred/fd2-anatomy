@@ -13,9 +13,9 @@
  * fd2_chapter_event_handler_03__ch1_dialog_with_state @ 0x34377
  *     (0 direct callers; dispatched as idx 0x03 of the per-event
  *      handler table at 0x51B91)
- * fd2_chapter_event_handler_04__unref_dialog_with_state @ 0x343E2
+ * fd2_chapter_event_handler_04__ch1_hawate_berserk @ 0x343E2
  *     (0 direct callers; dispatched as idx 0x04 of the per-event
- *      handler table at 0x51B91)
+ *      handler table at 0x51B91 via the ch1 kill-drop path)
  * fd2_chapter_event_handler_05__ch13_thunk @ 0x34D68
  *     (0 direct callers; dispatched as idx 0x05 of the per-event
  *      handler table at 0x51B91)
@@ -34,7 +34,7 @@
  * fd2_chapter_event_handler_0b__ch4_dialog @ 0x34565
  *     (0 direct callers; dispatched as idx 0x0B of the per-event
  *      handler table at 0x51B91)
- * fd2_chapter_event_handler_0c__unref_first_time @ 0x34594
+ * fd2_chapter_event_handler_0c__ch4_orc_flee @ 0x34594
  *     (0 direct callers; dispatched as idx 0x0C of the per-event
  *      handler table at 0x51B91)
  * fd2_chapter_event_handler_0d__ch15_dialog_with_state @ 0x34E90
@@ -55,7 +55,7 @@
  * fd2_chapter_event_handler_12__ch15_dialog_with_state @ 0x34F02
  *     (0 direct callers; dispatched as idx 0x12 of the per-event
  *      handler table at 0x51B91)
- * fd2_chapter_event_handler_13__unref_char_cond @ 0x34716
+ * fd2_chapter_event_handler_13__ch5_boss_defeat @ 0x34716
  *     (0 direct callers; dispatched as idx 0x13 of the per-event
  *      handler table at 0x51B91)
  * fd2_chapter_event_handler_14__ch6_dialog @ 0x347B1
@@ -291,13 +291,18 @@ void fd2_chapter_event_handler_03__ch1_dialog_with_state(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_04__unref_dialog_with_state @ 0x343E2
- *   — Dispatch idx 0x04 of the per-event handler table at 0x51B91.
+ * fd2_chapter_event_handler_04__ch1_hawate_berserk @ 0x343E2
+ *   -- Dispatch idx 0x04 of the per-event handler table at 0x51B91.
  *
- * No chapter FDFIELD turn-event / tile-step hook references this
- * slot (unreferenced — possibly cut content). Its single beat flips
- * 哈瓦特 (char_id 0xD) to the ally side (team = 1) and then shows
- * dialog page 7.
+ * LIVE (ch1) -- reached via the FDFIELD kill-drop path (not a
+ * turn-event / tile-step hook, which is why earlier hook-only scans
+ * mislabeled it unref/cut). ch1 char_spawn_record[9] (哈諾, char_id
+ * 0x01) carries pickup_kind=2 param=0x04, so when 哈諾 falls,
+ * fd2_collect_pending_death_drops + fd2_process_battle_drop_entries
+ * dispatch consequence[0x04]. This is the explicit trigger of the
+ * 哈瓦特暴走 beat: it flips 哈瓦特 (runtime slot 0xD, the only other
+ * team-2 FDFIELD unit) from player control to auto-NPC (team = 1),
+ * then shows dialog page 7 (哈諾 retreat / 哈瓦特 rage).
  *
  * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
  * (1-arg uniform cdecl); the body never reads the arg. EBX is not
@@ -311,7 +316,7 @@ void fd2_chapter_event_handler_03__ch1_dialog_with_state(uint32 event_arg)
  * page-7 dialog; reproduced here as the inline call for Layer-2
  * equivalence.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_04__unref_dialog_with_state(uint32 event_arg)
+void fd2_chapter_event_handler_04__ch1_hawate_berserk(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -519,16 +524,23 @@ void fd2_chapter_event_handler_0b__ch4_dialog(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_0c__unref_first_time @ 0x34594
- *   — Dispatch idx 0x0C of the per-event handler table at 0x51B91.
+ * fd2_chapter_event_handler_0c__ch4_orc_flee @ 0x34594
+ *   -- Dispatch idx 0x0C of the per-event handler table at 0x51B91.
  *
- * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content). It is a first-time-gated beat:
- * the body runs only while tile_event_consumed_flags[0x10] is still 0,
- * and consuming the flag (set to 1) at the end makes every later call a
- * no-op. Its single beat arms AI flag 7 on four enemies (the low nibble
- * of combat_aux_block[0xD] becomes 7 for chars 0x18..0x1B) and then shows
- * dialog page 3.
+ * LIVE (ch4) -- reached via the FDFIELD kill-drop path (not a
+ * turn-event / tile-step hook, which is why earlier hook-only scans
+ * mislabeled it unref/cut). Each of the 4 半獸人 (enemy_data 34,
+ * char_id 0x66, ch4 char_spawn_records[17..20]) carries pickup_kind=2
+ * param=0x0C, so when any orc falls fd2_process_battle_drop_entries
+ * dispatches consequence[0x0C].
+ *
+ * First-time-gated beat: the body runs only while
+ * tile_event_consumed_flags[0x10] is still 0, and consuming the flag
+ * (set to 1) at the end makes every later orc death a no-op. It arms
+ * AI mode 7 (charge_dash) on the orc group -- the low nibble of
+ * combat_aux_block[0xD] becomes 7 for chars 0x18..0x1B (the same orcs,
+ * per their page-2 portraits) -- and shows dialog page 3 (0x66
+ * "好可怕！不玩了！", the orcs losing their nerve and quitting).
  *
  * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
  * (1-arg uniform cdecl); the body never reads the arg. EBX is not
@@ -539,7 +551,7 @@ void fd2_chapter_event_handler_0b__ch4_dialog(uint32 event_arg)
  * holds the base of the 0x20-byte tile-event consumed-flags block; the
  * gate flag is byte [0x10] of that block.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_0c__unref_first_time(uint32 event_arg)
+void fd2_chapter_event_handler_0c__ch4_orc_flee(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -771,15 +783,19 @@ void fd2_chapter_event_handler_12__ch15_dialog_with_state(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_13__unref_char_cond @ 0x34716
+ * fd2_chapter_event_handler_13__ch5_boss_defeat @ 0x34716
  *   -- Dispatch idx 0x13 of the per-event handler table at 0x51B91.
  *
- * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced -- possibly cut content / non-chapter dispatcher). It is
- * a char-conditional beat that arms an AI flag across a wide character
- * band, shows a dialog page unconditionally, then re-scans the same band
- * and shows a second dialog page only if any of those characters is still
- * alive:
+ * LIVE (ch5) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it
+ * unref/cut). ch5 char_spawn_record[5] = 卡特那 (the boss, enemy_data 49,
+ * char_id 0x75, lv8) carries pickup_kind=2 param=0x13, so when 卡特那 falls
+ * fd2_process_battle_drop_entries dispatches consequence[0x13]. 卡特那's
+ * defeat / bandit-rout beat: it arms AI mode 7 (charge_dash) across the
+ * enemy band (chars 0x07..0x24), shows 卡特那's defeat line (page 8, 0x75
+ * "..被一群小鬼打敗了，我不甘心"), then re-scans the same band and, if any
+ * enemy is still alive, shows a bandit's retreat call (page 0xB, 0x60
+ * "首領被打倒了！快逃啊！"):
  *   set_combat_aux_block_byte_d_low4_for_char_range(7, 0x24, 7);
  *   display_dialog_scene(page 8, ...);
  *   any_alive = false;
@@ -800,7 +816,7 @@ void fd2_chapter_event_handler_12__ch15_dialog_with_state(uint32 event_arg)
  * just keeps re-setting the flag. Reproduced faithfully here for Layer-2
  * equivalence.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg)
+void fd2_chapter_event_handler_13__ch5_boss_defeat(uint32 event_arg)
 {
     uint8 any_alive;
     uint32 i;

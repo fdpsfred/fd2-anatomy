@@ -1,23 +1,23 @@
 {
   "address": "0x00034716",
-  "name_current": "fd2_chapter_event_handler_13__unref_char_cond",
-  "name_final": "fd2_chapter_event_handler_13__unref_char_cond",
-  "name_verdict": "keep",
-  "name_proposed": null,
-  "name_reason": "Follows fd2_<domain>_<descriptor> convention. domain=chapter_event_handler; '13' is the per-event handler-table dispatch index 0x13 (verified: table base 0x51B91 + 0x13*4 = 0x51BDD, the sole xref to this function, holding LE pointer 0x00034716) -- a meaningful domain ID, not address residue. 'unref' is accurate: the ONLY reference is the dispatch-table slot itself (no FDFIELD turn-event/tile-step hook points at idx 0x13), so no chapter actually invokes it. 'char_cond' is accurate: the second dialog page (0xB) is gated on a char-conditional scan (any of runtime chars 0x07..0x24 still alive). No Ghidra address residue in the name.",
+  "name_current": "fd2_chapter_event_handler_13__ch5_boss_defeat",
+  "name_final": "fd2_chapter_event_handler_13__ch5_boss_defeat",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_chapter_event_handler_13__ch5_boss_defeat",
+  "name_reason": "Follows fd2_<domain>_<descriptor>. '13' is the per-event handler-table dispatch index 0x13 (table base 0x51B91 + 0x13*4 = 0x51BDD holds this function's pointer), a meaningful domain ID, not address residue. Descriptor corrected from '__unref_char_cond' to '__ch5_boss_defeat': the slot is LIVE, reached via the ch5 kill-drop path -- ch5 char_spawn_record[5] = 卡特那 (the boss, enemy_data 49, char_id 0x75, lv8) carries pickup_kind=2 param=0x13, so 卡特那's death dispatches consequence[0x13]. The body is 卡特那's defeat / bandit-rout beat (defeat line + enemy AI rout + retreat call). The earlier 'unref' verdict only scanned turn-event/tile-step hooks and missed the kill-drop path.",
   "kind": "function",
   "home": "src/field/chevt1.c",
-  "purpose": "Unreferenced chapter-event handler slot 0x13: arm a per-event AI/dialog control flag (low nibble of combat_aux_block[0xD]) to 7 across runtime chars 0x07..0x24 (30 chars), show dialog page 8 unconditionally, then re-scan the same 30-char band and, if ANY of them is still alive, show a second dialog page 0xB.",
-  "logic_summary": "any_alive=0. fd2_set_combat_aux_block_byte_d_low4_for_char_range(7,0x24,7) -> sets low 4 bits of runtime_char[i].combat_aux_block[0xD] (abs runtime_char offset 0x34) to 7 for i in [7,0x24] inclusive (30 chars). fd2_display_dialog_scene(current_chapter_text, page=8, fixed geometry 0xA0000,0x140,0xCD,0x4C,0x4A,0x13,1). for (i=7; (int)i<0x25; i++): if fd2_check_char_is_dead(i)==0 (alive: runtime_char[i].bFlags bit0 clear at abs offset +5) set any_alive=1 -- NO early break, loop walks all 30 chars and just keeps re-setting the flag. if any_alive: fd2_display_dialog_scene(current_chapter_text, page=0xB, same fixed geometry). No RNG, no numeric computation; the sole branch is the any_alive gate driven by fd2_check_char_is_dead's return value. The dialog calls' uint32 return is discarded.",
-  "signature": "void __cdecl fd2_chapter_event_handler_13__unref_char_cond(uint32 event_arg)",
+  "purpose": "Chapter 5 boss (卡特那) defeat / bandit-rout beat (dispatch table slot 0x13, reached via the ch5 kill-drop path): when 卡特那 (record[5], enemy_data 49, pickup_kind=2 param=0x13) dies, arm AI mode 7 (charge_dash) across the enemy band (chars 0x07..0x24), show 卡特那's defeat line (page 8), then re-scan the band and, if ANY enemy is still alive, show a bandit's retreat call (page 0xB).",
+  "logic_summary": "any_alive=0. fd2_set_combat_aux_block_byte_d_low4_for_char_range(7,0x24,7) -> sets low 4 bits of runtime_char[i].combat_aux_block[0xD] (abs runtime_char offset 0x34) to 7 (charge_dash AI) for i in [7,0x24] inclusive (30 chars). fd2_display_dialog_scene(current_chapter_text, page=8, fixed geometry 0xA0000,0x140,0xCD,0x4C,0x4A,0x13,1) = 0x75 卡特那's defeat line. for (i=7; (int)i<0x25; i++): if fd2_check_char_is_dead(i)==0 (alive: runtime_char[i].bFlags bit0 clear at abs offset +5) set any_alive=1 -- NO early break, loop walks all 30 chars. if any_alive: fd2_display_dialog_scene(current_chapter_text, page=0xB, same geometry) = 0x60 '首領被打倒了！快逃啊！'. No RNG, no numeric computation; the sole branch is the any_alive gate.",
+  "signature": "void __cdecl fd2_chapter_event_handler_13__ch5_boss_defeat(uint32 event_arg)",
   "params": [
     {
       "name": "event_arg",
       "type": "uint32",
-      "semantics": "The uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91. This handler never reads it (cast to void); for invoked turn-event handlers the arg carries the event context, but slot 0x13 is unreferenced so the value is moot here.",
+      "semantics": "The uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91 (the kill-drop recipient/killer idx). This handler never reads it (cast to void).",
       "verdict": "keep",
       "proposed": null,
-      "reason": "Name matches the established convention used across all sibling handlers in this file for the unread uniform dispatch arg. No address residue; accurately reflects its role (the dispatch-table arg) even though unread."
+      "reason": "Name matches the established convention used across all sibling handlers in this file for the unread uniform dispatch arg. No address residue; accurately reflects its role."
     }
   ],
   "returns": {
@@ -29,9 +29,9 @@
     "data_fd2_battle_runtime_char_array_ptr"
   ],
   "writes_globals": [],
-  "comment_original_issue": "The handler_13 comment block (chevt1.c lines 773-823) was already accurate, precise, and consistent with both the decompilation and the Ghidra plate, but contained 3 non-ASCII em-dashes (U+2014) at lines 775, 778, 799, violating the code-text-ASCII-only rule.",
-  "comment_verdict": "augment",
-  "ghidra_plate_action": "none",
+  "comment_original_issue": "Source comment (chevt1.c) previously stated the slot was unreferenced / possibly cut content. Corrected: it is LIVE via the ch5 kill-drop path (record[5] 卡特那 pickup_kind=2 param=0x13), and identifies the beat as 卡特那's defeat / bandit rout.",
+  "comment_verdict": "edit",
+  "ghidra_plate_action": "edit",
   "issues": [],
   "processed": true,
   "committed": true,
@@ -39,5 +39,5 @@
   "status": "done",
   "ghidra_unreachable": false,
   "ghidra_error_detail": "",
-  "notes": "Verified the function via decompile + full disassembly + both key callees' plates. Disasm at 0x34716 confirms: __CHK(0x30) prologue; any_alive stored at [ESP]; set_combat_aux_block call (start=7,end=0x24,value=7); page-8 dialog; loop EBX=7..0x24 with TEST EAX,EAX / JNZ skipping the flag-set on dead (no early break -- both paths fall to INC EBX); MOVZX/CMP EAX,1 gate; page-0xB dialog. Note: the original pushes EAX (=1 at that point) as the dialog's trailing arg whereas src passes literal 1 -- value-identical since the gate guarantees any_alive==1, so no equivalence concern. Callee semantics confirmed from their Ghidra plates: fd2_set_combat_aux_block_byte_d_low4_for_char_range writes low4 of combat_aux_block[0xD] = abs runtime_char offset 0x34 (NOT the strategy-guide 'action state' byte at struct offset 0x0D -- distinct byte; the codebase's combat_aux_block member starts at 0x27 so [0xD]=0x34); fd2_check_char_is_dead reads bFlags bit0 at abs offset +5. The char range 0x07..0x24 are runtime-char slot indices (combat slots into data_fd2_battle_runtime_char_array_ptr), and the constants 7/0x24 (range bounds) and 7 (AI flag value) are domain values -- preserved, not address residue. name_verdict=keep, param event_arg keep. Only change: converted the 3 em-dashes to '--' (comment_verdict=augment) to satisfy ASCII rule; comment substance unchanged. Ghidra plate is consistent with src (not contradictory/outdated/empty) so left as-is (ghidra_plate_action=none). writes_globals=[] because the only memory writes go through fd2_set_combat_aux_block_byte_d_low4_for_char_range (offset writes via the runtime_char_array_ptr base, not a write to the pointer global itself). reads_globals: data_fd2_current_chapter_text (dialog text base, [0x53A79]) and data_fd2_battle_runtime_char_array_ptr (read by both callees). Clobber-defense: staged diff for chevt1.c removed exactly the 3 em-dash comment lines and added their '--' replacements -- no other handler's content touched. Staged set limited to src/field/chevt1.c and this shard; 4 other refiners' shard edits sitting in the worktree were left unstaged."
+  "notes": "Verified via decompile + full disassembly + both key callees' plates. Disasm at 0x34716 confirms: __CHK(0x30); set_combat_aux_block(7,0x24,7); page-8 dialog; loop EBX=7..0x24 (no early break); MOVZX/CMP EAX,1 gate; page-0xB dialog. Callee semantics: fd2_set_combat_aux_block_byte_d_low4_for_char_range writes low4 of combat_aux_block[0xD] = abs offset 0x34 (value 7 = charge_dash AI mode); fd2_check_char_is_dead reads bFlags bit0 at abs offset +5. CLASSIFICATION CORRECTION (renamed unref_char_cond -> ch5_boss_defeat): the earlier 'unref/cut content' verdict was WRONG -- it only checked turn-event/tile-step hooks and missed that a spawn record's +0x16 pickup_kind==2 dispatches consequence[param] on death. ch5 record[5] = 卡特那 (enemy_data 49, char_id 0x75, the boss) has pickup_kind=2 param=0x13 (decoder-confirmed), so 卡特那's death dispatches this slot; page 8 (0x75 '..被一群小鬼打敗了，我不甘心') is 卡特那's defeat line and page 0xB (0x60 '首領被打倒了！快逃啊！') is the bandits' retreat call, both matching FDTXT entry 5. get_function_callers still returns none; sole xref is DATA from the dispatch-table slot 0x51BDD (the FDFIELD reference is runtime-computed, not a static xref). Rename verified byte-equivalent by eqcheck."
 }
