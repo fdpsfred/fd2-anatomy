@@ -26,10 +26,13 @@
 - `ani.md` — ANI.DAT (9 entries) 多 frame RLE delta 動畫序列
 - `title.md` — TITLE.DAT (7 entries) — 對 FD2 主遊戲是 dead resource
 - `fdicon.md` — FDICON.B24 (1680 個 24×24 8bpp icon)，唯一非 LLLLLL 資源
-- `chinese_glyph_encoding.md` — FDOTHER.DAT[4] 1bpp 字模 atlas (1824 glyphs)、
+- `chinese_glyph_encoding.md` — FDOTHER.DAT[4] 1bpp 字模圖集 (1824 glyphs)、
   渲染管線、ET3 STDFONT.15 lookup
 - `fd2_tmp.md` — FD2.TMP runtime swap 檔 (portrait cache dump) 格式
-- `img/` — KB 內嵌圖片資產（目前為 3 個 FDOTHER cut-content dead idx 的解碼 PNG，由 `fdother.md` 引用）
+- `version_diff.md` — 95 初版 vs 98 合輯版的三個差異資源檔（FDTXT 5 個法術改名 /
+  FDOTHER 字模圖集 重排 / FIGANI 索爾英雄職動畫台座）+ 字模逐字對照全表
+- `img/` — KB 內嵌圖片資產（3 個 FDOTHER cut-content dead idx 解碼 PNG，由 `fdother.md`
+  引用；4 個 FIGANI 95／98 版索爾／哈諾對照圖，由 `version_diff.md` 引用）
 
 ## 全程式 data inventory
 

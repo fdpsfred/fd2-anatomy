@@ -1,25 +1,28 @@
 # 中文字元編碼 / 字型 (FDOTHER.DAT[4])
 
-`data_fd2_chinese_font_sheet @ 0x53A75` 是由 FDOTHER.DAT[4] 載入的 1bpp 16×16 字模 atlas，
+`data_fd2_chinese_font_sheet @ 0x53A75` 是由 FDOTHER.DAT[4] 載入的 1bpp 16×16 字模圖集，
 共 1824 glyphs × 32 bytes = 58,368 bytes。FDTXT.DAT bytecode 用 u16 glyph_id
-直接索引這張 atlas。
+直接索引這張圖集。
 
 ## 編碼性質
 
-**Direct atlas index**，不是 Big5 / GB 等標準中文編碼。每個 u16 glyph_id 是 atlas
+**直接圖集索引**，不是 Big5 / GB 等標準中文編碼。每個 u16 glyph_id 是圖集
 內 fixed-size sprite 的索引。這意味遊戲執行不需要任何中文編碼解碼器，純粹靠位置
 查找。
 
-觀察到的 glyph_id 範圍：`0x0000..0x071F` (1824 distinct atlas slots)。
+觀察到的 glyph_id 範圍：`0x0000..0x071F` (1824 個字模格)。
+
+> 版本差異:95 初版與 98 合輯版的字模圖集 是同一組 1824 字的重新編號(751 個字換了
+> glyph_id),見 `version_diff.md`(含逐字對照全表)。
 
 ## 英數字區塊
 
-atlas **不是** ASCII 對齊。英數字模集中在低索引：glyph_id `0x00..0x09` = 數字
+圖集 **不是** ASCII 對齊。英數字模集中在低索引：glyph_id `0x00..0x09` = 數字
 '0'..'9'、`0x0A..0x23` = 大寫 'A'..'Z'，`0x24` 起即為中文。因此不能拿 ASCII 碼直接
 當 glyph_id（'A' 是 glyph 0x0A 而非 0x41；無小寫、無標點區塊）。
 
 `NUMBER` opcode (FDTXT bytecode `0xFFFA`) 把數值交給 `sprintf @ 0x377D9`（格式字串
-`"%d" @ 0x5014C`），再逐位 `digit_buf[i] - 0x30` 換成 atlas 索引 0..9，對應數字
+`"%d" @ 0x5014C`），再逐位 `digit_buf[i] - 0x30` 換成圖集索引 0..9，對應數字
 '0'..'9' 字模（數字在低索引，**不**從 ASCII 0x30 起算）。
 
 ## 字模渲染

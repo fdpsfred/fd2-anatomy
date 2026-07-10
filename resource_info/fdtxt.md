@@ -4,6 +4,9 @@ FD2 全遊戲對話文字 (中文角色字幕、選單訊息、結局文字) 都
 file size 120,502 bytes，34 entries (idx 0..33)，1016 個 dialog page，共 51,155
 個 glyph 引用。
 
+> 版本差異:95 初版與 98 合輯版的 FDTXT.DAT 只有 5 個法術名不同(全在 entry 0),
+> 其餘 ~20% 位元組差異純粹是字模重排造成的重新編號,見 `version_diff.md`。
+
 ## 檔案格式
 
 LLLLLL archive (詳 `overview.md`):
@@ -127,12 +130,12 @@ LLLLLL archive (詳 `overview.md`):
 ## Glyph 編碼
 
 任何 < `0xFFEC` 的 u16 (TEXT_CHARACTER) 就是 glyph_id，直接索引
-`data_fd2_chinese_font_sheet @ 0x53A75` (= FDOTHER.DAT[4]) 這張 atlas 的 fixed-size sprite。
+`data_fd2_chinese_font_sheet @ 0x53A75` (= FDOTHER.DAT[4]) 這張圖集的 fixed-size sprite。
 `NUMBER` opcode (`0xFFFA`) 把 `data_fd2_dialog_last_action_value_param` 交給
 `sprintf @ 0x377D9`（格式字串 `"%d" @ 0x5014C`），再把輸出 buffer 逐位（char − 0x30）
-轉成 atlas 索引 0..9 的數字字模。
+轉成圖集索引 0..9 的數字字模。
 
-編碼性質 (direct atlas index、非 Big5)、glyph_id 範圍、ASCII 對應、字模 16×16 1bpp
+編碼性質 (直接圖集索引、非 Big5)、glyph_id 範圍、ASCII 對應、字模 16×16 1bpp
 規格，以及完整 glyph_id ↔ 中文字 lookup，統一見 `chinese_glyph_encoding.md`。
 
 ## Dialog rendering pipeline

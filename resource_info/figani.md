@@ -3,6 +3,10 @@
 戰鬥 / 特殊技 / cinematic 用的動畫 frame。
 file size 15,279,582 bytes (~15 MB)，408 entries (idx 0..407)。
 
+> 版本差異:95 初版與 98 合輯版的 FIGANI.DAT 只差 4 個 entry(`0x96`~`0x99`,索爾英雄職
+> 動畫的三個 frame + 哈諾 frame_a);95 初版索爾腳下有橢圓台座、98 合輯版移除,見
+> `version_diff.md`。
+
 ## 檔案格式
 
 LLLLLL archive (詳 `overview.md`)。

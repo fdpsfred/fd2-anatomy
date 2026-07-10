@@ -26,6 +26,9 @@ sub-entries 各自獨立索引。
 | **0x1F** | `data_fd2_audio_fdother_sfx_bank_buf_ptr @ 0x53EEC` | UI/menu SFX bank (nested archive 13 sub-entries，全為 8-bit PCM 樣本) | 31,771 |
 
 `data_fd2_chinese_font_sheet` 是 **1bpp** (58368 ÷ 1824 ÷ 32 = 1.0)。
+
+> 版本差異:此字模圖集(entry `0x04`)是 95 初版與 98 合輯版之間唯一不同的 FDOTHER
+> entry,兩版為同一組 1824 字的重新編號(permutation),見 `version_diff.md`。
 `fd2_blit_glyph_1bpp_with_outline @ 0x4EA2A` 的「1bpp」指 **input glyph**（每字
 32 bytes = 16 列 × 2 byte）;輸出是 8bpp mode-13h（每像素一個 palette-index byte）——
 每個 set bit 寫一個 fill_color byte，並在其左下、正下各寫一個 outline_color byte 作
@@ -37,7 +40,7 @@ drop-shadow。
 |---|---|---|
 | 0x09 | `fd2_animate_party_addition_with_appear_effect` | 角色加入動畫 |
 | 0x0A | `fd2_chapter_transition_menu` | chapter_transition_menu_panel_buffer |
-| 0x0D | `fd2_chapter_transition_menu` / `fd2_main_menu_dispatcher` / `fd2_run_chapter_intro_menu_typeB` | chapter intro sprite atlas |
+| 0x0D | `fd2_chapter_transition_menu` / `fd2_main_menu_dispatcher` / `fd2_run_chapter_intro_menu_typeB` | chapter intro sprite 圖集 |
 | 0x0E | `fd2_run_chapter_intro_menu_typeC` | chapter intro typeC sprites |
 | 0x22 | `fd2_play_chapter_21_hidden_stage_unlock_cinematic` | chapter intro slideshow |
 | 0x2A | `fd2_load_chapter_background_layers` | chapter background |
@@ -190,7 +193,7 @@ mid-ANI palette）渲染 0x61 得到相同藍調，佐證這張未用英文標�
 
 - **sprite 群組（3 個 archive、65 sprite）**：0x07（7）、0x0C（28）、0x3F（30），
   sub-entry 皆 RLE 4-op sprite（自帶 `[w][h]` header，見 `codecs.md` §A）。0x0C 與
-  0x3F 是近乎重複的 chapter-intro sprite atlas 變體（前 23 個 sub-sprite 尺寸完全相同，
+  0x3F 是近乎重複的 chapter-intro sprite 圖集 變體（前 23 個 sub-sprite 尺寸完全相同，
   含 1 張 320×200 全景）。
 - **PCM 音訊 bank（26 個 archive、111 樣本）**：其餘全部，sub-entry 皆 8-bit unsigned
   PCM 樣本（靜音值 0x80）；即各系 SFX bank（UI/menu、figani、status-effect、summon、
@@ -204,7 +207,7 @@ sub-entry 本身仍走 LLLLLL 容器格式（sig + u32 offset 表），與 outer
 | outer idx | size (bytes) | sub-entries | 用途 |
 |---|---|---|---|
 | 0x07 | 23377 | 7 | ending sprite (`fd2_title_attract_and_main_menu`) |
-| 0x0C | 51759 | 28 | chapter-intro sprite atlas（RLE sprite） |
+| 0x0C | 51759 | 28 | chapter-intro sprite 圖集（RLE sprite） |
 | 0x1F | 31771 | 13 | UI/menu SFX bank，PCM (`main` 啟動) |
 | 0x30 | 24183 | 6 | figani SFX bank (LUT @0x525D6) |
 | 0x31 | 27871 | 7 | figani SFX bank (LUT @0x525D6) |
@@ -212,7 +215,7 @@ sub-entry 本身仍走 LLLLLL 容器格式（sig + u32 offset 表），與 outer
 | 0x33 | 28106 | 5 | figani SFX bank (LUT @0x525D6) |
 | 0x34 | 26164 | 6 | figani SFX bank (LUT @0x525D6) |
 | 0x35 | 19394 | 4 | figani SFX bank (LUT @0x525D6) |
-| 0x3F | 60972 | 30 | chapter-intro sprite atlas（RLE sprite，0x0C 近重複變體） |
+| 0x3F | 60972 | 30 | chapter-intro sprite 圖集（RLE sprite，0x0C 近重複變體） |
 | 0x40 | 18791 | 6 | speed_mode_overlay |
 | 0x4D | 52031 | 4 | ending 序列 SFX bank，PCM |
 | 0x4E | 6492 | 1 | ANI 配套 |
