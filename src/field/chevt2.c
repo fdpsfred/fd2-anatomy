@@ -94,7 +94,7 @@ void fd2_chapter_event_handler_30__ch21_ai_ctrl(uint32 event_arg)
  * when turn != 3 the handler does JNZ into the shared RET, and when turn == 3
  * it pushes its 9 args then JMP 0x35A20 — falling into the
  * PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24; RET
- * tail of fd2_chapter_event_handler_42__ch28_dialog_with_state @ 0x359C8.
+ * tail of fd2_chapter_event_handler_42__ch28_dialog_only @ 0x359C8.
  * That tail-merge is a binary size optimisation; the functionally-exact source
  * is a single self-contained dialog call.
  * ---------------------------------------------------------------- */
@@ -117,18 +117,21 @@ void fd2_chapter_event_handler_31__ch22_turn_gated(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_32__ch22_reinforcement @ 0x35261  (0 direct callers)
+ * fd2_chapter_event_handler_32__ch22_sara_recruit @ 0x35261  (0 direct callers)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x32.
  * Triggered in chapter 22 at turn 5 / phase 2 (ch22 turn-event slot 1).
- * Category: reinforcement spawner. Dispatch-table signature is 1-arg cdecl
- * (void fn(uint event_arg)); this handler does not read the arg.
+ * Category: char_recruit (permanent party join). Dispatch-table signature is
+ * 1-arg cdecl (void fn(uint event_arg)); this handler does not read the arg.
  *
- * Effect: ch22 turn-5 reinforcement — load portrait set 2, a single-corner pan
- * to window origin (0x10, 0x2A), an 8-tick hold, spawn reinforcement char id
- * 0x14 from base+growth, then unconditionally show dialog page 2. Char 0x14 is
- * the joining ally 莎拉 (Sara) -- the chapter-22 guide notes she appears from
- * the south at the start of turn 5 to help and joins the party.
+ * Effect: ch22 turn-5 recruit -- load portrait set 2, a single-corner pan to
+ * window origin (0x10, 0x2A), an 8-tick hold, permanently recruit char id 0x14
+ * into the menu-party roster via fd2_init_runtime_char_from_base_growth (which
+ * writes the shared menu-party roster and increments menu_party_member_count),
+ * then unconditionally show dialog page 2. Char 0x14 = the joining ally 莎拉
+ * (Sara, 龍騎士); the chapter-22 guide notes she escapes the prison cell at the
+ * start of turn 5 and joins the party. This is a permanent player-class recruit
+ * (same mechanism as handler_3D 渥德), NOT an enemy reinforcement wave.
  *
  * In the binary the dialog call shares a borrowed tail: after the spawn the
  * handler does JMP 0x347F1, falling into the
@@ -138,7 +141,7 @@ void fd2_chapter_event_handler_31__ch22_turn_gated(uint32 event_arg)
  * tail-merge is a binary size optimisation; the functionally-exact source is a
  * single self-contained dialog call.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)
+void fd2_chapter_event_handler_32__ch22_sara_recruit(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -192,12 +195,14 @@ void fd2_chapter_event_handler_33__ch22_teleport_staff_drop(uint32 stepping_char
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_34__ch23_ai_ctrl @ 0x352E2  (0 direct callers)
+ * fd2_chapter_event_handler_34__ch23_portrait_cutscene @ 0x352E2  (0 direct callers)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x34. Triggered
  * in chapter 23 at turns 13, 15, 18, 22 (all phase 0; ch23 turn-event slots
- * 0-3). Category: AI/cinematic, no dialog. Dispatch-table signature is 1-arg
- * cdecl (void fn(uint event_arg)); this handler does not read the arg.
+ * 0-3). Category: portrait_cinematic (portrait white-flash cutscene; no dialog,
+ * no AI-mode write; structural twin of handler_48 ch29_portrait_cutscene). The
+ * former '_ai_ctrl' label was a false positive. Dispatch-table signature is
+ * 1-arg cdecl (void fn(uint event_arg)); this handler does not read the arg.
  *
  * Effect: ch23 turn cinematic — two portrait white-flash cutscenes per call (a
  * 2-portrait pair) at fixed tile positions (2, 0xB) and (0x1A, 0xB), with the
@@ -214,7 +219,7 @@ void fd2_chapter_event_handler_33__ch22_teleport_staff_drop(uint32 stepping_char
  * @ 0x35318. That tail-merge is a binary size optimisation; the
  * functionally-exact source is simply two complete calls.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_34__ch23_ai_ctrl(uint32 event_arg)
+void fd2_chapter_event_handler_34__ch23_portrait_cutscene(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -228,7 +233,7 @@ void fd2_chapter_event_handler_34__ch23_ai_ctrl(uint32 event_arg)
 
 /* ----------------------------------------------------------------
  * fd2_wrap_cinematic_chapter_portrait_dump_with_white_flash @ 0x35318
- *   (1 caller: fd2_chapter_event_handler_3f__ch27_cinematic)
+ *   (1 caller: fd2_chapter_event_handler_3f__ch27_portrait_cutscene)
  *
  * Transparent thunk that forwards its 3 stack args (12 bytes) to
  * fd2_cinematic_chapter_portrait_dump_with_white_flash @ 0x35822 and cleans
@@ -239,7 +244,7 @@ void fd2_chapter_event_handler_34__ch23_ai_ctrl(uint32 event_arg)
  * No __CHK, no own stack frame.
  *
  * The thunk exists purely as a layer-insertion / binary size optimisation: it
- * is the tail-JMP target of fd2_chapter_event_handler_3f__ch27_cinematic
+ * is the tail-JMP target of fd2_chapter_event_handler_3f__ch27_portrait_cutscene
  * @ 0x358C7, which pushes its 3 args (0xF, 0x1B, 2) and JMPs here so it can
  * borrow this thunk's 0xC-byte cleanup tail instead of emitting its own. It
  * carries no independent game semantics — it just passes the 3 args straight
@@ -621,13 +626,15 @@ void fd2_chapter_event_handler_3c__ch26_ai_ctrl(uint32 stepping_char_id)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_3d__ch26_pickup @ 0x356B7  (0 direct callers)
+ * fd2_chapter_event_handler_3d__ch26_wode_recruit @ 0x356B7  (0 direct callers)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x3D. Triggered
  * in chapter 26 as tile-step event_type 0x01 (ch26 tile-step slot 2). Category:
- * major-quest item pickup with cinematic + char spawn. Dispatch-table signature
- * is 1-arg cdecl (the stepping char id under the tile-step ABI, read from
- * [ESP+0x4]).
+ * char_recruit (item-gated permanent party recruit). The former '_pickup' name
+ * was inverted: the handler CONSUMES key item 0xD0 and recruits char 0x1F (渥德);
+ * it does not pick anything up, and it collided with the genuine ch26 item-pickup
+ * handler 0x3A. Dispatch-table signature is 1-arg cdecl (the stepping char id
+ * under the tile-step ABI, read from [ESP+0x4]).
  *
  * First-time only (tile_event_consumed_flags[0xC] == 0): load the stepping
  * char's portrait, then check whether that char is carrying key item 0xD0.
@@ -645,7 +652,7 @@ void fd2_chapter_event_handler_3c__ch26_ai_ctrl(uint32 stepping_char_id)
  * dialogs (pages 2, 3) and 0xA0000 for the final full-screen page 4. The blit
  * loop runs over [0, 0x3B) = 59 frames.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_3d__ch26_pickup(uint32 stepping_char_id)
+void fd2_chapter_event_handler_3d__ch26_wode_recruit(uint32 stepping_char_id)
 {
     uint32 slot;
     uint32 sprite_atlas;
@@ -722,12 +729,14 @@ void fd2_chapter_event_handler_3e__ch27_dyn_turn_event(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_3f__ch27_cinematic @ 0x358C7
+ * fd2_chapter_event_handler_3f__ch27_portrait_cutscene @ 0x358C7
  *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51C8D)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x3F. Triggered
- * in chapter 27 at turn-event slot 0 (turn=0xFF / sentinel marker). Category:
- * 2-portrait cinematic pair. Dispatch-table signature is 1-arg cdecl
+ * in chapter 27 at turn-event slot 0 (turn=0xFF sentinel, dynamically armed by
+ * ch27 tile-step handler 0x3E). Category: portrait_cinematic (2-portrait white-
+ * flash cutscene; no dialog, no AI-mode write; twin of handler_34/handler_48,
+ * distinct from camera-pan cinematics). Dispatch-table signature is 1-arg cdecl
  * (void fn(uint event_arg)); this handler does not read the arg.
  *
  * Effect: ch27 turn-FF marker — a 2-portrait reveal. The first portrait white-
@@ -742,7 +751,7 @@ void fd2_chapter_event_handler_3e__ch27_dyn_turn_event(uint32 event_arg)
  * thunk here keeps that documented tail-JMP relationship intact and is
  * functionally exact.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_3f__ch27_cinematic(uint32 event_arg)
+void fd2_chapter_event_handler_3f__ch27_portrait_cutscene(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -805,28 +814,32 @@ void fd2_chapter_event_handler_40__ch27_mech_defeat_seq(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_41__shared_dyn_turn_event @ 0x3599B
+ * fd2_chapter_event_handler_41__ch28_dyn_turn_event @ 0x3599B
  *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51C95)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x41. Triggered
- * in chapter 27 at turn-event slot 1 (turn=0xFF sentinel) and in chapter 28 as
- * tile-step event_type 0x00 (ch28 tile-step slot 0). Category: state-machine
- * mutator (turn-event scheduler). Dispatch-table signature is 1-arg cdecl
- * (void fn(uint event_arg)); this handler does not read the arg.
+ * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x41. Reached
+ * ONLY in chapter 28 via tile-step event_type 0x00 (ch28 tile-step slot 0).
+ * ch27's turn-event slot 1 also references idx 0x41 but its turn byte is a
+ * turn=0xFF sentinel that no ch27-reachable handler ever arms (the only writers
+ * of tile_event_data_table[+6] are handler_43/ch28, handler_4b+4c/ch29,
+ * handler_1e/ch9 -- none in ch27), so idx 0x41 never dispatches in ch27; hence
+ * __ch28, not __shared. Category: state_machine_mutator (turn-event scheduler).
+ * Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
+ * handler does not read the arg.
  *
- * Effect: first-time turn scheduler shared by the ch27 sentinel slot and the
- * ch28 tile-step. The first time its own slot is hit
+ * Effect: first-time turn scheduler. The first time its own slot is hit
  * (tile_event_consumed_flags[0x10] == 0): write turn_counter (immediate, no +1)
  * into the turn-event hook table at tile_event_data_table[+3] (hook entry 0's
  * turn byte), arming a dynamic turn-event for the current turn, then
- * consume the slot (flags[0x10] = 1) so it never re-arms. Differs from
- * handler_3e, which schedules turn_counter + 1.
+ * consume the slot (flags[0x10] = 1) so it never re-arms. In ch28 this arms
+ * hook 0 whose event code = idx 0x42. Differs from handler_3e, which schedules
+ * turn_counter + 1.
  *
  * The turn counter is read as a single byte and stored as a byte
  * (MOV DL,[turn_counter] / MOV [data_table+3],DL); the (uint8) truncation on
  * store reproduces that 8-bit move exactly.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_41__shared_dyn_turn_event(uint32 event_arg)
+void fd2_chapter_event_handler_41__ch28_dyn_turn_event(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -838,13 +851,15 @@ void fd2_chapter_event_handler_41__shared_dyn_turn_event(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_42__ch28_dialog_with_state @ 0x359C8
+ * fd2_chapter_event_handler_42__ch28_dialog_only @ 0x359C8
  *   (1 caller: dispatch table @ 0x51B91, entry @ 0x51C99)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x42. Triggered
- * in chapter 28 at turn-event slot 0 (turn=0xFF sentinel marker). Category:
- * dialog with state. Dispatch-table signature is 1-arg cdecl
- * (void fn(uint event_arg)); this handler does not read the arg.
+ * in chapter 28 at turn-event slot 0 (turn=0xFF sentinel marker; dynamically
+ * armed by ch28 tile-step handler 0x41). Category: dialog_only -- no persistent
+ * state mutation (unlike sibling handler_44 which ends with flags[0x12]=1; the
+ * former '_with_state' suffix was wrong). Dispatch-table signature is 1-arg
+ * cdecl (void fn(uint event_arg)); this handler does not read the arg.
  *
  * Effect: ch28 turn-FF marker scene — show dialog page 3, play one chapter
  * portrait white-flash cutscene at tile (0x11, 0x12) with chapter id 1, then
@@ -866,7 +881,7 @@ void fd2_chapter_event_handler_41__shared_dyn_turn_event(uint32 event_arg)
  * the borrowed tails are pure code sharing, so this handler's source is just the
  * straight-line three-call sequence below.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_42__ch28_dialog_with_state(uint32 event_arg)
+void fd2_chapter_event_handler_42__ch28_dialog_only(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -1001,7 +1016,7 @@ void fd2_chapter_event_handler_45__ch28_dyn_turn_event(uint32 stepping_char_id)
  * JMP 0x359FF, falling through into the
  * CALL fd2_cinematic_chapter_portrait_dump_with_white_flash; ADD ESP,0xC;
  * <page-6 dialog>; cleanup; RET tail (alt_37) of
- * fd2_chapter_event_handler_42__ch28_dialog_with_state @ 0x359C8. That
+ * fd2_chapter_event_handler_42__ch28_dialog_only @ 0x359C8. That
  * tail-merge is a binary size optimisation; the functionally-exact source is the
  * straight-line call sequence below.
  * ---------------------------------------------------------------- */
@@ -1178,26 +1193,28 @@ void fd2_chapter_event_handler_4a__ch29_dyn_turn_event(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_4b__ch29_major_cinematic @ 0x35C79
+ * fd2_chapter_event_handler_4b__ch29_yuni_endgame_trigger @ 0x35C79
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CBD)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x4B. Triggered in
- * chapter 29 as tile-step event_type 0x01 (ch29 tile-step slot 1). Category: ch29
- * trigger tile (major endgame cinematic). Dispatch-table signature is 1-arg cdecl
- * (the stepping char id under the tile-step ABI, read from [ESP+0x4]).
+ * chapter 29 as tile-step event_type 0x01 (ch29 tile-step slot 1). Category:
+ * state_machine_mutator -- the character-gated ch29 endgame-sequence LAUNCHER (it
+ * renders no cinematic itself; the actual endgame cinematics are the armed
+ * handlers 0x4A/0x4C). Dispatch-table signature is 1-arg cdecl (the stepping char
+ * id under the tile-step ABI, read from [ESP+0x4]).
  *
  * Gate: fire only when a non-enemy steps (runtime_char_array[stepping_char].team
  * != 0; team encoding 0=enemy 1=npc 2=player, same gate as handler_45) AND this
  * slot is still unconsumed (tile_event_consumed_flags[0x11] == 0). Inside the gate
  * the handler branches on the stepper's char_id (the designated trigger character
- * is char_id 9):
+ * is char_id 9 = 悠妮/Yuni, who must reach the stone tablet):
  *   - char_id != 9 (WRONG character): show the "you're not the one" dialog
  *     (in-frame page 0, render target 0xA951F), paint the portrait, wait for input,
  *     slide the status screen back out, and return WITHOUT consuming the slot (so
  *     another character can re-trigger it).
- *   - char_id == 9 (the trigger character): trigger the major cinematic — show the
- *     full-screen page-1 dialog (render target 0xA0000), then perform four state
- *     mutations:
+ *   - char_id == 9 (悠妮/Yuni, the trigger character): launch the endgame sequence --
+ *     show the full-screen page-1 dialog (render target 0xA0000), then perform four
+ *     state mutations that arm the turn-event chain:
  *       tile_event_consumed_flags[0x11] = 1                 -- consume this slot
  *       tile_event_data_table[+6] = (uint8)(turn_counter+1) -- arm turn-event hook
  *                                                              entry 1 next turn
@@ -1215,7 +1232,7 @@ void fd2_chapter_event_handler_4a__ch29_dyn_turn_event(uint32 event_arg)
  * Stack frame 0x28 (__CHK) is the Watcom stack-probe prologue and carries no
  * source-level semantics.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_4b__ch29_major_cinematic(uint32 stepping_char_id)
+void fd2_chapter_event_handler_4b__ch29_yuni_endgame_trigger(uint32 stepping_char_id)
 {
     if ((data_fd2_battle_runtime_char_array_ptr[stepping_char_id].team != 0) &&
         (*(uint8 *)(data_fd2_field_map_tile_event_consumed_flags_ptr + 0x11) == 0)) {

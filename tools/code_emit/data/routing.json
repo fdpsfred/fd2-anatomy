@@ -4165,7 +4165,7 @@
     "reviewed": true
   },
   "00035261": {
-    "name": "fd2_chapter_event_handler_32__ch22_reinforcement",
+    "name": "fd2_chapter_event_handler_32__ch22_sara_recruit",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4181,7 +4181,7 @@
     "reviewed": true
   },
   "000352e2": {
-    "name": "fd2_chapter_event_handler_34__ch23_ai_ctrl",
+    "name": "fd2_chapter_event_handler_34__ch23_portrait_cutscene",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4269,7 +4269,7 @@
     "reviewed": true
   },
   "000356b7": {
-    "name": "fd2_chapter_event_handler_3d__ch26_pickup",
+    "name": "fd2_chapter_event_handler_3d__ch26_wode_recruit",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4293,7 +4293,7 @@
     "reviewed": true
   },
   "000358c7": {
-    "name": "fd2_chapter_event_handler_3f__ch27_cinematic",
+    "name": "fd2_chapter_event_handler_3f__ch27_portrait_cutscene",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4309,7 +4309,7 @@
     "reviewed": true
   },
   "0003599b": {
-    "name": "fd2_chapter_event_handler_41__shared_dyn_turn_event",
+    "name": "fd2_chapter_event_handler_41__ch28_dyn_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4317,7 +4317,7 @@
     "reviewed": true
   },
   "000359c8": {
-    "name": "fd2_chapter_event_handler_42__ch28_dialog_with_state",
+    "name": "fd2_chapter_event_handler_42__ch28_dialog_only",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4405,7 +4405,7 @@
     "reviewed": true
   },
   "00035c79": {
-    "name": "fd2_chapter_event_handler_4b__ch29_major_cinematic",
+    "name": "fd2_chapter_event_handler_4b__ch29_yuni_endgame_trigger",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,

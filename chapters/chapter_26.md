@@ -50,7 +50,7 @@ story 章，intro 主選單提供武器店 / 道具店，另有以隱藏熱鍵�
 
 ## 特殊機制
 
-- **渥德招募 + 動態 dialog**：`tile_event_consumed_flags[0xC]` 是 binary 渥德招募旗標（0=未招募、1=已招募）——由 tile-step handler `fd2_chapter_event_handler_3d__ch26_pickup @ 0x356B7`（consequence 0x3D）在玩家攜帶 key item 0xD0 踩上 pickup tile 時，消耗 0xD0 + 播 FDOTHER.DAT[0x2D] cinematic + `fd2_init_runtime_char_from_base_growth(0x1F)` spawn 渥德後設為 1（未帶 0xD0 則顯示 page 2 不消耗、可重試）。`fd2_chapter_26_end` 據此決定兩段 dialog page：Dynamic #1 = flag[0xC]+5 → page 5（未招募渥德）或 6（已招募）；Dynamic #2 = flag[0xC]+8 → page 8 或 9。（此旗標為 binary 0/1，非「5 寶箱 0-4 選擇器」；5 寶箱另由 consequence 0x3A 處理。）
+- **渥德招募 + 動態 dialog**：`tile_event_consumed_flags[0xC]` 是 binary 渥德招募旗標（0=未招募、1=已招募）——由 tile-step handler `fd2_chapter_event_handler_3d__ch26_wode_recruit @ 0x356B7`（consequence 0x3D）在玩家攜帶 key item 0xD0 踩上 pickup tile 時，消耗 0xD0 + 播 FDOTHER.DAT[0x2D] cinematic + `fd2_init_runtime_char_from_base_growth(0x1F)` spawn 渥德後設為 1（未帶 0xD0 則顯示 page 2 不消耗、可重試）。`fd2_chapter_26_end` 據此決定兩段 dialog page：Dynamic #1 = flag[0xC]+5 → page 5（未招募渥德）或 6（已招募）；Dynamic #2 = flag[0xC]+8 → page 8 或 9。（此旗標為 binary 0/1，非「5 寶箱 0-4 選擇器」；5 寶箱另由 consequence 0x3A 處理。）
 - **悠妮喚醒機甲兵渥德**：通道內 tile event，悠妮輸入啟動碼 `01E0C244-FE2C5-1932`，機甲兵渥德 (`01279943渥德`) 加入隊伍替己方作戰。此加入由 FDFIELD tile-step / dialog event 處理，非 init/end handler 直接載入（見對話 page 4）。
 - **勝負條件**：標準 default（全敵死 = 勝、索爾死 = 負）外，`fd2_chapter_26_post_action` 另判 chars[1]（亞齊梅吉）或 chars[2]（悠妮）死即負。runtime index 由編成畫面 per-chapter pin 決定（見 Post-action handler）。
 - **援軍密集 turn**：第 2、4、6、8、10、12、15、16、17 回合敵方 turn intro 各觸發一次過場 cinematic（event_code 0x39、handler `0x000354DD`：載入該回合 portrait set + pan (9,0) + 400ms，不生成單位），共 9 個 turn-event hook（見 FDFIELD event script）；援軍單位由 turn-gated FDFIELD spawn records 生成。
@@ -118,7 +118,7 @@ runtime char index 隨章節而變，由編成畫面 per-chapter pin 決定：ch
 11. `fd2_display_dialog_scene(page=11)`
 12. `fd2_save_runtime_char_to_template` + `current_chapter_id += 1`
 
-flag[0xC] 為 binary 渥德招募旗標（唯一 writer 為 pickup handler `fd2_chapter_event_handler_3d__ch26_pickup @ 0x356B7`，攜鑰匙道具 0xD0 踩 pickup tile 時設常數 1），故只有 0 / 1 兩種取值：
+flag[0xC] 為 binary 渥德招募旗標（唯一 writer 為 pickup handler `fd2_chapter_event_handler_3d__ch26_wode_recruit @ 0x356B7`，攜鑰匙道具 0xD0 踩 pickup tile 時設常數 1），故只有 0 / 1 兩種取值：
 
 | `tile_event_consumed_flags[0xC]` | Dynamic #1 (page) | Dynamic #2 (page) |
 |---|---|---|

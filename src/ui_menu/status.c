@@ -1171,7 +1171,7 @@ void fd2_run_status_screen_member_menu(void)
  *
  * Callers: fd2_run_class_promotion_menu_main,
  * fd2_build_promotion_candidates_with_targets, fd2_any_char_has_item,
- * fd2_chapter_21_end, fd2_chapter_event_handler_3d__ch26_pickup.
+ * fd2_chapter_21_end, fd2_chapter_event_handler_3d__ch26_wode_recruit.
  *
  * int __cdecl with the __CHK(0x1c) stack-probe prologue (compiler-
  * injected, not part of the source). fd2_get_inventory_slot_item_id
