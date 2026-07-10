@@ -321,7 +321,7 @@ extern const int16 data_fd2_ui_per_job_revive_or_promote_cost_table[30]; /* 0x52
 
 /* inline 3-byte battle-drop entry blob for chapter-event handler 0x27
  * (type byte + LE uint16 value); read only by
- * fd2_chapter_event_handler_27__unref_drop. */
+ * fd2_chapter_event_handler_27__ch15_eye_gem_drop. */
 extern const uint8 data_fd2_chapter_event_handler_27_drop_entry_inline[3]; /* 0x52742 */
 /* inline 3-byte battle-drop entry blob for chapter-event handler 0x29
  * (type byte + LE uint16 value); read only by

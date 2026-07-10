@@ -3885,7 +3885,7 @@
     "reviewed": true
   },
   "00034844": {
-    "name": "fd2_chapter_event_handler_17__unref_turn_gated",
+    "name": "fd2_chapter_event_handler_17__ch6_captain_defeat",
     "target": "field/chevt1.c",
     "phase": 7,
     "done": true,
@@ -3893,7 +3893,7 @@
     "reviewed": true
   },
   "000348fc": {
-    "name": "fd2_chapter_event_handler_18__unref_dialog",
+    "name": "fd2_chapter_event_handler_18__ch7_captain_defeat",
     "target": "field/chevt1.c",
     "phase": 7,
     "done": true,
@@ -3941,7 +3941,7 @@
     "reviewed": true
   },
   "00034a3c": {
-    "name": "fd2_chapter_event_handler_1d__unref_dialog_with_state",
+    "name": "fd2_chapter_event_handler_1d__ch8_captain_defeat",
     "target": "field/chevt1.c",
     "phase": 7,
     "done": true,
@@ -3949,7 +3949,7 @@
     "reviewed": true
   },
   "00034a7a": {
-    "name": "fd2_chapter_event_handler_1e__unref_major_cinematic",
+    "name": "fd2_chapter_event_handler_1e__ch9_laiting_defeat",
     "target": "field/chevt1.c",
     "phase": 7,
     "done": true,
@@ -3989,7 +3989,7 @@
     "reviewed": true
   },
   "00034c6c": {
-    "name": "fd2_chapter_event_handler_22__unref_dialog",
+    "name": "fd2_chapter_event_handler_22__ch10_boss_defeat",
     "target": "field/chevt1.c",
     "phase": 7,
     "done": true,
@@ -4013,7 +4013,7 @@
     "reviewed": true
   },
   "00034ccc": {
-    "name": "fd2_chapter_event_handler_25__unref_major_cinematic",
+    "name": "fd2_chapter_event_handler_25__ch12_orc_leader_defeat",
     "target": "field/chevt1.c",
     "phase": 7,
     "done": true,
@@ -4077,7 +4077,7 @@
     "reviewed": true
   },
   "00034f74": {
-    "name": "fd2_chapter_event_handler_27__unref_drop",
+    "name": "fd2_chapter_event_handler_27__ch15_eye_gem_drop",
     "target": "field/chevt1.c",
     "phase": 7,
     "done": true,

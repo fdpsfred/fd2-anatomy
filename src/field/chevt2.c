@@ -168,7 +168,7 @@ void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)
  * In the binary the dialog call shares a borrowed tail: after pushing its 8
  * args (page=3) the handler does JMP 0x34FB7, falling into the
  * PUSH data_fd2_current_chapter_text_ptr; CALL fd2_display_dialog_scene; ADD ESP,0x24 tail
- * hosted in fd2_chapter_event_handler_27__unref_drop @ 0x34F74. That tail-merge
+ * hosted in fd2_chapter_event_handler_27__ch15_eye_gem_drop @ 0x34F74. That tail-merge
  * is a binary size optimisation; the functionally-exact source is a single
  * self-contained dialog call.
  * ---------------------------------------------------------------- */
@@ -385,7 +385,7 @@ void fd2_chapter_event_handler_36__ch24_cinematic(uint32 event_arg)
  *
  * In the binary the handler ends with JMP 0x34FC5 — the cleanup-only Class-3
  * shared tail (ADD ESP,4; POP EDI; POP ESI; RET) hosted in
- * fd2_chapter_event_handler_27__unref_drop. That tail-merge is a binary size
+ * fd2_chapter_event_handler_27__ch15_eye_gem_drop. That tail-merge is a binary size
  * optimisation; the borrowed teardown is just this handler's own local-slot
  * cleanup and register restore, so the functionally-exact source is a plain
  * return.

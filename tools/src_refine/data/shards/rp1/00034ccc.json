@@ -1,15 +1,15 @@
 {
   "address": "00034ccc",
-  "name_current": "fd2_chapter_event_handler_25__unref_major_cinematic",
-  "name_final": "fd2_chapter_event_handler_25__unref_major_cinematic",
-  "name_verdict": "keep",
-  "name_proposed": null,
-  "name_reason": "Conforms to fd2_<domain>_<descriptor>. domain=chapter_event_handler; '25' is the per-event handler-table index 0x25 at 0x51B91 (a meaningful dispatch/event-slot ID, same scheme as all sibling handlers 00..2E in this file), not an address remnant; '__unref' = no FDFIELD turn-event/tile-step hook references this slot (xref-to is only the table data slot at 0x51c25, 0 direct callers); 'major_cinematic' = its category (2-stage cutscene). No hex address suffix. Name accurately reflects purpose and internal logic.",
+  "name_current": "fd2_chapter_event_handler_25__ch12_orc_leader_defeat",
+  "name_final": "fd2_chapter_event_handler_25__ch12_orc_leader_defeat",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_chapter_event_handler_25__ch12_orc_leader_defeat",
+  "name_reason": "Conforms to fd2_<domain>_<descriptor>. '25' is the per-event handler-table index 0x25 (xref site 0x51c25), a meaningful dispatch-slot ID, not an address remnant. Descriptor corrected from '__unref_major_cinematic' to '__ch12_orc_leader_defeat': the slot is LIVE, reached via the ch12 kill-drop path -- ch12 char_spawn_record[1] = the orc leader (獸人隊長, enemy_data 35, char_id 0x67, lv16) carries pickup_kind=2 param=0x25, so the orc leader's death dispatches consequence[0x25]. The body is his defeat cinematic (page-1 defeat line + 2-stage cutscene). The earlier 'unref' verdict only scanned turn-event/tile-step hooks and missed the kill-drop path.",
   "kind": "function",
   "home": "src/field/chevt1.c",
-  "purpose": "Unreferenced (cut-content/non-chapter) major endgame cinematic event handler, dispatch slot 0x25: show dialog page 1 then play a 2-stage portrait+cutscene cinematic and flip battle-animation phase to 1.",
+  "purpose": "Chapter 12 orc-leader-defeat cinematic (dispatch slot 0x25, reached via the ch12 kill-drop path when the orc leader record[1] enemy_data 35, pickup_kind=2 param=0x25, falls): show dialog page 1 (his defeat line) then play a 2-stage portrait+cutscene cinematic and flip battle-animation phase to 1.",
   "logic_summary": "Straight-line, no branch/RNG/numeric-compute, no CALL-return used. fd2_display_dialog_scene(current_chapter_text, page=1, fixed dialog geometry). Stage A: fd2_pan_cursor_and_window(0xF,0x22); chapter_init_phase_flag=1; fd2_load_chapter_portraits_and_dump_tmp(3); chapter_init_phase_flag=0; fd2_cutscene_event_trigger(0x2B); fd2_clear_all_chars_facing(). Stage B: fd2_pan_cursor_and_window(0,0x1A); chapter_init_phase_flag=1; fd2_load_chapter_portraits_and_dump_tmp(4); chapter_init_phase_flag=0; fd2_cutscene_event_trigger(0x2C); fd2_clear_all_chars_facing(). Closes with battle_anim_phase=1. Each portrait load is bracketed by the init-phase flag. __CHK(0x28) prologue; EBX untouched; final store reached via tail-JMP 0x34D63 -> 0x35C18 (MOV [0x51A83],1; RET) shared epilogue tail, inlined in src for Layer-2 equivalence.",
-  "signature": "void __cdecl fd2_chapter_event_handler_25__unref_major_cinematic(uint32 event_arg)",
+  "signature": "void __cdecl fd2_chapter_event_handler_25__ch12_orc_leader_defeat(uint32 event_arg)",
   "params": [
     {
       "name": "event_arg",
@@ -33,7 +33,7 @@
   ],
   "comment_original_issue": "src comment block was accurate and precise but used non-ASCII em-dash (U+2014) on 5 lines, violating the code-ASCII-only rule.",
   "comment_verdict": "rewrite",
-  "ghidra_plate_action": "none",
+  "ghidra_plate_action": "edit",
   "issues": [],
   "processed": true,
   "committed": true,
@@ -41,5 +41,5 @@
   "status": "done",
   "ghidra_unreachable": false,
   "ghidra_error_detail": "",
-  "notes": "Disassembly @ 0x34ccc confirms src comment exactly: PUSH 0x28;CALL __CHK; no PUSH/POP EBX; sequence dialog page1 -> pan(0xF,0x22)/initflag/portrait3/cutscene0x2B/clearfacing -> pan(0,0x1A)/initflag/portrait4/cutscene0x2C/clearfacing -> JMP 0x35C18 (MOV [0x51A83],1;RET). Globals match named symbols (0x53a79 chapter text ptr, 0x53afa init-phase flag, 0x51a83 battle_anim_phase). Only edit made: 5 em-dash -> '--' within this function's own comment block; no logic/type/signature/symbol-name change. Ghidra plate is accurate and consistent with refined understanding (describes same 2-stage cinematic), so left unchanged."
+  "notes": "Disassembly @ 0x34ccc confirms src comment exactly: PUSH 0x28;CALL __CHK; no PUSH/POP EBX; sequence dialog page1 -> pan(0xF,0x22)/initflag/portrait3/cutscene0x2B/clearfacing -> pan(0,0x1A)/initflag/portrait4/cutscene0x2C/clearfacing -> JMP 0x35C18 (MOV [0x51A83],1;RET). Globals match named symbols (0x53a79 chapter text ptr, 0x53afa init-phase flag, 0x51a83 battle_anim_phase). Only edit made: 5 em-dash -> '--' within this function's own comment block; no logic/type/signature/symbol-name change. CLASSIFICATION CORRECTION (renamed unref_major_cinematic -> ch12_orc_leader_defeat): the earlier 'unref/cut content' verdict was WRONG -- it only checked turn-event/tile-step hooks and missed that a spawn record's +0x16 pickup_kind==2 dispatches consequence[param] on death. ch12 record[1] = enemy_data 35 獸人隊長 (char_id 0x67) has pickup_kind=2 param=0x25 (decoder-confirmed); page 1 (char 0x0F '可惡..但是還沒有結束..') is his defeat line per ch12 FDTXT. 米亞斯多德's recruitment is a separate fixed ch12 end-handler event, not this slot. Rename verified byte-equivalent by eqcheck. Ghidra plate updated to the live classification."
 }

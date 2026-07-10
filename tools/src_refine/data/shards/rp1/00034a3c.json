@@ -1,20 +1,20 @@
 {
   "address": "00034a3c",
-  "name_current": "fd2_chapter_event_handler_1d__unref_dialog_with_state",
-  "name_final": "fd2_chapter_event_handler_1d__unref_dialog_with_state",
-  "name_verdict": "keep",
-  "name_proposed": null,
-  "name_reason": "Compliant game-function name (fd2_ prefix). '1d' is the per-event handler table dispatch index (slot 0x1D), a legitimate domain ID, NOT an address residue -- the function lives at 0x34a3c. Confirmed slot 0x1D: table base 0x51B91, xref site 0x51c05, (0x51c05-0x51b91)/4 = 29 = 0x1D, and the entry bytes are 3c 4a 03 00 = 0x34a3c. '__unref' correctly reflects that no FDFIELD turn-event/tile-step hook references this slot. '_dialog_with_state' reflects the category (shows a dialog page then chains to the AI-state-clearing handler 0x1C). No address residue.",
+  "name_current": "fd2_chapter_event_handler_1d__ch8_captain_defeat",
+  "name_final": "fd2_chapter_event_handler_1d__ch8_captain_defeat",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_chapter_event_handler_1d__ch8_captain_defeat",
+  "name_reason": "Compliant game-function name. '1d' is the per-event handler table dispatch index (slot 0x1D; xref site 0x51c05, entry bytes 3c 4a 03 00 = 0x34a3c), a legitimate domain ID, not an address residue. Descriptor corrected from '__unref_dialog_with_state' to '__ch8_captain_defeat': the slot is LIVE, reached via the ch8 kill-drop path -- ch8 char_spawn_record[0] = the garrison captain (駐軍隊長, elite 突擊騎兵, enemy_data 15, char_id 0x53, lv15) carries pickup_kind=2 param=0x1D, so the captain's death dispatches consequence[0x1D]. The body shows his dying apology (page 2) then chains to the ch8 AI-clear (0x1C) that makes the garrison stand down. The earlier 'unref' verdict only scanned turn-event/tile-step hooks and missed the kill-drop path.",
   "kind": "function",
   "home": "src/field/chevt1.c",
-  "purpose": "Unreferenced per-event handler dispatch slot 0x1D: shows chapter-text dialog page 2, then tail-chains to handler 0x1C (ch8 AI-control) forwarding the event arg.",
-  "logic_summary": "Two-beat straight-line handler. (1) fd2_display_dialog_scene(data_fd2_current_chapter_text, page=2, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) with the standard dialog geometry shared by every handler in this group. (2) fd2_chapter_event_handler_1c__ch8_ai_ctrl(event_arg) -- chains to the ch8 AI-control beat (which masks combat_aux_block[0xD] &= 0x80 for the 18 runtime-char slots 0x0A..0x1B). The incoming event_arg is forwarded unchanged via the original tail PUSH dword ptr [ESP+4]; CALL 0x34a0e; ADD ESP,4; RET (handler_1c ignores the value but the pass-through is byte-faithful). Compiler-injected __CHK(0x28) stack-probe prologue; EBX not touched. No RNG, no numeric computation, no branch, no CALL-return value consumed.",
-  "signature": "void __cdecl fd2_chapter_event_handler_1d__unref_dialog_with_state(uint32 event_arg)",
+  "purpose": "Chapter 8 garrison-captain defeat beat (per-event handler dispatch slot 0x1D, reached via the ch8 kill-drop path): when the captain (record[0] elite 突擊騎兵, pickup_kind=2 param=0x1D) falls, shows chapter-text dialog page 2 (his dying apology to the princess), then tail-chains to handler 0x1C (ch8 AI-control, garrison stands down) forwarding the event arg.",
+  "logic_summary": "Two-beat straight-line handler. (1) fd2_display_dialog_scene(data_fd2_current_chapter_text, page=2, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) = 0x53 captain's dying apology. (2) fd2_chapter_event_handler_1c__ch8_ai_ctrl(event_arg) -- chains to the ch8 AI-control beat (which masks combat_aux_block[0xD] &= 0x80 for the 18 runtime-char slots 0x0A..0x1B). The incoming event_arg is forwarded unchanged via the original tail PUSH dword ptr [ESP+4]; CALL 0x34a0e; ADD ESP,4; RET (handler_1c ignores the value but the pass-through is byte-faithful). Compiler-injected __CHK(0x28) stack-probe prologue; EBX not touched. No RNG, no numeric computation, no branch.",
+  "signature": "void __cdecl fd2_chapter_event_handler_1d__ch8_captain_defeat(uint32 event_arg)",
   "params": [
     {
       "name": "event_arg",
       "type": "uint32",
-      "semantics": "Uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91. Forwarded unchanged to handler_1c (PUSH [ESP+4]); handler_1c ignores it, but this handler is the one sibling that does pass it through rather than discard it.",
+      "semantics": "Uniform 1-arg cdecl dispatch argument from the per-event handler table at 0x51B91 (the kill-drop recipient/killer idx). Forwarded unchanged to handler_1c (PUSH [ESP+4]); handler_1c ignores it, but this handler is the one sibling that passes it through rather than discard it.",
       "verdict": "keep",
       "proposed": null,
       "reason": "Name accurately describes the value (the dispatch event argument) and carries no address residue. Matches the convention used across all sibling handlers in chevt1.c."
@@ -28,9 +28,9 @@
     "data_fd2_current_chapter_text"
   ],
   "writes_globals": [],
-  "comment_original_issue": null,
-  "comment_verdict": "keep",
-  "ghidra_plate_action": "none",
+  "comment_original_issue": "Source comment previously stated the slot was unreferenced / possibly cut content. Corrected: LIVE via the ch8 kill-drop path (record[0] captain pickup_kind=2 param=0x1D); page 2 is the captain's dying apology, and the chain to 0x1C makes the garrison stand down.",
+  "comment_verdict": "edit",
+  "ghidra_plate_action": "edit",
   "issues": [],
   "processed": true,
   "committed": true,
@@ -38,5 +38,5 @@
   "status": "done",
   "ghidra_unreachable": false,
   "ghidra_error_detail": "",
-  "notes": "Verified against disassembly @ 0x34a3c: PUSH 0x28/CALL __CHK; 8 PUSHes + PUSH [0x53a79](=data_fd2_current_chapter_text)/CALL fd2_display_dialog_scene/ADD ESP,0x24; PUSH [ESP+4]/CALL 0x34a0e(handler_1c)/ADD ESP,4/RET. src comment (chevt1.c lines 1207-1227) already accurate and refined (idx 0x1D, unref, two-beat, __CHK 0x28, EBX untouched, exact event_arg forwarding tail) -> comment kept. Ghidra plate is consistent with this understanding (same idx/sequence/chain); its '(uint *)0x4c' for the 6th dialog arg is a decompiler type-coercion artifact, not a behavioral contradiction, so plate left untouched. No file edits made (comment keep + plate none); only the shard is committed."
+  "notes": "Verified against disassembly @ 0x34a3c: PUSH 0x28/CALL __CHK; 8 PUSHes + PUSH [0x53a79](=data_fd2_current_chapter_text)/CALL fd2_display_dialog_scene/ADD ESP,0x24; PUSH [ESP+4]/CALL 0x34a0e(handler_1c)/ADD ESP,4/RET. CLASSIFICATION CORRECTION (renamed unref_dialog_with_state -> ch8_captain_defeat): the earlier 'unref/cut content' verdict was WRONG -- it only checked turn-event/tile-step hooks and missed that a spawn record's +0x16 pickup_kind==2 dispatches consequence[param] on death. ch8 record[0] = enemy_data 15 突擊騎兵 lv15 (char_id 0x53, the garrison captain) has pickup_kind=2 param=0x1D (decoder-confirmed); page 2 (0x53 '公主殿下..屬下也是遵命行事..') is his dying apology per ch8 FDTXT. 洛娜's recruitment is a separate fixed ch8 end-handler event, not this slot. sole xref is DATA from the dispatch-table slot 0x51C05 (the FDFIELD reference is runtime-computed, not a static xref). Sibling 0x1C shard (00034a0e.json) consumer-ref to this name updated in sync. Rename verified byte-equivalent by eqcheck."
 }

@@ -192,7 +192,7 @@ JMP 進 darken loop，而該 loop body 實際 living inside `fd2_load_and_fade_i
 
 prev function 只做少量 header 工作（pre-PUSH 幾個常數當 args、推 frame_size），fall-through
 進真正做事的 next function。典型：四個 chapter event handler
-（`fd2_chapter_event_handler_18__unref_dialog` / `_20__ch10_dialog` /
+（`fd2_chapter_event_handler_18__ch7_captain_defeat` / `_20__ch10_dialog` /
 `_34__ch23_ai_ctrl` / `_36__ch24_cinematic`）。`src/` 把每個 header-only entry 各 emit 成一般
 C function；原版「prev 與 next 各自 PUSH 不同 frame_size 給 `__CHK`」的 prologue 差異在
 Layer 2 無關緊要 —— wcc386 會為每個 function 各自注入自己的 `__CHK` stack-probe prologue，

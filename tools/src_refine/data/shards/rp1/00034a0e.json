@@ -14,7 +14,7 @@
     {
       "name": "event_arg",
       "type": "uint32",
-      "semantics": "Dispatch arg from the uniform 1-arg cdecl per-event handler table at 0x51b91. The body never reads it (cast to (void)). The sole direct caller fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34a3c forwards its own [ESP+4] unchanged, but the value is unused here.",
+      "semantics": "Dispatch arg from the uniform 1-arg cdecl per-event handler table at 0x51b91. The body never reads it (cast to (void)). The sole direct caller fd2_chapter_event_handler_1d__ch8_captain_defeat @ 0x34a3c forwards its own [ESP+4] unchanged, but the value is unused here.",
       "verdict": "keep",
       "proposed": null,
       "reason": "Name 'event_arg' is apt and matches the uniform convention used by every sibling handler dispatched from the 0x51b91 table; no address residue, not a generic param_N."

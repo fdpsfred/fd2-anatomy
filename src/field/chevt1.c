@@ -67,10 +67,10 @@
  * fd2_chapter_event_handler_16__ch6_char_cond @ 0x34819
  *     (0 direct callers; dispatched as idx 0x16 of the per-event
  *      handler table at 0x51B91)
- * fd2_chapter_event_handler_17__unref_turn_gated @ 0x34844
+ * fd2_chapter_event_handler_17__ch6_captain_defeat @ 0x34844
  *     (0 direct callers; dispatched as idx 0x17 of the per-event
  *      handler table at 0x51B91)
- * fd2_chapter_event_handler_18__unref_dialog @ 0x348FC
+ * fd2_chapter_event_handler_18__ch7_captain_defeat @ 0x348FC
  *     (0 direct callers; dispatched as idx 0x18 of the per-event
  *      handler table at 0x51B91)
  * fd2_show_chapter_intro_text_dialog_mode_3 @ 0x34906
@@ -82,13 +82,13 @@
  *     (0 direct callers; dispatched as idx 0x1A of the per-event
  *      handler table at 0x51B91)
  * fd2_chapter_event_handler_1c__ch8_ai_ctrl @ 0x34A0E
- *     (1 caller: fd2_chapter_event_handler_1d__unref_dialog_with_state
+ *     (1 caller: fd2_chapter_event_handler_1d__ch8_captain_defeat
  *      @ 0x34A3C; also dispatched as idx 0x1C of the per-event handler
  *      table at 0x51B91)
- * fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34A3C
+ * fd2_chapter_event_handler_1d__ch8_captain_defeat @ 0x34A3C
  *     (0 direct callers; dispatched as idx 0x1D of the per-event
  *      handler table at 0x51B91)
- * fd2_chapter_event_handler_1e__unref_major_cinematic @ 0x34A7A
+ * fd2_chapter_event_handler_1e__ch9_laiting_defeat @ 0x34A7A
  *     (0 direct callers; dispatched as idx 0x1E of the per-event
  *      handler table at 0x51B91)
  * fd2_chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D
@@ -100,7 +100,7 @@
  * fd2_chapter_event_handler_21__ch10_dialog_with_state @ 0x34C1E
  *     (0 direct callers; dispatched as idx 0x21 of the per-event
  *      handler table at 0x51B91)
- * fd2_chapter_event_handler_22__unref_dialog @ 0x34C6C
+ * fd2_chapter_event_handler_22__ch10_boss_defeat @ 0x34C6C
  *     (0 direct callers; dispatched as idx 0x22 of the per-event
  *      handler table at 0x51B91)
  * fd2_chapter_event_handler_23__ch12_cinematic @ 0x34C76
@@ -109,10 +109,10 @@
  * fd2_chapter_event_handler_24__ch12_ai_ctrl @ 0x34CB3
  *     (0 direct callers; dispatched as idx 0x24 of the per-event
  *      handler table at 0x51B91)
- * fd2_chapter_event_handler_25__unref_major_cinematic @ 0x34CCC
+ * fd2_chapter_event_handler_25__ch12_orc_leader_defeat @ 0x34CCC
  *     (0 direct callers; dispatched as idx 0x25 of the per-event
  *      handler table at 0x51B91)
- * fd2_chapter_event_handler_27__unref_drop @ 0x34F74
+ * fd2_chapter_event_handler_27__ch15_eye_gem_drop @ 0x34F74
  *     (0 direct callers; dispatched as idx 0x27 of the per-event
  *      handler table at 0x51B91)
  * fd2_chapter_event_handler_28__ch17_dialog_with_state @ 0x34FCB
@@ -943,20 +943,25 @@ void fd2_chapter_event_handler_16__ch6_char_cond(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_17__unref_turn_gated @ 0x34844
- *   — Dispatch idx 0x17 of the per-event handler table at 0x51B91.
+ * fd2_chapter_event_handler_17__ch6_captain_defeat @ 0x34844
+ *   -- Dispatch idx 0x17 of the per-event handler table at 0x51B91.
  *
- * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content / non-chapter dispatcher). It is
- * a turn-counter-gated beat. Its unconditional head disarms the
- * per-event AI/dialog control flag (low 4 bits of combat_aux_block[0xD])
- * by writing 0 across chars 0x08..0x1C (21 chars) and shows dialog
- * page 4. Then, only while the battle turn counter is still below 0x0F
- * (i.e. before turn 15), it runs a two-cutscene boss-death cinematic:
- * portrait set 2 reloads, the camera pans to world (5, 0x11), cutscene
- * event 0x19 plays, dialog page 5 is shown, the camera pans to (5, 0x11)
- * again, cutscene event 0x1A plays, char 0x21 (狄歐?) is killed, and the
- * battle-animation phase is flipped to 1.
+ * LIVE (ch6) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it
+ * unref/cut). ch6 char_spawn_record[0] = the 王國軍 captain (隊長,
+ * enemy_data 9 精英戰士, char_id 0x4D, lv9; party_member_count 8 so
+ * record[0] spawns into runtime slot 8) carries pickup_kind=2 param=0x17,
+ * so when the captain falls fd2_process_battle_drop_entries dispatches
+ * consequence[0x17]. Captain-defeat cinematic: its unconditional head
+ * disarms the per-event AI/dialog control flag (low 4 bits of
+ * combat_aux_block[0xD]) by writing 0 across chars 0x08..0x1C (the royal
+ * army stands down) and shows dialog page 4 (0x08 captain "你們不是一般
+ * 匪徒.."). Then, only while the battle turn counter is still below 0x0F
+ * (before turn 15), it runs a two-cutscene death cinematic: portrait set 2
+ * reloads, the camera pans to world (5, 0x11), cutscene event 0x19 plays,
+ * dialog page 5 (史恩 0x21 mourns, the captain's last words) is shown, the
+ * camera pans again, cutscene event 0x1A plays, char 0x21 (史恩) is removed
+ * (leaves to report), and the battle-animation phase is flipped to 1.
  *
  * The gate (data_fd2_battle_turn_counter < 0x0F) is a signed compare in
  * the original (CMP [0x53BEF],0xF; JGE); reproduced as the (int32) cast
@@ -974,7 +979,7 @@ void fd2_chapter_event_handler_16__ch6_char_cond(uint32 event_arg)
  * path JGEs straight to the bare RET at 0x35C22. Reproduced here as the
  * inline store inside the gated block for Layer-2 equivalence.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_17__unref_turn_gated(uint32 event_arg)
+void fd2_chapter_event_handler_17__ch6_captain_defeat(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -995,15 +1000,19 @@ void fd2_chapter_event_handler_17__unref_turn_gated(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_18__unref_dialog @ 0x348FC
- *   — Dispatch idx 0x18 of the per-event handler table at 0x51B91.
+ * fd2_chapter_event_handler_18__ch7_captain_defeat @ 0x348FC
+ *   -- Dispatch idx 0x18 of the per-event handler table at 0x51B91.
  *
- * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content / non-chapter dispatcher). Its
- * single beat is the minimal dialog-only call: a straight-line, no-branch
- * sequence with no portrait reload, no camera pan, no state writes, no
- * RNG, no numeric computation, and no CALL-return value used — it just
- * shows dialog page 3 and returns.
+ * LIVE (ch7) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it
+ * unref/cut). ch7 char_spawn_record[24] = the royal guard captain (elite
+ * 突擊騎兵, enemy_data 15, char_id 0x53, lv12) carries pickup_kind=2
+ * param=0x18, so when the captain falls fd2_process_battle_drop_entries
+ * dispatches consequence[0x18]. Its single beat is the minimal dialog-only
+ * call: a straight-line, no-branch sequence with no portrait reload, no
+ * camera pan, no state writes, no RNG -- it just shows dialog page 3 (char
+ * 0x21, the dying captain: "國王陛下，我不能再護衛您了..前些日子到底是誰..",
+ * realizing the party was framed) and returns.
  *
  * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
  * (1-arg uniform cdecl); the body never reads the arg. EBX is not
@@ -1020,7 +1029,7 @@ void fd2_chapter_event_handler_17__unref_turn_gated(uint32 event_arg)
  * body via "PUSH 0x28; JMP 0x34901", reusing this __CHK + page-3 dialog
  * + RET unchanged.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_18__unref_dialog(uint32 event_arg)
+void fd2_chapter_event_handler_18__ch7_captain_defeat(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -1189,7 +1198,7 @@ void fd2_chapter_event_handler_1b__ch8_cinematic(uint32 event_arg)
  *   -- Chapter 8 turn-event slot 6 (triggered at turn 15 / phase 0),
  *     dispatched as idx 0x1C of the per-event handler table at 0x51B91.
  *     Also tail-called from
- *     fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34A3C.
+ *     fd2_chapter_event_handler_1d__ch8_captain_defeat @ 0x34A3C.
  *
  * ch8 turn-15 AI-control beat: for the 18 runtime-char slots 0x0A..0x1B,
  * clear bits 0-6 of combat_aux_block[0xD] (the AI-class / sub-state byte),
@@ -1221,15 +1230,19 @@ void fd2_chapter_event_handler_1c__ch8_ai_ctrl(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_1d__unref_dialog_with_state @ 0x34A3C
- *   — Dispatch idx 0x1D of the per-event handler table at 0x51B91.
+ * fd2_chapter_event_handler_1d__ch8_captain_defeat @ 0x34A3C
+ *   -- Dispatch idx 0x1D of the per-event handler table at 0x51B91.
  *
- * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content or a non-chapter dispatcher).
- * Two-beat handler: show dialog page 2, then tail-chain to
- * fd2_chapter_event_handler_1c__ch8_ai_ctrl (the ch8 AI-control beat
- * that clears the low 7 bits of combat_aux_block[0xD] for the 18
- * runtime-char slots 0x0A..0x1B).
+ * LIVE (ch8) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it
+ * unref/cut). ch8 char_spawn_record[0] = the garrison captain (駐軍隊長,
+ * elite 突擊騎兵, enemy_data 15, char_id 0x53, lv15) carries pickup_kind=2
+ * param=0x1D, so when the captain falls fd2_process_battle_drop_entries
+ * dispatches consequence[0x1D]. Two-beat handler: show dialog page 2 (the
+ * captain's dying apology to the princess "公主殿下..屬下也是遵命行事.."),
+ * then tail-chain to fd2_chapter_event_handler_1c__ch8_ai_ctrl (the ch8
+ * AI-control beat that clears the low 7 bits of combat_aux_block[0xD] for
+ * the 18 runtime-char slots 0x0A..0x1B -- the garrison stands down).
  *
  * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
  * (1-arg uniform cdecl). EBX is not touched; the __CHK(0x28)
@@ -1241,7 +1254,7 @@ void fd2_chapter_event_handler_1c__ch8_ai_ctrl(uint32 event_arg)
  * RET. (handler_1c ignores the value, but the pass-through is kept for
  * byte-faithful equivalence.)
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_1d__unref_dialog_with_state(uint32 event_arg)
+void fd2_chapter_event_handler_1d__ch8_captain_defeat(uint32 event_arg)
 {
     fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, 2, 0xA0000, 0x140,
                              0xCD, 0x4C, 0x4A, 0x13, 1);
@@ -1249,12 +1262,16 @@ void fd2_chapter_event_handler_1d__unref_dialog_with_state(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_1e__unref_major_cinematic @ 0x34A7A
- *   — Dispatch idx 0x1E of the per-event handler table at 0x51B91.
+ * fd2_chapter_event_handler_1e__ch9_laiting_defeat @ 0x34A7A
+ *   -- Dispatch idx 0x1E of the per-event handler table at 0x51B91.
  *
- * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content or a non-chapter dispatcher).
- * Major-cinematic beat with a character spawn and dynamic turn-event
+ * LIVE (ch9) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it
+ * unref/cut). ch9 char_spawn_record[0] = 萊汀 (the boss, 禁衛軍隊長,
+ * enemy_data 50, char_id 0x76, lv18) carries pickup_kind=2 param=0x1E, so
+ * when 萊汀 falls fd2_process_battle_drop_entries dispatches consequence[0x1E].
+ * This is the 萊汀-defeat turning-point cinematic (revive as ally + plot
+ * reveal + reinforcement kickoff), a char spawn with dynamic turn-event
  * scheduling:
  *   - Clear the AI/sub-state byte (combat_aux_block[0xD]) for the 22
  *     runtime-char slots 0x0C..0x21.
@@ -1284,7 +1301,7 @@ void fd2_chapter_event_handler_1d__unref_dialog_with_state(uint32 event_arg)
  * turns is a byte read + byte increment in the original (MOV DL,[..];
  * INC DL / ADD DL,2), reproduced here as a (uint8) truncating cast.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_1e__unref_major_cinematic(uint32 event_arg)
+void fd2_chapter_event_handler_1e__ch9_laiting_defeat(uint32 event_arg)
 {
     int32 i;
     runtime_char *p;
@@ -1530,16 +1547,19 @@ void fd2_chapter_event_handler_21__ch10_dialog_with_state(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_22__unref_dialog @ 0x34C6C
+ * fd2_chapter_event_handler_22__ch10_boss_defeat @ 0x34C6C
  *   -- Dispatch idx 0x22 of the per-event handler table at 0x51B91.
  *
- * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced -- possibly cut content / non-chapter dispatcher). Its
- * single beat is the minimal dialog-only call: a straight-line, no-branch
- * sequence with no portrait reload, no camera pan, no state writes, no
- * RNG, no numeric computation, and no CALL-return value used -- it just
- * shows dialog page 3 and returns. Its effect is identical to
- * fd2_chapter_event_handler_18__unref_dialog @ 0x348FC.
+ * LIVE (ch10) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it
+ * unref/cut). ch10 char_spawn_record[0] = the boss (enemy_data 54, char_id
+ * 0x7A) carries pickup_kind=2 param=0x22, so when the boss falls
+ * fd2_process_battle_drop_entries dispatches consequence[0x22]. Its single
+ * beat is the minimal dialog-only call: a straight-line, no-branch sequence
+ * that just shows dialog page 3 (char 0x0B, the dying boss: "我居然被你們..
+ * 打敗了..主人救救我", revealing the 黃金徽章 plot) and returns. Its effect is
+ * identical to fd2_chapter_event_handler_18__ch7_captain_defeat @ 0x348FC
+ * (same shared body, rendered against ch10's chapter text).
  *
  * void __cdecl(uint event_arg) per the dispatch table at 0x51B91
  * (1-arg uniform cdecl); the body never reads the arg. EBX is not
@@ -1557,7 +1577,7 @@ void fd2_chapter_event_handler_21__ch10_dialog_with_state(uint32 event_arg)
  * borrowed body's effect is reproduced here as the inline page-3 dialog
  * call for Layer-2 equivalence.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_22__unref_dialog(uint32 event_arg)
+void fd2_chapter_event_handler_22__ch10_boss_defeat(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -1627,14 +1647,17 @@ void fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_25__unref_major_cinematic @ 0x34CCC
+ * fd2_chapter_event_handler_25__ch12_orc_leader_defeat @ 0x34CCC
  *   -- Dispatch idx 0x25 of the per-event handler table at 0x51B91.
  *
- * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced -- possibly cut content / non-chapter dispatcher),
- * categorised as a major endgame cinematic. A straight-line beat with no
- * branch, no RNG, no numeric computation, and no CALL-return value used:
- * dialog page 1 is shown, then a two-stage cutscene cinematic plays.
+ * LIVE (ch12) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it
+ * unref/cut). ch12 char_spawn_record[1] = the orc leader (獸人隊長,
+ * enemy_data 35, char_id 0x67, lv16) carries pickup_kind=2 param=0x25, so
+ * when the orc leader falls fd2_process_battle_drop_entries dispatches
+ * consequence[0x25]. Orc-leader-defeat cinematic, a straight-line beat:
+ * dialog page 1 (char 0x0F the orc leader "可惡..但是還沒有結束.."), then a
+ * two-stage cutscene cinematic plays.
  *
  *   Stage A: the camera pans to world (0xF, 0x22), portrait set 3 reloads
  *     -- bracketed by setting data_fd2_chapter_init_phase_flag to 1 before
@@ -1663,7 +1686,7 @@ void fd2_chapter_event_handler_24__ch12_ai_ctrl(uint32 event_arg)
  *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
  *   0x13 (=19) max line count, 1 wait-for-input flag.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_25__unref_major_cinematic(uint32 event_arg)
+void fd2_chapter_event_handler_25__ch12_orc_leader_defeat(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -1755,7 +1778,7 @@ void fd2_chapter_event_handler_26__ch15_dialog(uint32 event_arg)
 }
 
 /* Inline 3-byte battle-drop entry blob baked into the binary at 0x52742,
- * read only by fd2_chapter_event_handler_27__unref_drop. Layout matches the
+ * read only by fd2_chapter_event_handler_27__ch15_eye_gem_drop. Layout matches the
  * drop-entry ABI fd2_process_battle_drop_entries consumes: byte[0] = entry
  * type (0 = ITEM pickup), byte[1..2] = little-endian uint16 value. Here the
  * value 0x00D3 is item id 0xD3, so the handler grants item 0xD3 to the
@@ -1765,14 +1788,16 @@ const uint8 data_fd2_chapter_event_handler_27_drop_entry_inline[3] = {
 };
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_27__unref_drop @ 0x34F74
- *   — Dispatch idx 0x27 of the per-event handler table at 0x51B91.
+ * fd2_chapter_event_handler_27__ch15_eye_gem_drop @ 0x34F74
+ *   -- Dispatch idx 0x27 of the per-event handler table at 0x51B91.
  *
- * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content / non-chapter dispatcher),
- * categorised as battle drop + dialog. It runs the standard tile-step
- * ABI: the dispatch arg is the id of the char who stepped onto the
- * trigger tile, and that id is the recipient of the drop. Its single
+ * LIVE (ch15) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it
+ * unref/cut). ch15 char_spawn_record[58] = an orc (enemy_data 34, char_id
+ * 0x66, lv19) carries pickup_kind=2 param=0x27, so when it falls
+ * fd2_process_battle_drop_entries dispatches consequence[0x27]. It runs the
+ * consequence ABI: the dispatch arg is the recipient/killer char id, and
+ * that id is the recipient of the drop (the plot gem item 0xD3). Its single
  * beat copies the inline 3-byte drop-entry blob
  * (data_fd2_chapter_event_handler_27_drop_entry_inline = {0x00, 0xD3,
  * 0x00}, i.e. type 0 / item id 0xD3) onto a local, hands it as a
@@ -1808,7 +1833,7 @@ const uint8 data_fd2_chapter_event_handler_27_drop_entry_inline[3] = {
  *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
  *   0x13 (=19) max line count, 1 wait-for-input flag.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_27__unref_drop(uint32 stepping_char_id)
+void fd2_chapter_event_handler_27__ch15_eye_gem_drop(uint32 stepping_char_id)
 {
     uint8 drop_entry[3];
 
