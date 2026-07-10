@@ -874,9 +874,11 @@ void fd2_chapter_event_handler_14__ch6_dialog(uint32 event_arg)
  *   — Chapter 6 turn-event slot 1 (triggered at turn 10 / phase 2),
  *     dispatched as idx 0x15 of the per-event handler table at 0x51B91.
  *
- * char-conditional beat: gated on 索倫 (char_id 8) still being alive
- * (flags bit0 clear). If alive, dialog page 2 is shown; if 索倫 is
- * already dead the beat is skipped. The only branch is the alive gate
+ * char-conditional beat: gated on the runtime_char_array slot-8 unit still
+ * being alive (flags bit0 clear -- fd2_check_char_is_dead(8) indexes the battle
+ * slot, NOT a global char_id; which char occupies ch6 slot 8 is deployment-
+ * dependent). If alive, dialog page 2 is shown; if that unit is already dead the
+ * beat is skipped. The only branch is the alive gate
  * driven by the fd2_check_char_is_dead return value — no RNG, no numeric
  * computation, and the call's return value is used only as a zero test.
  *
@@ -909,9 +911,10 @@ void fd2_chapter_event_handler_15__ch6_char_cond(uint32 event_arg)
  *   — Chapter 6 turn-event slot 2 (triggered at turn 15 / phase 2),
  *     dispatched as idx 0x16 of the per-event handler table at 0x51B91.
  *
- * char-conditional beat: gated on 索倫 (char_id 8) still being alive
- * (flags bit0 clear). If alive, portrait set 1 reloads and the chapter
- * intro dialog page 3 is shown; if 索倫 is already dead the beat is
+ * char-conditional beat: gated on the runtime_char_array slot-8 unit still
+ * being alive (flags bit0 clear -- fd2_check_char_is_dead(8) indexes the battle
+ * slot, NOT a global char_id). If alive, portrait set 1 reloads and the chapter
+ * intro dialog page 3 is shown; if that unit is already dead the beat is
  * skipped. The only branch is the alive gate driven by the
  * fd2_check_char_is_dead return value — no RNG, no numeric computation,
  * and the call's return value is used only as a zero test.
@@ -1042,8 +1045,8 @@ void fd2_chapter_event_handler_18__ch7_captain_defeat(uint32 event_arg)
  *   — Named helper that shows data_fd2_current_chapter_text_ptr dialog page 3 with
  *     the standard dialog geometry. Its sole caller is
  *     fd2_chapter_event_handler_16__ch6_char_cond @ 0x34819, which
- *     tail-JMPs here (0x3483F -> 0x34906) when 索倫 (char_id 8) is
- *     still alive at chapter 6 turn 15.
+ *     tail-JMPs here (0x3483F -> 0x34906) when the runtime_char_array slot-8
+ *     unit is still alive at chapter 6 turn 15.
  *
  * void __cdecl(void); no stack frame and no __CHK probe. EBX is not
  * touched. The body is a pure 8-PUSH chain (page=3 plus the fixed

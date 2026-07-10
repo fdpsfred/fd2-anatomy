@@ -114,7 +114,7 @@ turn-event hook table：2 / 16 hook entries active（其餘 14 為 sentinel）�
 | 0xFF | 0 (enemy_turn_intro) | 0x1F | `0x00034B5D` | turn=0xFF dormant entry — 不會在初始 hook table 狀態下 fire |
 | 0xFF | 0 (enemy_turn_intro) | 0x1F | `0x00034B5D` | 同上 dormant entry |
 
-兩筆 hook 皆指向 `fd2_chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D`（援軍 state machine，見 §特殊機制）。`fd2_fire_chapter_turn_events_for_phase` 比對 `turn == data_fd2_battle_turn_counter`，0xFF 永遠不會等於回合計數，故初始狀態下不 fire。觸發機制：兩筆 turn-event hook 初始 turn=0xFF（dormant），`fd2_chapter_event_handler_1f__ch9_reinforcement` 實際經 shared `consequence_table[0x1F]` 觸發（ch9 的 tile-step-event 表 16 筆全為 sentinel，無 ch9 專屬 tile-step handler 改寫 turn byte；動態改寫 turn byte 的 dyn-turn-event rewriter 僅 ch27/28/29 有）。
+兩筆 hook 皆指向 `fd2_chapter_event_handler_1f__ch9_reinforcement @ 0x34B5D`（援軍 state machine，見 §特殊機制）。`fd2_fire_chapter_turn_events_for_phase` 比對 `turn == data_fd2_battle_turn_counter`，0xFF 永遠不會等於回合計數，故初始狀態下不 fire。觸發機制：兩筆 turn-event hook 初始 turn=0xFF（dormant），`fd2_chapter_event_handler_1f__ch9_reinforcement` 實際經 shared `consequence_table[0x1F]` 觸發（ch9 的 tile-step-event 表 16 筆全為 sentinel，無 ch9 專屬 tile-step handler 改寫 turn byte；arm 者為 kill-drop handler `fd2_chapter_event_handler_1e__ch9_laiting_defeat @ 0x34A7A`——萊汀陣亡時經 kill-drop 路徑改寫這兩筆 hook 的 turn byte（+3/+6），使 0x1F 下一回合 fire。故 ch9 也有執行期改寫 turn byte 的機制，只是經 kill-drop 路徑而非 tile-step，並非僅 ch27/28/29 才有）。
 
 ## 對話
 

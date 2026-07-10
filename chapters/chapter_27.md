@@ -37,7 +37,7 @@
   - **GOOD（持有天空之鑰）**：全員一同傳送上黃金城 → 正常 return 進入 ch28+。
   - **BAD（無天空之鑰）**：悠妮獨自傳送離去（`fd2_animate_warp_teleport_char(1, ...)`）→ `fd2_play_game_ending_cinematic` 後進入無限迴圈，遊戲鎖死於此、無法繼續。
 - **跨章天空之鑰兌換鏈（ch21 → ch23 → ch27 → ch28+）**：ch21 結束可用集齊的 6 件物品兌換天空之鑰；ch23 持鑰則卡里斯加入；本章持鑰觸發 GOOD ENDING 進入 ch28+，無鑰則強制 BAD ENDING。
-- **石碑階梯 tile-step 援軍**：踩到石碑下方階梯的 tile 時，FDFIELD tile-step handler 動態改寫 turn-event hook table，使下回合敵方 turn 觸發援軍 spawn 事件（event 0x3F / 0x41）。詳見下方 FDFIELD event script 節。
+- **石碑階梯 tile-step 援軍**：踩到石碑下方階梯的 tile 時，FDFIELD tile-step handler 動態改寫 turn-event hook table，使下回合觸發 event 0x3F（援軍抵達的 portrait 過場）。詳見下方 FDFIELD event script 節。（注意：ch27 turn-event slot 1 的 code=0x41 是 turn=0xFF 永不被 arm 的 sentinel——ch27 無任何 handler 改寫 slot 1 的 turn byte，故 idx 0x41 在本章不觸發；0x41 實為 ch28 的 dyn_turn_event handler。）
 - **勝負條件**：標準判定（全敵死＝勝、索爾死＝負）之外，chars[1]（悠妮）陣亡亦判負。
 
 ## Handler 流程
@@ -142,10 +142,10 @@ turn-event hook table：2 / 16 active hooks（其餘 14 為 sentinel）：
 
 | turn | phase | event_code | handler 位址 | 語意 |
 |---|---|---|---|---|
-| 0xFF | 0（enemy_turn_intro） | 0x3F | `0x000358C7` | sentinel-like（final boss event reference） |
-| 0xFF | 0（enemy_turn_intro） | 0x41 | `0x0003599B` | sentinel-like |
+| 0xFF | 0（enemy_turn_intro） | 0x3F | `0x000358C7` | tile-step handler `0x3E` arm slot 0 → 下回合 fire event 0x3F（portrait 過場） |
+| 0xFF | 0（enemy_turn_intro） | 0x41 | `0x0003599B` | dead：ch27 無 handler 改寫 slot 1 的 turn byte，本章永不 fire（0x41 實為 ch28 的 dyn_turn_event handler） |
 
-`turn=0xFF` 不會等於回合計數，初始 hook table 不會 fire。實際觸發機制：tile-step-event handler 在某些劇本 tile 被踩到時，動態 rewrite 該 chapter turn-event hook table 的 turn byte（0xFF → `data_fd2_battle_turn_counter`（當前回合計數）或 +1），把原本 sentinel 的 entry 啟動為下一回合 fire 的 event，形成 cinematic chain（tile-step → handler 寫入 turn = N 或 N+1 → 該回合 turn-event 自動 fire → 連鎖播放劇情）。上方特殊機制的「石碑階梯下回合敵援軍」即屬此類 tile-step → turn-event 連鎖。
+`turn=0xFF` 不會等於回合計數，初始 hook table 不會 fire。實際觸發機制：tile-step-event handler 在某些劇本 tile 被踩到時，動態 rewrite 該 chapter turn-event hook table 的 turn byte（0xFF → `data_fd2_battle_turn_counter`（當前回合計數）或 +1），把原本 sentinel 的 entry 啟動為下一回合 fire 的 event，形成 cinematic chain（tile-step → handler 寫入 turn = N 或 N+1 → 該回合 turn-event 自動 fire → 連鎖播放劇情）。上方特殊機制的「石碑階梯下回合敵援軍」即屬此類 tile-step → turn-event 連鎖。（本章實際只有 slot 0 被 arm：tile-step handler `0x3E` 寫 slot 0 的 turn byte → event 0x3F fire；slot 1 的 code=0x41 無任何 ch27 handler 改寫，維持 dead sentinel，故 idx 0x41 在本章不觸發。）
 
 ## 對話
 

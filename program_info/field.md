@@ -350,7 +350,13 @@ ch28/29/30 以同型 state-machine-mutator handler 控制變身序列、final bo
 - **turn-event hook**（`fd2_fire_chapter_turn_events_for_phase`，+0x03 區的 event_id）
 - **tile-step latch**（`fd2_check_tile_event_post_action`，+0x33 區的 consequence_idx）
 - **tile_pickup consequence**（`fd2_handle_tile_event_interaction`，+0x53 區 kind∉{0,1} 的 value；
-  例 idx 0x3A = ch26 的 5-寶箱 pickup，5 筆引用）
+  例 idx 0x3A = ch26 的 5-寶箱 pickup，5 筆引用）。⚠ tile_pickup event 是否真觸發還取決於**地圖
+  placement**：handler 依 tile 的 terrain_class（0..31）索引 `tile_pickup[class]`，需地圖上有該 class 且
+  帶 event-bit（attr 0x20/0x40）的 tile。idx 0x3A 的 5 筆在 ch26 有 placed（terrain class 0..4 齊全）故
+  真觸發；但 idx 0x00 在 ch1/ch2 各有一筆 slot-12 event entry（樣板複製、slots 12-15 兩章 byte-identical），
+  兩章地圖皆無 terrain_class-12 tile（ch1 classes {0,1,2}、ch2 {0,1,2,3}），故從不觸發——idx 0x00 實際只由
+  ch1 turn-event 派遣（故對照表掛 ch1 而非 shared）。`enum_live_consequence.py` 只數 tile_pickup 表項、
+  不驗地圖 placement，故對 idx 0x00 會列出 ch2，需以地圖解碼覆蓋。
 - **kill-drop consequence**（單位 spawn record +0x16 pickup_kind==2 → 該單位陣亡時
   `fd2_collect_pending_death_drops` + `fd2_process_battle_drop_entries` 對 type-2 entry 分派
   `consequence[param]`；例 idx 0x04 = ch1 哈諾陣亡觸發哈瓦特暴走）
