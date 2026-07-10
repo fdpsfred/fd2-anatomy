@@ -133,13 +133,13 @@ binary immediate-search（掃「callsite 50 指令內 immediate」+ 排除 3 張
 真正 dead 的 3 個（全 src 載入點 + 全表值 + 全算式定義域皆不含此 idx；工具
 `tools/rsrc_unresolved/verify_dead.py`）：
 
-| idx | size | dead payload 內容（實檔解出） |
+| idx | size | dead payload 內容（實檔解碼 + PNG 檢視） |
 |---|---|---|
-| 0x60 | 24,156 | 24×24 battle-tile sheet（84 tile，格式同 FDSHAP tile sheet） |
-| 0x61 | 39,358 | 單張 320×200 全螢幕 RLE 圖（解出恰 64000 px） |
-| 0x62 | 3,273 | 單張 155×30 RLE 圖（banner，解出恰 4650 px） |
+| 0x60 | 24,156 | 24×24 sheet（84 格；沿用 FDSHAP tile-sheet header 格式，但內容是約 64 個角色小頭像 + 0-9 數字字模，非地形 tile） |
+| 0x61 | 39,358 | 320×200 全螢幕圖：未用的英文標題/選擇畫面「FLAME DRAGON II」，(C) 1994,1995 Dynasty International，含「NO.」數字欄與空槽面板 |
+| 0x62 | 3,273 | 155×30 橫幅：未用的「密碼輸入錯誤 !!!」錯誤訊息（被移除的密碼／防拷機制） |
 
-判定：cut content。3 個皆合法圖像資源、binary 零引用（未用 tile sheet + 全螢幕圖 + banner），非隨機殘料。
+判定：cut content，且三者是**同一個被移除的早期英文前端**——英文標題（0x61）→ 密碼防拷（0x62 錯誤橫幅）→ 以數字（0x60 字模）＋角色小頭像（0x60）呈現的存檔／角色選擇畫面。皆合法資源、binary 零引用，非隨機殘料。
 
 被回收的 9 個（原誤判 dead，實為 live；載入者 `fd2_play_spell_cast_sequence` 的 spell-index 表）：
 
