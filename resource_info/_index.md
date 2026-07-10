@@ -29,6 +29,7 @@
 - `chinese_glyph_encoding.md` — FDOTHER.DAT[4] 1bpp 字模 atlas (1824 glyphs)、
   渲染管線、ET3 STDFONT.15 lookup
 - `fd2_tmp.md` — FD2.TMP runtime swap 檔 (portrait cache dump) 格式
+- `img/` — KB 內嵌圖片資產（目前為 3 個 FDOTHER cut-content dead idx 的解碼 PNG，由 `fdother.md` 引用）
 
 ## 全程式 data inventory
 

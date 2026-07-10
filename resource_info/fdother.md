@@ -141,6 +141,20 @@ binary immediate-search（掃「callsite 50 指令內 immediate」+ 排除 3 張
 
 判定：cut content，且三者是**同一個被移除的早期英文前端**——英文標題（0x61）→ 密碼防拷（0x62 錯誤橫幅）→ 以數字（0x60 字模）＋角色小頭像（0x60）呈現的存檔／角色選擇畫面。皆合法資源、binary 零引用，非隨機殘料。
 
+三者解碼後的實圖如下（以 FDOTHER[0] base VGA palette 上色，故整體偏藍、非原版設計配色，但結構與文字清楚；重繪見 `tools/rsrc_unresolved/verify_dead.py` 同目錄的解碼工具）：
+
+**0x61** — 未用英文標題/選擇畫面「FLAME DRAGON II」（(C) 1994,1995 Dynasty International）：
+
+![0x61 英文標題/選擇畫面](img/fdother_dead_0x61_english_title.png)
+
+**0x60** — 24×24 sheet：約 64 個角色小頭像 + 0-9 數字字模：
+
+![0x60 角色小頭像 + 數字字模](img/fdother_dead_0x60_char_icons_digits.png)
+
+**0x62** — 未用「密碼輸入錯誤 !!!」橫幅：
+
+![0x62 密碼輸入錯誤橫幅](img/fdother_dead_0x62_password_error.png)
+
 被回收的 9 個（原誤判 dead，實為 live；載入者 `fd2_play_spell_cast_sequence` 的 spell-index 表）：
 
 | idx | 載入表[slot] | 用途 |
