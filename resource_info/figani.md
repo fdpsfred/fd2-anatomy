@@ -9,7 +9,12 @@ file size 15,279,582 bytes (~15 MB)，408 entries (idx 0..407)。
 
 ## 檔案格式
 
-LLLLLL archive (詳 `overview.md`)。
+LLLLLL archive (詳 `overview.md`)。entry payload 為純 RLE sprite 像素流,不含任何
+ASCII 檔頭或署名字串——與 `ANI.DAT` 不同,FIGANI.DAT **不帶** AFM 工具橫幅。整個檔案
+(header / offset table / RLE 資料 / 檔尾) 沒有版權、年份或作者字串;遊戲動畫工具鏈唯一
+的作者署名 (`AFM - Animation File Manager`,Lo Yuan Tsung,1993) 只嵌在 `ANI.DAT` 的
+每個 entry 檔頭內,見 `ani.md`。FIGANI 的播放/解碼是 FD2 程式碼
+(`fd2_play_figani_char_intro_animation`、`fd2_rle_blit_sprite`),不是獨立掛名的引擎。
 
 ## idx 公式
 
