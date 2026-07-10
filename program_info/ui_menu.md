@@ -52,7 +52,7 @@ field-command modal。城鎮側選單（商店/轉職/status/章節交接）另�
 - **其他**（己方已動或敵方/NPC）：`fd2_open_char_status_screen` 唯讀狀態檢視（見 town_menu.md）。
 
 行動結束後：composite frame、pending_xp_credit 夾到上限 99、`fd2_process_xp_and_level_up_for_char`、
-呼叫該章 post-action handler、`fd2_check_all_player_acted_or_asleep`、必要時派
+呼叫該章 post-action handler、`fd2_check_all_player_acted_or_incapacitated`、必要時派
 ai_post_action_consequence，最後清鍵盤緩衝。
 
 ## 三層 cursor 座標（cursor.c）

@@ -989,7 +989,7 @@ uint8 data_fd2_ui_terrain_hud_user_enabled = 1;
  * panel render in fd2_render_terrain_info_hud_panel (gfx/rndstat.c): the
  * panel is suppressed while this flag is 0. Cleared (0) then re-set (1) around
  * any transition where that HUD must not draw -- the player-turn -> enemy-turn
- * cycle (fd2_check_all_player_acted_or_asleep / fd2_field_command_menu_loop),
+ * cycle (fd2_check_all_player_acted_or_incapacitated / fd2_field_command_menu_loop),
  * chapter init/end + clear fanfare here in main, and the chapter
  * transition / save-load paths in fd2_main_menu_dispatcher.
  */

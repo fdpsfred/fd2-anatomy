@@ -248,7 +248,7 @@ int fd2_game_main_loop(void)
             fd2_process_xp_and_level_up_for_char(sel);
             data_fd2_chapter_post_action_handler_table
                 [data_fd2_chapter_current_chapter_id](sel);
-            fd2_check_all_player_acted_or_asleep();
+            fd2_check_all_player_acted_or_incapacitated();
             if (data_fd2_battle_ai_post_action_consequence_idx != 0xff) {
                 data_fd2_battle_ai_post_action_consequence_table
                     [data_fd2_battle_ai_post_action_consequence_idx](sel);

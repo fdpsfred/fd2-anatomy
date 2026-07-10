@@ -97,7 +97,7 @@ void fd2_handle_tile_event_interaction(uint32 char_idx);
 void fd2_open_char_status_screen(uint32 char_idx);
 void fd2_open_tactical_overview_zoom(void);
 void fd2_mark_char_acted_this_turn(uint32 char_idx);
-void fd2_check_all_player_acted_or_asleep(void);
+void fd2_check_all_player_acted_or_incapacitated(void);
 void fd2_check_tile_event_post_action(uint32 x, uint32 y, uint32 arg);
 void fd2_mark_char_as_dead(uint32 char_idx);
 void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx);

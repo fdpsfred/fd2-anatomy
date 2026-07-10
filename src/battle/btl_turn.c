@@ -192,12 +192,13 @@ void fd2_mark_char_acted_this_turn(uint32 char_idx)
 }
 
 /* ----------------------------------------------------------------
- * fd2_check_all_player_acted_or_asleep @ 0x13565
+ * fd2_check_all_player_acted_or_incapacitated @ 0x13565
  *
- * Detect end-of-player-turn: if every player char is dead, acted,
- * or asleep, trigger full turn cycle (enemy/NPC phase).
+ * Detect end-of-player-turn: if every player char is dead, has acted,
+ * or is incapacitated (paralysed; pChar[0x26] = paralysis flag -- FD2
+ * has no sleep status), trigger the full turn cycle (enemy/NPC phase).
  * ---------------------------------------------------------------- */
-void fd2_check_all_player_acted_or_asleep(void)
+void fd2_check_all_player_acted_or_incapacitated(void)
 {
     int char_iter;
     uint8 *pChar;
@@ -418,7 +419,7 @@ int fd2_collect_pending_death_drops(uint32 out_buffer)
  * fd2_run_full_turn_cycle @ 0x1A30B (2 callers)
  *
  * END-OF-PLAYER-TURN -> NPC turn -> ENEMY turn -> NEW-PLAYER-TURN full
- * cycle. Triggered by fd2_check_all_player_acted_or_asleep and
+ * cycle. Triggered by fd2_check_all_player_acted_or_incapacitated and
  * fd2_field_command_menu_loop.
  *
  *   Phase A  party auto-heal (player team only): mark pass paints a

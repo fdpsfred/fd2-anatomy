@@ -314,7 +314,7 @@
     "needs_bytes": true,
     "home": "field/chinit.c",
     "writers": [
-      "fd2_check_all_player_acted_or_asleep",
+      "fd2_check_all_player_acted_or_incapacitated",
       "fd2_field_command_menu_loop",
       "fd2_play_dialog_open_animation",
       "fd2_player_action_menu_loop"
@@ -370,7 +370,7 @@
     "home": "life/main.c",
     "writers": [
       "fd2_main",
-      "fd2_check_all_player_acted_or_asleep",
+      "fd2_check_all_player_acted_or_incapacitated",
       "fd2_field_command_menu_loop",
       "fd2_main_menu_dispatcher"
     ],

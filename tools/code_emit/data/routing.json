@@ -423,7 +423,7 @@
     "reviewed": true
   },
   "00013565": {
-    "name": "fd2_check_all_player_acted_or_asleep",
+    "name": "fd2_check_all_player_acted_or_incapacitated",
     "target": "battle/btl_turn.c",
     "phase": 2,
     "done": true,

@@ -75,7 +75,7 @@ player 來源 `character_base +7`、enemy 來源 `enemy_data +8`，升職再加 
 ## 回合循環
 
 `fd2_run_full_turn_cycle @ 0x1A30B` 是「玩家 → NPC → 敵方 → 新玩家回合」的總排程，由
-`fd2_check_all_player_acted_or_asleep`（所有玩家單位都死亡／已行動／麻痹時）與 field command menu
+`fd2_check_all_player_acted_or_incapacitated`（所有玩家單位都死亡／已行動／麻痹時）與 field command menu
 觸發。各 phase 之間任一 `data_fd2_chapter_event_or_battle_end_code != 0` 就提前結束：
 
 1. **Phase A**：玩家陣營自動回血 —— 每個合格單位（team 2、未死未行動、無中毒無麻痹、HP 未滿）
