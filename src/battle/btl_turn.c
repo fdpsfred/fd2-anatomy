@@ -1003,9 +1003,9 @@ void fd2_process_xp_and_level_up_for_char(uint32 char_idx)
  * Usage: game-over / story-event mass kill of trailing party slots
  * (e.g. wiping enemy reinforcement squads at chapter transitions).
  * Callers: fd2_chapter_29_end @ 0x2548C,
- *   fd2_chapter_event_handler_35__unref_dialog_with_state @ 0x35321,
- *   fd2_chapter_event_handler_40__unref_dyn_turn_event @ 0x358EA,
- *   fd2_chapter_event_handler_47__unref_dyn_turn_event @ 0x35B6B.
+ *   fd2_chapter_event_handler_35__ch23_mech_boss_defeat @ 0x35321,
+ *   fd2_chapter_event_handler_40__ch27_mech_defeat_seq @ 0x358EA,
+ *   fd2_chapter_event_handler_47__ch28_mech_defeat_seq @ 0x35B6B.
  * ---------------------------------------------------------------- */
 void fd2_kill_runtime_chars_from_index_to_end(uint32 start_char_idx)
 {

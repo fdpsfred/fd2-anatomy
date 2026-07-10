@@ -1,15 +1,15 @@
 {
   "address": "00035b6b",
-  "name_current": "fd2_chapter_event_handler_47__unref_dyn_turn_event",
-  "name_final": "fd2_chapter_event_handler_47__unref_dyn_turn_event",
-  "name_verdict": "keep",
-  "name_proposed": null,
-  "name_reason": "Compliant fd2_ game-function name. '47' is the per-event dispatch index (0x47) into the handler table @ 0x51B91 (table entry @ 0x51CAD holds bytes 6b 5b 03 00 = 0x00035b6b, the function's own address), a meaningful domain ID and the established convention used by every sibling in chevt2.c (handler_2f.._46, _47, _48, _49...). It is NOT an address residue (the function lives at 0x35b6b, not 0x47). '__unref' accurately flags that no FDFIELD chapter turn-event/tile-step hook references this slot (cut/non-chapter content), consistent with siblings _40/_43/_48. 'dyn_turn_event' is the consistent neighborhood category label for this unref state-machine-mutator cluster. No hex address residue anywhere in the name.",
+  "name_current": "fd2_chapter_event_handler_47__ch28_mech_defeat_seq",
+  "name_final": "fd2_chapter_event_handler_47__ch28_mech_defeat_seq",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_chapter_event_handler_47__ch28_mech_defeat_seq",
+  "name_reason": "Compliant fd2_ game-function name. '47' is the per-event dispatch index 0x47 (table entry @ 0x51CAD), a meaningful domain ID, not address residue. Descriptor corrected from '__unref_dyn_turn_event' to '__ch28_mech_defeat_seq': the slot is LIVE, reached via the ch28 kill-drop path -- ch28 char_spawn_records[0..1] = the mech squad (機甲隊長, enemy_data 48, char_id 0x74, lv33, x2) each carry pickup_kind=2 param=0x47, so each mech's death dispatches consequence[0x47], a 2-kill state machine that (on the 2nd kill) shows dialog page 2 and clears the remaining mech squad. The earlier 'unref' verdict only scanned turn-event/tile-step hooks and missed the kill-drop path; '_dyn_turn_event' was also imprecise (no turn-event scheduling here).",
   "kind": "function",
   "home": "ROOT/src/field/chevt2.c",
-  "purpose": "Unreferenced chapter-event handler (dispatch idx 0x47): a priming counter at tile_event_consumed_flags[0x13] that, on its 2nd-and-later invocation, shows dialog page 2 and mass-kills runtime chars from index 0x14 to the end.",
+  "purpose": "Chapter 28 mech-defeat staged sequence (dispatch idx 0x47, reached via the ch28 kill-drop path when a mech-squad unit records[0..1] enemy_data 48, pickup_kind=2 param=0x47, falls): a priming counter at tile_event_consumed_flags[0x13] that, on the 2nd mech kill, shows dialog page 2 and mass-kills runtime chars from index 0x14 to the end (clears the remaining mech squad).",
   "logic_summary": "Reads gate byte tile_event_consumed_flags[0x13] (via data_fd2_field_map_tile_event_consumed_flags_ptr + 0x13). If non-zero (i.e. already invoked at least once): calls fd2_display_dialog_scene(data_fd2_current_chapter_text, page=2, 0xA0000, 0x140, 0xCD, 0x4C, 0x4A, 0x13, 1) then fd2_kill_runtime_chars_from_index_to_end(0x14). In all cases it then increments that gate byte by 1 (8-bit INC). First call only primes the counter 0->1; the dialog+mass-kill fires from the 2nd call onward. event_arg is unread. Disassembly confirms exact match: PUSH 0x28/CALL __CHK prologue, MOV EAX,[0x53ad5]; CMP byte [EAX+0x13],0; JZ skip; 9 pushes + CALL fd2_display_dialog_scene; PUSH 0x14 + CALL kill; MOV EAX,[0x53ad5]; INC byte [EAX+0x13]; own RET (no borrowed shared tail).",
-  "signature": "void __cdecl fd2_chapter_event_handler_47__unref_dyn_turn_event(uint32 event_arg)",
+  "signature": "void __cdecl fd2_chapter_event_handler_47__ch28_mech_defeat_seq(uint32 event_arg)",
   "params": [
     {
       "name": "event_arg",
@@ -31,9 +31,9 @@
   "writes_globals": [
     "data_fd2_field_map_tile_event_consumed_flags_ptr+0x13 (the byte counter; incremented by 1 every call)"
   ],
-  "comment_original_issue": null,
-  "comment_verdict": "keep",
-  "ghidra_plate_action": "none",
+  "comment_original_issue": "Source comment previously stated the slot was unreferenced. Corrected: LIVE via the ch28 kill-drop path (records[0..1] mech squad pickup_kind=2 param=0x47).",
+  "comment_verdict": "edit",
+  "ghidra_plate_action": "edit",
   "issues": [],
   "processed": true,
   "committed": true,

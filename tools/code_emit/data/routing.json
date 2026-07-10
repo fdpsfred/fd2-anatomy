@@ -4093,7 +4093,7 @@
     "reviewed": true
   },
   "00034ff0": {
-    "name": "fd2_chapter_event_handler_29__unref_drop",
+    "name": "fd2_chapter_event_handler_29__ch17_eye_gem_drop",
     "target": "field/chevt1.c",
     "phase": 7,
     "done": true,
@@ -4173,7 +4173,7 @@
     "reviewed": true
   },
   "0003529a": {
-    "name": "fd2_chapter_event_handler_33__unref_drop",
+    "name": "fd2_chapter_event_handler_33__ch22_teleport_staff_drop",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4197,7 +4197,7 @@
     "reviewed": true
   },
   "00035321": {
-    "name": "fd2_chapter_event_handler_35__unref_dialog_with_state",
+    "name": "fd2_chapter_event_handler_35__ch23_mech_boss_defeat",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4301,7 +4301,7 @@
     "reviewed": true
   },
   "000358ea": {
-    "name": "fd2_chapter_event_handler_40__unref_dyn_turn_event",
+    "name": "fd2_chapter_event_handler_40__ch27_mech_defeat_seq",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4325,7 +4325,7 @@
     "reviewed": true
   },
   "00035a2f": {
-    "name": "fd2_chapter_event_handler_43__unref_dyn_turn_event",
+    "name": "fd2_chapter_event_handler_43__ch28_arm_turn_event",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,
@@ -4357,7 +4357,7 @@
     "reviewed": true
   },
   "00035b6b": {
-    "name": "fd2_chapter_event_handler_47__unref_dyn_turn_event",
+    "name": "fd2_chapter_event_handler_47__ch28_mech_defeat_seq",
     "target": "field/chevt2.c",
     "phase": 7,
     "done": true,

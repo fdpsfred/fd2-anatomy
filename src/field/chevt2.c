@@ -152,18 +152,21 @@ void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_33__unref_drop @ 0x3529A  (0 direct callers)
+ * fd2_chapter_event_handler_33__ch22_teleport_staff_drop @ 0x3529A  (0 direct callers)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x33. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly
- * cut content). Category: battle drop + dialog. Dispatch-table signature is
- * 1-arg cdecl (the stepping char id under the tile-step ABI); this handler
- * forwards the arg as the drop recipient.
+ * LIVE (ch22) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it unref/cut).
+ * ch22 char_spawn_record[0] = the boss (支配者的部下, enemy_data 56, char_id
+ * 0x7C, lv15) carries pickup_kind=2 param=0x33, so when the boss falls
+ * fd2_process_battle_drop_entries dispatches consequence[0x33]. Category:
+ * battle drop + dialog. The dispatch arg is the recipient/killer char id; this
+ * handler forwards it as the drop recipient.
  *
  * Effect: drop one battle item from an inline 3-byte drop entry
  * (byte type + ushort value; here type=0 ITEM, value=0x0065 -> item id 101 =
- * Teleport Staff), forwarding stepping_char_id as the recipient to
- * fd2_process_battle_drop_entries, then unconditionally show dialog page 3.
+ * 傳送法杖 Teleport Staff), forwarding the recipient char id to
+ * fd2_process_battle_drop_entries, then unconditionally show dialog page 3
+ * (the boss's defeat + acquiring the staff to activate the teleport circle).
  *
  * In the binary the dialog call shares a borrowed tail: after pushing its 8
  * args (page=3) the handler does JMP 0x34FB7, falling into the
@@ -175,7 +178,7 @@ void fd2_chapter_event_handler_32__ch22_reinforcement(uint32 event_arg)
 static const unsigned char data_fd2_chapter_event_handler_33_drop_entry_inline[3] =
     { 0x00, 0x65, 0x00 };
 
-void fd2_chapter_event_handler_33__unref_drop(uint32 stepping_char_id)
+void fd2_chapter_event_handler_33__ch22_teleport_staff_drop(uint32 stepping_char_id)
 {
     uint8 drop_entry[3];
 
@@ -299,17 +302,21 @@ void fd2_cinematic_chapter_portrait_dump_with_white_flash(
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_35__unref_dialog_with_state @ 0x35321
+ * fd2_chapter_event_handler_35__ch23_mech_boss_defeat @ 0x35321
  *   (0 direct callers)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x35. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly
- * cut content). Category: dialog with state. Dispatch-table signature is 1-arg
- * cdecl (void fn(uint event_arg)); this handler does not read the arg.
+ * LIVE (ch23) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it unref/cut).
+ * ch23 char_spawn_record[2] = the mech boss (機甲隊長, enemy_data 48, char_id
+ * 0x74, lv22; runtime slot 0x12) carries pickup_kind=2 param=0x35, so when the
+ * boss falls fd2_process_battle_drop_entries dispatches consequence[0x35].
+ * Category: dialog with state. Dispatch-table signature is 1-arg cdecl (void
+ * fn(uint event_arg)); this handler does not read the arg.
  *
- * Effect: show dialog page 5, then kill every runtime_char_array slot from
- * index 0x12 to the end (sets hp_current = 0 for slots 0x12..count-1, then
- * plays the death animation once) — a cinematic terminator-style mass kill.
+ * Effect: show dialog page 5 (char 0x12 the mech "指令系統失效..任務中止.."),
+ * then kill every runtime_char_array slot from index 0x12 to the end (sets
+ * hp_current = 0 for slots 0x12..count-1, then plays the death animation once)
+ * -- the whole mech squad shuts down (cinematic terminator-style mass kill).
  *
  * In the binary the kill call hosts a borrowed shared tail at 0x35354
  * (CALL fd2_kill_runtime_chars_from_index_to_end; ADD ESP,4; RET):
@@ -318,7 +325,7 @@ void fd2_cinematic_chapter_portrait_dump_with_white_flash(
  * That tail-merge is a binary size optimisation; the functionally-exact source
  * for this handler is simply the dialog call followed by the kill call.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_35__unref_dialog_with_state(uint32 event_arg)
+void fd2_chapter_event_handler_35__ch23_mech_boss_defeat(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -744,15 +751,17 @@ void fd2_chapter_event_handler_3f__ch27_cinematic(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_40__unref_dyn_turn_event @ 0x358EA
+ * fd2_chapter_event_handler_40__ch27_mech_defeat_seq @ 0x358EA
  *   (0 direct callers)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x40 (table entry
- * @ 0x51C91). No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unref / possibly cut content). Category: multi-stage state-machine mutator
- * that advances and dispatches on tile_event_consumed_flags[0x10]. Dispatch-table
- * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
- * the arg.
+ * LIVE (ch27) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it unref/cut).
+ * ch27 char_spawn_records[8..10] = the mech squad (機甲隊長, enemy_data 48,
+ * char_id 0x74, lv32, x3) each carry pickup_kind=2 param=0x40, so each mech's
+ * death dispatches consequence[0x40] (table entry @ 0x51C91). Category:
+ * multi-stage state-machine mutator that advances and dispatches on
+ * tile_event_consumed_flags[0x10]. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
  *
  * The stage byte is read zero-extended (binary MOVZX EAX, byte ptr [flags+0x10]):
  *   stage 1: show dialog page 1, then a 3-portrait white-flash cutscene reveal at
@@ -771,7 +780,7 @@ void fd2_chapter_event_handler_3f__ch27_cinematic(uint32 event_arg)
  * binary size optimisation; the functionally-exact source for this handler is the
  * if/else-if dispatch followed by the unconditional byte increment.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_40__unref_dyn_turn_event(uint32 event_arg)
+void fd2_chapter_event_handler_40__ch27_mech_defeat_seq(uint32 event_arg)
 {
     uint8 stage;
 
@@ -869,12 +878,14 @@ void fd2_chapter_event_handler_42__ch28_dialog_with_state(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_43__unref_dyn_turn_event @ 0x35A2F
+ * fd2_chapter_event_handler_43__ch28_arm_turn_event @ 0x35A2F
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51C9D)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x43. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: state-machine mutator (turn-event
+ * LIVE (ch28) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it unref/cut).
+ * ch28 char_spawn_record[8] = a defense mech (enemy_data 44, char_id 0x70, lv23)
+ * carries pickup_kind=2 param=0x43, so when it falls fd2_process_battle_drop_entries
+ * dispatches consequence[0x43]. Category: state-machine mutator (turn-event
  * scheduler, no gate). Dispatch-table signature is 1-arg cdecl
  * (void fn(uint event_arg)); this handler does not read the arg.
  *
@@ -887,7 +898,7 @@ void fd2_chapter_event_handler_42__ch28_dialog_with_state(uint32 event_arg)
  * (MOV DL,[turn_counter] / MOV [data_table+6],DL); the (uint8) truncation on
  * store reproduces that 8-bit move exactly.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_43__unref_dyn_turn_event(uint32 event_arg)
+void fd2_chapter_event_handler_43__ch28_arm_turn_event(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -1009,12 +1020,14 @@ void fd2_chapter_event_handler_46__ch28_dialog_with_state(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_47__unref_dyn_turn_event @ 0x35B6B
+ * fd2_chapter_event_handler_47__ch28_mech_defeat_seq @ 0x35B6B
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CAD)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x47. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: state-machine mutator
+ * LIVE (ch28) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it unref/cut).
+ * ch28 char_spawn_records[0..1] = the mech squad (機甲隊長, enemy_data 48,
+ * char_id 0x74, lv33, x2) each carry pickup_kind=2 param=0x47, so each mech's
+ * death dispatches consequence[0x47]. Category: state-machine mutator
  * (post-trigger). Dispatch-table signature is 1-arg cdecl
  * (void fn(uint event_arg)); this handler does not read the arg.
  *
@@ -1031,7 +1044,7 @@ void fd2_chapter_event_handler_46__ch28_dialog_with_state(uint32 event_arg)
  * Stack frame 0x28 (__CHK) is the Watcom stack-probe prologue and carries no
  * source-level semantics.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_47__unref_dyn_turn_event(uint32 event_arg)
+void fd2_chapter_event_handler_47__ch28_mech_defeat_seq(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -1133,7 +1146,7 @@ void fd2_chapter_event_handler_49__unref_sentinel(uint32 event_arg)
  *
  * In the binary the final "advance and return" is reached by JMP into the
  * Class-3 shared tail at 0x35992 (MOV EAX,[consumed_flags_ptr]; INC byte
- * [EAX+0x10]; RET) hosted in fd2_chapter_event_handler_40__unref_dyn_turn_event
+ * [EAX+0x10]; RET) hosted in fd2_chapter_event_handler_40__ch27_mech_defeat_seq
  * @ 0x358EA: both branches of this handler tail-JMP there to borrow that
  * function's stage-advance tail instead of emitting their own. That tail-merge is
  * a binary size optimisation; the functionally-exact source is the conditional

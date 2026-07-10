@@ -118,7 +118,7 @@
  * fd2_chapter_event_handler_28__ch17_dialog_with_state @ 0x34FCB
  *     (0 direct callers; dispatched as idx 0x28 of the per-event
  *      handler table at 0x51B91)
- * fd2_chapter_event_handler_29__unref_drop @ 0x34FF0
+ * fd2_chapter_event_handler_29__ch17_eye_gem_drop @ 0x34FF0
  *     (0 direct callers; dispatched as idx 0x29 of the per-event
  *      handler table at 0x51B91)
  * fd2_chapter_event_handler_2a__ch18_dialog @ 0x3505F
@@ -1891,7 +1891,7 @@ void fd2_chapter_event_handler_28__ch17_dialog_with_state(uint32 event_arg)
 }
 
 /* Inline 3-byte battle-drop entry blob baked into the binary at 0x52745,
- * read only by fd2_chapter_event_handler_29__unref_drop. Layout matches the
+ * read only by fd2_chapter_event_handler_29__ch17_eye_gem_drop. Layout matches the
  * drop-entry ABI fd2_process_battle_drop_entries consumes: byte[0] = entry
  * type (0 = ITEM pickup), byte[1..2] = little-endian uint16 value. Here the
  * value 0x00D5 is item id 0xD5 (冰之眼, the "enter hidden chapter" item), so
@@ -1902,15 +1902,18 @@ const uint8 data_fd2_chapter_event_handler_29_drop_entry_inline[3] = {
 };
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_29__unref_drop @ 0x34FF0
- *   — Dispatch idx 0x29 of the per-event handler table at 0x51B91.
+ * fd2_chapter_event_handler_29__ch17_eye_gem_drop @ 0x34FF0
+ *   -- Dispatch idx 0x29 of the per-event handler table at 0x51B91.
  *
- * No chapter FDFIELD turn-event / tile-step hook references this slot
- * (unreferenced — possibly cut content / non-chapter dispatcher),
- * categorised as dialog + battle drop + dialog. It runs the standard
- * tile-step ABI: the dispatch arg is the id of the char who stepped onto
- * the trigger tile, and that id is the recipient of the drop. Its beat
- * shows dialog page 3, copies the inline 3-byte drop-entry blob
+ * LIVE (ch17) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it
+ * unref/cut). ch17 char_spawn_record[0] = the 冰魔神 (ice-demon boss,
+ * enemy_data 55, char_id 0x7B, lv10) carries pickup_kind=2 param=0x29, so
+ * when the boss falls fd2_process_battle_drop_entries dispatches
+ * consequence[0x29]. It runs the consequence ABI: the dispatch arg is the
+ * recipient/killer char id, and that id is the recipient of the drop
+ * (the plot gem item 0xD5 = 冰之眼). Its beat
+ * shows dialog page 3 (the 冰魔神's defeat line), copies the inline 3-byte drop-entry blob
  * (data_fd2_chapter_event_handler_29_drop_entry_inline = {0x00, 0xD5,
  * 0x00}, i.e. type 0 / item id 0xD5) onto a local, hands it as a one-entry
  * array to fd2_process_battle_drop_entries(recipient, 1, &blob), then shows
@@ -1946,7 +1949,7 @@ const uint8 data_fd2_chapter_event_handler_29_drop_entry_inline[3] = {
  *   0xCD/0x4C dialog window position (X, Y), 0x4A charset/style code,
  *   0x13 (=19) max line count, 1 wait-for-input flag.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_29__unref_drop(uint32 stepping_char_id)
+void fd2_chapter_event_handler_29__ch17_eye_gem_drop(uint32 stepping_char_id)
 {
     uint8 drop_entry[3];
 

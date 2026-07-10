@@ -400,7 +400,7 @@ ch28/29/30 以同型 state-machine-mutator handler 控制變身序列、final bo
 | 0x26 | `0x34F42` | `fd2_chapter_event_handler_26__ch15_dialog` | dialog_only | ch15 | 1 |
 | 0x27 | `0x34F74` | `fd2_chapter_event_handler_27__ch15_eye_gem_drop` | drop_dialog | ch15 | 1 |
 | 0x28 | `0x34FCB` | `fd2_chapter_event_handler_28__ch17_dialog_with_state` | dialog_with_state | ch17 | 1 |
-| 0x29 | `0x34FF0` | `fd2_chapter_event_handler_29__unref_drop` | drop_dialog | - | 0 |
+| 0x29 | `0x34FF0` | `fd2_chapter_event_handler_29__ch17_eye_gem_drop` | drop_dialog | ch17 | 1 |
 | 0x2A | `0x3505F` | `fd2_chapter_event_handler_2a__ch18_dialog` | dialog_only | ch18 | 1 |
 | 0x2B | `0x35091` | `fd2_chapter_event_handler_2b__ch18_ai_ctrl` | ai_setup | ch18 | 1 |
 | 0x2C | `0x350A4` | `fd2_chapter_event_handler_2c__ch19_ai_ctrl` | ai_setup | ch19 | 1 |
@@ -410,9 +410,9 @@ ch28/29/30 以同型 state-machine-mutator handler 控制變身序列、final bo
 | 0x30 | `0x351C6` | `fd2_chapter_event_handler_30__ch21_ai_ctrl` | ai_setup | ch21 | 1 |
 | 0x31 | `0x351E9` | `fd2_chapter_event_handler_31__ch22_turn_gated` | turn_conditional | ch22 | 2 |
 | 0x32 | `0x35261` | `fd2_chapter_event_handler_32__ch22_reinforcement` | reinforcement_spawner | ch22 | 1 |
-| 0x33 | `0x3529A` | `fd2_chapter_event_handler_33__unref_drop` | drop_dialog | - | 0 |
+| 0x33 | `0x3529A` | `fd2_chapter_event_handler_33__ch22_teleport_staff_drop` | drop_dialog | ch22 | 1 |
 | 0x34 | `0x352E2` | `fd2_chapter_event_handler_34__ch23_ai_ctrl` | ai_setup | ch23 | 4 |
-| 0x35 | `0x35321` | `fd2_chapter_event_handler_35__unref_dialog_with_state` | dialog_with_state | - | 0 |
+| 0x35 | `0x35321` | `fd2_chapter_event_handler_35__ch23_mech_boss_defeat` | dialog_with_state | ch23 | 1 |
 | 0x36 | `0x3535D` | `fd2_chapter_event_handler_36__ch24_cinematic` | cinematic_no_dialog | ch24 | 4 |
 | 0x37 | `0x353DA` | `fd2_chapter_event_handler_37__ch25_first_time` | first_time_gated | ch25 | 1 |
 | 0x38 | `0x35487` | `fd2_chapter_event_handler_38__ch25_dialog_with_state` | dialog_with_state | ch25 | 1 |
@@ -423,14 +423,14 @@ ch28/29/30 以同型 state-machine-mutator handler 控制變身序列、final bo
 | 0x3D | `0x356B7` | `fd2_chapter_event_handler_3d__ch26_pickup` | item_pickup | ch26 | 1 |
 | 0x3E | `0x35898` | `fd2_chapter_event_handler_3e__ch27_dyn_turn_event` | state_machine_mutator | ch27 | 1 |
 | 0x3F | `0x358C7` | `fd2_chapter_event_handler_3f__ch27_cinematic` | ai_setup | ch27 | 1 |
-| 0x40 | `0x358EA` | `fd2_chapter_event_handler_40__unref_dyn_turn_event` | state_machine_mutator | - | 0 |
+| 0x40 | `0x358EA` | `fd2_chapter_event_handler_40__ch27_mech_defeat_seq` | state_machine_mutator | ch27 | 3 |
 | 0x41 | `0x3599B` | `fd2_chapter_event_handler_41__shared_dyn_turn_event` | state_machine_mutator | ch27, ch28 | 2 |
 | 0x42 | `0x359C8` | `fd2_chapter_event_handler_42__ch28_dialog_with_state` | dialog_with_state | ch28 | 1 |
-| 0x43 | `0x35A2F` | `fd2_chapter_event_handler_43__unref_dyn_turn_event` | state_machine_mutator | - | 0 |
+| 0x43 | `0x35A2F` | `fd2_chapter_event_handler_43__ch28_arm_turn_event` | state_machine_mutator | ch28 | 1 |
 | 0x44 | `0x35A48` | `fd2_chapter_event_handler_44__ch28_dialog_with_state` | dialog_with_state | ch28 | 1 |
 | 0x45 | `0x35AB8` | `fd2_chapter_event_handler_45__ch28_dyn_turn_event` | state_machine_mutator | ch28 | 1 |
 | 0x46 | `0x35B05` | `fd2_chapter_event_handler_46__ch28_dialog_with_state` | dialog_with_state | ch28 | 1 |
-| 0x47 | `0x35B6B` | `fd2_chapter_event_handler_47__unref_dyn_turn_event` | state_machine_mutator | - | 0 |
+| 0x47 | `0x35B6B` | `fd2_chapter_event_handler_47__ch28_mech_defeat_seq` | state_machine_mutator | ch28 | 2 |
 | 0x48 | `0x35BF2` | `fd2_chapter_event_handler_48__unref_portrait_cinematic_pair` | ai_setup | - | 0 |
 | 0x49 | `0x35C23` | `fd2_chapter_event_handler_49__unref_sentinel` | sentinel | - | 0 |
 | 0x4A | `0x35C32` | `fd2_chapter_event_handler_4a__ch29_dyn_turn_event` | state_machine_mutator | ch29 | 1 |
