@@ -1618,8 +1618,11 @@ void fd2_chapter_event_handler_54__ch27_ai_ctrl(uint32 event_arg)
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CE5)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x55. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: pure no-op sentinel. Dispatch-table
+ * consequence-dispatch path references this slot. Audited across ALL four dispatch
+ * paths (turn-event, tile-step latch, tile_pickup, and kill-drop) plus direct
+ * callers: no reference found -- genuinely unreferenced, a no-op vestigial
+ * placeholder in the 90-entry table (not misclassified like the kill-drop-live
+ * slots). Category: pure no-op sentinel. Dispatch-table
  * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
  * the arg.
  *
@@ -1647,8 +1650,11 @@ void fd2_chapter_event_handler_55__unref_sentinel(uint32 event_arg)
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CE9)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x56. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: pure no-op sentinel. Dispatch-table
+ * consequence-dispatch path references this slot. Audited across ALL four dispatch
+ * paths (turn-event, tile-step latch, tile_pickup, and kill-drop) plus direct
+ * callers: no reference found -- genuinely unreferenced, a no-op vestigial
+ * placeholder in the 90-entry table (not misclassified like the kill-drop-live
+ * slots). Category: pure no-op sentinel. Dispatch-table
  * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
  * the arg.
  *
@@ -1673,8 +1679,11 @@ void fd2_chapter_event_handler_56__unref_sentinel(uint32 event_arg)
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CED)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x57. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: pure no-op sentinel. Dispatch-table
+ * consequence-dispatch path references this slot. Audited across ALL four dispatch
+ * paths (turn-event, tile-step latch, tile_pickup, and kill-drop) plus direct
+ * callers: no reference found -- genuinely unreferenced, a no-op vestigial
+ * placeholder in the 90-entry table (not misclassified like the kill-drop-live
+ * slots). Category: pure no-op sentinel. Dispatch-table
  * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
  * the arg.
  *
@@ -1699,8 +1708,11 @@ void fd2_chapter_event_handler_57__unref_sentinel(uint32 event_arg)
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CF1)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x58. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: pure no-op sentinel. Dispatch-table
+ * consequence-dispatch path references this slot. Audited across ALL four dispatch
+ * paths (turn-event, tile-step latch, tile_pickup, and kill-drop) plus direct
+ * callers: no reference found -- genuinely unreferenced, a no-op vestigial
+ * placeholder in the 90-entry table (not misclassified like the kill-drop-live
+ * slots). Category: pure no-op sentinel. Dispatch-table
  * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
  * the arg.
  *
@@ -1725,8 +1737,11 @@ void fd2_chapter_event_handler_58__unref_sentinel(uint32 event_arg)
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CF5)
  *
  * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x59. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: pure no-op sentinel. Dispatch-table
+ * consequence-dispatch path references this slot. Audited across ALL four dispatch
+ * paths (turn-event, tile-step latch, tile_pickup, and kill-drop) plus direct
+ * callers: no reference found -- genuinely unreferenced, a no-op vestigial
+ * placeholder in the 90-entry table (not misclassified like the kill-drop-live
+ * slots). Category: pure no-op sentinel. Dispatch-table
  * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
  * the arg.
  *

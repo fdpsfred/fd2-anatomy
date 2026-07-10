@@ -7,7 +7,7 @@
   "name_reason": "Follows fd2_<domain>_<descriptor>. The _58 suffix is the per-event dispatch-table index (slot @ 0x51CF1; index = (0x51CF1 - table_base 0x51B91)/4 = 0x58), a meaningful domain ID, NOT an address residue (0x58 != self addr 0x360f1 and is not a data address). __unref_sentinel correctly describes the role: an unreferenced no-op placeholder dispatch slot. Consistent with the sibling sentinel handlers 55/56/57/59 in the same file.",
   "kind": "function",
   "home": "src/field/chevt2.c",
-  "purpose": "Per-event dispatch-table slot 0x58 (table @ 0x51B91): an unreferenced no-op sentinel placeholder that does nothing.",
+  "purpose": "Per-event dispatch-table slot 0x58 (table @ 0x51B91): an unreferenced no-op sentinel placeholder that does nothing. Confirmed unreferenced by all 4 consequence-dispatch paths (turn-event, tile-step latch, tile_pickup, kill-drop) + direct callers -- vestigial 90-entry-table padding.",
   "logic_summary": "7-byte stub: PUSH 4; JMP 0x360DD, which falls into the shared 'CALL __CHK; RET' tail hosted in fd2_chapter_event_handler_55 @ 0x360D8. Net effect is a Watcom __CHK stack-probe (frame size 4) followed by an immediate return -- no state mutation, no display, no dialog. The arg is not read. The only xref is the dispatch-table data pointer at 0x51CF1; no chapter FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut content). The borrowed __CHK;RET tail is a binary size optimisation; the functionally-exact source is an empty body (matches siblings 55/56/57/59).",
   "signature": "void __cdecl fd2_chapter_event_handler_58__unref_sentinel(uint32 event_arg)",
   "params": [

@@ -7,7 +7,7 @@
   "name_reason": "Follows fd2_<domain>_<descriptor> convention. The trailing 59 is a meaningful domain ID (dispatch index 0x59 into the per-event handler table @ 0x51B91, table entry @ 0x51CF5), NOT a Ghidra address residue (the function's own address is 0x360F8, unrelated to 59). The __unref_sentinel suffix accurately captures its role: an unreferenced no-op placeholder dispatch slot. Matches the consistent naming of sibling handlers 55/56/57/58.",
   "kind": "function",
   "home": "ROOT/src/field/chevt2.c",
-  "purpose": "Unreferenced no-op chapter-event dispatch sentinel for handler index 0x59 (placeholder slot in the per-event handler table @ 0x51B91; does nothing meaningful).",
+  "purpose": "Unreferenced no-op chapter-event dispatch sentinel for handler index 0x59 (placeholder slot in the per-event handler table @ 0x51B91; does nothing meaningful). Confirmed unreferenced by all 4 consequence-dispatch paths (turn-event, tile-step latch, tile_pickup, kill-drop) + direct callers -- vestigial 90-entry-table padding (the last slot of the table).",
   "logic_summary": "Binary body is a 7-byte stub: PUSH 4; JMP 0x360DD. It pushes its own __CHK frame size (4) then jumps into the Class-3 SHARED ENTRY at 0x360DD (the CALL __CHK; RET tail hosted in fd2_chapter_event_handler_55 @ 0x360D8), the last of four consumers (handlers 56/57/58/59) that borrow that tail-merged stack-probe/return. Net effect: a Watcom stack probe then an immediate return. No state mutation, no display, no dialog, not even a flag-byte write. The functionally-exact source is an empty body (identical to handler_55); the __CHK probe carries no source-level semantics.",
   "signature": "void __cdecl fd2_chapter_event_handler_59__unref_sentinel(uint event_arg)",
   "params": [
