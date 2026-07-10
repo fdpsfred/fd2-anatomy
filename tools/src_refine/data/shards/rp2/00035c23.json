@@ -1,15 +1,15 @@
 {
   "address": "00035c23",
-  "name_current": "fd2_chapter_event_handler_49__unref_sentinel",
-  "name_final": "fd2_chapter_event_handler_49__unref_sentinel",
-  "name_verdict": "keep",
-  "name_proposed": null,
-  "name_reason": "Compliant fd2_<domain>_<descriptor> game-function name. 'chapter_event_handler' = the per-event dispatch-table family @ 0x51B91. '49' is the dispatch-table index 0x49 (table entry @ 0x51CB5, verified as the sole xref-to), a meaningful domain ID like every sibling (handler_2f..4a), NOT an address residue (own address is 0x35C23). '__unref' records that no chapter FDFIELD turn-event/tile-step hook references this slot (verified: only xref is the dispatch table itself, get_function_callers returns none). '__sentinel' describes its category (consumed-flag setter only). No Ghidra address residue in the name.",
+  "name_current": "fd2_chapter_event_handler_49__ch29_dragon_down_1",
+  "name_final": "fd2_chapter_event_handler_49__ch29_dragon_down_1",
+  "name_verdict": "rename",
+  "name_proposed": "fd2_chapter_event_handler_49__ch29_dragon_down_1",
+  "name_reason": "Compliant fd2_<domain>_<descriptor>. '49' is the dispatch-table index 0x49 (entry @ 0x51CB5), a meaningful domain ID, not an address residue. Descriptor corrected from '__unref_sentinel' to '__ch29_dragon_down_1': the slot is LIVE, reached via the ch29 kill-drop path -- ch29 char_spawn_record[0] = a defense-core dragon (enemy_data 36, char_id 0x68, lv30) carries pickup_kind=2 param=0x49, so the dragon's death dispatches consequence[0x49], setting tile_event_consumed_flags[0x12]=1 to mark this dragon destroyed (one of the ch29 3-dragon objective flags 0x12/0x13/0x14 set by 0x49/0x4D/0x4E). The earlier 'unref' verdict only scanned turn-event/tile-step hooks and missed the kill-drop path; the tail it borrows is ch28's handler_44 code, but the flag semantics here are ch29's dragon marker.",
   "kind": "function",
   "home": "src/field/chevt2.c",
-  "purpose": "Unreferenced chapter-event dispatch slot 0x49: a sentinel handler that marks the ch28 sentinel-scene tile-event slot consumed (tile_event_consumed_flags[0x12] = 1) with no other side effects.",
+  "purpose": "Chapter 29 defense-core-dragon progress marker (dispatch slot 0x49, reached via the ch29 kill-drop path when the dragon record[0] enemy_data 36, pickup_kind=2 param=0x49, falls): marks this dragon destroyed by setting tile_event_consumed_flags[0x12] = 1 (one of the 3-dragon objective flags), with no other side effects.",
   "logic_summary": "Single statement: store 1 into tile_event_consumed_flags[0x12]. In the binary it is a 10-byte stub (PUSH 4; CALL __CHK; JMP 0x35AAE) that borrows the Class-3 shared consume-slot-0x12 tail (MOV EAX,[consumed_flags_ptr]; MOV byte [EAX+0x12],1; RET) hosted at the end of fd2_chapter_event_handler_44__ch28_dialog_with_state @ 0x35A48 (alt_66 @ 0x35AAE). The __CHK(4) is the Watcom stack-probe prologue and carries no source-level semantics. Slot 0x12 is the prerequisite that the handler_44/handler_45 chain depends on. event_arg is never read.",
-  "signature": "void __cdecl fd2_chapter_event_handler_49__unref_sentinel(uint32 event_arg)",
+  "signature": "void __cdecl fd2_chapter_event_handler_49__ch29_dragon_down_1(uint32 event_arg)",
   "params": [
     {
       "name": "event_arg",
@@ -28,9 +28,9 @@
   "writes_globals": [
     "data_fd2_field_map_tile_event_consumed_flags_ptr (writes through the pointer: consumed_flags[0x12] = 1; the pointer global itself, at 0x53AD5, is read not written)"
   ],
-  "comment_original_issue": null,
-  "comment_verdict": "keep",
-  "ghidra_plate_action": "none",
+  "comment_original_issue": "Source comment previously stated the slot was unreferenced and framed flag[0x12] as 'the ch28 sentinel scene slot'. Corrected: LIVE via the ch29 kill-drop path (record[0] dragon pickup_kind=2 param=0x49); flag[0x12] is a ch29 dragon-progress marker (the ch28 reference is only the borrowed code tail).",
+  "comment_verdict": "edit",
+  "ghidra_plate_action": "edit",
   "issues": [],
   "processed": true,
   "committed": true,

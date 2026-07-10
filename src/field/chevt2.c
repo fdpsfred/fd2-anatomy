@@ -925,7 +925,7 @@ void fd2_chapter_event_handler_43__ch28_arm_turn_event(uint32 event_arg)
  * In the binary the final consume store is a Class-3 shared tail
  * (L_chapter_event_handler_44_alt_66 @ 0x35AAE: MOV EAX, [tile_event_consumed_flags];
  * MOV byte [EAX + 0x12], 1; RET) tail-borrowed by
- * fd2_chapter_event_handler_49__unref_sentinel. That tail-merge is a binary
+ * fd2_chapter_event_handler_49__ch29_dragon_down_1. That tail-merge is a binary
  * size optimisation; the functionally-exact source is the straight-line
  * three-call sequence followed by the byte store below.
  * ---------------------------------------------------------------- */
@@ -1059,14 +1059,16 @@ void fd2_chapter_event_handler_47__ch28_mech_defeat_seq(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_48__unref_portrait_cinematic_pair @ 0x35BF2
+ * fd2_chapter_event_handler_48__ch29_portrait_cutscene @ 0x35BF2
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CB1)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x48. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: 2-portrait cinematic pair.
- * Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
- * handler does not read the arg.
+ * LIVE (ch29) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it unref/cut).
+ * ch29 char_spawn_record[17] = a mech (機甲隊長, enemy_data 48, char_id 0x74,
+ * lv34) carries pickup_kind=2 param=0x48, so when it falls
+ * fd2_process_battle_drop_entries dispatches consequence[0x48]. Category:
+ * 2-portrait cinematic pair. Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
  *
  * Effect: a 2-portrait reveal at row y=0x23 — the first portrait white-flash
  * cutscene is shown at tile (4, 0x23) with chapter id 2, the second at tile
@@ -1081,7 +1083,7 @@ void fd2_chapter_event_handler_47__ch28_mech_defeat_seq(uint32 event_arg)
  * functionally-exact source is the two complete calls followed by the
  * battle_anim_phase store below.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_48__unref_portrait_cinematic_pair(uint32 event_arg)
+void fd2_chapter_event_handler_48__ch29_portrait_cutscene(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -1091,18 +1093,22 @@ void fd2_chapter_event_handler_48__unref_portrait_cinematic_pair(uint32 event_ar
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_49__unref_sentinel @ 0x35C23
+ * fd2_chapter_event_handler_49__ch29_dragon_down_1 @ 0x35C23
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CB5)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x49. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: sentinel (consumed-flag setter
- * only). Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
- * handler does not read the arg.
+ * LIVE (ch29) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it unref/cut).
+ * ch29 char_spawn_record[0] = a defense-core dragon (enemy_data 36, char_id 0x68,
+ * lv30) carries pickup_kind=2 param=0x49, so when the dragon falls
+ * fd2_process_battle_drop_entries dispatches consequence[0x49]. Dispatch-table
+ * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
+ * the arg.
  *
- * Effect: set tile_event_consumed_flags[0x12] = 1 (no other side effects) — marks
- * the ch28 sentinel scene slot consumed, the same slot the handler_44 /
- * handler_45 chain depends on.
+ * Effect: set tile_event_consumed_flags[0x12] = 1 (no other side effects) -- marks
+ * this ch29 defense-core dragon destroyed (one of the 3-dragon objective progress
+ * flags 0x12/0x13/0x14 set by handlers 0x49/0x4D/0x4E). It reuses the code tail
+ * that stores flag[0x12], borrowed from ch28's handler_44 chain (a pure
+ * code-folding artifact; the flag semantics here are ch29's dragon-progress marker).
  *
  * In the binary the handler is a 10-byte stub: PUSH 4; CALL __CHK; JMP 0x35AAE
  * into the Class-3 shared tail (MOV EAX, [tile_event_consumed_flags];
@@ -1112,7 +1118,7 @@ void fd2_chapter_event_handler_48__unref_portrait_cinematic_pair(uint32 event_ar
  * store below. Stack frame 4 (__CHK) is the Watcom stack-probe prologue and
  * carries no source-level semantics.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_49__unref_sentinel(uint32 event_arg)
+void fd2_chapter_event_handler_49__ch29_dragon_down_1(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -1306,19 +1312,20 @@ void fd2_chapter_event_handler_4c__ch29_major_cinematic(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_4d__unref_sentinel @ 0x35EBE
+ * fd2_chapter_event_handler_4d__ch29_dragon_down_2 @ 0x35EBE
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CC5)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x4D. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: sentinel (consumed-flag setter
- * only). Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
- * handler does not read the arg.
+ * LIVE (ch29) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it unref/cut).
+ * ch29 char_spawn_record[1] = a defense-core dragon (enemy_data 59, char_id 0x7F,
+ * lv30) carries pickup_kind=2 param=0x4D, so when the dragon falls
+ * fd2_process_battle_drop_entries dispatches consequence[0x4D]. Dispatch-table
+ * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
+ * the arg.
  *
- * Effect: set tile_event_consumed_flags[0x13] = 1 (no other side effects) -- primes
- * handler_47, whose first invocation merely advances flags[0x13] 0 -> 1 before its
- * mass-kill path; pre-setting the flag non-zero makes handler_47's very next
- * invocation take that 2nd-call mass-kill branch.
+ * Effect: set tile_event_consumed_flags[0x13] = 1 (no other side effects) -- marks
+ * this ch29 defense-core dragon destroyed (one of the 3-dragon objective progress
+ * flags 0x12/0x13/0x14 set by handlers 0x49/0x4D/0x4E).
  *
  * In the binary the body is a self-contained 10-byte stub (no borrowed tail):
  * PUSH 4; CALL __CHK; MOV EAX, [tile_event_consumed_flags_ptr];
@@ -1326,7 +1333,7 @@ void fd2_chapter_event_handler_4c__ch29_major_cinematic(uint32 event_arg)
  * mutation. Stack frame 4 (__CHK) is the Watcom stack-probe prologue and carries
  * no source-level semantics.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_4d__unref_sentinel(uint32 event_arg)
+void fd2_chapter_event_handler_4d__ch29_dragon_down_2(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -1334,17 +1341,20 @@ void fd2_chapter_event_handler_4d__unref_sentinel(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_4e__unref_sentinel @ 0x35ED2
+ * fd2_chapter_event_handler_4e__ch29_dragon_down_3 @ 0x35ED2
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CC9)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x4E. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: sentinel (consumed-flag setter
- * only). Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg)); this
- * handler does not read the arg.
+ * LIVE (ch29) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it unref/cut).
+ * ch29 char_spawn_record[2] = a defense-core dragon (enemy_data 37, char_id 0x69,
+ * lv30) carries pickup_kind=2 param=0x4E, so when the dragon falls
+ * fd2_process_battle_drop_entries dispatches consequence[0x4E]. Dispatch-table
+ * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
+ * the arg.
  *
  * Effect: set tile_event_consumed_flags[0x14] = 1 (no other side effects) -- marks
- * the slot adjacent to handler_4d's 0x13.
+ * this ch29 defense-core dragon destroyed (one of the 3-dragon objective progress
+ * flags 0x12/0x13/0x14 set by handlers 0x49/0x4D/0x4E).
  *
  * In the binary the body is a self-contained 10-byte stub (no borrowed tail, and
  * nothing tail-JMPs into it): PUSH 4; CALL __CHK; MOV EAX, [tile_event_consumed_flags_ptr];
@@ -1352,7 +1362,7 @@ void fd2_chapter_event_handler_4d__unref_sentinel(uint32 event_arg)
  * mutation. Stack frame 4 (__CHK) is the Watcom stack-probe prologue and carries
  * no source-level semantics.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_4e__unref_sentinel(uint32 event_arg)
+void fd2_chapter_event_handler_4e__ch29_dragon_down_3(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -1433,14 +1443,16 @@ void fd2_chapter_event_handler_50__ch30_ai_ctrl(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_51__unref_dyn_turn_event @ 0x35F6F
+ * fd2_chapter_event_handler_51__ch30_boss_defeat_pump @ 0x35F6F
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CD5)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x51. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: state-machine mutator (stage
- * counter advance + turn-event reschedule). Dispatch-table signature is 1-arg
- * cdecl (void fn(uint event_arg)); this handler does not read the arg.
+ * LIVE (ch30) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it unref/cut).
+ * ch30 char_spawn_records[1..4] = the endgame bosses (enemy_data 54..57, char_id
+ * 0x7A..0x7D, lv30..40) each carry pickup_kind=2 param=0x51, so each boss's death
+ * dispatches consequence[0x51]. Category: state-machine mutator (stage counter
+ * advance + turn-event reschedule). Dispatch-table signature is 1-arg cdecl
+ * (void fn(uint event_arg)); this handler does not read the arg.
  *
  * Effect: a self-looping pump — advance the stage counter
  * tile_event_consumed_flags[0x10] by one (8-bit INC byte ptr), then queue another
@@ -1455,7 +1467,7 @@ void fd2_chapter_event_handler_50__ch30_ai_ctrl(uint32 event_arg)
  * frame 4 (__CHK) is the Watcom stack-probe prologue and carries no source-level
  * semantics.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_51__unref_dyn_turn_event(uint32 event_arg)
+void fd2_chapter_event_handler_51__ch30_boss_defeat_pump(uint32 event_arg)
 {
     (void)event_arg;
 
@@ -1531,14 +1543,16 @@ void fd2_chapter_event_handler_52__ch30_major_cinematic(uint32 event_arg)
 }
 
 /* ----------------------------------------------------------------
- * fd2_chapter_event_handler_53__unref_dialog_with_state @ 0x36088
+ * fd2_chapter_event_handler_53__ch30_final_boss_defeat @ 0x36088
  *   (0 direct callers; dispatch table @ 0x51B91, entry @ 0x51CDD)
  *
- * Invoked via per-event handler table @ 0x51B91, dispatch idx 0x53. No chapter
- * FDFIELD turn-event / tile-step hook references this slot (unref / possibly cut
- * content / non-chapter dispatcher). Category: dialog with state. Dispatch-table
- * signature is 1-arg cdecl (void fn(uint event_arg)); this handler does not read
- * the arg.
+ * LIVE (ch30) -- reached via the FDFIELD kill-drop path (not a turn-event /
+ * tile-step hook, which is why earlier hook-only scans mislabeled it unref/cut).
+ * ch30 char_spawn_record[0] = the final boss (enemy_data 58, char_id 0x7E, lv40)
+ * carries pickup_kind=2 param=0x53, so when the final boss falls
+ * fd2_process_battle_drop_entries dispatches consequence[0x53]. Category: dialog
+ * with state. Dispatch-table signature is 1-arg cdecl (void fn(uint event_arg));
+ * this handler does not read the arg.
  *
  * Effect: show dialog page 8, then kill every runtime_char_array slot from index
  * 0x14 to the end (sets hp_current = 0 for slots 0x14..count-1, then plays the
@@ -1554,7 +1568,7 @@ void fd2_chapter_event_handler_52__ch30_major_cinematic(uint32 event_arg)
  * (__CHK) is the Watcom stack-probe prologue and carries no source-level
  * semantics.
  * ---------------------------------------------------------------- */
-void fd2_chapter_event_handler_53__unref_dialog_with_state(uint32 event_arg)
+void fd2_chapter_event_handler_53__ch30_final_boss_defeat(uint32 event_arg)
 {
     (void)event_arg;
 
