@@ -154,6 +154,21 @@ LLLLLL archive (詳 `overview.md`):
 - entry 1..30 → `chapters/chapter_NN.md` 的「對話」段
 - entry 31..33 → `assets/text/endgame_text.md`
 
+## 未使用頁（開發者佔位／彩蛋台詞）
+
+entry 1..6（ch1..ch6 戰鬥對話）各自恰好含 **1 頁永遠不會被顯示的孤兒頁**：程式碼沒有任何路徑會把該頁 index 傳給 `fd2_display_dialog_scene(data_fd2_current_chapter_text_ptr, …)`。內容都是主角索爾（`PORTRAIT_RIGHT_BY_ID=0x0000`）的一句無厘頭諧音獨白，兩種台詞輪流出現：
+
+| entry | 章 | 孤兒頁 index | entry 總頁數 | 台詞 |
+|---|---|---|---|---|
+| 1 | 1 | 10 | 12 | 奈野啊捏？ |
+| 2 | 2 | 5  | 17 | 奈野啊捏？ |
+| 3 | 3 | 8  | 10 | 這‥‥這是什麼碗糕！ |
+| 4 | 4 | 5  | 7  | 這‥‥這是什麼碗糕！ |
+| 5 | 5 | 10 | 12 | 這‥‥這是什麼碗糕！ |
+| 6 | 6 | 7  | 8  | 奈野啊捏？ |
+
+判定依據：一個 entry 的每一頁只能由四種派遣面之一以頁碼引用——章節 init/end/post handler、16 個 FDFIELD turn-event hook、16 個 tile-step + 16 個 tile_pickup 事件格（皆經 consequence table 派到 `chevt1/chevt2` handler），以及每筆 char_spawn 的 kill-drop。頁碼幾乎都是 handler 內寫死的常數；**唯一以執行期資料當頁碼**的是 type-3「DIALOG」kill-drop（`pickup_kind=3 param=K` 的單位死亡時，`fd2_process_battle_drop_entries` 顯示該章第 K 頁，即頭目／友軍臨終台詞，如 ch1 p8、ch2 p11–16、ch3 p5/p9、ch4 p6、ch5 p8）。把每章 FDFIELD.DAT 的 spawn 記錄全解碼比對後，上表這些頁的 param 值不被任何一筆記錄命中，也沒有 handler 傳入其常數，故確定不可達。對話 VM 的遞迴 opcode（`SUB_DIALOG_A/B`）只索引 `data_fd2_all_game_text_ptr`（全域 blob），碰不到章節指標；唯一隱藏熱鍵 Shift+F1 只開神秘商店、不呼叫對話顯示。頁碼各章不同（10/5/8/5/10/7）排除「湊頁數」填充，性質是寫劇本時用主角 portrait 測渲染路徑後留下的佔位字串。
+
 ## 工具
 
 - Parser：`tools/decoders/fdtxt_parser.py` (FdtxtArchive class, tokenize generator, CLI)

@@ -10,7 +10,7 @@
 - `save_format.md` — FD2.SAV 22987 bytes layout、save header、4-slot snapshot、
   XOR 加密與 checksum
 - `fdtxt.md` — FDTXT.DAT 對話文字 (34 entries, 1016 pages)、bytecode VM
-  10 個 control opcode、entry 0..33 用途對照
+  10 個 control opcode、entry 0..33 用途對照、ch1..6 各 1 頁不可達的主角佔位／彩蛋台詞
 - `fdfield.md` — FDFIELD.DAT (99 entries) 章節地圖 + tile_event + char_spawn
   完整 byte-level layout
 - `fdshap.md` — FDSHAP.DAT (66 entries) 戰鬥地形 24×24 tile sheet + tile_attribute
