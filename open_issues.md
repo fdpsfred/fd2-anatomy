@@ -19,10 +19,6 @@ INITCH 命令直接呼叫 `data_fd2_chapter_init_handler_table[N]()` 做 fresh i
 結局 / 商店 / options 的狀態斷言，需母本鏈到達章節點）、P5（cinematic golden + 原版差分背書；`diff_original.py`
 未建，原版差分基礎見 `tools/fd2_diff/`）。
 
-**src_refine item-1 的 tests/ 同步** — `tests/` 約 40+ 檔仍引用已死的舊 symbol 名，對現行 `src/include/` 必編不過
-（例：舊 global `data_fd2_chapter_portrait_load_buffer` 約 71 處跨 16 檔）。使用者已批准、時機待指示，勿自行開工。
-recipe 見 `tools/src_refine/data/rename_explain.md`，old→new 對照用同目錄 `rename_old2new.json`。
-
 ### [重建 / 建置]
 
 **86Box-mac 實機驗證（等使用者）** — 白光柱 crash 根因已找到並修正（`__NO_MATH_OPS`，commit `15d32073`；完整結論見

@@ -10,6 +10,7 @@ import shared lib、不依賴 `legacy/`。CLI 用法看 `python <script> --help`
 | `decoders/` | LLLLLL DAT archive parser + 各資源檔解碼器（FDTXT / FDFIELD / FDSHAP / DATO / FDMUS / BG / FDICON / RLE）|
 | `glyph/` | 中文字 glyph atlas 渲染 + ET3 STDFONT pixel-match，產 glyph id ↔ Big5 對照 |
 | `program_analysis/` | FD2.LE 結構性分析：CRT / 函式 / 資料 / jump-table audit pipeline、call graph builder、真遊戲檔 ground-truth dump |
+| `chevt_audit/` | 30 章 chevt handler 存活性列舉：走 4 條 FDFIELD.DAT dispatch 路徑列出實際引用到 90-entry consequence table（0x51B91）的 handler，判定 `__unref_` handler 是否真的 live（結論已整合進 `program_info/field.md`）|
 | `ail_extract/` | 從 FD2.LE 抽 Miles AIL 重建為 `ailv3.lib` + `ailv3.h` + `fd2common.lib`，DOSBox-X 內 build / run 驗證 |
 | `code_emit/` | FD2 function emit + review pipeline：`emit_review.wf.js` 編排、`build_test.py` build gate、routing scout |
 | `data_emit/` | 真實 global data 從 FD2.LE 落地 `src/` 的 emit pipeline + `verify_real.py` byte-equality gate |
@@ -18,9 +19,9 @@ import shared lib、不依賴 `legacy/`。CLI 用法看 `python <script> --help`
 | `snd_kbd_diag/` | 實機 playtest 診斷（wlink map / lib dump / SFX 重現 / runtime audio 狀態）|
 | `stkdiag/` | `__CHK` 堆疊探測診斷：產生取代 CLIB3S(stk) 的 STKDIAG.OBJ，Stack Overflow 時先印觸發函數位址與 ESP |
 | `fd2_play/` | 決定論 playthrough 整合測試工具：`build_replay.py` 編 FD2RP.EXE（src + `-DFD2_REPLAY`）、`run_play`/`run_all` 跑 scenario、`compare`/`expect` 比對 framebuffer+state golden、`gen_scenario`/`sweep_chapters`/`st_dump`/`fb2png` 輔助（詳見 `fd2_play/_index.md`）|
+| `fd2_diff/` | 原版 vs 重建版 runtime 狀態差分 oracle：`extract_state.py` 從原版 `~FD2.EXE` 的 DOSBox-X 存檔（CONST 簽章定位 DGROUP）dump 出 replay harness 用的 16-int32 狀態全域供比對、`make_pro_obj.py` 產 Watcom `-ep` 覆蓋率儀器 OBJ |
 | `kb_overhaul/` | KB 翻新用產生器：`gen_ch_encounters` / `gen_ch_section3` / `gen_ch_shops` 由 byte-verified FDFIELD 表產各章 §敵人·寶物·商店、`rebase_row_addr` 跨版本資料表位址 rebase |
 | `growth_table/` | 由 FD2.LE 角色基礎／成長／轉職表推導每級 HP/MP/AP/DP/DX，`gen_growth`＋`build_page` 產自足互動網頁「角色屬性數值比較」（三分頁：屬性排名／成長曲線比較／角色明細），發佈到 GitHub Pages（`docs/`）；詳 `growth_table/_index.md` |
-| `tests_rename/` | `tests/` 舊 symbol 名批次同步：`sync_rename.py` 依 `rename_old2new.json` 改名、`verify.py` 驗證 |
 | `rsrc_unresolved/` | 資源檔格式 ground-truth 分析：`analyze.py` 對真遊戲檔驗證 FDOTHER nested/dead 內容分類、ANI 檔頭與 per-frame 欄位、FDSHAP tile-attribute 值域、TAI round-trip（結論已整合進 `resource_info/`）|
 
 ## 資料儲放慣例

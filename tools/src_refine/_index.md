@@ -19,8 +19,8 @@ LE fixup 順序/COMDEF 位置、破 byte-identical 但經 `eqcheck.py` 證功能
 
 ## 狀態 source of truth / 續跑
 
-- **durable 全在 tracked `data/`**：`baseline_hash.txt`、`shards/rpN/<addr8>.json`（per-symbol，refiner 在 worktree 寫+commit）、merge 後的 `src_info.json` / `src_info_by_name.json` / `src_issues.json`；closeout 另產 `rename_old2new.json`（live-Ghidra 校準的 old→new 映射，供 tests/ 等次級引用同步；`symbols`=全名、`prefixless_functions`/`kb_prose_shorthands`=簡寫）+ `rename_explain.md`（給接手 tests 同步的 agent 的操作指南）。
-- **per-symbol commit + shard 是斷點**：任何中斷後重跑零成本續做；`scout.py` 永遠回「下一批未做」。
+- Stage 1／Stage 2 refine pipeline 已完成。durable deliverable（tracked `data/`）：merge 後的 `src_info.json` / `src_info_by_name.json` / `src_issues.json`、build gate baseline `baseline_hash.txt` / `baseline_eq.json`、closeout 產的 `rename_old2new.json`（live-Ghidra 校準的 old→new 映射，供 tests/ 等次級引用同步；`symbols`=全名、`prefixless_functions`/`kb_prose_shorthands`=簡寫）+ `rename_explain.md`（給接手 tests 同步的 agent 的操作指南）。
+- pipeline 執行期的 per-symbol shard（`shards/rpN/<addr8>.json`，斷點續跑用）與 Stage 2 的 `stage2_progress.json` ledger 已於完工後移除；其內容早已 merge 進 `src_info.json`。如需再跑 pipeline，須先重新 dump Ghidra 重建 shard（`scout.py` 以 shard 是否存在判定 done、`merge_shards.py` 從 shard 重生 `src_info.json`）。
 - 可重生暫存（不追蹤）：Ghidra dump、worklist.json、coverage 報告、partition manifest、每批 args；分別由 `run_script_inline` / `build_worklist.py` / `partition.py` / `scout.py` 重產。
 
 ## 流程
