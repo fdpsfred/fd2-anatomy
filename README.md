@@ -16,7 +16,9 @@
 
 專案的目標是藉由原汁原味地復刻原始遊戲執行檔來分析並且理解遊戲的所有內容和每個面向，
 
-因此對單純玩遊戲的使用者來說，這個專案的結果是無感的，因為一樣都是在 DOS 環境 (DOSBox, 86Box 模擬器或是 DOS 實機) 上面玩原本的遊戲。
+感覺就像是把一台經典老爺車拆開來研究完每個零件以後再無損地組裝回去，享受過程的樂趣。
+
+因此以遊戲體驗來說，這個專案的結果沒有新的東西，因為一樣都是在 DOS 環境 (DOSBox, 86Box 模擬器或是 DOS 實機) 裡面玩原本的遊戲內容。
 
 ---
 
@@ -48,13 +50,21 @@ workspace/fd2_build/exe/out/FD2.EXE
 
 之後把這個 `FD2.EXE` 覆蓋掉遊戲目錄裡的原檔，就能在 DOSBox-X / 86Box / DOS 實機上照常遊玩(編譯本身不需要遊戲資料檔)。
 
+95 版的 fd2.exe 有包入 dos4gw.exe，98版則沒有，分開成兩個檔案放置。
+
+這個專案是以 98 版為對象還原，如果要放到 95 版的遊戲資料夾內執行，也必須複製 dos4gw.exe  過去。
+
+本 repo 不包含原始遊戲檔案。
+
 ---
 
 ## 各人物屬性數值比較表
 
 把每個角色升級時的屬性成長數值全部解出來，整理成一頁可以互動查看、對照的比較表：
 
-👉 **[角色成長數值表](https://fdpsfred.github.io/fd2-anatomy/character-stat-comparison/fd2_growth_tables.html)**
+[![角色成長數值表預覽](docs/character-stat-comparison/growth_table_preview.png)](https://fdpsfred.github.io/fd2-anatomy/character-stat-comparison/fd2_growth_tables.html)
+
+👉 **[點我開啟互動版：角色成長數值表](https://fdpsfred.github.io/fd2-anatomy/character-stat-comparison/fd2_growth_tables.html)**
 
 (這頁由 `tools/growth_table/` 從遊戲資料自動產生。)
 
@@ -83,13 +93,5 @@ workspace/fd2_build/exe/out/FD2.EXE
 *上排為 95 初版(腳下有紅褐色橢圓台座)，下排為 98 合輯版(台座已移除)。*
 
 > 詳見 `resource_info/version_diff.md`
-
-### 當年的「升級最大值修改檔」其實會把屬性增加的值再加 1
-
-早年流傳一個「強制最大成長」的 fd2.exe 修改檔，讓角色每次升級都拿好拿滿。但對照還原出的原始成長邏輯才發現，這個修改檔有個 off-by-one：它把成長亂數的範圍當成 `byte[1]`，可是原版真正的上限是 `byte[1] - 1`——結果每升一級，屬性都會比原版的真正上限**多加了 1 點**。
-
-上面那份成長數值表刻意保留原版真實的上限(`byte[1] - 1`)，不含這個 +1 偏移。
-
----
 
 📚 想更深入了解遊戲的每個系統、資源檔格式、逐章劇情與數值，可以從知識庫索引 [`index.md`](index.md) 開始逛。
