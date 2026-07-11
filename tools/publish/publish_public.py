@@ -4,8 +4,8 @@
 The public repo (github.com/fdpsfred/fd2-anatomy) is a clean subset MIRROR with
 a fresh single-commit history -- it carries NONE of the dev repo's git history.
 This script rebuilds that mirror: export the current HEAD tracked tree, drop the
-dev-only paths (.claude/, CLAUDE.md), scan for personal info, build one commit,
-and (only with --push) force-push it to the public remote.
+dev-only paths (.claude/, CLAUDE.md, tools/publish/), scan for personal info,
+build one commit, and (only with --push) force-push it to the public remote.
 
 It publishes HEAD (the committed state), not the working tree -- commit dev
 changes first. Output/staging goes under workspace/publish/ (gitignored).
@@ -21,6 +21,7 @@ import io
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -31,8 +32,10 @@ STAGE = ROOT / "workspace" / "publish" / "staging"
 PUBLIC_REMOTE = os.environ.get("FD2_PUBLIC_REMOTE",
                                "https://github.com/fdpsfred/fd2-anatomy.git")
 
-# dev-only top-level paths kept OUT of the public mirror.
-EXCLUDES = [".claude", "CLAUDE.md"]
+# dev-only paths kept OUT of the public mirror. tools/publish is the publish
+# tooling itself (dev-only; and its PII-scan source literally contains the
+# 'fdpsf' name, which would otherwise trip the scan below).
+EXCLUDES = [".claude", "CLAUDE.md", "tools/publish"]
 
 # Patterns that must NOT reach the public tree. The public account handle
 # "fdpsfred" (e.g. the fdpsfred.github.io Pages URLs in README) is allowed; the
@@ -57,11 +60,23 @@ def git(args, **kw):
     return subprocess.run(["git"] + args, check=True, **kw)
 
 
+def _rmtree_force(path):
+    """rmtree that survives Windows read-only git objects (.idx/.pack, WinError 5):
+    clear the read-only bit on the offending file and retry the delete."""
+    def onerr(func, p, _exc):
+        os.chmod(p, stat.S_IWRITE)
+        func(p)
+    try:
+        shutil.rmtree(path, onexc=onerr)      # py>=3.12
+    except TypeError:
+        shutil.rmtree(path, onerror=onerr)    # py<3.12
+
+
 def export_tree():
     """Extract HEAD's tracked files (no .git, no gitignored) into STAGE, then
     delete the dev-only excludes."""
     if STAGE.exists():
-        shutil.rmtree(STAGE)
+        _rmtree_force(STAGE)
     STAGE.mkdir(parents=True)
     tar_bytes = subprocess.run(["git", "-C", str(ROOT), "archive", "HEAD"],
                                check=True, stdout=subprocess.PIPE).stdout
