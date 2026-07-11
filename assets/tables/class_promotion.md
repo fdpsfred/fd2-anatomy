@@ -25,6 +25,11 @@ portrait_id + 0x20 / +0x32 / 或 0x34；0x34 僅在 portrait_id 9 悠妮持精�
 轉職為召喚師 job 0x15，portrait_id ∈ [0, 0x12)）。最後兩筆
 （class 0x42 / 0x43）是 alt-path 專用的轉職。
 
+index 16（class 0x30）存 job 0x0A（聖戰士），但這是凱拉斯（char 16，本職龍劍士）誤觸的**幽靈
+轉職槽**：資格判定只排除蘭斯洛特（`portrait_id != 7`）、漏了凱拉斯（`!= 0x10`），使他被算出
+目標 0x30 並提供這筆與本職不符的聖戰士轉職，確認轉職會使原版遊戲 crash。詳
+`program_info/known_bugs.md`。
+
 ## 讀取端（3，皆經 accessor）
 
 `fd2_run_class_promotion_menu_main @ 0x31385`（玩家確認後查新 job）、

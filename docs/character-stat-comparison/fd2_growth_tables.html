@@ -1,0 +1,3750 @@
+<meta charset="utf-8">
+<title>炎龍騎士團 2 · 角色成長數值表</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* ============================ tokens ============================ */
+:root{
+  color-scheme: light dark;
+  /* warm-biased neutrals + ember (flame-dragon) accent + steel counter-tone */
+  --bg:#f4f1ea; --plane:#efeae0; --surface:#fbf9f4; --surface-2:#f2ede3;
+  --ink:#211c15; --ink-2:#5c554a; --ink-3:#8a8175;
+  --line:#e2dccf; --line-2:#ccc4b3;
+  --accent:#c0631b; --accent-2:#9c4d12; --accent-soft:#f6e3cf; --accent-ink:#fff8f0;
+  --min:#2f6fae;      /* floor  (steel) */
+  --min-soft:#dfeaf5;
+  --max:#c0631b;      /* ceiling(ember) */
+  --max-soft:#f6e3cf;
+  --hero:#8a5a12;     /* LV99 marker */
+  --shadow:0 1px 2px rgba(40,28,10,.06),0 8px 24px -12px rgba(40,28,10,.14);
+  /* solid glyph outline (theme-aware via --surface) so labels stay legible on any bar colour */
+  --bar-outline:1px 1px 0 var(--surface),-1px -1px 0 var(--surface),1px -1px 0 var(--surface),-1px 1px 0 var(--surface),1px 0 0 var(--surface),-1px 0 0 var(--surface),0 1px 0 var(--surface),0 -1px 0 var(--surface),0 0 3px var(--surface);
+  /* validated categorical palette (light) */
+  --s1:#2a78d6; --s2:#eda100; --s3:#e87ba4; --s4:#e34948;
+  --s5:#4a3aa7; --s6:#eb6834; --s7:#1baf7a; --s8:#008300;
+  --chart-surface:#fbf9f4; --grid:#e6e0d3; --axis:#cabfad;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12100c; --plane:#0c0a07; --surface:#1b1712; --surface-2:#221d16;
+    --ink:#f3ede1; --ink-2:#c3baa9; --ink-3:#8f8676;
+    --line:#2c261d; --line-2:#3b3327;
+    --accent:#e8933a; --accent-2:#f0a942; --accent-soft:#3a2a16; --accent-ink:#1a1206;
+    --min:#5aa0e4; --min-soft:#152532;
+    --max:#e8933a; --max-soft:#33240f;
+    --hero:#e6b24d;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.6);
+    --s1:#3987e5; --s2:#c98500; --s3:#d55181; --s4:#e66767;
+    --s5:#9085e9; --s6:#d95926; --s7:#199e70; --s8:#008300;
+    --chart-surface:#1b1712; --grid:#2c261d; --axis:#3b3327;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f4f1ea; --plane:#efeae0; --surface:#fbf9f4; --surface-2:#f2ede3;
+  --ink:#211c15; --ink-2:#5c554a; --ink-3:#8a8175;
+  --line:#e2dccf; --line-2:#ccc4b3;
+  --accent:#c0631b; --accent-2:#9c4d12; --accent-soft:#f6e3cf; --accent-ink:#fff8f0;
+  --min:#2f6fae; --min-soft:#dfeaf5; --max:#c0631b; --max-soft:#f6e3cf; --hero:#8a5a12;
+  --s1:#2a78d6; --s2:#eda100; --s3:#e87ba4; --s4:#e34948;
+  --s5:#4a3aa7; --s6:#eb6834; --s7:#1baf7a; --s8:#008300;
+  --chart-surface:#fbf9f4; --grid:#e6e0d3; --axis:#cabfad;
+}
+:root[data-theme="dark"]{
+  --bg:#12100c; --plane:#0c0a07; --surface:#1b1712; --surface-2:#221d16;
+  --ink:#f3ede1; --ink-2:#c3baa9; --ink-3:#8f8676;
+  --line:#2c261d; --line-2:#3b3327;
+  --accent:#e8933a; --accent-2:#f0a942; --accent-soft:#3a2a16; --accent-ink:#1a1206;
+  --min:#5aa0e4; --min-soft:#152532; --max:#e8933a; --max-soft:#33240f; --hero:#e6b24d;
+  --s1:#3987e5; --s2:#c98500; --s3:#d55181; --s4:#e66767;
+  --s5:#9085e9; --s6:#d95926; --s7:#199e70; --s8:#008300;
+  --chart-surface:#1b1712; --grid:#2c261d; --axis:#3b3327;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Noto Sans TC","Source Han Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"Cascadia Code",ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+.num{font-variant-numeric:tabular-nums}
+h1,h2,h3{margin:0; text-wrap:balance; font-weight:800; letter-spacing:-.01em}
+a{color:var(--accent)}
+button{font-family:inherit}
+
+/* ============================ shell ============================ */
+.wrap{max-width:1680px; margin:0 auto; padding:0 28px}
+header.top{
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--surface),var(--bg));
+}
+.top-inner{display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap; padding:22px 0 16px}
+.brand{display:flex; flex-direction:column; gap:5px; min-width:0}
+.eyebrow{
+  font:600 11px/1 "Cascadia Code",ui-monospace,Consolas,monospace;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--accent);
+  display:flex; align-items:center; gap:8px;
+}
+.eyebrow::before{content:""; width:16px; height:2px; background:var(--accent); display:inline-block}
+h1{font-size:clamp(23px,3.4vw,33px); line-height:1.05}
+.brand p{margin:0; color:var(--ink-2); font-size:13.5px; max-width:60ch}
+.top-tools{margin-left:auto; display:flex; gap:8px; align-items:center}
+.iconbtn{
+  border:1px solid var(--line-2); background:var(--surface); color:var(--ink-2);
+  border-radius:9px; padding:8px 11px; cursor:pointer; font-size:13px; display:inline-flex; gap:6px; align-items:center;
+}
+.iconbtn:hover{border-color:var(--accent); color:var(--accent)}
+
+/* tabs */
+.tabs{display:flex; gap:4px; padding:0 0 0}
+.tab{
+  appearance:none; border:1px solid transparent; border-bottom:none; background:transparent;
+  color:var(--ink-2); padding:10px 16px; cursor:pointer; font-size:14.5px; font-weight:700;
+  border-radius:10px 10px 0 0; position:relative; top:1px;
+}
+.tab[aria-selected="true"]{
+  background:var(--bg); color:var(--accent); border-color:var(--line);
+}
+.tab:hover:not([aria-selected="true"]){color:var(--ink)}
+
+main{padding:22px 0 60px}
+.panel{display:none}
+.panel.active{display:block}
+
+/* controls */
+.controls{
+  display:flex; gap:16px 22px; flex-wrap:wrap; align-items:flex-end;
+  background:var(--surface); border:1px solid var(--line); border-radius:14px;
+  padding:14px 16px; margin-bottom:18px; box-shadow:var(--shadow);
+}
+.ctl{display:flex; flex-direction:column; gap:6px}
+.ctl > label{font:600 11px/1 "Cascadia Code",ui-monospace,monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3)}
+.seg{display:inline-flex; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:3px; gap:2px}
+.seg button{
+  appearance:none; border:none; background:transparent; color:var(--ink-2);
+  padding:6px 12px; border-radius:7px; cursor:pointer; font-size:13px; font-weight:600;
+}
+.seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink)}
+select{
+  appearance:none; border:1px solid var(--line-2); background:var(--surface); color:var(--ink);
+  border-radius:9px; padding:8px 30px 8px 11px; font-size:13.5px; cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 55%,calc(100% - 10px) 55%; background-size:5px 5px,5px 5px; background-repeat:no-repeat;
+}
+
+/* ============================ detail view ============================ */
+/* selection sidebar on the LEFT (3 category columns), detail content on the right */
+.detail-grid{display:grid; grid-template-columns:392px 1fr; gap:18px; align-items:start}
+@media(max-width:900px){.detail-grid{grid-template-columns:1fr}}
+.roster{
+  background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:6px 8px 10px;
+  box-shadow:var(--shadow); position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto;
+}
+/* the three roster categories laid out as three side-by-side columns */
+.rostercols{display:grid; grid-template-columns:repeat(3,1fr); gap:2px 8px; align-items:start}
+@media(max-width:560px){.rostercols{grid-template-columns:1fr}}
+.rostercol{min-width:0}
+.roster h3{font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+  font-family:"Cascadia Code",ui-monospace,monospace; padding:8px 6px 5px}
+.rbtn{
+  display:flex; align-items:center; gap:5px; width:100%; text-align:left; border:none; background:transparent;
+  color:var(--ink); padding:5px 6px; border-radius:7px; cursor:pointer; font-size:13px;
+}
+.rbtn .nm{white-space:nowrap}
+.rbtn:hover{background:var(--surface-2)}
+.rbtn[aria-current="true"]{background:var(--accent-soft); color:var(--accent-2); font-weight:700}
+.rbtn .rid{font:600 9px/1 "Cascadia Code",monospace; color:var(--ink-3); min-width:15px}
+.rbtn[aria-current="true"] .rid{color:var(--accent)}
+.rbtn .tag{margin-left:auto; font-size:9px; padding:1px 4px; border-radius:99px; background:var(--surface-2); color:var(--ink-3); flex:none}
+.tag.hero{background:color-mix(in srgb,var(--hero) 18%,transparent); color:var(--hero)}
+.tag.promo{background:color-mix(in srgb,var(--accent) 15%,transparent); color:var(--accent-2)}
+
+.dpanel{min-width:0; display:flex; flex-direction:column; gap:18px}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow)}
+.idcard{padding:18px 20px}
+.idhead{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.idhead h2{font-size:26px}
+.idhead .sub{color:var(--ink-2); font-size:13.5px}
+.chips{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+.chip{font-size:12.5px; padding:5px 10px; border-radius:8px; background:var(--surface-2); border:1px solid var(--line); color:var(--ink-2)}
+.chip b{color:var(--ink); font-weight:700}
+.chip.hero{border-color:color-mix(in srgb,var(--hero) 40%,var(--line)); color:var(--hero)}
+.basegrid{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:14px}
+@media(max-width:560px){.basegrid{grid-template-columns:repeat(3,1fr)}}
+.statcell{background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:9px 10px}
+.statcell .k{font:600 10px/1 "Cascadia Code",monospace; letter-spacing:.1em; color:var(--ink-3)}
+.statcell .v{font-size:19px; font-weight:800; margin-top:4px}
+.note-dx{margin:12px 0 0; font-size:12px; color:var(--ink-3); line-height:1.55}
+
+/* segment table */
+.seg-block{padding:16px 18px 18px}
+.seg-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px}
+.seg-head .badge{
+  font:700 11px/1 "Cascadia Code",monospace; letter-spacing:.08em; text-transform:uppercase;
+  padding:5px 9px; border-radius:7px; background:var(--accent-soft); color:var(--accent-2);
+}
+.seg-head .badge.base{background:var(--surface-2); color:var(--ink-2)}
+.seg-head h3{font-size:17px}
+.seg-head .rng{color:var(--ink-3); font-size:12.5px; margin-left:auto}
+.seg-meta{color:var(--ink-2); font-size:12.5px; margin:-2px 0 12px; display:flex; gap:14px; flex-wrap:wrap}
+.seg-meta .gspec b{color:var(--min)}
+.gm{display:inline-flex; gap:5px; align-items:baseline}
+.gm .lbl{font:600 10px/1 "Cascadia Code",monospace; color:var(--ink-3)}
+
+.tbl-scroll{max-height:420px; overflow:auto; border:1px solid var(--line); border-radius:10px}
+table.grow{border-collapse:collapse; width:100%; font-size:13px}
+table.grow th,table.grow td{padding:6px 10px; text-align:right; white-space:nowrap}
+table.grow thead th{
+  position:sticky; top:0; background:var(--surface-2); color:var(--ink-2); z-index:1;
+  font:700 11px/1.2 "Cascadia Code",monospace; letter-spacing:.06em; border-bottom:1px solid var(--line-2);
+}
+table.grow th.lv,table.grow td.lv{text-align:left; color:var(--ink-2); position:sticky; left:0; background:var(--surface)}
+table.grow thead th.lv{background:var(--surface-2); z-index:2}
+table.grow tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--surface-2) 55%,transparent)}
+table.grow tbody tr:nth-child(even) td.lv{background:var(--surface-2)}
+table.grow tbody tr:hover td{background:var(--accent-soft)}
+table.grow td .mn{color:var(--min); font-weight:700}
+table.grow td .sep{color:var(--ink-3); margin:0 2px}
+table.grow td .mx{color:var(--max); font-weight:700}
+table.grow td.eq{color:var(--ink)}
+.milestone td{box-shadow:inset 0 1px 0 var(--line-2)}
+
+/* per-char sparkchart */
+.spark-wrap{padding:14px 18px 6px}
+.spark-head{display:flex; align-items:center; gap:10px; margin-bottom:6px}
+.spark-head h3{font-size:15px}
+
+/* ============================ compare view ============================ */
+/* selection sidebar on the LEFT (4 columns), comparison chart on the right (kept wide) */
+.cmp-layout{display:grid; grid-template-columns:440px 1fr; gap:18px; align-items:start}
+@media(max-width:900px){.cmp-layout{grid-template-columns:1fr}}
+.charpick{
+  background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:10px 12px; box-shadow:var(--shadow);
+  position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto;
+}
+.charpick h3{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
+  font-family:"Cascadia Code",monospace; margin-bottom:9px; line-height:1.5}
+/* right column of the compare grid: chart + (on this tab) the relocated method,
+   making the column tall enough for the sticky picker to actually stick */
+.cmp-right{min-width:0; display:flex; flex-direction:column; gap:18px}
+.cmp-right .method{margin-top:0}
+.cmp-right .method-grid{grid-template-columns:1fr 1fr}
+@media(max-width:900px){.cmp-right .method-grid{grid-template-columns:1fr}}
+.pickgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:7px}
+.pick{
+  display:flex; align-items:center; gap:8px; border:1px solid var(--line); background:var(--surface-2);
+  border-radius:9px; padding:6px 9px; cursor:pointer; font-size:13.5px; user-select:none;
+}
+.pick:hover{border-color:var(--line-2)}
+.pick input{display:none}
+.pick .dot{width:11px; height:11px; border-radius:3px; background:var(--line-2); flex:none}
+.pick.on{border-color:var(--sc); background:color-mix(in srgb,var(--sc) 12%,var(--surface))}
+.pick.on .dot{background:var(--sc)}
+.pick.on .nm{color:var(--sc); font-weight:700}   /* selected chip text = its line colour */
+.pick .nm{white-space:nowrap}
+.pick .build{margin-left:auto}
+.pick select{padding:3px 22px 3px 7px; font-size:11.5px; border-radius:6px}
+
+/* build picker grouped by character (each build = one full growth path);
+   four narrow side-by-side columns in the left sidebar, chart stays wide on the right */
+.buildgroups{display:grid; grid-template-columns:repeat(4,1fr); gap:7px; align-items:start}
+@media(max-width:560px){.buildgroups{grid-template-columns:repeat(2,1fr)}}
+.cgroup{border:1px solid var(--line); border-radius:10px; background:var(--surface-2); padding:6px 7px; min-width:0}
+.cghead{display:flex; align-items:baseline; gap:4px; flex-wrap:wrap; margin-bottom:6px}
+.cghead .rid{font:600 9px/1 "Cascadia Code",monospace; color:var(--ink-3)}
+.cghead .cgname{font-weight:800; font-size:13px; color:var(--ink); white-space:nowrap}
+.cghead .cgsub{flex-basis:100%; font-size:9.5px; color:var(--ink-3); line-height:1.3}
+.cghead .cgtag{font-size:9px; padding:0 5px; border-radius:99px;
+  background:color-mix(in srgb,var(--hero) 18%,transparent); color:var(--hero)}
+.cgbuilds{display:flex; flex-wrap:wrap; gap:4px}
+.cgbuilds .pick{flex:0 0 auto; padding:3px 7px; gap:5px}
+.cgbuilds .pick .dot{width:9px; height:9px}
+
+.chart-card{background:var(--chart-surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:16px 18px 10px}
+.chart-head{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:6px}
+.chart-head h2{font-size:19px}
+.chart-head .yl{color:var(--ink-3); font-size:12.5px}
+.chart-box{position:relative; width:100%}
+svg.chart{display:block; width:100%; height:auto; overflow:visible}
+.legend{display:flex; gap:14px; flex-wrap:wrap; padding:10px 2px 2px}
+.lg{display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--ink-2)}
+.lg .sw{width:14px; height:3px; border-radius:2px}
+.lg .sw.d{width:16px; height:0; border-top:2px dashed}
+.lg.lgnote{color:var(--ink-3); font-size:12px}
+.tip{
+  position:absolute; pointer-events:none; background:var(--surface); border:1px solid var(--line-2);
+  border-radius:9px; padding:8px 10px; font-size:12.5px; box-shadow:var(--shadow); min-width:130px; z-index:5;
+  opacity:0; transition:opacity .08s;
+}
+.tip h4{font-size:12px; margin:0 0 5px; color:var(--ink-3); font-weight:700}
+.tip .row{display:flex; align-items:center; gap:7px; justify-content:space-between}
+.tip .row .nm{display:flex; align-items:center; gap:6px}
+.tip .row .sw{width:10px; height:10px; border-radius:3px; flex:none}
+.tip .row .val{font-weight:700}
+
+.empty{padding:50px 20px; text-align:center; color:var(--ink-3)}
+
+/* ============================ method ============================ */
+.method{margin-top:26px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 22px; box-shadow:var(--shadow)}
+.method h2{font-size:16px; margin-bottom:12px; display:flex; align-items:center; gap:9px}
+.method h2 .eyebrow{margin:0}
+.method-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px 26px}
+.method h4{font:700 12px/1 "Cascadia Code",monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); margin:0 0 7px}
+.method p{margin:0 0 8px; font-size:13px; color:var(--ink-2)}
+.method code{font-family:"Cascadia Code",ui-monospace,monospace; font-size:12px; background:var(--surface-2); padding:1px 5px; border-radius:5px; color:var(--ink)}
+.method .warn{border-left:3px solid var(--max); padding-left:12px}
+footer{padding:26px 0 40px; color:var(--ink-3); font-size:12px; text-align:center}
+
+/* ============================ ranking view ============================ */
+/* one column per attribute; each column ranks every (character x class build)
+   endpoint by that attribute's final value as a left-aligned horizontal bar. */
+.rankintro{background:var(--surface); border:1px solid var(--line); border-radius:14px;
+  padding:12px 16px; margin-bottom:16px; box-shadow:var(--shadow); font-size:13px; color:var(--ink-2); line-height:1.6}
+.rankintro b{color:var(--ink); font-weight:700}
+.rankgrid{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; align-items:start}
+@media(max-width:1200px){.rankgrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){.rankgrid{grid-template-columns:1fr}}
+.rcol{background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow);
+  padding:11px 11px 13px; min-width:0; display:flex; flex-direction:column}
+.rhead{display:flex; flex-direction:column; gap:8px; padding-bottom:9px; border-bottom:1px solid var(--line)}
+.rhead h3{font-size:15px; display:flex; align-items:center; gap:7px}
+.rhead h3 .swatch{width:11px; height:11px; border-radius:3px; flex:none}
+.rctls{display:flex; gap:6px; flex-wrap:wrap}
+.rseg{display:inline-flex; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:2px; gap:2px}
+.rseg button{appearance:none; border:none; background:transparent; color:var(--ink-2);
+  padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600; white-space:nowrap}
+.rseg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink)}
+.rlist{overflow-y:auto; max-height:calc(100vh - 232px); margin-top:9px; padding-right:3px}
+.rrow{position:relative; height:26px; margin:0 0 4px; border-radius:6px; overflow:hidden;
+  background:var(--surface-2); border:1px solid var(--line)}
+.rbar{position:absolute; left:0; top:0; bottom:0; border-radius:6px 0 0 6px; opacity:.5; transition:width .25s ease}
+.rlab{position:absolute; left:9px; top:0; height:100%; display:flex; align-items:center; gap:7px; z-index:2;
+  font-size:12px; font-weight:600; white-space:nowrap; color:var(--ink); text-shadow:var(--bar-outline)}
+.rlab .rk{font:700 10px/1 "Cascadia Code",ui-monospace,monospace; color:var(--ink-3); min-width:16px; text-align:right}
+.rval{position:absolute; right:9px; top:0; height:100%; display:flex; align-items:center; z-index:2;
+  font-size:12px; font-weight:800; color:var(--ink); text-shadow:var(--bar-outline)}
+@media(prefers-reduced-motion:reduce){.rbar{transition:none}}
+
+.hidden{display:none !important}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:6px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="top-inner">
+      <div class="brand">
+        <span class="eyebrow">炎龍騎士團 2 · 逆向工程資料</span>
+        <h1>角色成長數值表</h1>
+        <p>每位可加入角色從初始等級到最高等級、每一級的 HP／MP／AP／DP／DX。數值直接由 <span class="mono">FD2.LE</span> 的角色基礎表與成長表推導，並附「全程最小成長」與「全程最大成長」兩個界限版本。</p>
+      </div>
+      <div class="top-tools">
+        <button class="iconbtn" id="themeBtn" title="切換主題">◐ 主題</button>
+      </div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-rank" aria-selected="true" aria-controls="panel-rank">屬性排名</button>
+      <button class="tab" role="tab" id="tab-compare" aria-selected="false" aria-controls="panel-compare">成長曲線比較</button>
+      <button class="tab" role="tab" id="tab-detail" aria-selected="false" aria-controls="panel-detail">角色明細</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ================= DETAIL ================= -->
+  <section class="panel" id="panel-detail" role="tabpanel" aria-labelledby="tab-detail">
+    <div class="detail-grid">
+      <nav class="roster" id="roster" aria-label="角色列表"></nav>
+      <div class="dpanel" id="dpanel"></div>
+    </div>
+  </section>
+
+  <!-- ================= COMPARE ================= -->
+  <section class="panel" id="panel-compare" role="tabpanel" aria-labelledby="tab-compare">
+    <div class="controls">
+      <div class="ctl">
+        <label>屬性</label>
+        <div class="seg" id="cmpStat" role="group" aria-label="屬性"></div>
+      </div>
+      <div class="ctl">
+        <label>成長版本</label>
+        <div class="seg" id="cmpVer" role="group" aria-label="版本">
+          <button data-v="max" aria-pressed="true">全程最大數值成長</button>
+          <button data-v="min" aria-pressed="false">全程最小數值成長</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <div class="seg" style="background:transparent;border:none;padding:0">
+          <button class="iconbtn" id="cmpClear">清除所有選擇</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cmp-layout">
+      <div class="charpick">
+        <h3>職業組合（最多 8 條 · 依序上色 · 可同時比較同角色不同進階職）</h3>
+        <div class="buildgroups" id="pickgrid"></div>
+      </div>
+
+      <div class="cmp-right">
+        <div class="chart-card">
+          <div class="chart-head">
+            <h2 id="chartTitle">成長曲線</h2>
+            <span class="yl" id="chartY"></span>
+          </div>
+          <div class="chart-box" id="chartBox">
+            <div class="empty" id="chartEmpty">請於左方勾選至少一個職業組合。</div>
+          </div>
+          <div class="legend" id="legend"></div>
+        </div>
+        <!-- 推導依據 (method) is relocated here on the compare tab so the right
+             column is tall enough for the left picker to stay sticky -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RANKING ================= -->
+  <section class="panel active" id="panel-rank" role="tabpanel" aria-labelledby="tab-rank">
+    <div class="rankintro">
+      每一欄為一項屬性，把所有<b>「角色 × 職業組合」</b>依該屬性在<b>各自最高等級的最終值</b>排名（一般 LV40／蓋亞・渥德 LV99；可轉職角色每條轉職線各一條、承接基礎職 LV40）。每欄可獨立切換<b>最大／最小成長</b>與<b>升／降冪</b>；橫條長度相對於該欄目前的最大值，數字寫在條上（靠左）、數值列於右端。
+    </div>
+    <div class="rankgrid" id="rankGrid"></div>
+  </section>
+
+  <!-- ================= METHOD ================= -->
+  <div class="method">
+    <h2><span class="eyebrow">推導依據</span></h2>
+    <div class="method-grid">
+      <div>
+        <h4>初始等級與基礎值</h4>
+        <p>各角色的初始等級與基礎 HP／MP／AP／DP／DX 取自 <code>character_base</code> 表（<code>@0x61DA1</code>，每筆 24 byte）。招募進隊時等級即為此表的等級欄。</p>
+      </div>
+      <div>
+        <h4>每級成長公式</h4>
+        <p>登場（招募）當下屬性為固定值：<code>HP/MP = 基礎 + 最小成長×(LV−1)</code>；<code>AP/DP/DX = 基礎 + 最小成長×LV</code>。之後每升一級，各屬性各擲一次成長。</p>
+      </div>
+      <div>
+        <h4>命中／迴避／MV</h4>
+        <p><b>命中</b>與<b>迴避</b>由 DX 導出（<code>recalculate_combat_stats</code>）：未裝備時皆＝DX，裝備才分別加 HT／EV 加成，故不另列欄。<b>MV 移動力</b>固定不隨等級、只在轉職時 +bonus。EX 為經驗值 carry，非屬性。</p>
+      </div>
+      <div>
+        <h4>最小 vs 最大版本</h4>
+        <p>成長表 <code>@0x620A1</code> 每屬性記 <code>(最小, 上界)</code>；每級實際成長落在 <code>[最小, 上界−1]</code>。<b style="color:var(--min)">最小版本</b>＝每級都擲最小（＝保底下限）；<b style="color:var(--max)">最大版本</b>＝登場後每級都擲最大（＝理論上限）。登場當級兩版本相同。</p>
+      </div>
+      <div>
+        <h4>轉職（第二段成長）</h4>
+        <p>可轉職者於基礎職業練到 LV40 後轉職：等級歸 1、屬性沿用基礎職 LV40 的結果，並立即獲得一次新職業的成長，再從 LV1 練到 LV40。多條轉職線者分別列出。轉職資格為基礎職業且等級 ≥ 20。</p>
+      </div>
+      <div>
+        <h4>等級上限</h4>
+        <p>一般角色上限 LV40。<b style="color:var(--hero)">蓋亞、渥德</b>不能轉職，但可一路升到 <b style="color:var(--hero)">LV99</b>（程式以 portrait 0x1E／0x1F 判定）。</p>
+      </div>
+      <div>
+        <h4 class="warn" style="color:var(--max)">已知例外</h4>
+        <p class="warn">凱拉斯（龍劍士）程式上被判定可轉職成「聖戰士」，但實際轉職會使遊戲 crash，因此不列為有效路線。蘭斯洛特與所有進階職業角色不能轉職。</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    數值來源：<span class="mono">FD2.LE</span>（炎龍騎士團合輯版 · 二代）逆向工程。成長為隨機區間，實際遊玩落在最小～最大之間。
+  </footer>
+</main>
+
+<script id="growthData" type="application/json">{
+ "stats": [
+  "hp",
+  "mp",
+  "ap",
+  "dp",
+  "dx"
+ ],
+ "chars": [
+  {
+   "id": 0,
+   "name": "索爾",
+   "race": "人類",
+   "base_job": "劍士",
+   "join": 1,
+   "cap": 40,
+   "base": {
+    "hp": 42,
+    "mp": 0,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 4,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "劍士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       8,
+       11
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       6,
+       7
+      ],
+      "dp": [
+       4,
+       5
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "劍聖",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       10,
+       12
+      ],
+      "mp": [
+       7,
+       8
+      ],
+      "ap": [
+       8,
+       11
+      ],
+      "dp": [
+       5,
+       7
+      ],
+      "dx": [
+       3,
+       4
+      ]
+     },
+     "spell_idx": 4
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "英雄",
+     "item_name": "勇者徽章",
+     "mv_bonus": 2,
+     "mv": 6,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       14
+      ],
+      "mp": [
+       8,
+       11
+      ],
+      "ap": [
+       10,
+       14
+      ],
+      "dp": [
+       7,
+       9
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 10
+    }
+   ]
+  },
+  {
+   "id": 1,
+   "name": "哈諾",
+   "race": "人類",
+   "base_job": "戰士",
+   "join": 3,
+   "cap": 40,
+   "base": {
+    "hp": 36,
+    "mp": 0,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 4,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "戰士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 3,
+     "to": 40,
+     "growth": {
+      "hp": [
+       10,
+       14
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       7,
+       9
+      ],
+      "dp": [
+       4,
+       5
+      ],
+      "dx": [
+       1,
+       2
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "聖戰士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       15,
+       19
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       13,
+       16
+      ],
+      "dp": [
+       9,
+       10
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "魔戰士",
+     "item_name": "白金徽章",
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       15,
+       19
+      ],
+      "mp": [
+       8,
+       11
+      ],
+      "ap": [
+       13,
+       15
+      ],
+      "dp": [
+       10,
+       11
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 15
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "name": "鐵諾",
+   "race": "人類",
+   "base_job": "劍士",
+   "join": 4,
+   "cap": 40,
+   "base": {
+    "hp": 40,
+    "mp": 0,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 4,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "劍士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 4,
+     "to": 40,
+     "growth": {
+      "hp": [
+       7,
+       11
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       6,
+       8
+      ],
+      "dp": [
+       4,
+       5
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "劍聖",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       10,
+       14
+      ],
+      "mp": [
+       5,
+       6
+      ],
+      "ap": [
+       8,
+       9
+      ],
+      "dp": [
+       6,
+       8
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 6
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "name": "哈瓦特",
+   "race": "人類",
+   "base_job": "戰士",
+   "join": 23,
+   "cap": 40,
+   "base": {
+    "hp": 30,
+    "mp": 0,
+    "ap": 12,
+    "dp": 0,
+    "dx": 8
+   },
+   "base_mv": 4,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "戰士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 23,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       15
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       6,
+       7
+      ],
+      "dp": [
+       5,
+       6
+      ],
+      "dx": [
+       1,
+       1
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "聖戰士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       16,
+       21
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       13,
+       17
+      ],
+      "dp": [
+       11,
+       14
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "魔戰士",
+     "item_name": "白金徽章",
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       16,
+       21
+      ],
+      "mp": [
+       8,
+       11
+      ],
+      "ap": [
+       13,
+       15
+      ],
+      "dp": [
+       11,
+       14
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 16
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "name": "亞雷斯",
+   "race": "人類",
+   "base_job": "騎士",
+   "join": 1,
+   "cap": 40,
+   "base": {
+    "hp": 48,
+    "mp": 0,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 7,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "騎士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 7,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       8,
+       10
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       6,
+       8
+      ],
+      "dp": [
+       4,
+       4
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "聖騎士",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 8,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       15
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       9,
+       12
+      ],
+      "dp": [
+       7,
+       8
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "龍騎士",
+     "item_name": "飛龍卵",
+     "mv_bonus": 2,
+     "mv": 9,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       15
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       9,
+       12
+      ],
+      "dp": [
+       7,
+       8
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "name": "洛娜",
+   "race": "人類",
+   "base_job": "騎士",
+   "join": 8,
+   "cap": 40,
+   "base": {
+    "hp": 72,
+    "mp": 0,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 7,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "騎士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 7,
+     "from": 8,
+     "to": 40,
+     "growth": {
+      "hp": [
+       6,
+       7
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       6,
+       7
+      ],
+      "dp": [
+       5,
+       6
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "聖騎士",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 8,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       11,
+       14
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       9,
+       12
+      ],
+      "dp": [
+       8,
+       9
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "龍騎士",
+     "item_name": "飛龍卵",
+     "mv_bonus": 2,
+     "mv": 9,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       11,
+       14
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       9,
+       13
+      ],
+      "dp": [
+       8,
+       9
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "name": "萊汀",
+   "race": "人類",
+   "base_job": "騎士",
+   "join": 18,
+   "cap": 40,
+   "base": {
+    "hp": 70,
+    "mp": 0,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 6,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "騎士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 6,
+     "from": 18,
+     "to": 40,
+     "growth": {
+      "hp": [
+       10,
+       12
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       7,
+       9
+      ],
+      "dp": [
+       5,
+       7
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "聖騎士",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 7,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       15
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       10,
+       13
+      ],
+      "dp": [
+       8,
+       9
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "龍騎士",
+     "item_name": "飛龍卵",
+     "mv_bonus": 2,
+     "mv": 8,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       11,
+       14
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       10,
+       13
+      ],
+      "dp": [
+       7,
+       8
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "name": "蘭斯洛特",
+   "race": "人類",
+   "base_job": "聖騎士",
+   "join": 4,
+   "cap": 40,
+   "base": {
+    "hp": 281,
+    "mp": 0,
+    "ap": 185,
+    "dp": 110,
+    "dx": 48
+   },
+   "base_mv": 8,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "聖騎士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 8,
+     "from": 4,
+     "to": 40,
+     "growth": {
+      "hp": [
+       13,
+       17
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       13,
+       16
+      ],
+      "dp": [
+       9,
+       11
+      ],
+      "dx": [
+       3,
+       4
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "name": "希莉亞",
+   "race": "人類",
+   "base_job": "弓兵",
+   "join": 3,
+   "cap": 40,
+   "base": {
+    "hp": 32,
+    "mp": 0,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 4,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "弓兵",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 3,
+     "to": 40,
+     "growth": {
+      "hp": [
+       6,
+       8
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       5,
+       7
+      ],
+      "dp": [
+       2,
+       3
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "狙擊手",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       9,
+       12
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       9,
+       10
+      ],
+      "dp": [
+       7,
+       9
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "神射手",
+     "item_name": "心眼之書",
+     "mv_bonus": 1,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       10,
+       14
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       12,
+       13
+      ],
+      "dp": [
+       7,
+       9
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "name": "悠妮",
+   "race": "人類",
+   "base_job": "法師",
+   "join": 1,
+   "cap": 40,
+   "base": {
+    "hp": 28,
+    "mp": 8,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 4,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "法師",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       5,
+       8
+      ],
+      "mp": [
+       4,
+       7
+      ],
+      "ap": [
+       3,
+       5
+      ],
+      "dp": [
+       2,
+       4
+      ],
+      "dx": [
+       1,
+       2
+      ]
+     },
+     "spell_idx": 0
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "大法師",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       9,
+       12
+      ],
+      "mp": [
+       15,
+       19
+      ],
+      "ap": [
+       8,
+       11
+      ],
+      "dp": [
+       4,
+       6
+      ],
+      "dx": [
+       2,
+       4
+      ]
+     },
+     "spell_idx": 7
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "聖者",
+     "item_name": "聖者之戒",
+     "mv_bonus": 1,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       14
+      ],
+      "mp": [
+       11,
+       15
+      ],
+      "ap": [
+       8,
+       11
+      ],
+      "dp": [
+       5,
+       7
+      ],
+      "dx": [
+       2,
+       4
+      ]
+     },
+     "spell_idx": 14
+    },
+    {
+     "kind": "promotion",
+     "label": "summoner",
+     "job_name": "召喚師",
+     "item_name": "精靈契印",
+     "mv_bonus": 2,
+     "mv": 6,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       17
+      ],
+      "mp": [
+       20,
+       29
+      ],
+      "ap": [
+       9,
+       11
+      ],
+      "dp": [
+       6,
+       8
+      ],
+      "dx": [
+       3,
+       4
+      ]
+     },
+     "spell_idx": 19
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "name": "瑪琳",
+   "race": "人類",
+   "base_job": "僧侶",
+   "join": 8,
+   "cap": 40,
+   "base": {
+    "hp": 38,
+    "mp": 12,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 3,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "僧侶",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 3,
+     "from": 8,
+     "to": 40,
+     "growth": {
+      "hp": [
+       4,
+       7
+      ],
+      "mp": [
+       4,
+       6
+      ],
+      "ap": [
+       3,
+       4
+      ],
+      "dp": [
+       2,
+       5
+      ],
+      "dx": [
+       1,
+       1
+      ]
+     },
+     "spell_idx": 1
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "祭師",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 4,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       11,
+       12
+      ],
+      "mp": [
+       12,
+       15
+      ],
+      "ap": [
+       8,
+       11
+      ],
+      "dp": [
+       5,
+       8
+      ],
+      "dx": [
+       3,
+       4
+      ]
+     },
+     "spell_idx": 9
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "聖者",
+     "item_name": "聖者之戒",
+     "mv_bonus": 1,
+     "mv": 4,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       11,
+       12
+      ],
+      "mp": [
+       14,
+       17
+      ],
+      "ap": [
+       9,
+       12
+      ],
+      "dp": [
+       5,
+       7
+      ],
+      "dx": [
+       3,
+       4
+      ]
+     },
+     "spell_idx": 11
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "name": "索菲亞",
+   "race": "人類",
+   "base_job": "僧侶",
+   "join": 16,
+   "cap": 40,
+   "base": {
+    "hp": 30,
+    "mp": 24,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 3,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "僧侶",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 3,
+     "from": 16,
+     "to": 40,
+     "growth": {
+      "hp": [
+       6,
+       8
+      ],
+      "mp": [
+       3,
+       5
+      ],
+      "ap": [
+       2,
+       3
+      ],
+      "dp": [
+       3,
+       6
+      ],
+      "dx": [
+       1,
+       1
+      ]
+     },
+     "spell_idx": 2
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "祭師",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 4,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       13
+      ],
+      "mp": [
+       10,
+       13
+      ],
+      "ap": [
+       7,
+       10
+      ],
+      "dp": [
+       6,
+       10
+      ],
+      "dx": [
+       3,
+       4
+      ]
+     },
+     "spell_idx": 18
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "聖者",
+     "item_name": "聖者之戒",
+     "mv_bonus": 1,
+     "mv": 4,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       13,
+       15
+      ],
+      "mp": [
+       10,
+       13
+      ],
+      "ap": [
+       8,
+       12
+      ],
+      "dp": [
+       5,
+       9
+      ],
+      "dx": [
+       3,
+       4
+      ]
+     },
+     "spell_idx": 12
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "name": "凱麗",
+   "race": "人類",
+   "base_job": "武者",
+   "join": 10,
+   "cap": 40,
+   "base": {
+    "hp": 52,
+    "mp": 0,
+    "ap": 0,
+    "dp": 19,
+    "dx": 0
+   },
+   "base_mv": 5,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "武者",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 5,
+     "from": 10,
+     "to": 40,
+     "growth": {
+      "hp": [
+       11,
+       13
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       8,
+       9
+      ],
+      "dp": [
+       5,
+       5
+      ],
+      "dx": [
+       1,
+       3
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "鬥士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       13,
+       17
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       10,
+       13
+      ],
+      "dp": [
+       6,
+       8
+      ],
+      "dx": [
+       3,
+       4
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "武聖",
+     "item_name": "領悟之書",
+     "mv_bonus": 1,
+     "mv": 6,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       14,
+       17
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       12,
+       14
+      ],
+      "dp": [
+       7,
+       8
+      ],
+      "dx": [
+       3,
+       5
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "name": "貝克威",
+   "race": "精靈",
+   "base_job": "弓兵",
+   "join": 8,
+   "cap": 40,
+   "base": {
+    "hp": 40,
+    "mp": 0,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 4,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "弓兵",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 8,
+     "to": 40,
+     "growth": {
+      "hp": [
+       6,
+       8
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       5,
+       6
+      ],
+      "dp": [
+       3,
+       3
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "狙擊手",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       8,
+       11
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       8,
+       11
+      ],
+      "dp": [
+       4,
+       6
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "神射手",
+     "item_name": "心眼之書",
+     "mv_bonus": 1,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       9,
+       12
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       9,
+       12
+      ],
+      "dp": [
+       4,
+       6
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 14,
+   "name": "珊",
+   "race": "精靈",
+   "base_job": "法師",
+   "join": 16,
+   "cap": 40,
+   "base": {
+    "hp": 66,
+    "mp": 40,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 4,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "法師",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 16,
+     "to": 40,
+     "growth": {
+      "hp": [
+       6,
+       7
+      ],
+      "mp": [
+       4,
+       7
+      ],
+      "ap": [
+       3,
+       4
+      ],
+      "dp": [
+       2,
+       2
+      ],
+      "dx": [
+       1,
+       2
+      ]
+     },
+     "spell_idx": 3
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "大法師",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       8,
+       10
+      ],
+      "mp": [
+       18,
+       21
+      ],
+      "ap": [
+       8,
+       13
+      ],
+      "dp": [
+       6,
+       8
+      ],
+      "dx": [
+       3,
+       3
+      ]
+     },
+     "spell_idx": 8
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "聖者",
+     "item_name": "聖者之戒",
+     "mv_bonus": 1,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       8,
+       10
+      ],
+      "mp": [
+       14,
+       17
+      ],
+      "ap": [
+       8,
+       9
+      ],
+      "dp": [
+       7,
+       8
+      ],
+      "dx": [
+       3,
+       4
+      ]
+     },
+     "spell_idx": 13
+    }
+   ]
+  },
+  {
+   "id": 15,
+   "name": "塞可邦勒",
+   "race": "豹人",
+   "base_job": "武者",
+   "join": 23,
+   "cap": 40,
+   "base": {
+    "hp": 100,
+    "mp": 0,
+    "ap": 40,
+    "dp": 40,
+    "dx": 10
+   },
+   "base_mv": 5,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "武者",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 5,
+     "from": 23,
+     "to": 40,
+     "growth": {
+      "hp": [
+       10,
+       11
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       8,
+       11
+      ],
+      "dp": [
+       4,
+       5
+      ],
+      "dx": [
+       1,
+       2
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "鬥士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       14,
+       17
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       9,
+       12
+      ],
+      "dp": [
+       7,
+       9
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "alt",
+     "job_name": "武聖",
+     "item_name": "領悟之書",
+     "mv_bonus": 1,
+     "mv": 6,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       14,
+       17
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       10,
+       14
+      ],
+      "dp": [
+       7,
+       8
+      ],
+      "dx": [
+       2,
+       4
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 16,
+   "name": "凱拉斯",
+   "race": "龍人",
+   "base_job": "龍劍士",
+   "join": 2,
+   "cap": 40,
+   "base": {
+    "hp": 330,
+    "mp": 0,
+    "ap": 210,
+    "dp": 160,
+    "dx": 40
+   },
+   "base_mv": 7,
+   "promotable": false,
+   "buggy": [
+    {
+     "job_name": "聖戰士",
+     "note": "mechanically reachable but promoting crashes the game (excluded)"
+    }
+   ],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "龍劍士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 7,
+     "from": 2,
+     "to": 40,
+     "growth": {
+      "hp": [
+       13,
+       16
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       10,
+       14
+      ],
+      "dp": [
+       8,
+       12
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 17,
+   "name": "米亞斯多德",
+   "race": "龍人",
+   "base_job": "劍士",
+   "join": 21,
+   "cap": 40,
+   "base": {
+    "hp": 65,
+    "mp": 0,
+    "ap": 0,
+    "dp": 0,
+    "dx": 14
+   },
+   "base_mv": 6,
+   "promotable": true,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "劍士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 6,
+     "from": 21,
+     "to": 40,
+     "growth": {
+      "hp": [
+       9,
+       12
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       7,
+       10
+      ],
+      "dp": [
+       5,
+       7
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 255
+    },
+    {
+     "kind": "promotion",
+     "label": "default",
+     "job_name": "龍劍士",
+     "item_name": null,
+     "mv_bonus": 1,
+     "mv": 7,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       17
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       11,
+       13
+      ],
+      "dp": [
+       8,
+       10
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 18,
+   "name": "蜜蒂",
+   "race": "人類",
+   "base_job": "劍聖",
+   "join": 1,
+   "cap": 40,
+   "base": {
+    "hp": 280,
+    "mp": 8,
+    "ap": 170,
+    "dp": 130,
+    "dx": 45
+   },
+   "base_mv": 5,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "劍聖",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 5,
+     "from": 1,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       15
+      ],
+      "mp": [
+       6,
+       7
+      ],
+      "ap": [
+       9,
+       14
+      ],
+      "dp": [
+       7,
+       10
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 5
+    }
+   ]
+  },
+  {
+   "id": 19,
+   "name": "羅德曼",
+   "race": "人類",
+   "base_job": "劍聖",
+   "join": 10,
+   "cap": 40,
+   "base": {
+    "hp": 272,
+    "mp": 0,
+    "ap": 160,
+    "dp": 110,
+    "dx": 40
+   },
+   "base_mv": 5,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "劍聖",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 5,
+     "from": 10,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       15
+      ],
+      "mp": [
+       6,
+       7
+      ],
+      "ap": [
+       10,
+       14
+      ],
+      "dp": [
+       7,
+       9
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 20,
+   "name": "莎拉",
+   "race": "人類",
+   "base_job": "龍騎士",
+   "join": 8,
+   "cap": 40,
+   "base": {
+    "hp": 290,
+    "mp": 0,
+    "ap": 180,
+    "dp": 110,
+    "dx": 45
+   },
+   "base_mv": 9,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "龍騎士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 9,
+     "from": 8,
+     "to": 40,
+     "growth": {
+      "hp": [
+       11,
+       16
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       9,
+       14
+      ],
+      "dp": [
+       5,
+       6
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 21,
+   "name": "約拿",
+   "race": "人類",
+   "base_job": "聖者",
+   "join": 5,
+   "cap": 40,
+   "base": {
+    "hp": 220,
+    "mp": 140,
+    "ap": 80,
+    "dp": 77,
+    "dx": 35
+   },
+   "base_mv": 4,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "聖者",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 5,
+     "to": 40,
+     "growth": {
+      "hp": [
+       10,
+       11
+      ],
+      "mp": [
+       12,
+       14
+      ],
+      "ap": [
+       8,
+       11
+      ],
+      "dp": [
+       7,
+       10
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 22,
+   "name": "卡里斯",
+   "race": "人類",
+   "base_job": "武聖",
+   "join": 12,
+   "cap": 40,
+   "base": {
+    "hp": 316,
+    "mp": 0,
+    "ap": 200,
+    "dp": 140,
+    "dx": 60
+   },
+   "base_mv": 5,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "武聖",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 5,
+     "from": 12,
+     "to": 40,
+     "growth": {
+      "hp": [
+       16,
+       19
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       11,
+       13
+      ],
+      "dp": [
+       6,
+       7
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 23,
+   "name": "羅蘭",
+   "race": "精靈",
+   "base_job": "神射手",
+   "join": 5,
+   "cap": 40,
+   "base": {
+    "hp": 235,
+    "mp": 0,
+    "ap": 170,
+    "dp": 70,
+    "dx": 55
+   },
+   "base_mv": 5,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "神射手",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 5,
+     "from": 5,
+     "to": 40,
+     "growth": {
+      "hp": [
+       8,
+       11
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       9,
+       13
+      ],
+      "dp": [
+       4,
+       6
+      ],
+      "dx": [
+       2,
+       4
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 24,
+   "name": "希爾法",
+   "race": "精靈",
+   "base_job": "祭師",
+   "join": 8,
+   "cap": 40,
+   "base": {
+    "hp": 190,
+    "mp": 150,
+    "ap": 50,
+    "dp": 60,
+    "dx": 36
+   },
+   "base_mv": 4,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "祭師",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 8,
+     "to": 40,
+     "growth": {
+      "hp": [
+       9,
+       10
+      ],
+      "mp": [
+       18,
+       23
+      ],
+      "ap": [
+       6,
+       7
+      ],
+      "dp": [
+       4,
+       6
+      ],
+      "dx": [
+       2,
+       4
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 25,
+   "name": "謝多",
+   "race": "豹人",
+   "base_job": "忍者",
+   "join": 5,
+   "cap": 40,
+   "base": {
+    "hp": 380,
+    "mp": 20,
+    "ap": 180,
+    "dp": 110,
+    "dx": 50
+   },
+   "base_mv": 7,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "忍者",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 7,
+     "from": 5,
+     "to": 40,
+     "growth": {
+      "hp": [
+       12,
+       14
+      ],
+      "mp": [
+       4,
+       6
+      ],
+      "ap": [
+       10,
+       12
+      ],
+      "dp": [
+       6,
+       8
+      ],
+      "dx": [
+       3,
+       5
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 26,
+   "name": "聖寇拉斯",
+   "race": "龍人",
+   "base_job": "龍劍士",
+   "join": 15,
+   "cap": 40,
+   "base": {
+    "hp": 294,
+    "mp": 0,
+    "ap": 114,
+    "dp": 122,
+    "dx": 60
+   },
+   "base_mv": 7,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "龍劍士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 7,
+     "from": 15,
+     "to": 40,
+     "growth": {
+      "hp": [
+       18,
+       24
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       12,
+       16
+      ],
+      "dp": [
+       10,
+       11
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 27,
+   "name": "巴拿羅西亞",
+   "race": "龍人",
+   "base_job": "龍劍士",
+   "join": 5,
+   "cap": 40,
+   "base": {
+    "hp": 300,
+    "mp": 0,
+    "ap": 210,
+    "dp": 130,
+    "dx": 45
+   },
+   "base_mv": 7,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "龍劍士",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 7,
+     "from": 5,
+     "to": 40,
+     "growth": {
+      "hp": [
+       14,
+       17
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       10,
+       14
+      ],
+      "dp": [
+       9,
+       12
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 28,
+   "name": "達克塞",
+   "race": "魔族",
+   "base_job": "？？？",
+   "join": 10,
+   "cap": 40,
+   "base": {
+    "hp": 300,
+    "mp": 10,
+    "ap": 135,
+    "dp": 100,
+    "dx": 42
+   },
+   "base_mv": 5,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "？？？",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 5,
+     "from": 10,
+     "to": 40,
+     "growth": {
+      "hp": [
+       15,
+       21
+      ],
+      "mp": [
+       4,
+       5
+      ],
+      "ap": [
+       12,
+       14
+      ],
+      "dp": [
+       8,
+       11
+      ],
+      "dx": [
+       2,
+       2
+      ]
+     },
+     "spell_idx": 17
+    }
+   ]
+  },
+  {
+   "id": 29,
+   "name": "亞齊梅吉",
+   "race": "魔族",
+   "base_job": "大法師",
+   "join": 20,
+   "cap": 40,
+   "base": {
+    "hp": 150,
+    "mp": 60,
+    "ap": 100,
+    "dp": 70,
+    "dx": 0
+   },
+   "base_mv": 6,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "大法師",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 6,
+     "from": 20,
+     "to": 40,
+     "growth": {
+      "hp": [
+       14,
+       21
+      ],
+      "mp": [
+       12,
+       15
+      ],
+      "ap": [
+       8,
+       13
+      ],
+      "dp": [
+       8,
+       11
+      ],
+      "dx": [
+       3,
+       5
+      ]
+     },
+     "spell_idx": 8
+    }
+   ]
+  },
+  {
+   "id": 30,
+   "name": "蓋亞",
+   "race": "機械",
+   "base_job": "機兵",
+   "join": 1,
+   "cap": 99,
+   "base": {
+    "hp": 50,
+    "mp": 0,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 4,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "機兵",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 1,
+     "to": 99,
+     "growth": {
+      "hp": [
+       8,
+       14
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       7,
+       13
+      ],
+      "dp": [
+       6,
+       12
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  },
+  {
+   "id": 31,
+   "name": "渥德",
+   "race": "機械",
+   "base_job": "機兵",
+   "join": 25,
+   "cap": 99,
+   "base": {
+    "hp": 12,
+    "mp": 0,
+    "ap": 0,
+    "dp": 0,
+    "dx": 0
+   },
+   "base_mv": 4,
+   "promotable": false,
+   "buggy": [],
+   "segments": [
+    {
+     "kind": "base",
+     "label": null,
+     "job_name": "機兵",
+     "item_name": null,
+     "mv_bonus": 0,
+     "mv": 4,
+     "from": 25,
+     "to": 99,
+     "growth": {
+      "hp": [
+       12,
+       14
+      ],
+      "mp": [
+       0,
+       0
+      ],
+      "ap": [
+       8,
+       13
+      ],
+      "dp": [
+       7,
+       13
+      ],
+      "dx": [
+       2,
+       3
+      ]
+     },
+     "spell_idx": 255
+    }
+   ]
+  }
+ ],
+ "max_level_normal": 40,
+ "max_level_hero": 99
+}</script>
+<script>
+"use strict";
+const DATA = JSON.parse(document.getElementById("growthData").textContent);
+const STATS = DATA.stats;                 // ["hp","mp","ap","dp","dx"]
+const STAT_LABEL = {hp:"HP",mp:"MP",ap:"AP",dp:"DP",dx:"DX"};
+const STAT_FULL = {hp:"生命 HP",mp:"魔力 MP",ap:"攻擊 AP",dp:"防禦 DP",dx:"敏捷 DX"};
+const SERIES = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
+
+/* ---------- compute (mirrors tools/growth_table/gen_growth.py) ---------- */
+function baseRows(base, growth, join, cap){
+  const rows=[];
+  for(let L=join; L<=cap; L++){
+    const mn={},mx={};
+    for(const s of STATS){
+      const g=growth[s], gmin=g[0], gmax=g[1], b=base[s];
+      if(s==="hp"||s==="mp"){
+        const spawn=b+gmin*(join-1);
+        mn[s]=b+gmin*(L-1); mx[s]=spawn+gmax*(L-join);
+      }else{
+        const spawn=b+gmin*join;
+        mn[s]=b+gmin*L; mx[s]=spawn+gmax*(L-join);
+      }
+    }
+    rows.push({lv:L,min:mn,max:mx});
+  }
+  return rows;
+}
+function promoRows(fmin, fmax, growth, cap){
+  const rows=[];
+  for(let N=1;N<=cap;N++){
+    const mn={},mx={};
+    for(const s of STATS){
+      const g=growth[s];
+      mn[s]=fmin[s]+g[0]*N; mx[s]=fmax[s]+g[1]*N;
+    }
+    rows.push({lv:N,min:mn,max:mx});
+  }
+  return rows;
+}
+// returns array of {seg, rows} for a character; base first then each promotion
+function computeChar(c){
+  const out=[];
+  const baseSeg=c.segments[0];
+  const brows=baseRows(c.base, baseSeg.growth, c.join, c.cap);
+  out.push({seg:baseSeg, rows:brows});
+  const lv40=brows.find(r=>r.lv===40); // undefined for heroes (cap 99)
+  for(let i=1;i<c.segments.length;i++){
+    const s=c.segments[i];
+    const prows=promoRows(lv40.min, lv40.max, s.growth, s.to);
+    out.push({seg:s, rows:prows});
+  }
+  return out;
+}
+const CHARS = DATA.chars;
+const CH_BY_ID = {}; CHARS.forEach(c=>CH_BY_ID[c.id]=c);
+const COMPUTED = {}; CHARS.forEach(c=>COMPUTED[c.id]=computeChar(c));
+
+/* ---------- chart scale helper ---------- */
+function niceMax(v){
+  if(v<=0) return 10;
+  const p=Math.pow(10,Math.floor(Math.log10(v)));
+  const n=v/p;
+  const step=n<=1?1:n<=1.2?1.2:n<=1.5?1.5:n<=2?2:n<=2.5?2.5:n<=3?3:n<=4?4:n<=5?5:n<=8?8:10;
+  return step*p;
+}
+
+/* ---------- builds & split-axis paths (placement by JOB TIER) ----------
+   The split X axis separates a character's BASE-tier job (left half) from its
+   ADVANCED job (right half). Placement is by tier, NOT by segment order:
+     - a promotable character's base job -> base tier (left,  x = lv)
+     - any promotion, AND any non-promotable LV40 unit (recruited already as an
+       advanced class, e.g. 莎拉/蘭斯洛特) -> advanced tier (right, x = 40 + lv)
+     - Gaia/Ward (LV99)                  -> hero (no split, x = lv, 1..99)
+   The +40 right-half offset only kicks in when the view actually mixes both a
+   base-tier job and an advanced job; a lone advanced unit uses a plain axis.    */
+const PROMO_SPLIT=40;
+function buildsOf(c){ const segs=COMPUTED[c.id]; return segs.length>1 ? segs.slice(1).map((_,i)=>i+1) : [0]; }
+function tierOf(c){ return c.cap===99 ? "hero" : (c.promotable ? "base" : "adv"); }  // tier of the BASE segment
+function buildLabel(cid,seg){
+  const segs=COMPUTED[cid];
+  if(seg===0) return segTitle(segs[0].seg);
+  return "→"+segTitle(segs[seg].seg);
+}
+// legend/tooltip name: "索爾（劍聖）" (char + the job of this build, easy to read)
+function legendName(cid,seg){ return CH_BY_ID[cid].name+"（"+segTitle(COMPUTED[cid][seg].seg)+"）"; }
+// tiered raw points for a build: base segment (its own tier) [+ promotion segment (adv)]
+function buildTiered(cid,seg){
+  const c=CH_BY_ID[cid], segs=COMPUTED[cid], bt=tierOf(c), out=[];
+  segs[0].rows.forEach(r=>out.push({lv:r.lv, tier:bt, min:r.min, max:r.max}));
+  if(seg>=1 && seg<segs.length) segs[seg].rows.forEach(r=>out.push({lv:r.lv, tier:"adv", min:r.min, max:r.max}));
+  return out;
+}
+function placeX(lv,tier,splitActive){ return (splitActive && tier==="adv") ? PROMO_SPLIT+lv : lv; }
+function seriesPts(tiered,stat,splitActive){
+  return tiered.map(p=>({x:placeX(p.lv,p.tier,splitActive), tier:p.tier, lv:p.lv, mn:p.min[stat], mx:p.max[stat]}));
+}
+
+/* per-view domains: split ONLY when the view mixes a base-tier and an advanced job. */
+function viewDomain(builds, stat, mode, verKey){
+  let hasBase=false, hasAdv=false, hasHero=false, ymax=0;
+  const tiered=builds.map(b=>buildTiered(b.cid,b.seg));
+  tiered.forEach(pts=>pts.forEach(p=>{
+    if(p.tier==="base") hasBase=true; else if(p.tier==="adv") hasAdv=true; else hasHero=true;
+    const yv = mode==="band" ? p.max[stat] : p[verKey][stat];
+    if(yv>ymax) ymax=yv;
+  }));
+  const splitActive = hasBase && hasAdv;
+  let xmax=10;
+  tiered.forEach(pts=>pts.forEach(p=>{ const x=placeX(p.lv,p.tier,splitActive); if(x>xmax) xmax=x; }));
+  const rightIsAdvanced = splitActive && !hasHero && xmax<=PROMO_SPLIT*2;
+  return {xmax, ymax:niceMax(ymax), splitAt: splitActive?PROMO_SPLIT:null, rightIsAdvanced, splitActive};
+}
+
+/* ---------- helpers ---------- */
+function cell(mn,mx){
+  if(mn===mx) return '<span class="eq num">'+mn+'</span>';
+  return '<span class="mn num">'+mn+'</span><span class="sep">–</span><span class="mx num">'+mx+'</span>';
+}
+function gspecStr(g){
+  return STATS.map(s=>{
+    const a=g[s][0],b=g[s][1];
+    return '<span class="gm"><span class="lbl">'+STAT_LABEL[s]+'</span>'+(a===b?a:a+'~'+b)+'</span>';
+  }).join(" ");
+}
+function segTitle(seg){ return seg.job_name; }
+
+/* ============================ DETAIL RENDER ============================ */
+const roster=document.getElementById("roster");
+const dpanel=document.getElementById("dpanel");
+let curId = CHARS[0].id;
+
+function buildRoster(){
+  const groups=[
+    {name:"可轉職角色", test:c=>c.promotable},
+    {name:"進階職業（不可轉職）", test:c=>!c.promotable && c.cap===40},
+    {name:"可升至 LV99", test:c=>c.cap===99},
+  ];
+  let html='<div class="rostercols">';
+  for(const g of groups){
+    const list=CHARS.filter(g.test);
+    if(!list.length) continue;
+    html+='<div class="rostercol"><h3>'+g.name+'</h3>';
+    for(const c of list){
+      const tag = c.cap===99?''
+        : (c.promotable?'<span class="tag promo">×'+(c.segments.length-1)+'</span>':'');
+      html+='<button class="rbtn" data-id="'+c.id+'" '+(c.id===curId?'aria-current="true"':'')+'>'+
+        '<span class="rid mono">'+String(c.id).padStart(2,"0")+'</span>'+
+        '<span class="nm">'+c.name+'</span>'+tag+'</button>';
+    }
+    html+='</div>';
+  }
+  html+='</div>';
+  roster.innerHTML=html;
+  roster.querySelectorAll(".rbtn").forEach(b=>b.onclick=()=>{curId=+b.dataset.id; buildRoster(); renderDetail();});
+}
+
+let sparkStat="hp";
+function renderDetail(){
+  const c=CH_BY_ID[curId];
+  const segs=COMPUTED[curId];
+  let html="";
+  // id card
+  const heroChip = c.cap===99?'<span class="chip hero">等級上限 <b>LV99</b></span>':'<span class="chip">等級上限 <b>LV40</b></span>';
+  html+='<div class="card idcard"><div class="idhead"><h2>'+c.name+'</h2>'+
+    '<span class="sub mono">char_id '+String(c.id).padStart(2,"0")+' · '+c.base_job+' · '+c.race+'族</span></div>'+
+    '<div class="chips">'+
+      '<span class="chip">初始等級 <b>LV'+c.join+'</b></span>'+heroChip+
+      '<span class="chip">移動力 <b>'+c.base_mv+'</b></span>'+
+      (c.promotable?'<span class="chip">可轉職 <b>'+(c.segments.length-1)+'</b> 種</span>':'<span class="chip">不可轉職</span>')+
+    '</div>'+
+    '<div class="basegrid">'+STATS.map(s=>'<div class="statcell"><div class="k">'+STAT_LABEL[s]+' 基礎</div><div class="v num">'+c.base[s]+'</div></div>').join("")+'</div>'+
+    '<p class="note-dx">命中／迴避未裝備時皆＝DX（遊戲由 DX 導出，裝備才分別加 HT／EV 加成，故不另列欄）；MV 移動力固定不隨等級，僅轉職時 +bonus。</p>';
+  if(c.buggy && c.buggy.length){
+    html+='<div class="chips" style="margin-top:12px"><span class="chip" style="border-color:var(--max);color:var(--max)">⚠ 機制上可轉 '+c.buggy.map(b=>b.job_name).join("、")+'，但轉職會 crash，不列入</span></div>';
+  }
+  html+='</div>';
+
+  // spark chart
+  html+='<div class="card spark-wrap"><div class="spark-head"><h3>成長曲線</h3>'+
+    '<div class="seg" id="sparkSeg" style="margin-left:auto">'+STATS.map(s=>'<button data-s="'+s+'" '+(s===sparkStat?'aria-pressed="true"':'')+'>'+STAT_LABEL[s]+'</button>').join("")+'</div>'+
+    '</div><div class="chart-box" id="sparkBox"></div><div class="legend" id="sparkLegend"></div></div>';
+
+  // segment tables
+  for(const {seg,rows} of segs){
+    const isBase=seg.kind==="base";
+    // characters recruited already as an advanced class (non-promotable LV40 units)
+    // start "promoted", so their sole segment is labelled 轉職, not 基礎職業.
+    const t=tierOf(c);
+    const badge=isBase
+      ? (t==="base" ? '<span class="badge base">基礎職業</span>'
+        : t==="hero" ? '<span class="badge">進階職業</span>'
+        : '<span class="badge">轉職</span>')
+      : '<span class="badge">轉職 '+(seg.item_name?'· '+seg.item_name:'')+'</span>';
+    const rng=isBase?('LV'+seg.from+' → LV'+seg.to):('LV1 → LV40（承接基礎職 LV40）');
+    html+='<div class="card seg-block">'+
+      '<div class="seg-head">'+badge+'<h3>'+segTitle(seg)+'</h3><span class="rng mono">'+rng+'</span></div>'+
+      '<div class="seg-meta"><span class="gspec">每級成長：'+gspecStr(seg.growth)+'</span>'+
+        '<span>移動力 '+seg.mv+(seg.mv_bonus?'（轉職 +'+seg.mv_bonus+'）':'')+'</span></div>'+
+      '<div class="tbl-scroll"><table class="grow"><thead><tr><th class="lv">LV</th>'+
+        STATS.map(s=>'<th>'+STAT_LABEL[s]+'</th>').join("")+'</tr></thead><tbody>'+
+        rows.map(r=>{
+          const ms=(r.lv%10===0)||r.lv===seg.from?' milestone':'';
+          return '<tr class="'+ms+'"><td class="lv num">'+r.lv+'</td>'+
+            STATS.map(s=>'<td>'+cell(r.min[s],r.max[s])+'</td>').join("")+'</tr>';
+        }).join("")+
+      '</tbody></table></div></div>';
+  }
+  dpanel.innerHTML=html;
+
+  dpanel.querySelectorAll("#sparkSeg button").forEach(b=>b.onclick=()=>{sparkStat=b.dataset.s; renderDetail();});
+  drawSpark(c,segs,sparkStat);
+}
+
+/* ---------- per-character spark: base job on the LEFT half, each promotion on
+   the RIGHT half of one split axis (min dashed + max solid band per curve). ---------- */
+function drawSpark(c,segs,stat){
+  const box=document.getElementById("sparkBox");
+  const single = segs.length===1;
+  const builds = single ? [{cid:c.id,seg:0}] : buildsOf(c).map(si=>({cid:c.id,seg:si}));
+  const dom = viewDomain(builds, stat, "band");
+  const sa=dom.splitActive, bt=tierOf(c);
+  const basePts = seriesPts(segs[0].rows.map(r=>({lv:r.lv,tier:bt,min:r.min,max:r.max})), stat, sa);
+  const seriesList=[];
+  if(single){
+    seriesList.push({name:segTitle(segs[0].seg), pts:basePts, color:"--accent"});
+  }else{
+    seriesList.push({name:segTitle(segs[0].seg)+"（基礎職）", pts:basePts, color:"--ink-3"});
+    const baseLast=basePts[basePts.length-1];           // base LV40 -> right curves emanate from here
+    buildsOf(c).forEach((si,i)=>{
+      const pr=seriesPts(segs[si].rows.map(r=>({lv:r.lv,tier:"adv",min:r.min,max:r.max})), stat, sa);
+      seriesList.push({name:segTitle(segs[si].seg), pts:[baseLast].concat(pr), color:SERIES[i%SERIES.length]});
+    });
+  }
+  const opt={mode:"band", fill:single, xmax:dom.xmax, ymax:dom.ymax, splitAt:dom.splitAt, rightIsAdvanced:dom.rightIsAdvanced};
+  box.innerHTML = lineChart(box, seriesList, opt);
+  attachHover(box, seriesList, opt);
+  renderLegend(document.getElementById("sparkLegend"), seriesList, opt);
+}
+
+/* ============================ COMPARE ============================ */
+const cmpStatEl=document.getElementById("cmpStat");
+const cmpVerEl=document.getElementById("cmpVer");
+const pickgrid=document.getElementById("pickgrid");
+let cmpStat="hp", cmpVer="max";        // default: whole-path MAXIMUM growth
+let selected=[]; // [{cid, seg}]  seg = 0 (base-only) or a promotion index
+
+STATS.forEach((s,i)=>{
+  const b=document.createElement("button"); b.dataset.s=s; b.textContent=STAT_LABEL[s];
+  b.setAttribute("aria-pressed", s===cmpStat?"true":"false");
+  b.onclick=()=>{cmpStat=s; cmpStatEl.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.s===s));
+    drawCompare();};
+  cmpStatEl.appendChild(b);
+});
+cmpVerEl.querySelectorAll("button").forEach(b=>b.onclick=()=>{
+  cmpVer=b.dataset.v; cmpVerEl.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===cmpVer));
+  drawCompare();
+});
+
+/* Picker: grouped by character; each character contributes one chip per build
+   (promotable -> one chip per promotion; others -> a single base-job chip). */
+function buildPicker(){
+  const css=getComputedStyle(document.documentElement);
+  let html="";
+  for(const c of CHARS){
+    const capTag = c.cap===99?'<span class="cgtag">LV99</span>':'';
+    html+='<div class="cgroup"><div class="cghead">'+
+      '<span class="rid mono">'+String(c.id).padStart(2,"0")+'</span>'+
+      '<span class="cgname">'+c.name+'</span>'+
+      '<span class="cgsub">'+c.base_job+' · 初LV'+c.join+'</span>'+capTag+'</div>'+
+      '<div class="cgbuilds">';
+    for(const si of buildsOf(c)){
+      const idx=selected.findIndex(s=>s.cid===c.id && s.seg===si);
+      const on=idx>=0;
+      const col=on?css.getPropertyValue(SERIES[idx%SERIES.length]):"";
+      html+='<label class="pick '+(on?'on':'')+'" style="--sc:'+(col||'var(--line-2)')+'"'+
+        ' title="'+legendName(c.id,si)+'">'+
+        '<span class="dot"></span><input type="checkbox" '+(on?'checked':'')+
+        ' data-cid="'+c.id+'" data-seg="'+si+'">'+
+        '<span class="nm">'+buildLabel(c.id,si)+'</span></label>';
+    }
+    html+='</div></div>';
+  }
+  pickgrid.innerHTML=html;
+  pickgrid.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.onchange=()=>toggle(+cb.dataset.cid,+cb.dataset.seg));
+}
+function toggle(cid,seg){
+  const i=selected.findIndex(s=>s.cid===cid && s.seg===seg);
+  if(i>=0) selected.splice(i,1);
+  else{ if(selected.length>=8) return; selected.push({cid,seg}); }
+  buildPicker(); drawCompare();
+}
+
+function compareSeries(splitActive){
+  // Each selected build = ONE full path plotted on the tier-aware split X axis.
+  return selected.map((sel,i)=>({
+    name: legendName(sel.cid, sel.seg),
+    color: SERIES[i%SERIES.length],
+    pts: seriesPts(buildTiered(sel.cid, sel.seg), cmpStat, splitActive),
+  }));
+}
+function drawCompare(){
+  const verLabel = cmpVer==="min"?"全程最小數值成長":"全程最大數值成長";
+  document.getElementById("chartTitle").textContent=STAT_FULL[cmpStat]+" 成長曲線";
+  document.getElementById("chartY").textContent=verLabel+" · Y＝屬性值　X＝等級（左半基礎職／右半進階職）";
+  const box=document.getElementById("chartBox");
+  const legend=document.getElementById("legend");
+  if(!selected.length){ box.innerHTML='<div class="empty">請於左方勾選至少一個職業組合。</div>'; legend.innerHTML=""; return; }
+  // Y range is fixed to the MAX-growth extent (verKey "max") so toggling
+  // min/max never rescales the axis -- only the plotted lines change.
+  const dom = viewDomain(selected, cmpStat, "line", "max");
+  const series=compareSeries(dom.splitActive);
+  const opt={mode:"line", lineKey: cmpVer==="min"?"mn":"mx", verLabel, xmax:dom.xmax, ymax:dom.ymax, splitAt:dom.splitAt, rightIsAdvanced:dom.rightIsAdvanced};
+  box.innerHTML=lineChart(box, series, opt);
+  attachHover(box, series, opt);
+  renderLegend(legend, series, opt);
+}
+/* shared legend: series colours + line-style key + split explainer */
+function renderLegend(el, series, opt){
+  if(!el) return;
+  const css=getComputedStyle(document.documentElement);
+  let html=series.map(s=>{
+    const col=css.getPropertyValue(s.color).trim();
+    return '<span class="lg" style="color:'+col+';font-weight:700"><span class="sw" style="background:'+col+'"></span>'+s.name+'</span>';
+  }).join("");
+  if(opt.mode==="band"){
+    html+='<span class="lg lgnote"><span class="sw" style="background:var(--ink-2)"></span>實線＝全程最大'+
+          '<span class="sw d" style="border-top-color:var(--ink-2);margin-left:12px"></span>虛線＝全程最小</span>';
+  }else{
+    html+='<span class="lg lgnote">實線＝'+(opt.verLabel||"所選版本")+'</span>';
+  }
+  if(opt.splitAt){
+    const right = opt.rightIsAdvanced ? "左半＝基礎職 LV／右半＝進階職 LV" : "轉職後為生涯累計級";
+    html+='<span class="lg lgnote"><span class="sw d" style="border-top-color:var(--accent);width:16px"></span>轉職分隔（'+right+'）</span>';
+  }
+  el.innerHTML=html;
+}
+
+/* ============================ LINE CHART (SVG) ============================ */
+// opt = {mode:"band"|"line", lineKey:"mn"|"mx", xmax, ymax, splitAt, rightIsAdvanced, fill}
+function lineChart(box, series, opt){
+  const W=box.clientWidth||720, H=Math.max(320, Math.min(560, W*0.5));
+  const m={t:16,r:20,b:opt.splitAt?52:40,l:46};
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const xmin=1, xmax=Math.max(opt.xmax,10), ymax=opt.ymax||niceMax(1);
+  const X=x=>m.l+(x-xmin)/((xmax-xmin)||1)*iw;
+  const Y=y=>m.t+ih-(y/ymax)*ih;
+  const css=getComputedStyle(document.documentElement);
+  const grid=css.getPropertyValue("--grid"), axis=css.getPropertyValue("--axis"),
+        ink3=css.getPropertyValue("--ink-3"), ink2=css.getPropertyValue("--ink-2"),
+        accent=css.getPropertyValue("--accent");
+  let svg='<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" data-w="'+W+'" data-h="'+H+'" data-xmin="'+xmin+'" data-xmax="'+xmax+'" data-ymax="'+ymax+'" data-ml="'+m.l+'" data-mr="'+m.r+'" data-mt="'+m.t+'" data-mb="'+m.b+'" data-split="'+(opt.splitAt||0)+'" data-radv="'+(opt.rightIsAdvanced?1:0)+'">';
+  // y gridlines
+  const yticks=5;
+  for(let i=0;i<=yticks;i++){
+    const yv=ymax*i/yticks, yy=Y(yv);
+    svg+='<line x1="'+m.l+'" y1="'+yy+'" x2="'+(W-m.r)+'" y2="'+yy+'" stroke="'+grid+'" stroke-width="1"/>';
+    svg+='<text x="'+(m.l-8)+'" y="'+(yy+4)+'" text-anchor="end" font-size="11" fill="'+ink3+'" font-family="ui-monospace,monospace">'+Math.round(yv)+'</text>';
+  }
+  // x ticks (split-aware)
+  function xtick(xv,label){
+    const xx=X(xv);
+    svg+='<line x1="'+xx+'" y1="'+m.t+'" x2="'+xx+'" y2="'+(m.t+ih)+'" stroke="'+grid+'" stroke-width="1" opacity="0.6"/>';
+    svg+='<text x="'+xx+'" y="'+(m.t+ih+15)+'" text-anchor="middle" font-size="11" fill="'+ink3+'" font-family="ui-monospace,monospace">'+label+'</text>';
+  }
+  if(opt.splitAt){
+    [10,20,30,40].forEach(v=>{ if(v<=xmax) xtick(v,v); });
+    if(opt.rightIsAdvanced){
+      [10,20,30,40].forEach(v=>{ const xv=opt.splitAt+v; if(xv<=xmax) xtick(xv,v); });
+    }else{
+      for(let v=Math.ceil((opt.splitAt+20)/20)*20; v<=xmax; v+=20) xtick(v,v);
+    }
+  }else{
+    const step = xmax<=45?10:20;
+    for(let v=step; v<=xmax; v+=step) xtick(v,v);
+  }
+  // promotion divider + region titles
+  if(opt.splitAt){
+    const dx=X(opt.splitAt);
+    svg+='<line x1="'+dx+'" y1="'+m.t+'" x2="'+dx+'" y2="'+(m.t+ih)+'" stroke="'+accent+'" stroke-width="1.4" stroke-dasharray="3 3" opacity="0.75"/>';
+    svg+='<text x="'+dx+'" y="'+(m.t-5)+'" text-anchor="middle" font-size="10" fill="'+accent+'" font-family="ui-monospace,monospace">轉職</text>';
+    if(opt.rightIsAdvanced){
+      svg+='<text x="'+X(20)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10.5" fill="'+ink2+'">基礎職 LV</text>';
+      svg+='<text x="'+X(opt.splitAt+20)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10.5" fill="'+ink2+'">進階職 LV</text>';
+    }else{
+      svg+='<text x="'+((m.l+W-m.r)/2)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10.5" fill="'+ink2+'">等級（轉職後為生涯累計）</text>';
+    }
+  }else{
+    svg+='<text x="'+((m.l+W-m.r)/2)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10.5" fill="'+ink2+'">等級 LV</text>';
+  }
+  // marks
+  series.forEach(s=>{
+    const col=css.getPropertyValue(s.color);
+    if(opt.mode==="band"){
+      let dmin="",dmax="";
+      s.pts.forEach((p,i)=>{ dmin+=(i?"L":"M")+X(p.x)+" "+Y(p.mn)+" "; });
+      s.pts.forEach((p,i)=>{ dmax+=(i?"L":"M")+X(p.x)+" "+Y(p.mx)+" "; });
+      if(opt.fill){
+        let up="",dn="";
+        s.pts.forEach((p,i)=>{ up+=(i?"L":"M")+X(p.x)+" "+Y(p.mx)+" "; });
+        for(let i=s.pts.length-1;i>=0;i--){ dn+="L"+X(s.pts[i].x)+" "+Y(s.pts[i].mn)+" "; }
+        svg+='<path d="'+up+dn+'Z" fill="'+col+'" opacity="0.13"/>';
+      }
+      svg+='<path d="'+dmin+'" fill="none" stroke="'+col+'" stroke-width="1.4" opacity="0.6" stroke-dasharray="4 3"/>';
+      svg+='<path d="'+dmax+'" fill="none" stroke="'+col+'" stroke-width="2.3"/>';
+      const last=s.pts[s.pts.length-1];
+      svg+='<circle cx="'+X(last.x)+'" cy="'+Y(last.mx)+'" r="3.2" fill="'+col+'"/>';
+    }else{
+      const key=opt.lineKey;
+      let d=""; s.pts.forEach((p,i)=>{ d+=(i?"L":"M")+X(p.x)+" "+Y(p[key])+" "; });
+      svg+='<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2.2"/>';
+      const last=s.pts[s.pts.length-1];
+      // when a LV99 hero stretches the axis past this build's cap, hold its final
+      // value flat (dashed) to the end so it stays comparable beyond LV80.
+      if(last.x<xmax){
+        svg+='<path d="M'+X(last.x)+' '+Y(last[key])+' L'+X(xmax)+' '+Y(last[key])+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-dasharray="2 3" opacity="0.5"/>';
+      }
+      svg+='<circle cx="'+X(last.x)+'" cy="'+Y(last[key])+'" r="3.2" fill="'+col+'"/>';
+    }
+  });
+  // hover overlay group
+  svg+='<g class="hoverg" style="opacity:0"><line class="hx" y1="'+m.t+'" y2="'+(m.t+ih)+'" stroke="'+axis+'" stroke-width="1"/></g>';
+  svg+='<rect class="hitrect" x="'+m.l+'" y="'+m.t+'" width="'+iw+'" height="'+ih+'" fill="transparent"/>';
+  svg+='</svg><div class="tip" id="tip_'+box.id+'"></div>';
+  return svg;
+}
+function attachHover(box, series, opt){
+  const svg=box.querySelector("svg.chart"); if(!svg) return;
+  const tip=box.querySelector(".tip"), hg=svg.querySelector(".hoverg"), hx=svg.querySelector(".hx");
+  const xmin=+svg.dataset.xmin, xmax=+svg.dataset.xmax;
+  const W=+svg.dataset.w, ml=+svg.dataset.ml, mr=+svg.dataset.mr, iw=W-ml-mr;
+  const split=+svg.dataset.split, radv=+svg.dataset.radv;
+  const X=x=>ml+(x-xmin)/((xmax-xmin)||1)*iw;
+  const css=getComputedStyle(document.documentElement);
+  const rect=svg.querySelector(".hitrect");
+  function lvLabel(x){                       // x is a split-space coordinate
+    if(!split) return "LV"+x;
+    if(x<=split) return "基礎 LV"+x;
+    return radv ? "進階 LV"+(x-split) : "第 "+x+" 級（累計）";
+  }
+  function move(ev){
+    const r=svg.getBoundingClientRect();
+    const px=(ev.clientX-r.left)/r.width*W;
+    let sx=Math.round(xmin+(px-ml)/iw*(xmax-xmin));
+    sx=Math.max(xmin,Math.min(xmax,sx));
+    let rows="";
+    series.forEach(s=>{
+      let p=s.pts.find(q=>q.x===sx);
+      if(!p){ const last=s.pts[s.pts.length-1]; if(last && sx>last.x) p=last; }  // hold flat past the build's end
+      if(!p) return;                       // before this build joined -> nothing to show
+      const col=css.getPropertyValue(s.color);
+      const val = opt.mode==="band"
+        ? (p.mn===p.mx?p.mx:('<span style="color:var(--min)">'+p.mn+'</span>–<span style="color:var(--max)">'+p.mx+'</span>'))
+        : p[opt.lineKey];
+      rows+='<div class="row"><span class="nm"><span class="sw" style="background:'+col+'"></span>'+s.name+'</span><span class="val num">'+val+'</span></div>';
+    });
+    if(!rows){ hg.style.opacity=0; tip.style.opacity=0; return; }
+    hg.style.opacity=1; hx.setAttribute("x1",X(sx)); hx.setAttribute("x2",X(sx));
+    tip.innerHTML='<h4>'+lvLabel(sx)+'</h4>'+rows;
+    tip.style.opacity=1;
+    const bx=box.getBoundingClientRect();
+    let tx=(ev.clientX-bx.left)+14, ty=(ev.clientY-bx.top)-10;
+    if(tx+150>bx.width) tx=(ev.clientX-bx.left)-160;
+    tip.style.left=tx+"px"; tip.style.top=ty+"px";
+  }
+  rect.addEventListener("mousemove",move);
+  rect.addEventListener("mouseleave",()=>{hg.style.opacity=0; tip.style.opacity=0;});
+  // touch
+  rect.addEventListener("touchmove",e=>{if(e.touches[0]){move(e.touches[0]); e.preventDefault();}},{passive:false});
+}
+
+/* ============================ RANKING ============================ */
+/* one column per stat; each column ranks every (character x build) endpoint by
+   its final (max-level) stat value as a left-aligned horizontal bar. Per-column
+   toggles: max/min growth version + ascending/descending order. */
+const STAT_COLOR={hp:"--s4",mp:"--s1",ap:"--s6",dp:"--s7",dx:"--s5"};
+const rankGrid=document.getElementById("rankGrid");
+// build endpoints: promotable -> one per promotion line; others -> sole path.
+const RANK_BUILDS=[];
+CHARS.forEach(c=>buildsOf(c).forEach(si=>RANK_BUILDS.push({cid:c.id,si})));
+function rankLabel(cid,si){
+  const nm=CH_BY_ID[cid].name, segs=COMPUTED[cid];
+  return si===0 ? nm+"　"+segTitle(segs[0].seg) : nm+"→"+segTitle(segs[si].seg);
+}
+function finalVal(cid,si,stat,ver){
+  const rows=COMPUTED[cid][si].rows, last=rows[rows.length-1];
+  return ver==="max" ? last.max[stat] : last.min[stat];
+}
+const RANK_STATE={}; STATS.forEach(s=>RANK_STATE[s]={ver:"max",order:"desc"});
+function rankColumn(stat){
+  const st=RANK_STATE[stat], col=STAT_COLOR[stat];
+  const items=RANK_BUILDS.map(b=>({cid:b.cid,si:b.si,v:finalVal(b.cid,b.si,stat,st.ver)}));
+  const vmax=items.reduce((m,i)=>i.v>m?i.v:m,0);
+  items.sort((a,b)=> st.order==="desc" ? b.v-a.v : a.v-b.v);
+  const rows=items.map((it,i)=>{
+    const pct=vmax>0?(it.v/vmax*100):0;
+    return '<div class="rrow">'+
+      '<span class="rbar" style="width:'+pct.toFixed(1)+'%;background:var('+col+')"></span>'+
+      '<span class="rlab"><span class="rk">'+(i+1)+'</span>'+rankLabel(it.cid,it.si)+'</span>'+
+      '<span class="rval num">'+it.v+'</span></div>';
+  }).join("");
+  return '<div class="rcol" data-stat="'+stat+'">'+
+    '<div class="rhead"><h3><span class="swatch" style="background:var('+col+')"></span>'+STAT_FULL[stat]+'</h3>'+
+    '<div class="rctls">'+
+      '<div class="seg rseg" data-stat="'+stat+'" data-kind="ver">'+
+        '<button data-v="max" aria-pressed="'+(st.ver==="max")+'">最大</button>'+
+        '<button data-v="min" aria-pressed="'+(st.ver==="min")+'">最小</button></div>'+
+      '<div class="seg rseg" data-stat="'+stat+'" data-kind="order">'+
+        '<button data-o="desc" aria-pressed="'+(st.order==="desc")+'">↓ 降冪</button>'+
+        '<button data-o="asc" aria-pressed="'+(st.order==="asc")+'">↑ 升冪</button></div>'+
+    '</div></div>'+
+    '<div class="rlist">'+rows+'</div></div>';
+}
+function buildRanking(){ rankGrid.innerHTML=STATS.map(rankColumn).join(""); }
+rankGrid.addEventListener("click",e=>{
+  const btn=e.target.closest(".rseg button"); if(!btn) return;
+  const seg=btn.closest(".rseg"), stat=seg.dataset.stat, kind=seg.dataset.kind;
+  if(kind==="ver") RANK_STATE[stat].ver=btn.dataset.v; else RANK_STATE[stat].order=btn.dataset.o;
+  rankGrid.querySelector('.rcol[data-stat="'+stat+'"]').outerHTML=rankColumn(stat);
+});
+
+/* ============================ tabs / theme ============================ */
+const tabDetail=document.getElementById("tab-detail"), tabCompare=document.getElementById("tab-compare"),
+      tabRank=document.getElementById("tab-rank");
+const panDetail=document.getElementById("panel-detail"), panCompare=document.getElementById("panel-compare"),
+      panRank=document.getElementById("panel-rank");
+const methodEl=document.querySelector(".method"), cmpRightEl=document.querySelector(".cmp-right"),
+      footerEl=document.querySelector("main.wrap > footer"), mainEl=document.querySelector("main.wrap");
+function selectTab(which){
+  const isD=which==="detail", isC=which==="compare", isR=which==="rank";
+  tabDetail.setAttribute("aria-selected",isD); tabCompare.setAttribute("aria-selected",isC); tabRank.setAttribute("aria-selected",isR);
+  panDetail.classList.toggle("active",isD); panCompare.classList.toggle("active",isC); panRank.classList.toggle("active",isR);
+  // Relocate 推導依據 so the compare tab's right column is tall enough for the
+  // sticky picker to stay put; on the other tabs it returns to its normal place.
+  if(isC){ cmpRightEl.appendChild(methodEl); drawCompare(); }
+  else { mainEl.insertBefore(methodEl, footerEl); }
+}
+tabDetail.onclick=()=>selectTab("detail");
+tabCompare.onclick=()=>selectTab("compare");
+tabRank.onclick=()=>selectTab("rank");
+
+const themeBtn=document.getElementById("themeBtn");
+themeBtn.onclick=()=>{
+  const cur=document.documentElement.getAttribute("data-theme");
+  const sysDark=matchMedia("(prefers-color-scheme: dark)").matches;
+  const next = cur ? (cur==="dark"?"light":"dark") : (sysDark?"light":"dark");
+  document.documentElement.setAttribute("data-theme",next);
+  // ranking bars recolour automatically via CSS vars; only redraw canvas-style views
+  if(panCompare.classList.contains("active")) drawCompare();
+  else if(panDetail.classList.contains("active")) renderDetail();
+};
+
+/* preset & clear */
+document.getElementById("cmpClear").onclick=()=>{selected=[]; buildPicker(); drawCompare();};
+
+/* init */
+buildRoster(); renderDetail(); buildPicker(); buildRanking();
+window.addEventListener("resize",()=>{ clearTimeout(window._rz); window._rz=setTimeout(()=>{
+  if(panCompare.classList.contains("active")) drawCompare();
+  else if(panDetail.classList.contains("active")) renderDetail();
+},180);});
+</script>

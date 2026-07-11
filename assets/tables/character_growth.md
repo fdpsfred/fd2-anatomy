@@ -39,6 +39,43 @@ range = _max - _min
 `00 00`、哈瓦特 DX `01 01`）成長恆為 `_min`。出場屬性計算（`fd2_init_runtime_char_*`）
 只讀 `_min` 欄，不讀 `_max`。
 
+## 組語證據（最大成長 = `_max − 1`）
+
+`fd2_roll_stat_gain_and_show_message @ 0x1E529`（`src/battle/btl_turn.c`）核心指令：
+
+```
+0001e53f  MOVZX EBP, byte[EAX]     ; EBP = _min
+0001e542  MOVZX ESI, byte[EAX+1]   ; ESI = _max（exclusive 上界）
+0001e546  SUB   ESI, EBP           ; range = _max − _min（無 +1）
+0001e548  JZ    0x1e558            ; range==0 → 跳過 roll，gain = _min
+0001e54a  CALL  0x4E893            ; EAX = fd2_advance_rng_state()
+0001e551  SAR   EDX, 0x1F          ; sign-extend EAX → EDX:EAX
+0001e554  IDIV  ESI                ; EDX = rng % range
+0001e558  ADD   EBP, ESI           ; gain = _min + (rng % range)
+```
+
+對應 C：
+
+```c
+range      = growth_pair[1] - growth_pair[0];               /* _max − _min，無 +1 */
+rand_extra = (range != 0) ? fd2_advance_rng_state() % range : 0;
+gain       = growth_pair[0] + rand_extra;                   /* 落在 [_min, _max − 1] */
+```
+
+`range` 沒有 `+1`，`rng % range ∈ [0, range−1]`，故原版每級最大成長 = `_min + range − 1 = _max − 1`（非 `_max`）。
+
+## 「升級最大值修改版」執行檔的 off-by-one
+
+存在一支被改過 binary 的 `fd2.exe`，改法為**每次升級強制給每個屬性最大成長**。該修改把每級最大取成
+`_max` 本身（exclusive 上界那個 byte）而非原版真正上限 `_max − 1`，等效於直接用整個 `range` 當 roll 結果
+（`gain = _min + range = _max`）而非 `_min + (range − 1)`——即**每級比原版真正最大多 1**。
+
+- **影響**：此 exe 的實機成長值每級 +1 高於原版，N 級累積多 N。例：索爾 劍士 LV40 → 轉職英雄 → LV40
+  全程最大，原版 `AP 839 / DP 559 / DX 200`，此修改版 `AP 918 / DP 638 / DX 279`。
+- `tools/growth_table` 的「全程最大」刻意保持**原版真正上限 `_max − 1`**。
+- **佐證強度**：原版 `_max − 1` 為**已驗證**（上節組語 + C @ 0x1E529）；修改版的 off-by-one 為**推論**——
+  由實機屬性值精準吻合 `_max`（全程均勻 +1／級）反推，尚未反組譯該修改版 binary。
+
 ## entry sample
 
 Entry 0（索爾基礎）：`06 08 04 06 02 03 08 0C 00 00 FF`

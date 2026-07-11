@@ -53,7 +53,8 @@ intro 等大表在 `0x6xxxx`（`.object3`）。
 - `character_base.md` — `data_fd2_battle_character_base_table` `.object3 @ 0x61DA1`，
   32 entries × 24 B。出場 race / class / level / HP / MP / MV / 初始法術 / 初始裝備 / AP / DP / DX。
 - `character_growth.md` — `data_fd2_battle_character_growth_table` `.object3 @ 0x620A1`，
-  68 entries × 11 B。每職業 AP / DP / DX / HP / MP 的 min 與 exclusive 上界 + spell_learning_idx。
+  68 entries × 11 B。每職業 AP / DP / DX / HP / MP 的 min 與 exclusive 上界 + spell_learning_idx；
+  含升級 roll 組語+C 證據（每級最大 = `_max − 1`）與「升級最大值修改版」exe 的 +1/級 off-by-one。
 - `enemy_data.md` — `data_fd2_battle_enemy_data_table` `.object3 @ 0x61AF9`，
   68 entries × 10 B。敵 / 友軍 NPC 單位的每等級係數 + 移動力 + 擊殺 XP 係數。
 

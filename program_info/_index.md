@@ -33,6 +33,12 @@ src 檔、主要 Ghidra 對象（函數名@位址）與相關資源檔，方便�
 每章 init/end handler 的函數呼叫流程、char_id 初始化序列、cutscene events、post_action handler、
 FDFIELD event script，詳 `chapters/_index.md`。
 
+## 跨模組文件（非 src 模組對照）
+
+| 文件 | 內容 |
+|---|---|
+| `known_bugs.md` | 原版執行檔 `FD2.LE` 已確認的遊戲程式／資料 bug 目錄；跨系統彙整，每筆含現象／成因／資料誤植本質／迴避／驗證對象。目前收錄：凱拉斯幽靈轉職（聖戰士）→ crash |
+
 ## 相關文件
 
 CRT layer、pool 分類、call graph、Watcom ABI、等價鐵則詳 `rebuild_info/equivalence/` 與

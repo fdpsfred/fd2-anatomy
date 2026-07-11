@@ -340,8 +340,9 @@ Path 1 是「玩家踩到 tile → 下回合 dispatch」的 deferred 模式，�
 `fd2_roll_stat_gain_and_show_message @ 0x1E529` roll 5 個 stat 槽、學會該等級的法術、`recalculate_combat_stats`，
 再扣 100 XP。成長 roll：`range = growth_pair[1] - growth_pair[0]`（第二 byte 是 exclusive 上界＝最大成長
 +1）；`range == 0` 時不抽 RNG、`gain` 恆為 min，否則 `gain = min + fd2_advance_rng_state() % range`，落在
-`[min, min+range)`。剩餘 XP 存 runtime_char +0x3C（EX carry）帶到下次。growth 表欄位語意與數值見
-assets/tables/character_growth.md。
+`[min, min+range)`。剩餘 XP 存 runtime_char +0x3C（EX carry）帶到下次。growth 表欄位語意與數值、
+升級 roll 的組語證據、以及一支「升級最大值修改版」exe 每級誤給 `_max`（比原版真正最大多 1）的
+off-by-one，見 assets/tables/character_growth.md。
 
 ## Battle lifecycle（章節層）
 
