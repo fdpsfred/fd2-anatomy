@@ -23,6 +23,7 @@ import shared lib、不依賴 `legacy/`。CLI 用法看 `python <script> --help`
 | `kb_overhaul/` | KB 翻新用產生器：`gen_ch_encounters` / `gen_ch_section3` / `gen_ch_shops` 由 byte-verified FDFIELD 表產各章 §敵人·寶物·商店、`rebase_row_addr` 跨版本資料表位址 rebase |
 | `growth_table/` | 由 FD2.LE 角色基礎／成長／轉職表推導每級 HP/MP/AP/DP/DX，`gen_growth`＋`build_page` 產自足互動網頁「角色屬性數值比較」（三分頁：屬性排名／成長曲線比較／角色明細），發佈到 GitHub Pages（`docs/`）；詳 `growth_table/_index.md` |
 | `rsrc_unresolved/` | 資源檔格式 ground-truth 分析：`analyze.py` 對真遊戲檔驗證 FDOTHER nested/dead 內容分類、ANI 檔頭與 per-frame 欄位、FDSHAP tile-attribute 值域、TAI round-trip（結論已整合進 `resource_info/`）|
+| `publish/` | 把 dev repo 乾淨 subset（排除 `.claude/` + `CLAUDE.md`）發佈到 public repo `fd2-anatomy` 的一鍵工具：`git archive` 出 HEAD → 去排除項 → 掃個資 → 全新單一 commit → 預設 dry-run，加 `--push` 才 force-push（詳 `publish/_index.md`）|
 
 ## 資料儲放慣例
 
