@@ -7,7 +7,7 @@
 用腳本 scancode 驅動重建版遊戲在 DOSBox-X silent 全自動跑真實內容，在邏輯檢查點擷取
 framebuffer + 遊戲狀態，對照 golden 與 KB 推導的期望值。這是行為等同原版的主要驗證手段。
 
-- 程式：`tests/play/`（`replay.c` / `capture.c` / `probe.c` / `playharn.h`，只進 replay build）。詳見
+- 程式：`tests/play/`（`replay.c` / `capture.c` / `playharn.h`，只進 replay build）。詳見
   `tests/play/_index.md`。
 - 工具：`tools/fd2_play/`（`build_replay.py` / `run_play.py` / `compare.py` / `expect.py` /
   `run_all.py` …）。詳見 `tools/fd2_play/_index.md`。

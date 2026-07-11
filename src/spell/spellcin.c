@@ -657,11 +657,6 @@ void fd2_animate_warp_teleport_char(uint32 char_slot, uint32 new_pos_x,
     int row_count;
     int i;
 
-#ifdef FD2_REPLAY
-    fd2_probe_warp((long)char_slot, (long)dst_tile_x, (long)dst_tile_y,
-                   (long)data_fd2_battle_cursor_screen_x,
-                   (long)data_fd2_battle_cursor_screen_y);
-#endif
     warp_sfx_buf = fd2_load_dat_resource(
         (uint32)data_fd2_string_resource_filename_fdother_dat, 0, 0x51);
     snapshot = (uint32)malloc(0x25680);
@@ -821,9 +816,6 @@ int fd2_animate_warp_out_collapse(int tile_x, int tile_y, void *snapshot,
     uint32 sprite_addr;
     uint32 top_y_param;
 
-#ifdef FD2_REPLAY
-    fd2_probe_warpout((long)src_x, (long)src_y);
-#endif
     blit_pos = (uint32)snapshot +
         (tile_y - data_fd2_battle_view_window_origin_y) * 0x2ac0 +
         (tile_x - data_fd2_battle_view_window_origin_x) * 0x18 + 0x8250;

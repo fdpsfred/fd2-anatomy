@@ -279,9 +279,6 @@ extern void fd2_palette_remap_asm_loop(uint32 remap_table,
 void fd2_apply_palette_remap_run(uint32 remap_table,
                                   uint32 byte_count, uint8 *buf)
 {
-#ifdef FD2_REPLAY
-    fd2_probe_remap((long)byte_count);
-#endif
     fd2_palette_remap_asm_loop(remap_table, byte_count, buf);
 }
 #pragma on (check_stack)
@@ -289,9 +286,6 @@ void fd2_apply_palette_remap_run(uint32 remap_table,
 void fd2_apply_palette_remap_run(uint32 remap_table,
                                   uint32 byte_count, uint8 *buf)
 {
-#ifdef FD2_REPLAY
-    fd2_probe_remap((long)byte_count);
-#endif
     do {
         *buf = *(uint8 *)(remap_table + (uint32)*buf);
         buf++;

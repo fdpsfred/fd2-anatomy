@@ -28,9 +28,9 @@ byte multiset 相同（只發生效果 1，無 COMDEF 移動）；RELOC（STRICT
 playthrough golden 與傷害 oracle 使用。
 
 **機制**：`build_replay.py` 以 `build_fd2.py` 為範本、ABI 旗標完全一致，唯一差別是加 `-DFD2_REPLAY`
-並把 `tests/play/` 的 guest harness（`replay.c` 輸入注入 + `capture.c` 檢查點 dump + `probe.c` 探針）
+並把 `tests/play/` 的 guest harness（`replay.c` 輸入注入 + `capture.c` 檢查點 dump）
 一起編譯連結，輸出 `FD2RP.EXE`。所有 src/ 端 hook 都包在 `#ifdef FD2_REPLAY` 內（`life/main.c`、
-`input/input.c`、`anim/aniend.c`、`save/save.c`，及 `spellcin.c` / `rndscene.c` / `palette.c` 的探針），
+`input/input.c`、`anim/aniend.c`、`save/save.c`），
 生產版不定義此宏、hook 全不編入。
 
 **判定**：生產 `FD2.EXE` 與未加 harness 的建置 byte-identical（已 hash 驗證），確保 replay 建置測到的

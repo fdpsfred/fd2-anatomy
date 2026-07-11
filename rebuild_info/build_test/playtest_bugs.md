@@ -7,7 +7,7 @@
 類別 A–G 整理，作為後續 emit / data-land 要避開的坑；每類的機制細節指向對應正典，這裡只留症狀、
 一句根因、教訓與排障經驗。
 
-除 F 類 86Box 實機驗證仍 pending 外，每個 bug 都已使用者實機確認修復。完整建置與定位流程見
+每個 bug 都已使用者實機確認修復。完整建置與定位流程見
 `workflow.md`。
 
 ## 分工鐵則（使用者定）
@@ -182,8 +182,8 @@ runtime，任何 emulator 對那段碼的缺陷都只咬重建版。
 **診斷心法**（排障經驗）：對「只在單一 emulator 崩潰」的 case，歸因不能停在與崩潰點的形式相關性（迴圈
 形式差異），要沿資料流上溯到腐蝕值的產生點（count ← half_width ← sqrt 回傳值）。
 
-**驗證**：全 obj 零 IF@ 引用、map 內 IF@* 全數 unreferenced（同原版）、golden 5/5 PASS + ch30 warp
-探針全綠。**86Box 實機驗證：pending（使用者跑）。**
+**驗證**：全 obj 零 IF@ 引用、map 內 IF@* 全數 unreferenced（同原版）、golden 5/5 PASS。
+**86Box 實機驗證：已由使用者實機確認修復。**
 
 **正典**：`__NO_MATH_OPS` 旗標與機制見 `../link/wlink_settings.md` 的「math intrinsic 必須停用」段；
 Layer-2 例外亦見 `../equivalence/rules.md`。

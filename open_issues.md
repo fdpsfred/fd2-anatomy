@@ -21,10 +21,6 @@ INITCH 命令直接呼叫 `data_fd2_chapter_init_handler_table[N]()` 做 fresh i
 
 ### [重建 / 建置]
 
-**86Box-mac 實機驗證（等使用者）** — 白光柱 crash 根因已找到並修正（`__NO_MATH_OPS`，commit `15d32073`；完整結論見
-`rebuild_info/build_test/playtest_bugs.md` F 類）。唯一待辦＝使用者拿新建置的 `FD2.EXE` 放進 86Box-mac 重跑白光柱
-場景（治療 / 傳送 / 第 30 章召喚任一），確認不再 crash。
-
 **#32 gfx/blitspr.c blit-leaf coordinated landing** — 19 個 blit-leaf function 無法逐一落地：其 spy-mock
 （`fd2_blit_indexed_sprite` dispatcher + `fd2_rle_blit_sprite` leaf）住在所有分支共用的 `tests/testglob.c`，被約
 325 處引用、橫跨約 8 個套件且跨分支。emit 真 body 會與同名 spy 形成 Watcom W1027 redefinition，刪 spy 又會弄壞

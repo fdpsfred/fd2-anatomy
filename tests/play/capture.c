@@ -87,6 +87,4 @@ void fd2_play_capture(int idx)
         }
         fclose(f);
     }
-
-    fd2_probe_summary();   /* flush cumulative remap-run stats (probe.c) */
 }
