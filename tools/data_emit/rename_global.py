@@ -21,7 +21,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 CODE_DIRS = [os.path.join(ROOT, "src"), os.path.join(ROOT, "tests")]
 KB_DIRS = [os.path.join(ROOT, d) for d in
            ("program_info", "resource_info", "rebuild_info", "assets")]
-KB_FILES = [os.path.join(ROOT, f) for f in ("index.md", "open_issues.md")]
+KB_FILES = [os.path.join(ROOT, f) for f in ("README.md", "open_issues.md")]
 DIRS = CODE_DIRS + KB_DIRS                      # code (.c/.h) + KB (.md) full sync
 EXTS = (".c", ".h", ".md")
 

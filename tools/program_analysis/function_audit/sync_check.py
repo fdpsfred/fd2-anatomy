@@ -54,7 +54,7 @@ SEARCH_GLOBS = [
     "tools/**/*.java",
     "tools/**/*.md",
     "open_issues.md",
-    "index.md",
+    "README.md",
     "CLAUDE.md",
 ]
 
@@ -78,7 +78,7 @@ def search_with_rg(pattern: str) -> list[tuple[str, int, str]]:
              "--type-add=md:*.md", "--type-add=java:*.java",
              "-tmd", "-tjson", "-tpy", "-tjava",
              "program_info", "rebuild_info", "resource_info", "assets", "tools",
-             "open_issues.md", "index.md", "CLAUDE.md"],
+             "open_issues.md", "README.md", "CLAUDE.md"],
             cwd=REPO, capture_output=True, text=True, encoding="utf-8",
             errors="replace",
         )
