@@ -15,9 +15,10 @@ so the regex touches addresses only. Prints every (old -> new) change for audit.
 """
 import re
 import sys
+from pathlib import Path
 
 DELTA = 0x19014
-ROOT = "C:/Users/fdpsf/Documents/fd2-anatomy"
+ROOT = str(Path(__file__).resolve().parents[2])
 
 TARGETS = [
     (ROOT + "/assets/characters.md", r"7B[0-9A-F]{3}"),

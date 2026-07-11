@@ -14,7 +14,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 GAME = os.path.join(ROOT, "fd2_game_files")
 SRC_EXE = os.path.join(ROOT, "tests", "OUT", "FD2.EXE")
 WS = os.path.join(ROOT, "workspace", "snd_kbd_diag")
-WATCOM = r"C:\Users\fdpsf\Documents\WATCOM_9.5a"
+# Watcom install (external to repo): honour %WATCOM%, else the home-dir default.
+WATCOM = os.environ.get("WATCOM") or os.path.join(os.path.expanduser("~"), "Documents", "WATCOM_9.5a")
 
 CONF = """[sdl]
 autolock=false

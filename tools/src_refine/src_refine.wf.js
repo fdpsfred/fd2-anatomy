@@ -21,7 +21,7 @@ export const meta = {
 const A = (typeof args === 'string' && args.length) ? JSON.parse(args) : (args || {})
 const ROOT = A.root
 const PART = A.partition || 'rp?'
-const MAINROOT = A.mainRoot || 'C:/Users/fdpsf/Documents/fd2-anatomy'
+const MAINROOT = A.mainRoot || ROOT
 let FILES = (A && A.files) || []
 const MIN_BUDGET_PER_SYM = (A && A.minBudgetPerSym) || 120000
 if (!ROOT) { log('args.root missing (absolute worktree path required)'); return { error: 'no root' } }

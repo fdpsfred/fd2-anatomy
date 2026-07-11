@@ -40,7 +40,7 @@ def resolve_stock_sav():
     import os
     env = os.environ.get("FD2_GAME_DIR")
     for cand in ([Path(env)] if env else []) + [ROOT / "fd2_game_files",
-                 Path(r"C:\Users\fdpsf\Documents\fd2-anatomy\fd2_game_files")]:
+                 Path.home() / "Documents" / "fd2-anatomy" / "fd2_game_files"]:
         p = cand / "FD2.SAV"
         if p.is_file():
             return p

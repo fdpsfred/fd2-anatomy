@@ -20,7 +20,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 TOOLS = os.path.join(ROOT, "tools", "snd_kbd_diag")
 AIL_OUT = os.path.join(ROOT, "workspace", "ail_extract", "out")
 GAME = os.path.join(ROOT, "fd2_game_files")
-WATCOM = r"C:\Users\fdpsf\Documents\WATCOM_9.5a"
+# Watcom install (external to repo): honour %WATCOM%, else the home-dir default.
+WATCOM = os.environ.get("WATCOM") or os.path.join(os.path.expanduser("~"), "Documents", "WATCOM_9.5a")
 STAGE = os.path.join(ROOT, "workspace", "snd_kbd_diag", "sfxdiag_stage")
 CAPS = os.path.join(STAGE, "captures")
 

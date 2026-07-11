@@ -20,8 +20,8 @@ Outputs (enumerate_pcrel32_sites.py):
 
 Each snippet writes directly to its target file path.  Run via
 mcp__ghidra__run_script_inline, or paste into Ghidra Script Manager.
-Snippets that write to file use FileWriter with hardcoded path — adjust
-the base path if the repo is at a different location.
+Snippets that write to file use FileWriter with a <REPO> placeholder base;
+replace <REPO> with your repo root before running.
 """
 
 # === Snippet 1: crt_data_symbols.json ===
@@ -243,7 +243,7 @@ while (fit.hasNext()) {
         numRanges, bodySize, sig, cc, isThunk ? "true" : "false"));
 }
 Collections.sort(lines);
-String outPath = "C:/Users/fdpsf/Documents/fd2-anatomy/workspace/ail_extract/raw/ail_fn_metadata.json";
+String outPath = "<REPO>/workspace/ail_extract/raw/ail_fn_metadata.json";
 FileWriter fw = new FileWriter(outPath);
 fw.write("[\n");
 for (int i = 0; i < lines.size(); i++) {
@@ -284,7 +284,7 @@ while (it.hasNext()) {
         + "\",\"type\":\"" + typeName + "\",\"size\":" + size + ",\"source\":[\"name\"]}");
 }
 Collections.sort(lines);
-String outPath = "C:/Users/fdpsf/Documents/fd2-anatomy/workspace/ail_extract/raw/ail_data_items.json";
+String outPath = "<REPO>/workspace/ail_extract/raw/ail_data_items.json";
 FileWriter fw = new FileWriter(outPath);
 fw.write("[\n");
 for (int i = 0; i < lines.size(); i++) {
@@ -351,7 +351,7 @@ while (fit.hasNext()) {
     }
 }
 Collections.sort(lines);
-String outPath = "C:/Users/fdpsf/Documents/fd2-anatomy/workspace/ail_extract/raw/pcrel32_sites_raw.json";
+String outPath = "<REPO>/workspace/ail_extract/raw/pcrel32_sites_raw.json";
 FileWriter fw = new FileWriter(outPath);
 fw.write("[\n");
 for (int i = 0; i < lines.size(); i++) {
@@ -417,7 +417,7 @@ for (var addrStr : dataLabels.keySet()) {
     }
 }
 Collections.sort(resultKeys);
-String outPath = "C:/Users/fdpsf/Documents/fd2-anatomy/workspace/ail_extract/raw/ail_data_owners.json";
+String outPath = "<REPO>/workspace/ail_extract/raw/ail_data_owners.json";
 FileWriter fw = new FileWriter(outPath);
 fw.write("{\n");
 for (int i = 0; i < resultKeys.size(); i++) {

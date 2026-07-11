@@ -25,6 +25,7 @@ Exit  : 0 iff FD2.EXE was produced with 0 undefined symbols, else 1.
 """
 import argparse
 import io
+import os
 import re
 import subprocess
 import sys
@@ -34,7 +35,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 LIBS = ROOT / "libs"
-WATCOM = Path(r"C:\Users\fdpsf\Documents\WATCOM_9.5a")
+# Watcom install (external to repo): honour %WATCOM%, else the home-dir default.
+WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5a")
 EXE_DIR = ROOT / "workspace" / "fd2_build" / "exe"   # isolated; NOT tests/OUT
 OUT = EXE_DIR / "out"
 OBJ = OUT / "obj"

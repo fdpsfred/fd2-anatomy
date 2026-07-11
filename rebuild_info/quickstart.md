@@ -7,7 +7,7 @@
 
 | 項目 | 說明 |
 |---|---|
-| Watcom C/C++ 9.5a | 安裝在 `C:\Users\fdpsf\Documents\WATCOM_9.5a`（`BIN` 在 PATH）。編譯器與原 binary 同版，是忠實重建的前提（見 `crt/fid_match.md`）。 |
+| Watcom C/C++ 9.5a | 安裝在 `%USERPROFILE%\Documents\WATCOM_9.5a`（`BIN` 在 PATH）。編譯器與原 binary 同版，是忠實重建的前提（見 `crt/fid_match.md`）。 |
 | DOSBox-X | 執行檔在 PATH。建置 / 測試腳本一律以 `-silent` 全自動跑；wcc386 / wlink / wlib 都在 DOSBox-X 內執行。 |
 | 遊戲檔 | `fd2_game_files/` 內的完整炎龍騎士團合輯版檔案（FDMUS / FDOTHER / FDFIELD / … + 原版 `~FD2.EXE`），實機 playtest 與原版差分都需要。 |
 | Ghidra | 開著 FD2.LE 的 code browser，供建置 worklist 與符號 / 位址即時查證（唯讀）。 |

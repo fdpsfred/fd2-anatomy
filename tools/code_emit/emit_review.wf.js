@@ -55,7 +55,7 @@ const EMULATE_GUIDE = [
   '## emulate_function timeout → 自助重啟 + 修正參數重試，最多 5 次（超過才放棄）：',
   '1. 重啟 Ghidra（用 PowerShell 工具，或 Bash 呼叫 powershell.exe；需要時加 dangerouslyDisableSandbox）。只鎖定 Ghidra 那個 javaw，勿殺其他 java：',
   '   kill： Get-CimInstance Win32_Process -Filter "Name=\'javaw.exe\'" | Where-Object { $_.CommandLine -like \'*ghidra_12.1_PUBLIC*\' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }',
-  '   relaunch： Start-Process -FilePath "C:\\Users\\fdpsf\\Documents\\ghidra_12.1_PUBLIC\\ghidraRun.bat"',
+  '   relaunch： Start-Process -FilePath "$env:USERPROFILE\\Documents\\ghidra_12.1_PUBLIC\\ghidraRun.bat"',
   '2. 等 MCP port 就緒（單一 Bash 指令，勿用前景長 sleep）： for i in $(seq 1 80); do (exec 3<>/dev/tcp/127.0.0.1/8089) 2>/dev/null && { exec 3>&-; echo UP; break; }; sleep 3; done',
   '3. ghidraRun **不會自動載入程式**（get_current_program_info 會回 "No program loaded"）→ 用 MCP open_program(path="/FD2.LE") 載回，再 get_current_program_info 確認 1375 functions。',
   '4. 依上面的正確格式 + 正確 cc/引數位置修正參數後重試 emulate_function。',

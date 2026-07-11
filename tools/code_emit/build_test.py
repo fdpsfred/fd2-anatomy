@@ -56,10 +56,23 @@ def _resolve_game_dir():
     local = REPO_ROOT / "fd2_game_files"
     if local.is_dir():
         return local
-    return Path(r"C:\Users\fdpsf\Documents\fd2-anatomy\fd2_game_files")
+    return Path.home() / "Documents" / "fd2-anatomy" / "fd2_game_files"
 
 
 GAME_DIR = _resolve_game_dir()
+
+
+def _resolve_watcom():
+    """Watcom install (external to the repo). Honour %WATCOM%; else the default
+    install under the user's home dir. gen_run_conf mounts this as D:."""
+    env = os.environ.get("WATCOM")
+    if env and Path(env).is_dir():
+        return Path(env)
+    return Path.home() / "Documents" / "WATCOM_9.5a"
+
+
+WATCOM = _resolve_watcom()
+
 
 # Real game files staged into tests/OUT (= TEST.EXE's cwd) so the resource
 # loaders' bare-name fopen() reads the genuine bytes. Per project owner: check
@@ -139,6 +152,8 @@ def gen_run_conf():
             out.append('mount E "%s"' % tests_mount)
         elif s.startswith("mount f "):
             out.append('mount F "%s"' % libs_mount)
+        elif s.startswith("mount d "):
+            out.append('mount D "%s"' % str(WATCOM))
         else:
             out.append(ln)
     RUN_CONF.write_text("\n".join(out) + "\n", encoding="latin-1")

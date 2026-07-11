@@ -28,7 +28,7 @@
 - Ghidra 已經啟動並且打開 FD2.LE 的 code browser，所有的 decompiled source 都已經被解析過並且根據語意重新命名，可以透過 Ghidra mcp 存取
 - DOSBox-X 執行檔路徑已經在 path 環境變數內
 - DOSBox-X 要使用 silent mode 執行 (-silent command-line option)，以達成全自動化開發
-- Watcom C/C++ 9.5a 的執行檔路徑: C:\Users\fdpsf\Documents\WATCOM_9.5a\BIN，要在 DOSBox-X 裡面執行
+- Watcom C/C++ 9.5a 的執行檔路徑: %USERPROFILE%\Documents\WATCOM_9.5a\BIN(可用 %WATCOM% 環境變數覆寫)，要在 DOSBox-X 裡面執行
 
 Ghidra 操作規範:
 

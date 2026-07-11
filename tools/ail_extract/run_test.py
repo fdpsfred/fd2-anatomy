@@ -17,6 +17,7 @@ Run with `python tools/ail_extract/run_test.py [--build-only|--run-only]`.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -27,7 +28,8 @@ STAGE = WS / "run_stage"
 OUT = WS / "out"
 TOOLS = REPO / "tools" / "ail_extract"
 GAME = REPO / "fd2_game_files"
-WATCOM = Path(r"C:\Users\fdpsf\Documents\WATCOM_9.5a")
+# Watcom install (external to repo): honour %WATCOM%, else the home-dir default.
+WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5a")
 DOSBOX = "dosbox-x"
 
 

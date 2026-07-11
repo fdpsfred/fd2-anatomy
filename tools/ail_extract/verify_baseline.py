@@ -18,6 +18,7 @@ Run: python tools/ail_extract/verify_baseline.py
 """
 from __future__ import annotations
 
+import os
 import shutil
 import struct
 import subprocess
@@ -30,7 +31,8 @@ STAGE = WS / "baseline_stage"
 CAPTURE = STAGE / "captures"
 TOOLS = REPO / "tools" / "ail_extract"
 GAME = REPO / "fd2_game_files"
-WATCOM = Path(r"C:\Users\fdpsf\Documents\WATCOM_9.5a")
+# Watcom install (external to repo): honour %WATCOM%, else the home-dir default.
+WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5a")
 DOSBOX = "dosbox-x"
 
 

@@ -46,7 +46,7 @@ def resolve_game_dir():
     local = ROOT / "fd2_game_files"
     if local.is_dir():
         return local
-    return Path(r"C:\Users\fdpsf\Documents\fd2-anatomy\fd2_game_files")
+    return Path.home() / "Documents" / "fd2-anatomy" / "fd2_game_files"
 
 
 GAME_DIR = resolve_game_dir()

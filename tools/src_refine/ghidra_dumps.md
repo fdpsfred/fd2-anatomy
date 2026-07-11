@@ -13,7 +13,7 @@ Format per line: `addr<TAB>name<TAB>param0<TAB>param1<TAB>...`
 import ghidra.program.model.listing.*;
 import java.io.*;
 FunctionManager fm = currentProgram.getFunctionManager();
-PrintWriter w = new PrintWriter(new FileWriter("C:/Users/fdpsf/Documents/fd2-anatomy/workspace/src_refine/ghidra_func_params.tsv"));
+PrintWriter w = new PrintWriter(new FileWriter("<REPO>/workspace/src_refine/ghidra_func_params.tsv"));
 int n = 0;
 for (Function f : fm.getFunctions(true)) {
     StringBuilder sb = new StringBuilder();

@@ -19,6 +19,7 @@ Outputs : workspace/ail_extract/build/objshort/        — 8.3 aliases
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -30,7 +31,8 @@ BUILD_DIR = WORKSPACE / "build"
 BUILD_SHORT = BUILD_DIR / "objshort"  # 8.3 friendly (wlib 9.5a doesn't honour LFN)
 OUT_DIR = WORKSPACE / "out"
 
-WATCOM = Path(r"C:\Users\fdpsf\Documents\WATCOM_9.5a")
+# Watcom install (external to repo): honour %WATCOM%, else the home-dir default.
+WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5a")
 DOSBOX = "dosbox-x"
 
 
