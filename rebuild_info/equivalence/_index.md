@@ -9,7 +9,8 @@ Layer 3（byte-exact）。
 
 - `rules.md` — 等價鐵則與結構分類參考：三層等價 invariant（Layer 1/2/3）、時序敏感
   熱迴圈例外、math intrinsic 例外、fall-through 的 6 種模式（A..F）、絕對位址引用改
-  symbol、BSS tentative scalar-as-array、Watcom string-pool dedup、手寫組語政策。
+  symbol、BSS tentative scalar-as-array、跨符號讀取不變式（折疊基底歸錯符號 / 宣告元素數
+  短於索引定義域）、Watcom string-pool dedup、手寫組語政策。
 - `pool_classification.md` — 四 pool（ail / crt / fd2 / binary_artifact）的命名分類法，
   以及 binary_artifact pool 的 compiler-emit NOP 與 wlink alignment fill 事實。
 - `watcom_abi.md` — Watcom 32-bit ABI 結論：三種 calling convention 差異、`__CHK`

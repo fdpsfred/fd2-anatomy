@@ -4,7 +4,7 @@
 `~FD2.EXE` 實機跑、再逐一定位修掉的問題。這些 bug 的共同特徵是「Layer-2 功能等價」emit 在編譯層面
 看起來乾淨（build 0 error / 0 warning、單元測試綠），卻在真實遊戲執行時悄悄偏離原版行為 —— 它們
 不是「某個 function 算錯」，而是「某個 function 在真實環境的某個隱性契約上和原版不一致」。本檔按根因
-類別 A–G 整理，作為後續 emit / data-land 要避開的坑；每類的機制細節指向對應正典，這裡只留症狀、
+類別 A–H 整理，作為後續 emit / data-land 要避開的坑；每類的機制細節指向對應正典，這裡只留症狀、
 一句根因、教訓與排障經驗。
 
 每個 bug 都已使用者實機確認修復。完整建置與定位流程見
@@ -30,6 +30,7 @@
 | E. 硬編絕對位址 | "File not found" 開場退出 | `fd2_load_dat_resource` 把字串位址寫死成 immediate，linker 把字串擺別處 → fopen 空檔名 | `f44a0a1` |
 | F. math intrinsic 呼叫形式 | 白光柱特效在 86Box-macOS runaway page fault | math.h intrinsic 使 sqrt() emit 成 `CALL IF@DSQRT`（原版從未執行的路徑），86Box dynarec 誤執行回 0.0 → remap count=0 下溢 | `15d32073` |
 | G. stack-probe 分佈 | 音效初始化時 "Stack Overflow!" 終止 | crt/dpmi 支援單元帶了探測，AIL ISR 在私有堆疊（低於 _STACKLOW）呼叫 get_eflags thunk → 探測誤判溢位 | `395221d7` |
+| H. 折疊基底歸錯符號 | 教會復活：清單金額正確，確認對白與實際扣款金額卻不同 | 價格讀取抄成 `inventory_full_table[job_id + 5]`（該表只有 6 元素），那其實是原版折疊基底 `0x52669` 被歸給前一個符號；linker 把兩符號隔開後讀到鄰居 dialog-id 表 | `0c3ffe12` |
 
 **開場 hang（第一個 scene 後黑畫面）不另列** —— 它不是獨立 bug，是 E（fname）與 B（union REGS）
 兩個修復連帶解決的。
@@ -210,11 +211,48 @@ Layer-2 例外亦見 `../equivalence/rules.md`。
 
 ---
 
+## H. 折疊基底歸錯符號 -- 教會復活扣款金額與清單不符
+
+**症狀**：教會復活選單裡，候選人清單上每個人顯示的所需金額是對的；選定某人之後，教會人員
+確認對白講出的金額卻是另一個數字，按下確認實際扣掉的也是這個錯的金額。
+
+**根因（一句）**：`fd2_run_revive_menu_main` 的價格讀取被抄成
+`data_fd2_dialog_shop_inventory_full_dialog_text_id_table[job_id + 5]`，但該表只有 6 個元素 ——
+這個索引其實是原版折疊後的基底 `0x52669`（＝真正的 cost table `0x5266B` 減 2）被 Ghidra 歸給
+前一個符號的結果；linker 把兩個符號隔開 0x2E4 bytes 之後就讀到鄰居的 dialog-id 表。
+
+原版兩處讀的是**同一個位址**，所以報價與扣款不可能不一致：
+
+| 位置 | 指令 | 索引暫存器 |
+|---|---|---|
+| 清單 `fd2_render_promote_members_grid` @ `0x30B5A` | `MOVSX EAX, word ptr [EAX*2 + 0x5266B]` | `job_id - 1`（另有 DEC） |
+| 確認 `fd2_run_revive_menu_main` @ `0x30EE1` | `MOVSX ESI, word ptr [EAX*2 + 0x52669]` | `job_id`（-1 已折進基底） |
+
+兩式都等於 `0x52669 + 2 * job_id`。重建版讀到的鄰居值使金額完全走樣：`job_id = 1` 讀到
+`0x0001` → 只收「等級 × 1」；`job_id = 2` 讀到 `0x01F6` → 收「等級 × 502」（正解是 × 150）；
+`job_id` 再大就一路讀進浮點常數的位元組。
+
+**修法**（commit `0c3ffe12`）：改成與清單端同表同索引的
+`data_fd2_ui_per_job_revive_or_promote_cost_table[job_id - 1]`。改動只影響 EXE 4 個 byte、
+兩處（該 load 的 disp32 與其 fixup record 的 target）。
+
+**教訓 / 正典**：**eqcheck 驗不出這一類修正** —— 改動落在 fixup site 與其 record 上，正好是
+RELOC 層比對前會塗白的兩處，換掉 fixup 指向的符號會被判成 PASS[RELOC]。驗證要靠 WDISASM 反
+組譯 `.obj` 直接讀出 fixup 的符號名。與 E 類（硬編絕對位址）同源，都是「原版的位址在 rebuild
+不再成立」；差別在 E 是位址寫死成 immediate，H 是位址雖已 symbol 化、但綁到了錯的 symbol。
+判準與掃描器見 `../equivalence/rules.md` 的「跨符號讀取不變式」與 `../../tools/oob_index_audit/`。
+
+---
+
 ## 通用教訓
 
-這七類 bug 的共同點：編譯綠、單元測試綠都驗不出來，因為它們不是「function 算錯」，而是「function 在
+這八類 bug 的共同點：編譯綠、單元測試綠都驗不出來，因為它們不是「function 算錯」，而是「function 在
 真實環境的某個隱性契約上和原版不一致」—— 暫存器保存契約（A）、資料相鄰與順序（B）、資料號性（C）、
-熱迴圈時序（D）、絕對位址引用（E）、helper 呼叫形式（F）、stack-probe 分佈（G）。定位這類 bug 的主力
-手段是 host WDISASM 反組譯比對（把 `tests/OUT/obj/*.obj` 直接在 Windows 反組譯、對照 Ghidra 的原版
-反組譯），免 DOSBox；A（offset 留 EBX vs spill stack）、C（號性 JAE/JB vs JGE/JLE）、D（除法指令數）
-都是這樣抓到的。完整方法見 `workflow.md`。
+熱迴圈時序（D）、絕對位址引用（E）、helper 呼叫形式（F）、stack-probe 分佈（G）、位址所屬符號（H）。
+定位這類 bug 的主力手段是 host WDISASM 反組譯比對（把 `tests/OUT/obj/*.obj` 直接在 Windows 反組譯、
+對照 Ghidra 的原版反組譯），免 DOSBox；A（offset 留 EBX vs spill stack）、C（號性 JAE/JB vs
+JGE/JLE）、D（除法指令數）、H（fixup 的符號名）都是這樣抓到的。完整方法見 `workflow.md`。
+
+B / E / H 三類還有一個共同的排障啟發：**症狀是「數值或指標讀到不相干的東西」時，先問這個讀取在
+原版是不是靠 image layout 才成立的** —— 相鄰 scalar 被當 array（B）、位址寫死成 immediate（E）、
+位址綁到錯的 symbol（H），rebuild 的 linker 一重新擺放就全部失效。

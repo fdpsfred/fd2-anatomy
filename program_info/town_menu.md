@@ -188,9 +188,14 @@ promotion 表本身（`data_fd2_get_class_promotion_data_entry` 讀的表）欄�
 ## 教會復活
 
 `fd2_run_revive_menu_main`（typeC 游標 2）以 `fd2_build_dead_chars_list_for_revive` 建陣亡名單
-（runtime_char bFlags bit0 = 死亡），選一名後，費用 = 該角色等級 ×「per-job 費率表」對應項，玩家
-付得起且選「是」就扣款、清 bFlags、HP 補滿，播復活音效（BGM 0x11 -> 0x0B）後繼續。相關對話頁：
-無人陣亡 0x24C、復活誰 0x24D、付款確認 0x24E、金錢不足 0x1F8。
+（runtime_char bFlags bit0 = 死亡），選一名後，費用 =
+該角色等級 × `data_fd2_ui_per_job_revive_or_promote_cost_table[job_id - 1]`（@ 0x5266B，
+int16[30]）。候選清單上每人顯示的價格由 `fd2_render_promote_members_grid` 以**同一張表、同一個
+索引**算出，所以清單價與確認對白／實際扣款金額恆等 —— 這是必守的不變式，`fd2_run_revive_menu_main`
+的原版讀取把 -1 折進基底寫成 `[job_id*2 + 0x52669]`，不可誤當成前一個符號的越界索引（見
+`../rebuild_info/equivalence/rules.md`「跨符號讀取不變式」）。玩家付得起且選「是」就扣款、清
+bFlags、HP 補滿，播復活音效（BGM 0x11 -> 0x0B）後繼續。相關對話頁：無人陣亡 0x24C、復活誰
+0x24D、付款確認 0x24E、金錢不足 0x1F8。
 
 ## 出戰編成畫面
 

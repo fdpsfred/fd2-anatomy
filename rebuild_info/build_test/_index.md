@@ -11,7 +11,7 @@
 
 | 檔案 | 內容 |
 |---|---|
-| `playtest_bugs.md` | 實機 playtest 解過的 rebuild bug，按七個根因類別 A–G 整理（暫存器 clobber / BSS tentative scalar 相鄰 / 資料號性 / 熱迴圈時序 / 硬編位址 / math intrinsic 呼叫形式 / stack-probe 分佈），每筆含症狀 / 一句根因 / 教訓 / 排障經驗 / commit，機制細節指向正典 |
+| `playtest_bugs.md` | 實機 playtest 解過的 rebuild bug，按八個根因類別 A–H 整理（暫存器 clobber / BSS tentative scalar 相鄰 / 資料號性 / 熱迴圈時序 / 硬編位址 / math intrinsic 呼叫形式 / stack-probe 分佈 / 折疊基底歸錯符號），每筆含症狀 / 一句根因 / 教訓 / 排障經驗 / commit，機制細節指向正典 |
 | `workflow.md` | 建置 / 連結 / playtest 方法論：兩個建置目標（TEST / FD2.EXE）+ 雙 main、undefined symbol worklist 神諭、host WDISASM 反組譯比對法、DOSBox-X fault logging、結束偵測、真實檔案測試、診斷工具 |
 | `toolchain_quirks.md` | 重建任何 FD2 object 共通的低階 Watcom / DOS / DOSBox-X 陷阱（C89 / LFN / batch / rename / DOS4GW 啟動 / Ghidra label 重複）；AIL audio 專屬的見 `../ail/build_quirks.md` |
 

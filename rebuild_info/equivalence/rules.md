@@ -163,6 +163,38 @@ reader 讀到鄰居 garbage 指標 → 餵 `fd2_rle_blit_sprite` wild read → p
 struct member 升序相鄰，把「被當成連續記憶體取用」的區段 emit 成單一 aggregate 才能保證 layout。
 判斷準則是 caller 端的取用形態（copy loop / index / struct punning），不是 Ghidra 的自動切分。
 
+### 跨符號讀取不變式（禁越界索引）
+
+**`src/` 內任何對 global 表的索引都必須落在該表自己的宣告範圍內。** 索引一旦離開宣告邊界，
+這個讀取在原版其實是在讀**另一個符號**；原版靠兩者在 image 內相鄰才碰巧正確，rebuild 的
+linker 自由擺放後就會讀到不相干的資料。有兩種來源，都必須修到索引回到界內：
+
+**(a) 折疊基底被歸錯符號。** 編譯器常把常數索引調整折進位址位移：`cost_table[job_id - 1]`
+（`cost_table @ 0x5266B`）編成 `MOVSX ESI, word ptr [job_id*2 + 0x52669]`。折疊後的基底
+`0x52669` 落在**前一個**符號體內，Ghidra 於是把它呈現成 `prev_table[job_id + 5]`，照字面抄成
+C 就指向錯誤的符號。判準是：**還原出的索引最大值若超出宣告元素數，基底就是被歸錯了** ——
+要沿 `折疊基底 + stride * k == 真表起點` 解出真正的符號與 `- k` 索引再 emit。
+
+實證（教會復活收費）：`fd2_run_revive_menu_main` 的確認/扣款價若照字面抄成
+`data_fd2_dialog_shop_inventory_full_dialog_text_id_table[job_id + 5]`（該表只有 6 個元素），
+症狀是清單顯示的價格正確、確認對白與實際扣款卻是另一個金額 —— 原版這裡與清單渲染
+`fd2_render_promote_members_grid` 讀同一個位址所以兩者必定一致，rebuild 把兩個符號隔開
+0x2E4 bytes 之後就改讀鄰居的 dialog-id 表。正解是與清單端同表同索引的
+`data_fd2_ui_per_job_revive_or_promote_cost_table[job_id - 1]`。
+
+**(b) 宣告元素數短於索引定義域。** 表的宣告長度必須涵蓋 reader 索引變數的完整值域，不能只
+取 Ghidra 依「下一個符號起點」推出的 extent。實證：`data_fd2_battle_job_crit_rate_table` 由
+傷害計算以 `table[job_id - 1]` 讀取，job_id 最大 0x1C（沼澤怪 Dakuse 會物理攻擊）需要索引
+27，宣告成 `[27]` 就會讀到鄰居；正解是 `[28]` 並補上該筆值 0 —— 平行的
+`job_magic_resist_table[28]` 在索引 27 有實值 7，佐證定義域就是 28。
+
+(a) 可用 `tools/oob_index_audit/scan_oob_index.py` 對整個 `src/` 做靜態掃描。(b) 需要 reader
+索引變數的值域知識，掃描器無法判定，只能逐一從 disasm 與平行表確認。
+
+兩者都**不能靠 eqcheck 把關**：改動落在 fixup site 與其 fixup record 上，而 eqcheck 的 RELOC
+層在比對前正好會把這兩處塗白，換掉 fixup 指向的符號會被判成 PASS[RELOC]。這類修正要用
+WDISASM 反組譯 `.obj`、直接讀出 fixup 的符號名來驗證（見 `../../tools/src_refine/_index.md`）。
+
 ## Fall-through 六模式
 
 Ghidra 把每段連續 bytes 當獨立 Function entity，但原 binary 有多處「prev function 末尾

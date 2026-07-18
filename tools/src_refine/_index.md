@@ -15,6 +15,13 @@ LE fixup 順序/COMDEF 位置、破 byte-identical 但經 `eqcheck.py` 證功能
 | `src_refine.wf.js` | **Stage 1 workflow**（一 worktree 一實例）。serial 逐檔逐 symbol，每 symbol 一個 refiner agent：分析→refine src 註解+同步 Ghidra plate（**更新/建立 plate 後立即 save_program() 落地**，避免 Ghidra wedge/被 kill 時遺失）→**只記錄** 符號名與**每個參數名**改名判定（不 rename）→記 logic issue→寫 per-symbol shard→per-symbol commit（含 clobber 防線）。參數名改名同 protos.h/簽章（跨檔）故與符號名一樣延 Stage 2 套用。 |
 | `hash_check.py` | **Stage 1 build gate**：sha256(build 出的 FD2.EXE) 必 == `data/baseline_hash.txt`。byte-identical＝沒改到 code（只改註解時適用）。 |
 | `eqcheck.py` | **Stage 2 build gate**：rename 擾動 LE fixup 順序/COMDEF 位置（破 byte-identical），故用功能等價 gate。STRICT（Fixup Record Table 外 byte-identical + 該表同 byte multiset）或 RELOC（blank 每個 fixup site + 整張 fixup table 後 residual 相同）任一過即 PASS。baseline `data/baseline_eq.json`。 |
+
+**RELOC 層的盲點（必知）**：RELOC 在比對前會把每個 fixup site 與整張 Fixup Record Table 塗白，
+所以「**換掉某個 fixup 指向的符號**」對它完全隱形 —— 這種改動只動到 site 的 disp32 與該筆 record
+的 target 欄位，會被判成 PASS[RELOC]，但語意已經改變。跨符號讀取修正（見
+`../../rebuild_info/equivalence/rules.md`「跨符號讀取不變式」）不能拿 eqcheck 當驗證，要用
+WDISASM 反組譯 `.obj`、直接讀出 fixup 的符號名確認。反過來說，這也表示 eqcheck PASS 只保證
+「沒有新增的 code/data 位元組差異」，不保證「fixup 全指向原本的符號」。
 | `merge_shards.py` | 所有 shard → `data/src_info.json`(address 主鍵) + `data/src_info_by_name.json`(name→addr，current+final) + `data/src_issues.json`(ISS-####) + global 的 reader/writer_fns 反向關聯。 |
 
 ## 狀態 source of truth / 續跑

@@ -38,9 +38,10 @@ toolchain、vendor lib、連結環境與 ABI 細節，維護 `src/` 時要守住
 ## 實機 playtest 根因
 
 `build_test/playtest_bugs.md` 是「Layer-2 功能等價 emit 在真實遊戲執行時悄悄偏離原版」這類 bug 的
-正典，按七個根因類別 A–G 整理：A 跨 vendor 呼叫的暫存器 clobber、B Watcom BSS/COMDEF tentative
+正典，按八個根因類別 A–H 整理：A 跨 vendor 呼叫的暫存器 clobber、B Watcom BSS/COMDEF tentative
 scalar 相鄰與順序、C 資料型別號性、D 熱迴圈 codegen 時序、E 硬編絕對位址、F math intrinsic 呼叫
-形式、G stack-probe 分佈。每類含症狀、一句根因、教訓與排障經驗，機制細節指向對應正典。
+形式、G stack-probe 分佈、H 折疊基底歸錯符號。每類含症狀、一句根因、教訓與排障經驗，機制細節指向
+對應正典。
 
 ## 對照組資料
 
