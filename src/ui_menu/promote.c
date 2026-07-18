@@ -163,10 +163,16 @@ int fd2_revive_member_select_loop(uint32 candidate_count, uint8 *candidate_idx_l
  *     0x24C) and return.
  *   - Greeting "revive whom?" (0x24D), then run the candidate picker.
  *     Esc (-1) exits.
- *   - Compute price = char.bLevel * price_table[char.bJob_id + 5]
- *     (the per-job multiplier table that aliases the shop "inventory
- *     full" dialog-id table @ 0x5265F). Store dialog substitution
- *     params (sprite id = bChar_id + 1, value = price).
+ *   - Compute price = char.bLevel * per_job_revive_cost_table[job_id - 1]
+ *     (@ 0x5266B) -- the SAME table and index the candidate-grid renderer
+ *     fd2_render_promote_members_grid quotes from, so the confirmed /
+ *     charged price always matches the listed one. The asm folds the -1
+ *     into the base: MOVSX ESI, word ptr [job_id*2 + 0x52669], where
+ *     0x52669 == cost_table - 2 lands inside the preceding int16[6]
+ *     shop "inventory full" dialog-id table @ 0x5265F. That folded base
+ *     is an encoding artifact, NOT an overflow read of the neighbour.
+ *     Store dialog substitution params (sprite id = bChar_id + 1,
+ *     value = price).
  *   - Confirm "pay X gold?" (0x24E). On yes (cursor 0) with enough
  *     gold: deduct, clear bFlags, full-restore HP, redraw money panel,
  *     play revive fanfare (BGM 0x11) then return to ambient (BGM 0x0B),
@@ -1012,8 +1018,8 @@ void fd2_run_revive_menu_main(void)
             (uint32)rc[chosen_idx].char_id + 1;
         data_fd2_dialog_last_action_value_param =
             (uint32)rc[chosen_idx].status_flags_block[0] *
-            (int32)data_fd2_dialog_shop_inventory_full_dialog_text_id_table
-                [rc[chosen_idx].job_id + 5];
+            (int32)data_fd2_ui_per_job_revive_or_promote_cost_table
+                [rc[chosen_idx].job_id - 1];
 
         fd2_display_dialog_scene(data_fd2_all_game_text_ptr, 0x24e,
             0xa94cc, 0x140, 0xcd, 0x4c, 0x4a, 0x13, 1);

@@ -101,10 +101,20 @@ const int32 data_fd2_ui_tactical_overview_team_colors_table[3] = { 0x20, 0x50, 0
  *
  * Per-job cost multiplier used to price the revive/promote candidate grid:
  * 30 x int16 (signed short), indexed by (job_id - 1) where job_id is 1..0x1A.
- * The sole reader fd2_render_promote_members_grid (@ 0x30A47) computes the
- * displayed price as:
+ * Both readers compute the same price:
  *     price = char.bLevel * cost_table[char.bJob_id - 1]
- * then renders it as an orange 5-digit decimal beside a coin icon. The element
+ *   fd2_render_promote_members_grid @ 0x30A47 -- the price listed per
+ *     candidate in the revive grid; renders it as an orange 5-digit decimal
+ *     beside a coin icon. Encodes the base directly: [job_id*2 + 0x5266B]
+ *     with a separate DEC of job_id.
+ *   fd2_run_revive_menu_main @ 0x30DC3 -- the price quoted in the "pay X
+ *     gold?" confirmation and then deducted from party gold. Here the
+ *     compiler folded the -1 into the base: [job_id*2 + 0x52669], and
+ *     0x52669 == this table - 2 falls inside the preceding int16[6] table
+ *     @ 0x5265F. That is a folded-base encoding artifact only; reading it
+ *     as an index into that neighbour would make the charged price diverge
+ *     from the listed one.
+ * The element
  * access uses a (signed short) load sign-extended to int -- a stride-2 / 16-bit
  * read (the older Ghidra plate showed BYTE_ARRAY[(job_id - 1) * 2], i.e. byte
  * stride 2). All stored values are positive (max 3000), so the sign extension

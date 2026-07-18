@@ -1,18 +1,31 @@
-427bf7857c7b91172950da54ecfd78dd8f423b27c91513901b5d43a55f94d5a4
+5f5b63b8fee72e36c69e6248c96158ec0eaf089b636a8f0761d8ceef912f1532
 # FD2.EXE production build sha256 (sha256sum of workspace/fd2_build/exe/out/FD2.EXE)
-# ADVANCED 2026-07-10: current HEAD build (chevt handler audit closeout, e88a30c).
-#   Delta vs the prior baseline = the committed src changes since c6fcda29, which include:
-#     e68665c7 -- data_fd2_battle_job_crit_rate_table [27] -> [28]: reserve the class_id 0x1C
-#                 crit entry (value 0) that the damage code reads via table[job_id-1] (verified:
-#                 the read is an unbounded MOVZX [job_id-1 + 0x5239B]; class 0x1C = Dakuse /
-#                 swamp monster does physical attacks and indexes element 27; the parallel
-#                 job_magic_resist_table[28] has a real value 7 at element 27, fixing the domain
-#                 at 28). A [27] array leaves index 27 reading a neighbour in the freely-linked
-#                 Layer-2 build.
-#     kb-overhaul data/comment refinements and byte-neutral chevt/symbol renames.
-#   Verified: a fresh deterministic rebuild is byte-identical to this sha256, and eqcheck
-#   (baseline_eq.json, regenerated from this same build) is PASS[STRICT]. 336669 bytes,
-#   0 undefined symbols, Watcom 9.5a in DOSBox-X. User-requested advance.
+# ADVANCED 2026-07-19: church-revive price folded-base fix.
+#   Delta vs the prior baseline = 4 bytes, in 2 places, both the same value:
+#     the disp32 of the revive-price load in fd2_run_revive_menu_main, plus the
+#     target field of its LE fixup record. The confirm/charge path was reading
+#     data_fd2_dialog_shop_inventory_full_dialog_text_id_table[job_id + 5]; that
+#     index is the ORIGINAL's folded base 0x52669 (== the real cost table
+#     0x5266B minus 2) re-attributed by Ghidra to the preceding int16[6] symbol.
+#     The two symbols are adjacent only in the original image -- wlink separates
+#     them by 0x2E4 bytes -- so the rebuild quoted and charged a price read out
+#     of a neighbouring dialog-id table while the candidate grid listed the
+#     correct one. Now reads
+#     data_fd2_ui_per_job_revive_or_promote_cost_table[job_id - 1], the same
+#     table and index the grid renderer uses.
+#   NOTE: eqcheck alone cannot gate this class of change -- the edited bytes ARE
+#   a fixup site plus its record, both of which the RELOC tier blanks before
+#   comparing, so a changed fixup TARGET reads as PASS[RELOC]. Re-attribution
+#   fixes must be verified by symbolic disassembly of the .obj (WDISASM), not by
+#   eqcheck.
+#   Verified: 336669 bytes, 0 undefined symbols, Watcom 9.5a in DOSBox-X;
+#   logic net 29/29 and playthrough suite 5/5 pass.
+#   Both this fix and the neighbour-read hazard behind it are documented in
+#   rebuild_info/equivalence/neighbour_reads.md.
+# Prior baseline: 427bf7857c7b91172950da54ecfd78dd8f423b27c91513901b5d43a55f94d5a4
+#   (2026-07-10 HEAD, chevt handler audit closeout e88a30c; included e68665c7
+#   data_fd2_battle_job_crit_rate_table [27] -> [28], the array-too-short variant
+#   of the same neighbour-read hazard, 336669 bytes).
 # Prior baseline: 3b3a045373c7d3b1b18364b4c0d7245aa69584ad00c0d0829612edecee036036
 #   (2026-07-08 HEAD after math.h-intrinsics-off 15d32073 + stack-probe restore 395221d7, 336669 bytes).
 # Prior baseline: 2f2e12da2205f917175ba676722ee5d3355814446d7f302c74914c115c44958d

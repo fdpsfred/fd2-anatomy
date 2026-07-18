@@ -43,9 +43,14 @@ const int32 data_fd2_dialog_advance_collapse_template[4] = { 0x10, 0x11, 0x10, 0
  * accessed *(short *)(base + cursor_state*2), confirming int16 stride.
  * Read-only constant table; no writers.
  *
- * NOTE: the adjacent symbol data_fd2_ui_per_job_revive_or_promote_cost_table
- * @ 0x5266B (read [job_id-1] by fd2_render_promote_members_grid) is a SEPARATE
- * symbol with its own xref, NOT an overflow alias of this one.
+ * NOTE: this table has exactly 6 elements and no reader indexes past them.
+ * The adjacent symbol data_fd2_ui_per_job_revive_or_promote_cost_table
+ * @ 0x5266B is a SEPARATE symbol with its own xrefs, NOT an overflow alias
+ * of this one. fd2_run_revive_menu_main reads that cost table through the
+ * compiler-folded base [job_id*2 + 0x52669] (== cost_table - 2), which
+ * Ghidra renders as an index into the tail of THIS table; transcribing it
+ * that way is wrong, because the two symbols are only adjacent in the
+ * original image and the linker is free to separate them on a rebuild.
  */
 const int16 data_fd2_dialog_shop_inventory_full_dialog_text_id_table[6] = {
     0x0001, 0x01FA, 0x0001, 0x01FA, 0x01FA, 0x01FA
