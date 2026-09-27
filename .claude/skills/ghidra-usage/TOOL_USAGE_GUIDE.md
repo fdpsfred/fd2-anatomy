@@ -17,8 +17,8 @@ create_and_apply_data_type(address, "PRIMITIVE", '{"type": "dword"}', "dwName", 
 ```python
 # ✅ RELIABLE - Use separate, proven tools
 apply_data_type(address, "dword")           # Step 1: Apply type
-rename_or_label(address, "dwName")          # Step 2: Rename with Hungarian notation
-set_decompiler_comment(address, "comment")  # Step 3: Add documentation
+rename_symbol(address, "dwName")          # Step 2: Rename with Hungarian notation
+set_comment(address, "comment", type='pre')  # Step 3: Add documentation
 ```
 
 ## Complete Workflow Pattern
@@ -32,10 +32,10 @@ set_decompiler_comment(address, "comment")  # Step 3: Add documentation
 apply_data_type(address, type_name)
 
 # 2. Rename with Hungarian notation
-rename_or_label(address, hungarian_name)
+rename_symbol(address, hungarian_name)
 
 # 3. Set documentation (in Step 6)
-set_decompiler_comment(address, documentation)
+set_comment(address, documentation, type='pre')
 ```
 
 ### Supported Type Names for apply_data_type()
@@ -63,7 +63,7 @@ set_decompiler_comment(address, documentation)
 
 ## Hungarian Notation Reference
 
-Always use type prefixes in step 2 (rename_or_label):
+Always use type prefixes in step 2 (rename_symbol):
 
 | Type | Prefix | Examples |
 |------|--------|----------|
@@ -86,7 +86,7 @@ Always use type prefixes in step 2 (rename_or_label):
 ## Documentation Pattern
 
 ```python
-# After apply_data_type() and rename_or_label() succeed:
+# After apply_data_type() and rename_symbol() succeed:
 
 documentation = """================================================================================
                     [TYPE] [Hungarian Name] @ [Address]
@@ -101,7 +101,7 @@ PURPOSE:
 [Additional relevant sections]
 """
 
-set_decompiler_comment(address, documentation)
+set_comment(address, documentation, type='pre')
 ```
 
 ### Documentation Template Sections
@@ -131,11 +131,11 @@ apply_data_type("0x0040bc08", "char[6]")
 # Returns: "Successfully applied data type 'char[6]' at 0x0040bc08 (size: 6 bytes)"
 
 # Step 3b: Rename with Hungarian notation
-rename_or_label("0x0040bc08", "szVideoSection")
+rename_symbol("0x0040bc08", "szVideoSection")
 # Returns: "Success: Renamed defined data at 0x0040bc08 to 'szVideoSection'"
 
 # Step 6: Set documentation
-set_decompiler_comment("0x0040bc08", """================================================================================
+set_comment(type='pre', "0x0040bc08", """================================================================================
                     STRING szVideoSection @ 0x0040BC08
 ================================================================================
 TYPE: char[6] (6 bytes) - Null-terminated ASCII string
@@ -157,39 +157,39 @@ XREF COUNT: 2 references
 
 ### For Primitives (1-8 bytes)
 1. `apply_data_type()` with primitive type name
-2. `rename_or_label()` with `dw`, `w`, `n`, or `b` prefix
-3. `set_decompiler_comment()` with documentation
+2. `rename_symbol()` with `dw`, `w`, `n`, or `b` prefix
+3. `set_comment(type='pre')` with documentation
 
 ### For Strings
 1. `apply_data_type()` with `"char[N]"` or `"wchar_t[N]"`
-2. `rename_or_label()` with `sz` or `wsz` prefix
-3. `set_decompiler_comment()` with documentation
+2. `rename_symbol()` with `sz` or `wsz` prefix
+3. `set_comment(type='pre')` with documentation
 
 ### For Pointers
 1. `apply_data_type()` with `"pointer"`
-2. `rename_or_label()` with `p` or `lp` prefix
-3. `set_decompiler_comment()` with documentation
+2. `rename_symbol()` with `p` or `lp` prefix
+3. `set_comment(type='pre')` with documentation
 
 ### For Arrays
 1. `apply_data_type()` with `"type[count]"` (e.g., `"dword[64]"`)
-2. `rename_or_label()` with type prefix (e.g., `adwValues`)
-3. `set_decompiler_comment()` with documentation
+2. `rename_symbol()` with type prefix (e.g., `adwValues`)
+3. `set_comment(type='pre')` with documentation
 
 ### For Structures
 1. `create_struct()` to define the structure with fields
 2. `apply_data_type()` with structure name
-3. `rename_or_label()` with descriptive instance name
+3. `rename_symbol()` with descriptive instance name
 4. `modify_struct_field()` if fields need renaming/type changes
-5. `set_decompiler_comment()` with documentation
+5. `set_comment(type='pre')` with documentation
 
 ## Error Prevention Checklist
 
 - ✓ Use `apply_data_type()` with string type names (not dicts)
-- ✓ Use `rename_or_label()` for naming (it auto-detects data vs code)
+- ✓ Use `rename_symbol()` for naming (it auto-detects data vs code)
 - ✓ Always include Hungarian notation prefix in names
 - ✓ Use `char[N]` format for strings (not just `char`)
 - ✓ Use hex sizes for padding: `_1[0x158]` not `_1[344]`
-- ✓ Call `set_decompiler_comment()` AFTER type and name are set
+- ✓ Call `set_comment(type='pre')` AFTER type and name are set
 - ✓ Include header banner and all mandatory sections in documentation
 
 ## Related Tools
@@ -205,8 +205,88 @@ XREF COUNT: 2 references
 - `get_bulk_xrefs(addresses)` - Get cross-references
 
 **For validation:**
-- `validate_data_type_exists(type_name)` - Check if type exists
+- `validate_data_type(type_name)` - Check if type exists
 - `can_rename_at_address(address)` - Check what operation is appropriate
+
+## Per-Program Storage: Options and Property Maps (v5.17.0+)
+
+Two typed stores that live *inside* the Ghidra program database, so anything
+written here travels with the `.gzf` and survives a re-open.
+
+### Program options — per-program settings and metadata
+
+Read or write any typed option in any group (Program Information, Analyzers,
+Decompiler, …).
+
+```text
+list_option_groups(program="")                       -> group names
+get_program_options(group, program="")               -> {name: value} in that group
+set_program_option(group, name, value, type="", program="")
+remove_program_option(group, name, program="")
+```
+
+`set_program_option` infers the type from an existing option when `type` is
+omitted, accepts `string|int|long|double|float|boolean`, and creates custom
+options on demand — which makes it a durable place to record project-level
+facts (e.g. a curation pass version) without inventing a side file.
+
+### Property maps — typed per-address key→value stores
+
+Where a comment is prose, a property is data. Use these when you need
+structured per-address values you can query back exactly.
+
+```text
+list_property_maps(program="")                       -> existing maps + types
+create_property_map(name, type, program="")          -> type: int|long|string|void
+set_property(name, address, value, program="")
+get_property(name, address, program="")
+list_properties(name, program="")                    -> every address carrying it
+remove_property(name, address, program="")
+delete_property_map(name, program="")
+```
+
+A `void` map is a pure marker set (address is either in it or not) — ideal for
+"reviewed" / "needs-rework" flags. For richer records, store JSON in a
+`string` map. Object maps are read-only: they require a registered `Saveable`
+type that can't be created over HTTP.
+
+**Gotcha:** as with every write endpoint, `program` is a *query* parameter.
+Omitting it writes to whichever program is active, which is how per-program
+data leaks into the wrong binary during multi-version work.
+
+## Comments (any address)
+
+`get_comment` / `set_comment` work at **any** address — data and undefined
+bytes included, not just function entries — and cover all five Ghidra comment
+types (`plate`, `pre`, `post`, `eol`, `repeatable`):
+
+```text
+get_comment(address, program="")
+set_comment(address, comment, type="plate|pre|eol|post|repeatable", program="")
+```
+
+`type` also accepts the aliases `decompiler` (= `pre`) and `disassembly`
+(= `eol`). In 7.0.0 this pair absorbed the function-only
+`set_plate_comment` / `set_decompiler_comment` / `set_disassembly_comment` /
+`get_plate_comment` tools, so it is now the only comment reader/writer you
+need — including for the "every documented global carries a comment" rule.
+Passing an empty `comment` clears that comment type at the address.
+
+## Flow Repair (v5.17.0+)
+
+```text
+set_function_no_return(address, no_return, program="")
+clear_flow_and_repair(address, program="")
+```
+
+`set_function_no_return` synchronizes the flag across every thunk hop and the
+terminal target, and its response reports the verified `function_no_return` /
+`terminal_no_return` state — trust that, not the request you sent.
+
+When a function was *wrongly* marked no-return, clearing the flag alone does
+not restore the call fallthrough that Ghidra already deleted. Run
+`clear_flow_and_repair(address)` afterwards to rebuild the damaged flow
+without a full re-analysis.
 
 ## Cross-Binary Documentation Propagation (v1.9.4+)
 
@@ -320,17 +400,65 @@ Brute-force API-hash resolution. Iterates a candidate list through a hash functi
 
 Workflow: locate the hash function (`search_byte_patterns`, `detect_crypto_constants`, or `search_functions`), identify input/output registers (`get_function_variables` or `analyze_dataflow`), supply a candidate list per suspected source DLL, feed the target hash from the call site.
 
-### `debugger_*` family (22 tools, GUI-only)
+### `debugger_*` families (GUI-only)
 
-Proxied to a standalone Python debugger server via `GHIDRA_DEBUGGER_URL` (default `http://127.0.0.1:8099`). Wraps Ghidra's `DebuggerTraceManagerService`, `DebuggerLogicalBreakpointService`, and `TraceRmiLauncherService`. Backend depends on the TraceRmi launcher chosen at attach time:
+There are **two independent debugger tool families** with different backends. Pick by
+platform/target. Both require a CodeBrowser with the **Window > Debugger** view open.
 
-- Windows PE targets: `dbgeng` (WinDbg engine)
-- Linux ELF: `gdb`
-- macOS Mach-O: `lldb`
+#### A. TraceRmi family — in-process, cross-platform (use this on Linux/macOS)
 
-Covers: `debugger_attach`, `debugger_status`, `debugger_step_{into,over,out}`, `debugger_{set,remove,list}_breakpoints`, `debugger_registers`, `debugger_read_memory`, `debugger_stack_trace`, `debugger_modules`, `debugger_trace_{function,start,stop,log,list}`, `debugger_watch_{memory,stop,log}`, `debugger_resolve_ordinal`, `debugger_read_args`, `debugger_continue`, `debugger_detach`.
+Server-side `@McpTool` endpoints (`/debugger/*` in `DebuggerService.java`) that drive
+**Ghidra's own native debugger** via `TraceRmiLauncherService`. The launcher chosen at
+launch time selects the backend:
 
-Use for: ground-truth validation after static analysis. After emulation resolves a hash, set a breakpoint on the resolved API and confirm the process actually calls it.
+- Linux ELF: `gdb`  ·  macOS Mach-O: `lldb`  ·  Windows PE: `dbgeng`
+
+Tools: `debugger_launch`, `debugger_launch_offers`, `debugger_status`, `debugger_resume`,
+`debugger_interrupt`, `debugger_step_{into,over,out}`, `debugger_{set,remove,list}_breakpoints`,
+`debugger_registers`, `debugger_read_memory`, `debugger_stack_trace`, `debugger_modules`,
+`debugger_traces`, `debugger_static_to_dynamic`, `debugger_dynamic_to_static`.
+
+These ship with the plugin and need no extra processes — they appear in `/mcp/schema`
+on every platform.
+
+**gdb-on-Linux workflow:**
+
+```text
+1. In CodeBrowser: Window > Debugger  (one-time, GUI — TraceRmi is GUI-only)
+2. debugger_launch_offers()                  # lists gdb local/remote/ssh launchers
+3. debugger_launch(executable_path="...")    # starts the target under gdb
+4. debugger_set_breakpoint(...) / debugger_registers() / debugger_read_memory(...)
+5. debugger_step_into() / debugger_resume() / debugger_interrupt()
+6. debugger_static_to_dynamic(...) maps a Ghidra (static) address to the live
+   process; debugger_dynamic_to_static(...) goes the other way.
+```
+
+#### B. WinDbg proxy family — standalone dbgeng server (Windows only)
+
+22 static bridge tools proxied to a standalone Python server via `GHIDRA_DEBUGGER_URL`
+(default `http://127.0.0.1:8099`), which wraps **dbgeng/WinDbg via `pybag`** —
+**Windows-only** (`pybag` requires `pywin32`). Adds dbgeng-specific capabilities the
+TraceRmi family doesn't have: attach-by-process-name, ordinal resolution, argument
+reads, and the trace/watch loops.
+
+Tools: `debugger_attach`, `debugger_detach`, `debugger_continue`,
+`debugger_resolve_ordinal`, `debugger_read_args`, `debugger_trace_{function,stop,log,list}`,
+`debugger_watch_{memory,stop,log}` (plus dbgeng versions of status/step/breakpoint/
+registers/memory/stack/modules).
+
+**Registration is platform-gated** (`_debugger_enabled()` in the bridge): on non-Windows
+hosts with a local `GHIDRA_DEBUGGER_URL` these tools are **not registered** (they could
+never work), which also frees the shared `debugger_*` names for the TraceRmi family above.
+They register when: running on Windows, `GHIDRA_DEBUGGER_URL` points at a remote
+(Windows) host running the server, or `GHIDRA_DEBUGGER_TOOLS=1` forces them on.
+
+> Naming note: where the two families share a name (e.g. `debugger_status`), only one
+> can hold the clean name. On non-Windows the TraceRmi tool wins; on Windows (both
+> active) the dbgeng proxy holds the clean name and the TraceRmi endpoint is suffixed
+> `_2` (e.g. `debugger_status_2`).
+
+Use either family for: ground-truth validation after static analysis. After emulation
+resolves a hash, set a breakpoint on the resolved API and confirm the process calls it.
 
 ## Function Tagging
 
@@ -341,14 +469,14 @@ Two layers:
 - **Tag definitions** (program-wide): `create_function_tag`, `delete_function_tag`, `set_function_tag_comment`, `list_function_tags`.
 - **Per-function attachment**: `add_function_tag`, `remove_function_tag`, `get_function_tags`, `search_functions_by_tag`. Attaching a tag by name auto-creates the definition if it doesn't already exist.
 
-Batch variants: `batch_add_function_tags` / `batch_remove_function_tags` take an array of `{function, tags}` objects and run the whole set in one transaction. Use these when tagging a sweep result — single-call instead of N round-trips.
+Batch variants: `add_function_tag` / `remove_function_tag` take an array of `{function, tags}` objects and run the whole set in one transaction. Use these when tagging a sweep result — single-call instead of N round-trips.
 
 Worked pattern — sweep + curate:
 
 ```python
 # After locating all crypto routines via detect_crypto_constants / search_byte_patterns,
 # tag them with one batch call:
-batch_add_function_tags(assignments=[
+add_function_tag(assignments=[
     {"function": "0x401abc",  "tags": "crypto,aes"},
     {"function": "0x401d40",  "tags": "crypto,sha256"},
     # ...
@@ -369,9 +497,11 @@ GhidraMCP defaults to localhost-unauthenticated — safe on a single-user dev bo
 |---|---|
 | `GHIDRA_MCP_AUTH_TOKEN` | When set, every HTTP request must carry `Authorization: Bearer <token>`. Timing-safe comparison. `/mcp/health`, `/health`, `/check_connection` are always exempt. |
 | `GHIDRA_MCP_ALLOW_SCRIPTS` | Set to `1`, `true`, or `yes` to enable `/run_script_inline` and `/run_ghidra_script`. **Off by default as of v5.4.1** (breaking change — these endpoints execute arbitrary Java against the Ghidra process). |
-| `GHIDRA_MCP_FILE_ROOT` | When set, filesystem-path endpoints (`/import_file`, `/open_project`, `/delete_file`, etc.) canonicalize the input and require it to fall under this root. |
+| `GHIDRA_MCP_FILE_ROOT` | When set, filesystem-path endpoints (`/load_program`, `/import_file`, `/open_project`, `/delete_file`, etc.) canonicalize the input and require it to fall under this root. |
 
 The headless server refuses to start on a non-loopback bind address (`0.0.0.0`, explicit external IP) unless `GHIDRA_MCP_AUTH_TOKEN` is set.
+
+**The MCP bridge reads the same `GHIDRA_MCP_AUTH_TOKEN`** and attaches `Authorization: Bearer <token>` to every outbound call (UDS and TCP). Export the same token in the bridge's environment — otherwise it will hit `401 Unauthorized` on every tool call to an auth-enabled server. Unset = no header (matches the localhost default).
 
 ### Worked example — exposing to a private LAN with auth
 
@@ -382,3 +512,13 @@ export GHIDRA_MCP_FILE_ROOT=/srv/ghidra/inputs
 
 java -jar GhidraMCPHeadless.jar --bind 0.0.0.0 --port 8089
 ```
+
+---
+
+## Two Documentation Metrics: Hygiene vs Truth
+
+`analyze_function_completeness` is a **hygiene** score: it verifies documentation is *present and well-formed* (name quality, plate sections, typed params). It is computed entirely from the documentation, so it cannot detect a claim that is confidently wrong — a plate describing an algorithm the code does not implement still scores 100.
+
+The **truth** axis is falsifiability (`fun-doc/falsify.py`): mechanical, model-free checks that compare documentation claims against disassembly facts — declared calling convention vs the callee's actual `RET n`, plate-documented parameters vs the live signature, reader-verb names (`Get*`/`Is*`) on functions that write globals, plate/prototype return contradictions. Tier-1 (mechanically certain) findings mark the function `DOC_REFUTED`, stamp an idempotent `[AUDIT falsify:*]` plate flag, force an audit pass seeded with the contradiction, and keep the function in the work queue regardless of its score.
+
+Operationally: treat a high completeness score as "the form is filled in", never as "the content is verified". When a plate carries an `[AUDIT falsify:*]` flag, resolving that contradiction — by correcting the documentation to match the disassembly, never the reverse — takes priority over any score-driven work.

@@ -1,191 +1,96 @@
 ---
 name: ghidra-usage
-description: >-
-  Battle-tested Ghidra MCP workflows for reverse-engineering binaries:
-  documenting functions (V5 7-step process), naming variables / globals /
-  strings with Hungarian notation, investigating and creating data-type
-  structures, discovering orphaned code in the gaps between known functions,
-  and matching functions across binary versions. Use whenever you work with the
-  Ghidra MCP tools (decompile_function, set_function_prototype, rename_variables,
-  apply_data_type, rename_or_label, batch_set_comments, create_struct,
-  analyze_function_completeness, emulate_function, analyze_dataflow, etc.) to
-  analyze or annotate a binary. Encodes the correct retry-free tool patterns and
-  the ordering rules that stop later steps from clobbering earlier work.
+description: Ghidra MCP reverse engineering — use when documenting decompiled functions, typing variables or discovering structs, naming globals in .data/.rdata, labeling strings, hunting orphaned code, or customizing naming conventions in a Ghidra program.
 ---
 
-# Ghidra MCP Reverse-Engineering Workflows
+# Ghidra MCP reverse engineering
 
-A library of prompts refined across thousands of functions for documenting and
-analyzing binaries in Ghidra through the MCP tool surface. This file is the
-entry point: it tells you which workflow file to open for the task at hand,
-and inlines the universal rules and tool patterns that every workflow assumes.
+Conventions and workflows for annotating a binary through the Ghidra MCP server, refined across thousands of functions. Everything on this page holds in every pass; each pass's own procedure sits behind a pointer in **Pick the pass** at the bottom.
 
-The worked examples in the reference files use Diablo II module names
-(`D2Client.dll`, `UnitAny`, ordinals, …) because that is where the prompts were
-hardened — but the workflows are binary-agnostic. Apply them to whatever program
-is open in the current Ghidra instance.
+## Before the first write
 
-## When to use this skill
+1. `check_connection`. On refusal, stop and tell the user to open a program in CodeBrowser and start the server (Tools ▸ GhidraMCP ▸ Start MCP Server), or run `ghidra-mcp-setup.ps1 -Deploy`. Dispatch no subagents past a refused connection — they fail identically.
+2. `get_current_program_info`. `program` is a *query* parameter on every write endpoint: omit it and the write lands on whichever program is active, which is how annotations leak into the wrong binary during multi-version work.
 
-Reach for it the moment a task touches Ghidra annotation or analysis:
+## Rules
 
-- Documenting a function: name, prototype, variable types, plate + inline comments.
-- Naming data: globals, strings, lookup tables, struct instances, function pointers.
-- Discovering a data structure's layout and applying it across every accessor.
-- Finding functions auto-analysis missed (orphaned code between known boundaries).
-- Propagating documentation across versions of the same binary.
-- Any time you are unsure which MCP tool to use, or hit a tool that errors on retry.
+- **In-place.** Changes land in the Ghidra database through MCP tools. Write no filesystem files.
+- **Native tools.** `run_script_inline` and `run_ghidra_script` return 403 unless `GHIDRA_MCP_ALLOW_SCRIPTS=1` (they execute arbitrary Java against the Ghidra process). Do the work with native MCP tools.
+- **Tool names drift.** These files span many server versions. The loaded MCP tool list is the authority — when a documented name is absent, find its live equivalent there. Known drift: 7.0.0 collapsed `set_plate_comment` / `set_decompiler_comment` / `set_disassembly_comment` into `set_comment(address, comment, type=…)`, and `set_variable_type` appears as `set_local_variable_type` on older builds.
+- **Type-first.** Resolve a symbol's type before naming it — a Hungarian prefix on an `undefined*` variable is a claim the storage does not support. When the type stays unknowable, give a descriptive name with no type prefix (`questBits`, not `dwQuestBits`).
+- **Prefix matches type.** After every prototype or type write, check each name's prefix against its actual storage type. `pGame` typed `int` is a violation: fix the type to a pointer. A variable that is dereferenced or does offset arithmetic is a pointer, whatever the decompiler displays.
+- **Storage, not display.** The decompiler shows `int` or `FILE*` while storage remains `undefined4`. Only `get_function_variables` reveals real storage types — call it explicitly rather than trusting an analysis summary, and call it again after type changes to catch new SSA variables.
+- **Batch.** One `rename_variables` dict, one `batch_set_comments` (plate + PRE + EOL together), one `create_label` array. Never loop single-item calls. Retry a network timeout up to 3 times, then shrink the batch.
+- **Overwrite.** On a re-pass, replace existing names and comments whenever the fresh analysis is better — custom values included.
+- **The disassembly is the authority.** `analyze_function_completeness` scores *hygiene*: documentation present and well-formed. It is computed from the documentation, so a confidently wrong plate still scores 100. Truth is a separate axis, checked mechanically by `fun-doc/falsify.py` — declared calling convention vs the callee's actual `RET n`, plate parameters vs the live signature, `Get*`/`Is*` names on functions that write globals, plate/prototype return contradictions. A tier-1 contradiction stamps `DOC_REFUTED`, flags the plate `[AUDIT falsify:*]`, and re-queues the function regardless of score. So assert only what the disassembly supports — a bare `RET` with stack args is cdecl no matter what the decompiler guessed. When a plate carries an `[AUDIT falsify:*]` flag, resolving it is the pass's first job, and you correct the documentation to match the disassembly, never the reverse.
 
-## Choosing a workflow
+## Hungarian notation
 
-| Goal | Open |
-|------|------|
-| **Document one function** (primary workflow) | `FUNCTION_DOC_WORKFLOW_V5.md` |
-| **Find undiscovered / orphaned code** | `ORPHANED_CODE_DISCOVERY_WORKFLOW.md` |
-| **Investigate a struct / parameter type** (full) | `DATA_TYPE_INVESTIGATION_WORKFLOW.md` |
-| **Investigate a simple type** (abbreviated) | `DATA_TYPE_INVESTIGATION_QUICK.md` |
-| **Document `.data` / `.rdata` globals** | `DATA_SECTION_WORKFLOW.md`, `GLOBAL_DATA_ANALYSIS_WORKFLOW.md` |
-| **Label every defined string** | `STRING_LABELING_CONVENTION.md` |
-| **Match functions across binary versions** (full) | `CROSS_VERSION_MATCHING_COMPREHENSIVE.md` |
-| **Match functions across versions** (quick) | `CROSS_VERSION_FUNCTION_MATCHING.md` |
-| **Order for documenting a binary family** | `BINARY_DOCUMENTATION_ORDER.md` |
-| **MCP tool reference & type-application patterns** | `TOOL_USAGE_GUIDE.md` |
-| **Change the enforced naming conventions** | `CUSTOMIZING_CONVENTIONS.md` |
-
-`README.md` carries the same index in its original form. Read the chosen file in
-full before acting — these workflows are precise about ordering and tool choice.
-
-## Universal rules (every workflow assumes these)
-
-1. **Ordering — name/type before comment.** Complete ALL naming, prototype, and
-   type changes BEFORE writing the plate comment and inline comments.
-   `set_function_prototype` wipes existing plate comments, so commenting first
-   loses the work.
-2. **Type-first naming.** Never give a variable a Hungarian prefix
-   (`dw`, `n`, `p`, `sz`, …) while its type is still `undefined*`. Resolve the
-   type with `set_local_variable_type` first, then rename. If the type is
-   genuinely unknown, use a descriptive name with no type prefix
-   (`questBits`, not `dwQuestBits`).
-3. **Prefix ↔ type consistency.** A parameter named `pGame` typed as `int` is a
-   violation — fix the type to a pointer. The prefix must always match the type.
-4. **Batch, don't loop.** Use one `rename_variables` call (single dict) for all
-   variables and one `batch_set_comments` call (plate + PRE + EOL together).
-   Never loop individual rename/comment calls.
-5. **Phantoms are artifacts.** `extraout_*` and `in_*` variables with `undefined`
-   types come from the decompiler, not the code. Note them in the plate comment's
-   Special Cases section; do not retry type-setting on them.
-6. **Reprocessing overwrites.** When re-documenting, overwrite existing
-   names/comments if your analysis is better — even custom values. A pre-existing
-   custom name can still be wrong; verify it describes what the code actually does.
-7. **Verify-fix loop.** End with `analyze_function_completeness`. If fixable
-   deductions exceed 10 points (undocumented magic numbers, `undefined` types,
-   missing plate), fix them and re-verify before reporting DONE. Acceptable
-   unfixable deductions: phantoms, API-mandated `void*` params, standard `lp`/`h`
-   API parameter names.
-
-## Reliable tool patterns
-
-The single most common source of wasted retries is reaching for a fragile tool.
-Prefer the proven ones.
-
-**Apply a data type in three separate steps** — never `create_and_apply_data_type`
-(its `type_definition` param rejects strings and forces a retry loop):
-
-```python
-apply_data_type(address, "char[6]")        # 1. set the type
-rename_or_label(address, "szVideoSection") # 2. rename (auto-detects code vs data)
-set_decompiler_comment(address, "…")       # 3. document (only after type + name)
-```
-
-`apply_data_type` type names: primitives `dword word byte int short char float
-double pointer qword longlong bool`; arrays/strings `char[N] word[N] dword[N]
-byte[N] pointer[N]`. Use hex sizes for padding (`_1[0x158]`, not `_1[344]`).
-
-**Prefer native MCP tools over scripting.** Use `rename_function_by_address`,
-`set_function_prototype`, `rename_variables`, `set_local_variable_type`,
-`batch_set_comments`, etc. Do **not** reach for `run_script_inline` /
-`run_ghidra_script` for routine documentation — and note that as of v5.4.1 both
-are gated behind `GHIDRA_MCP_ALLOW_SCRIPTS=1` and return 403 by default. (The
-orphaned-code scanner is the one workflow that does ship a Java script.)
-
-**Validation / inspection helpers:** `validate_data_type_exists`,
-`can_rename_at_address`, `get_function_variables` (the only source of *actual*
-storage types — `analyze_for_documentation` is not), `analyze_data_region`,
-`inspect_memory_content`, `get_bulk_xrefs`.
-
-## Hungarian notation (quick reference)
+Authoritative where the workflow files' variant tables disagree.
 
 ```
-b:byte   c:char   f:bool(fn-level)   n:int/short   dw:uint/DWORD   w:ushort   l:long
-fl:float d:double ll:longlong  qw:ulonglong  ld:float10  h:HANDLE
-p:void*/ptr  pb:byte*  pw:ushort*  pdw:uint*  pn:int*  pp:void**
+b:byte  by:byte  c:char  f:bool(local)  n:int/short  dw:uint/DWORD  w:ushort  l:long
+fl:float  d:double  ll:longlong  qw:ulonglong  ld:float10  h:HANDLE  cb:byte count
+p:void*/ptr  pb:byte*  pw:ushort*  pdw:uint*  pn:int*  pp:void**  lp:ptr(legacy Win32)
 sz:char*(local)  lpsz:char*(param)  wsz:wchar_t*  lpcsz:const char*(param)
-ab:byte[N]  aw:ushort[N]  ad:uint[N]  an:int[N]
-g_:mutable global   k_:rdata constant   pfn:function pointer (PascalCase, no g_)
-struct pointers: p + StructName  (pUnit, pInventory; ppItem for double pointer)
-struct field bool uses b: (bActive, bVisible)
+ab:byte[N]  aw:ushort[N]  ad:uint[N]  an:int[N]  ap:ptr[N]
+g_:mutable global (.data)   k_:read-only constant (.rdata)   pfn:func ptr (PascalCase, no g_)
+Struct pointer: p+StructName (pUnit, ppItem)    Struct-field bool: b    Global array: g_ap*
 ```
 
-**Type normalization:** `undefined1`→byte, `undefined2`→ushort,
-`undefined4`→uint/int/float/ptr (by usage), `undefined8`→double/longlong. Use
-Ghidra builtins (`dword`, `byte`, `ushort`) for `set_local_variable_type`, not
-Windows typedefs (`DWORD`, `BYTE`).
+Functions are PascalCase, verb-first: `GetPlayerHealth`, `ValidateItemSlot` — `SKILLS_GetLevel` becomes `GetSkillLevel`. Labels are snake_case and name the purpose: `loop_start`, `validation_failed`, `state_1_processing`.
 
-**Function names:** PascalCase, verb-first, specific —
-`GetPlayerHealth`, `ProcessInputEvent`, `ValidateItemSlot`. Fix
-`SKILLS_GetLevel`→`GetSkillLevel`, `processData`→`ProcessData`.
+**Type normalization** for `set_variable_type` / `apply_data_type`: `undefined1`→byte, `undefined2`→ushort, `undefined4`→uint/int/float/ptr by usage, `undefined8`→double/longlong. Use Ghidra builtins (`dword`, `byte`, `ushort`), not Windows types (`DWORD`, `BYTE`). Sizes in hex: `_1[0x158]`.
 
-**String labels** follow `sz<Category>_<Description>` (`szApi_GetTickCount`,
-`szErr_FileOpen`, `szPath_GlobalMonsters`); the full category set lives in
-`STRING_LABELING_CONVENTION.md`. **Globals** use `g_` (mutable, `.data`) or `k_`
-(read-only, `.rdata`): `g_dwPlayerHealthMax`, `k_pszWelcomeMessage`.
+## Plate comments
 
-## Dynamic-analysis cross-checks
+Plain text only — Ghidra draws the borders and `/* */` markers itself, so supplying your own corrupts the rendering.
 
-When static decompilation is ambiguous, three endpoints run or trace code
-directly. Use them to *falsify* a wrong claim before marking work DONE — they are
-cross-checks, not replacements. Best for leaf functions (hashes, CRC/checksum,
-bit-packing); skip for anything with heap/syscall side effects.
+```
+One-line summary.
 
-- **`analyze_dataflow(address, variable, direction)`** — `backward` walks
-  producers (where a return/sink value came from); `forward` walks consumers
-  (every place a parameter flows to). `variable` is a register (`EAX`), a
-  HighVariable (`param_1`, `local_14`), or empty for the first PcodeOp's output.
-- **`emulate_function(address, registers, memory, …)`** — pure P-code execution,
-  no process. **Format matters** (getting it wrong reads garbage args and hangs):
-  - `registers` is a JSON object: `{"ECX": "0x10", "EDX": "0x20"}`.
-  - `memory` needs the `regions` wrapper:
-    `{"regions": [{"address": "0x...", "hex": "DEC0ADDE"}]}` (regions take
-    `hex`, `data` base64, or `string`).
-  - Stack is auto-initialized at `0x7FFF0000` with a `0xDEADBEEF` return
-    sentinel; cdecl arguments go at `[0x7FFF0004]`, `[0x7FFF0008]`, …
-  - `hit_return: true` means it ran to RET (didn't hit `max_steps`).
-- **`emulate_hash_batch(...)`** — brute-force API-hash resolution: iterate a
-  candidate string list through a hash function, return ALL collisions (check the
-  full `matches` array, not just `best_match`).
+Algorithm:
+1. [one action per step, magic numbers in hex and decimal: type == 0x4E (78)]
 
-## Function tagging
+Parameters:
+  name: Type - purpose [IMPLICIT EDX when register-passed]
 
-Lightweight, program-wide, persistent labels for carving curated subsets across
-long sessions (`crypto`, `parser`, `reviewed`, `todo`). Attach with
-`add_function_tag` (auto-creates the definition) or `batch_add_function_tags`
-(one transaction for a whole sweep); recall with `search_functions_by_tag`. Tags
-are case-sensitive and survive save/checkin.
+Returns:
+  type: meaning, covering every return path
 
-## Reference files
+Special Cases:
+  - edge cases, phantom variables, sentinel values, decompiler discrepancies
 
-| File | Contents |
-|------|----------|
-| `README.md` | Original index of all prompts |
-| `FUNCTION_DOC_WORKFLOW_V5.md` | 7-step function documentation: classify → rename+prototype → type audit → comments → verify, with the dynamic cross-check option |
-| `ORPHANED_CODE_DISCOVERY_WORKFLOW.md` | Java gap scanner + Type A–G candidate triage + batch `create_function` |
-| `DATA_TYPE_INVESTIGATION_WORKFLOW.md` | 7-phase struct discovery: offset-map every accessor, find/create the struct, apply across all functions, verify |
-| `DATA_TYPE_INVESTIGATION_QUICK.md` | Single-paragraph version for simple types |
-| `DATA_SECTION_WORKFLOW.md` | Enumerate → type → name → document `.data`/`.rdata` globals |
-| `GLOBAL_DATA_ANALYSIS_WORKFLOW.md` | `g_`/`k_` segmentation and naming of mutable vs read-only globals |
-| `STRING_LABELING_CONVENTION.md` | `sz<Category>_` taxonomy + `batch_create_labels` workflow + decision tree |
-| `CROSS_VERSION_MATCHING_COMPREHENSIVE.md` | Version clusters, DLL-migration awareness, 6-tier matching, confidence tracking |
-| `CROSS_VERSION_FUNCTION_MATCHING.md` | Quick 4-method matching guide (hash / string / call-graph / ordinal) |
-| `BINARY_DOCUMENTATION_ORDER.md` | Dependency-tier order for documenting a whole binary family |
-| `TOOL_USAGE_GUIDE.md` | MCP tool reference: reliable type application, doc templates, hashing/propagation, dynamic + debugger tools, security env vars |
-| `CUSTOMIZING_CONVENTIONS.md` | `conventions.json` schema, Tool-Option/per-call `strict_mode` overrides |
+Structure Layout: (when the function walks a struct)
+  Offset | Size | Field  | Type | Description
+  +0x00  | 4    | dwType | uint | ...
+```
+
+Worked plates for validation, init, table-walk, string, and trivial-getter shapes: [PLATE_COMMENT_EXAMPLES.md](PLATE_COMMENT_EXAMPLES.md).
+
+`set_comment` writes any of `plate|pre|eol|post|repeatable` at **any** address — data and undefined bytes included, not just function entries. `decompiler` aliases `pre`, `disassembly` aliases `eol`, and an empty comment clears that type. Put PRE comments at block starts (~60 chars, algorithm context) and EOL comments at instructions (≤32 chars, naming every hex constant).
+
+## Phantoms and unfixable deductions
+
+These resist typing by design. Note them in the plate's Special Cases and move on — retrying burns turns and the completeness scorer already discounts them.
+
+- `extraout_*` / `in_*` variables with `undefined` types: decompiler artifacts.
+- Register-only SSA variables (`pDVar1`): absent from `getLocalVariables()`, so unrenameable and untypeable. Document the intended type in a PRE comment instead — `nIterator: int - loop counter (register-only)`.
+- `set_local_variable_type` returning "No HighVariable found": stack arrays (`ushort[6]`) and decompiler-inferred composites. Skip on first failure.
+- `firstUseOffset` blocks on stack SSA variables at non-zero offsets.
+- `this` as `void *` in `__thiscall`, and API-mandated `void *` params (`DllMain pvReserved`).
+
+## Pick the pass
+
+| When | Read |
+|---|---|
+| Document one function end to end | [FUNCTION_DOC_WORKFLOW_V5.md](FUNCTION_DOC_WORKFLOW_V5.md) — the primary workflow: classify, rename + prototype, type audit, comments, verify-fix loop |
+| Fan out over many functions | [FUNCTION_DOC_WORKFLOW_V5_BATCH.md](FUNCTION_DOC_WORKFLOW_V5_BATCH.md) — target selection, subagent dispatch (max 3 concurrent; MCP serializes at the Ghidra HTTP layer), model choice, recurring failure modes |
+| An untyped `int *` / `void *` parameter needs its real struct | [DATA_TYPE_INVESTIGATION_QUICK.md](DATA_TYPE_INVESTIGATION_QUICK.md) — offset-map every accessor, match or create the struct, apply it everywhere |
+| Globals, tables, and vtables in .data/.rdata | [DATA_SECTION_WORKFLOW.md](DATA_SECTION_WORKFLOW.md) — enumerate by xref count, type before naming, ownership notes, validation pass. [GLOBAL_DATA_ANALYSIS_WORKFLOW.md](GLOBAL_DATA_ANALYSIS_WORKFLOW.md) is the same pass compressed into one dispatchable paragraph |
+| Label every defined string | [STRING_LABELING_CONVENTION.md](STRING_LABELING_CONVENTION.md) — `sz[Category]_[Description]` with a content→category decision tree |
+| Functions auto-analysis never marked | [ORPHANED_CODE_DISCOVERY_WORKFLOW.md](ORPHANED_CODE_DISCOVERY_WORKFLOW.md) — gap scanner, seven candidate types, triage plate, iterative re-scan. Its scanner runs through `run_script_inline`, so it needs `GHIDRA_MCP_ALLOW_SCRIPTS=1`; ask the user to enable it before starting |
+| Tool-call patterns, dynamic analysis, or server config | [TOOL_USAGE_GUIDE.md](TOOL_USAGE_GUIDE.md) — the reliable three-step data pattern, `analyze_dataflow` / `emulate_function` / `emulate_hash_batch`, both `debugger_*` families, function tags, per-program options and property maps, cross-binary hash propagation, auth env vars |
+| House style differs from these conventions | [CUSTOMIZING_CONVENTIONS.md](CUSTOMIZING_CONVENTIONS.md) — `<project>/.ghidra-mcp/conventions.json`, the Tool Option, per-call `strict_mode` |
+
+`QUICK_START_PROMPT.md` is the pre-V5 monolithic prompt, kept for history — V5 supersedes it for function work.
