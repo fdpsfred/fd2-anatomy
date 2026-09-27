@@ -32,7 +32,7 @@ BUILD_SHORT = BUILD_DIR / "objshort"  # 8.3 friendly (wlib 9.5a doesn't honour L
 OUT_DIR = WORKSPACE / "out"
 
 # Watcom install (external to repo): honour %WATCOM%, else the home-dir default.
-WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5a")
+WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5_series" / "WATCOM_9.5a")
 DOSBOX = "dosbox-x"
 
 
@@ -91,8 +91,13 @@ def write_dosbox_conf(conf_path: Path):
         "autolock=false\n\n"
         "[render]\n"
         "aspect=false\n\n"
+        # DOSBox-X 2026.08.02 (Win32 build) routes INT 21h/3Eh on the inherited AUX
+        # handle (3) into its network-redirector close path, which fails; WLINK/WLIB
+        # close stdaux at startup and abort with Error 2010. Turning the redirector
+        # off restores normal DOS close semantics.
         "[dos]\n"
-        "lfn=true\n\n"
+        "lfn=true\n"
+        "network redirector=false\n\n"
         "[autoexec]\n"
         f"mount c {WATCOM}\n"
         f"mount d {BUILD_DIR}\n"

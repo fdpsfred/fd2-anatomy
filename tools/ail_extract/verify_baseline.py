@@ -32,7 +32,7 @@ CAPTURE = STAGE / "captures"
 TOOLS = REPO / "tools" / "ail_extract"
 GAME = REPO / "fd2_game_files"
 # Watcom install (external to repo): honour %WATCOM%, else the home-dir default.
-WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5a")
+WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5_series" / "WATCOM_9.5a")
 DOSBOX = "dosbox-x"
 
 

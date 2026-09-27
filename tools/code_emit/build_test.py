@@ -68,7 +68,7 @@ def _resolve_watcom():
     env = os.environ.get("WATCOM")
     if env and Path(env).is_dir():
         return Path(env)
-    return Path.home() / "Documents" / "WATCOM_9.5a"
+    return Path.home() / "Documents" / "WATCOM_9.5_series" / "WATCOM_9.5a"
 
 
 WATCOM = _resolve_watcom()

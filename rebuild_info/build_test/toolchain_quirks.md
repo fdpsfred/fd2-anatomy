@@ -30,6 +30,26 @@ block 內 declaration 必須在第一個 statement 前。混 declaration/stateme
 建置失敗）。修法：改用 Watcom 原生 `WCC386` 環境變數承載旗標，讓命令列本身恆短（旗標不落在呼叫行上）。
 機制切換前後 production obj 逐 byte 相同。
 
+## DOSBox-X network redirector 讓 wlink / wlib 啟動失敗
+
+DOSBox-X 2026.08.02 的 Windows 版在 `network redirector=true`（預設值）時，處理 INT 21h/3Eh 關檔
+會先用 `NetworkHandleList[entry] == RealHandle(entry)` 判斷 handle 是否屬於網路資源；這張表初值全
+為 0，所以指到 SFT 索引 0 的 handle 會被誤判，轉去呼叫宿主端的 `close()` 而失敗（CF=1、錯誤碼 0）。
+程式繼承來的 handle 3（AUX）剛好命中。Watcom 9.5 系列的 wlink / wlib 啟動時會關閉 stdaux，
+失敗就報 `Error(2010): I/O error processing stdaux` 並中止，不產出 EXE / LIB。
+2026.05.02 版沒有這個問題；用名稱開啟的 AUX / COM1 / NUL / PRN / CON 也都能正常關閉。
+
+對策：所有在 DOSBox-X 內跑 Watcom 工具的 conf 一律加上
+
+```
+[dos]
+network redirector=false
+```
+
+目前由 `tools/fd2_build/build_fd2.py`、`tools/fd2_play/build_replay.py`、`tests/dosbox.conf`
+（`tools/code_emit/build_test.py` 的範本）、`tools/ail_extract/run_test.py`、
+`tools/ail_extract/pack_libs.py`、`tools/snd_kbd_diag/run_sfxdiag.py` 產生的 conf 帶上這個設定。
+
 ## Watcom `rename` 不允許 dst 已存在
 
 DOSBox-X COMMAND.COM 的 `rename` 若 dst 已存在會 silent fail。

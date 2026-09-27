@@ -21,7 +21,7 @@ TOOLS = os.path.join(ROOT, "tools", "snd_kbd_diag")
 AIL_OUT = os.path.join(ROOT, "workspace", "ail_extract", "out")
 GAME = os.path.join(ROOT, "fd2_game_files")
 # Watcom install (external to repo): honour %WATCOM%, else the home-dir default.
-WATCOM = os.environ.get("WATCOM") or os.path.join(os.path.expanduser("~"), "Documents", "WATCOM_9.5a")
+WATCOM = os.environ.get("WATCOM") or os.path.join(os.path.expanduser("~"), "Documents", "WATCOM_9.5_series", "WATCOM_9.5a")
 STAGE = os.path.join(ROOT, "workspace", "snd_kbd_diag", "sfxdiag_stage")
 CAPS = os.path.join(STAGE, "captures")
 
@@ -44,6 +44,9 @@ echo BUILD_END >> build.log
 
 # DIG.INI is IRQ=-1/DMA=-1 -> AIL reads IRQ/DMA from BLASTER; I5/D1 matches the
 # [sblaster] irq=5 dma=1 below (the known-good ail_extract combo).
+# network redirector=false: DOSBox-X 2026.08.02 (Win32 build) routes INT 21h/3Eh
+# on the inherited AUX handle (3) into its network-redirector close path, which
+# fails; WLINK/WLIB close stdaux at startup and abort with Error 2010.
 CONF = """[sdl]
 autolock=false
 [render]
@@ -52,6 +55,7 @@ aspect=false
 captures={caps}
 [dos]
 lfn=true
+network redirector=false
 [sblaster]
 sbtype=sb16
 sbbase=220

@@ -29,7 +29,7 @@ OUT = WS / "out"
 TOOLS = REPO / "tools" / "ail_extract"
 GAME = REPO / "fd2_game_files"
 # Watcom install (external to repo): honour %WATCOM%, else the home-dir default.
-WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5a")
+WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5_series" / "WATCOM_9.5a")
 DOSBOX = "dosbox-x"
 
 
@@ -138,7 +138,11 @@ def write_conf(conf_path: Path, build_only: bool, run_only: bool):
     conf = (
         "[sdl]\nautolock=false\n\n"
         "[render]\naspect=false\n\n"
-        "[dos]\nlfn=true\n\n"
+        # DOSBox-X 2026.08.02 (Win32 build) routes INT 21h/3Eh on the inherited AUX
+        # handle (3) into its network-redirector close path, which fails; WLINK/WLIB
+        # close stdaux at startup and abort with Error 2010. Turning the redirector
+        # off restores normal DOS close semantics.
+        "[dos]\nlfn=true\nnetwork redirector=false\n\n"
         "[sblaster]\nsbtype=sb16\nsbbase=220\nirq=5\ndma=1\nhdma=5\nmixer=true\n\n"
         "[midi]\nmpu401=intelligent\nmpubase=330\nmididevice=default\n\n"
         "[autoexec]\n" + "\n".join(autoexec_lines) + "\n"

@@ -30,7 +30,7 @@
 
 | 工具 | 說明 |
 | --- | --- |
-| **Watcom C/C++ 9.5a** | 當年開發炎2用的編譯器，可以在 Internet Archive 上找到。版本必須完全相同才能忠實重建(細節見 [`rebuild_info/crt/fid_match.md`](rebuild_info/crt/fid_match.md))。安裝後把環境變數 `%WATCOM%` 指向安裝目錄，或直接放在 `%USERPROFILE%\Documents\WATCOM_9.5a`。 |
+| **Watcom C/C++ 9.5a** | 當年開發炎2用的編譯器，可以在 Internet Archive 上找到。版本必須完全相同才能忠實重建(細節見 [`rebuild_info/crt/fid_match.md`](rebuild_info/crt/fid_match.md))。安裝後把環境變數 `%WATCOM%` 指向安裝目錄，或直接放在 `%USERPROFILE%\Documents\WATCOM_9.5_series\WATCOM_9.5a`。 |
 | **DOSBox-X** | Watcom 9.5a 是 DOS 時代的工具，透過 DOSBox-X 來跑。記得加入系統 `PATH`。 |
 | **Python 3** | 用來執行建置腳本。 |
 

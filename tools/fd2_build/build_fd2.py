@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 LIBS = ROOT / "libs"
 # Watcom install (external to repo): honour %WATCOM%, else the home-dir default.
-WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5a")
+WATCOM = Path(os.environ.get("WATCOM") or Path.home() / "Documents" / "WATCOM_9.5_series" / "WATCOM_9.5a")
 EXE_DIR = ROOT / "workspace" / "fd2_build" / "exe"   # isolated; NOT tests/OUT
 OUT = EXE_DIR / "out"
 OBJ = OUT / "obj"
@@ -146,6 +146,11 @@ def gen_conf():
     lines = [
         "[sdl]", "output=surface",
         "[cpu]", "core=auto", "cputype=pentium_mmx", "cycles=max",
+        # DOSBox-X 2026.08.02 (Win32 build) routes INT 21h/3Eh on the inherited AUX
+        # handle (3) into its network-redirector close path, which fails; WLINK/WLIB
+        # close stdaux at startup and abort with Error 2010. Turning the redirector
+        # off restores normal DOS close semantics.
+        "[dos]", "network redirector=false",
         "[autoexec]",
         'mount C "%s"' % str(SRC),
         'mount E "%s"' % str(EXE_DIR),
