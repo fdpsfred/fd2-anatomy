@@ -38,3 +38,17 @@ Ghidra 操作規範:
 - Ghidra 搜尋 error bookmark 的指令是 list_bookmarks(category="Bad Instruction")
 - Error bookmark 在問題修正後不會自己消失，要手動移除
 - 如果有對 FD2.LE 修改過，在工作完成後要儲存變更
+
+## Agent skills
+
+### Issue tracker
+
+議題以本地 Markdown 檔存放在 `.scratch/<feature>/`。See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+使用預設的五個 triage 角色標籤（needs-triage / needs-info / ready-for-agent / ready-for-human / wontfix）。See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context：根目錄一份 `CONTEXT.md` 加上 `docs/adr/`。See `docs/agents/domain.md`.

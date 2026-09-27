@@ -7,6 +7,7 @@
 
 - `character-stat-comparison/fd2_growth_tables.html` — 角色屬性數值比較（成長數值表）。
   由 `tools/growth_table/`（`build_page.py`）產生，請勿手改；改動請動模板 `tools/growth_table/page_template.html` 後重跑建置。
+- `agents/` — engineering skills（mattpocock-skills）的 repo 設定：`issue-tracker.md`（本地 Markdown 議題，存於 `.scratch/`）、`triage-labels.md`（triage 角色標籤對照）、`domain.md`（`CONTEXT.md` / `docs/adr/` 的讀取規則）。由 `CLAUDE.md` 的 `## Agent skills` 區塊引用。
 - `.nojekyll` — 停用 Jekyll，讓自足的 HTML 原樣送出。
 
 ## 發佈方式
