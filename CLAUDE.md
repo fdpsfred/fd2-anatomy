@@ -51,4 +51,4 @@ Ghidra 操作規範:
 
 ### Domain docs
 
-Single-context：根目錄一份 `CONTEXT.md` 加上 `docs/adr/`。See `docs/agents/domain.md`.
+Single-context：根目錄一份 `GLOSSARY.md` 加上 `docs/adr/`。See `docs/agents/domain.md`.
